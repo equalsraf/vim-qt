@@ -1019,7 +1019,7 @@
  *			clipboard.  Only works if HAVE_X11 is also defined.
  */
 #if (defined(FEAT_NORMAL) || defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA))
-# define WANT_X11
+//# define WANT_X11
 #endif
 
 /*
