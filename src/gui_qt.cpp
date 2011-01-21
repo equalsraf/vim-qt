@@ -1,14 +1,15 @@
 #include <Qt/QtGui>
-
-
-//QWidget *window = NULL;
-static QGraphicsView *window = NULL;
-static QBrush fg_brush;
-
+#include "qvimshell.h"
 
 extern "C" {
 
 #include "vim.h"
+
+//QWidget *window = NULL;
+//static QGraphicsView *window = NULL;
+static QVimShell *window = NULL;
+static QBrush fg_brush;
+
 
 void
 gui_mch_set_foreground()
@@ -21,7 +22,6 @@ GuiFont
 gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
 	QFont *font = new QFont((char*)name);
-
 	return font;
 }
 
@@ -110,7 +110,7 @@ gui_mch_set_fg_color(guicolor_T	color)
 		return;
 	}
 
-	fg_brush = QBrush(*c);
+	window->setForeground(*c);
 }
 
 /*
@@ -124,9 +124,14 @@ gui_mch_set_bg_color(guicolor_T color)
 		return;
 	}
 
-	window->setBackgroundBrush(QBrush(*c));
+	window->setBackground(*c);
 }
 
+
+/*
+ * Start the cursor blinking.  If it was already blinking, this restarts the
+ * waiting time and shows the cursor.
+ */
 void
 gui_mch_start_blink()
 {
@@ -147,13 +152,13 @@ gui_mch_beep()
 void
 gui_mch_clear_all()
 {
-	window->scene()->clear();
+	window->clearAll();
 }
 
 void
 gui_mch_flash(int msec)
 {
-
+	qDebug() << __func__;
 }
 
 /*
@@ -214,6 +219,7 @@ gui_mch_get_rgb(guicolor_T pixel)
 void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
+	window->clearBlock(row1, col1, row2, col2);
 }
 
 void
@@ -249,7 +255,9 @@ gui_mch_init()
 
 	QGraphicsScene *scene = new QGraphicsScene();
 
-	window = new QGraphicsView(scene);
+	//window = new QGraphicsView(scene);
+	//window->setCacheMode(QGraphicsView::CacheBackground);
+	window = new QVimShell();
 	return OK;
 }
 
@@ -277,6 +285,8 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 void
 gui_mch_new_colors()
 {
+	//trigger scene update with new colors
+	window->update();
 }
 
 
@@ -401,7 +411,7 @@ gui_mch_draw_string(
 {
 
 	QString str = QString::fromUtf8((char *)s, len);
-
+/*
 	QGraphicsSimpleTextItem *item = new QGraphicsSimpleTextItem( str );
 
 	item->setBrush(fg_brush);
@@ -416,7 +426,9 @@ gui_mch_draw_string(
 	item->setFont( f );
 
 	window->scene()->addItem(item);
-	item->setPos(TEXT_X(col), TEXT_Y(row));
+	item->setPos(window->mapToScene(TEXT_X(col), TEXT_Y(row) ));
+	*/
+	window->drawString(row, col, str, flags);
 }
 
 
@@ -562,7 +574,9 @@ gui_mch_def_colors()
 
 void
 gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
-{}
+{
+	
+}
 
 void
 gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
@@ -572,6 +586,11 @@ gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
 void
 gui_mch_enable_scrollbar(scrollbar_T *sb, int flag)
 {
+	if ( flag ) {
+		
+	} else {
+		
+	}
 }
 
 void
