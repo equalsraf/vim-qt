@@ -151,7 +151,7 @@
 #define DRAW_BOLD		0x02	/* draw bold text */
 #define DRAW_UNDERL		0x04	/* draw underline text */
 #define DRAW_UNDERC		0x08	/* draw undercurl text */
-#if defined(RISCOS) || defined(FEAT_GUI_GTK)
+#if defined(RISCOS) || defined(FEAT_GUI_QT) || defined(FEAT_GUI_GTK)
 # define DRAW_ITALIC		0x10	/* draw italic text */
 #endif
 #define DRAW_CURSOR		0x20	/* drawing block cursor (win32) */
@@ -228,7 +228,10 @@ typedef struct GuiScrollbar
 } scrollbar_T;
 
 #ifdef FEAT_GUI_QT
-typedef void*	    guicolor_T;
+
+struct QColor;
+
+typedef struct QColor*	    guicolor_T;
 #define INVALCOLOR  (guicolor_T)NULL
 
 #else
@@ -260,7 +263,8 @@ typedef long	    guicolor_T;	/* handle for a GUI color; for X11 this should
 #  else
 
 #   ifdef FEAT_GUI_QT
-  typedef void*		GuiFont;
+  struct QFont;
+  typedef struct QFont*	GuiFont;
   typedef void*		GuiFontSet;
 #  define NOFONT	(GuiFont)NULL
 #  define NOFONTSET	(GuiFontSet)NULL

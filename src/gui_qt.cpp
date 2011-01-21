@@ -28,8 +28,7 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 char_u *
 gui_mch_get_fontname(GuiFont font, char_u  *name)
 {
-	QFont *f = (QFont*) font;
-	if (f == NULL) {
+	if (font == NULL) {
 		return NULL;
 	}
 
@@ -59,19 +58,6 @@ gui_mch_menu_grey(vimmenu_T *menu, int grey)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	/*
-	switch(wtime) {
-	case 0:
-		return QApplication::hasPendingEvents() ? OK : FAIL;
-	case -1:
-		QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers);
-		break;
-	default:
-		QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers, wtime);
-	}
- 
-	return OK;*/
-
 	if ( wtime > 0 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents, wtime);
 		return FAIL;
@@ -105,12 +91,12 @@ gui_mch_flush()
 void
 gui_mch_set_fg_color(guicolor_T	color)
 {
-	QColor *c = (QColor *)color;
-	if ( c == NULL ) {
+	if ( color == NULL ) {
+		window->setForeground(QColor());
 		return;
 	}
 
-	window->setForeground(*c);
+	window->setForeground(*color);
 }
 
 /*
@@ -119,12 +105,12 @@ gui_mch_set_fg_color(guicolor_T	color)
 void
 gui_mch_set_bg_color(guicolor_T color)
 {
-	QColor *c = (QColor *)color;
-	if ( c == NULL ) {
+	if ( color == NULL ) {
+		window->setBackground(QColor());
 		return;
 	}
 
-	window->setBackground(*c);
+	window->setBackground(*color);
 }
 
 
@@ -135,11 +121,13 @@ gui_mch_set_bg_color(guicolor_T color)
 void
 gui_mch_start_blink()
 {
+//	window->startBlinking();
 }
 
 void
 gui_mch_stop_blink()
 {
+//	window->stopBlinking();
 }
 
 
@@ -170,14 +158,13 @@ gui_mch_flash(int msec)
 int
 gui_mch_init_font(char_u *font_name, int do_fontset)
 {
-	GuiFont f = gui_mch_get_font(font_name, 0);
-	QFont *qf = (QFont*)f;
-
+	QFont *qf = gui_mch_get_font(font_name, 0);
 	QFontMetrics metric( *qf );
 
-	gui.norm_font = f;
+	gui.norm_font = qf;
 	gui.char_width  = metric.width("_");
 	gui.char_height = metric.height();
+	gui.char_ascent = metric.ascent();
 
 	return OK;
 }
@@ -208,10 +195,9 @@ gui_mch_setmouse(int x, int y)
 long_u
 gui_mch_get_rgb(guicolor_T pixel)
 {
-	QColor *c = (QColor *)pixel;
-	if ( c != NULL ) {
-		return ((c->red() & 0xff00) << 8) + (c->green() & 0xff00)
-						   + ((unsigned)c->blue() >> 8);
+	if ( pixel != NULL ) {
+		return ((pixel->red() & 0xff00) << 8) + (pixel->green() & 0xff00)
+						   + ((unsigned)pixel->blue() >> 8);
 	}
 	return 0;
 }
@@ -225,17 +211,21 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
+	qDebug() << __func__;
+
 }
 
+/*
+ * Delete the given number of lines from the given row, scrolling up any
+ * text further down within the scroll region.
+ */
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
+	qDebug() << __func__;
+	//window->clearBlock(row, gui.scroll_region_right, row+num_lines-1, gui.scroll_region_right);
 }
 
-void
-gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
-{
-}
 
 
 void
@@ -253,18 +243,31 @@ gui_mch_init()
 {
 	fprintf(stderr, "%s\n", __func__);
 
-	QGraphicsScene *scene = new QGraphicsScene();
 
-	//window = new QGraphicsView(scene);
-	//window->setCacheMode(QGraphicsView::CacheBackground);
-	window = new QVimShell();
+	/* Colors */
+	gui.norm_pixel = new QColor(Qt::black);
+	gui.back_pixel = new QColor(Qt::white);
+
+	set_normal_colors();
+
+	gui_check_colors();
+	gui.def_norm_pixel = gui.norm_pixel;
+	gui.def_back_pixel = gui.back_pixel;
+
+	highlight_gui_started();
+
+	QGraphicsScene *scene = new QGraphicsScene();
+	window = new QVimShell(&gui);
 	return OK;
 }
 
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
-
+	//qDebug() << __func__ << waittime << on << off;
+	window->setBlinkWaitTime(waittime);
+	window->setBlinkOnTime(on);
+	window->setBlinkOffTime(off);
 }
 
 void
@@ -285,8 +288,12 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 void
 gui_mch_new_colors()
 {
-	//trigger scene update with new colors
-	window->update();
+	if ( window != NULL ) {
+		//trigger scene update with new colors
+		window->updateSettings();
+		window->update();
+
+	}
 }
 
 
@@ -314,6 +321,12 @@ gui_mch_mousehide(int hide)
 int
 gui_mch_adjust_charheight()
 {
+	QFontMetrics metric( *gui.norm_font );
+
+	gui.char_height = metric.height();
+	gui.char_ascent = metric.ascent();
+
+	return OK;
 }
 
 int
@@ -339,8 +352,7 @@ gui_mch_invert_rectangle(int r, int c, int nr, int nc)
 void
 gui_mch_set_font(GuiFont font)
 {
-	QFont *f = (QFont*) font;
-	if (f == NULL) {
+	if (font == NULL) {
 		return;
 	}
 
@@ -386,10 +398,23 @@ gui_mch_open()
 	return FAIL;
 }
 
+/*
+ * Draw a cursor without focus.
+ */
 void
 gui_mch_draw_hollow_cursor(guicolor_T color)
 {
+	gui_mch_set_fg_color(color);
+	window->drawHollowCursor(*color);
 }
+
+void
+gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
+{
+	gui_mch_set_fg_color(color);
+	window->drawPartCursor(*color, w, h);
+}
+
 
 /*
  * Set the current text special color.
@@ -397,8 +422,12 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 void
 gui_mch_set_sp_color(guicolor_T color) 
 {
-	if ( color != NULL ) {
+	if ( color == NULL ) {
+		window->setSpecial(QColor());
+		return;
 	}
+
+	window->setSpecial(*color);
 }
 
 void
@@ -409,25 +438,8 @@ gui_mch_draw_string(
     int		len,
     int		flags)
 {
-
+	//qDebug() << __func__ << len << gui.scroll_region_right;
 	QString str = QString::fromUtf8((char *)s, len);
-/*
-	QGraphicsSimpleTextItem *item = new QGraphicsSimpleTextItem( str );
-
-	item->setBrush(fg_brush);
-
-	QFont f = item->font();
-	if (flags & DRAW_BOLD) {
-		f.setBold(true);
-	}
-	if (flags & DRAW_UNDERL) {
-		f.setUnderline(true);
-	}
-	item->setFont( f );
-
-	window->scene()->addItem(item);
-	item->setPos(window->mapToScene(TEXT_X(col), TEXT_Y(row) ));
-	*/
 	window->drawString(row, col, str, flags);
 }
 
@@ -441,7 +453,7 @@ gui_mch_get_color(char_u *reqname)
 {
 	if ( QColor::isValidColor((char *)reqname) ) {
 		QColor *color = new QColor((char *)reqname);
-		return (void*)color;
+		return color;
 	}
 
 	return INVALCOLOR;
@@ -485,7 +497,6 @@ gui_mch_set_toolbar_pos(int x, int y, int w, int h)
 void
 gui_mch_set_text_area_pos(int x, int y, int w, int h)
 {
-
 }
 
 
