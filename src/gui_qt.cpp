@@ -5,8 +5,6 @@ extern "C" {
 
 #include "vim.h"
 
-//QWidget *window = NULL;
-//static QGraphicsView *window = NULL;
 static QVimShell *window = NULL;
 static QBrush fg_brush;
 
@@ -21,7 +19,19 @@ gui_mch_set_foreground()
 GuiFont
 gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
-	QFont *font = new QFont((char*)name);
+	QString family = (char*)name;
+	QFont *font = new QFont();
+
+	bool ok;
+	int size = family.section(' ', -1).toInt(&ok);
+	if ( ok ) {
+		font->setPointSize(size);
+		QString realname = family.section(' ', 0, -2);
+		font->setFamily(realname);
+	} else {
+		font->setFamily(family);
+	}
+
 	return font;
 }
 
@@ -32,7 +42,7 @@ gui_mch_get_fontname(GuiFont font, char_u  *name)
 		return NULL;
 	}
 
-	return NULL; // FIXME: return family name
+	return (char_u *)font->family().constData(); // FIXME: return family name
 }
 
 void
@@ -123,6 +133,7 @@ gui_mch_start_blink()
 {
 	gui_update_cursor(TRUE, FALSE);
 //	window->startBlinking();
+
 }
 
 void
@@ -164,8 +175,11 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	QFontMetrics metric( *qf );
 
 	gui.norm_font = qf;
-	gui.char_width  = metric.boundingRect("_").width();
-	gui.char_height  = metric.boundingRect("_").height();
+//	gui.char_width  = metric.boundingRect("_").width();
+//	gui.char_height  = metric.boundingRect("_").height();
+	gui.char_width = metric.width("_");
+	gui.char_height = metric.height();
+	
 	gui.char_ascent = metric.ascent();
 
 	return OK;
@@ -210,11 +224,14 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 	window->clearBlock(row1, col1, row2, col2);
 }
 
+/*
+ * Insert the given number of lines before the given row, scrolling down any
+ * following text within the scroll region.
+ */
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
-	qDebug() << __func__;
-
+	window->insertLines(row, num_lines);
 }
 
 /*
@@ -224,7 +241,6 @@ gui_mch_insert_lines(int row, int num_lines)
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
-	qDebug() << __func__;
 	window->deleteLines(row, num_lines);
 }
 
@@ -266,7 +282,6 @@ gui_mch_init()
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
-	//qDebug() << __func__ << waittime << on << off;
 	window->setBlinkWaitTime(waittime);
 	window->setBlinkOnTime(on);
 	window->setBlinkOffTime(off);
@@ -275,7 +290,6 @@ gui_mch_set_blinking(long waittime, long on, long off)
 void
 gui_mch_prepare(int *argc, char **argv)
 {
-	fprintf(stderr, "%s\n", __func__);
 	QApplication *app = new QApplication(*argc, argv);
 }
 
@@ -291,10 +305,8 @@ void
 gui_mch_new_colors()
 {
 	if ( window != NULL ) {
-		//trigger scene update with new colors
 		window->updateSettings();
 		window->update();
-
 	}
 }
 
@@ -440,7 +452,6 @@ gui_mch_draw_string(
     int		len,
     int		flags)
 {
-	//qDebug() << __func__ << len << gui.scroll_region_right;
 	QString str = QString::fromUtf8((char *)s, len);
 	window->drawString(row, col, str, flags);
 }
@@ -464,18 +475,15 @@ gui_mch_get_color(char_u *reqname)
 	return INVALCOLOR;
 }
 
-
 void
 clip_mch_set_selection(VimClipboard *cbd)
 {
 }
 
-
 void
 clip_mch_request_selection(VimClipboard *cbd)
 {
 }
-
 
 /*
  * Get the position of the top left corner of the window.
@@ -535,6 +543,8 @@ gui_mch_compute_toolbar_height()
 	return -1;
 }
 
+
+
 /* Menu */
 
 void
@@ -583,10 +593,10 @@ void gui_mch_show_popupmenu(vimmenu_T *menu)
 void
 gui_mch_def_colors()
 {
-	if ( gui.in_use ) {
-	
-	
-	}
+	gui.norm_pixel = new QColor(Qt::black);
+	gui.back_pixel = new QColor(Qt::white);
+	gui.def_norm_pixel = gui.norm_pixel;
+	gui.def_back_pixel = gui.back_pixel;
 }
 
 /* Scrollbar */
@@ -605,27 +615,27 @@ gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
 void
 gui_mch_enable_scrollbar(scrollbar_T *sb, int flag)
 {
-	if ( flag ) {
-		
-	} else {
-		
-	}
 }
 
 void
 gui_mch_create_scrollbar( scrollbar_T *sb, int orient)
 {
+	if ( orient == SBAR_HORIZ) {
+		sb->wid = window->horizontalScrollBar();
+	} else {
+		sb->wid = window->verticalScrollBar();
+	}
 }
 
 void
 gui_mch_destroy_scrollbar(scrollbar_T *sb)
 {
+	// ScrollBar is owned by the viewport, do nothing
 }
 
 void
 gui_mch_set_scrollbar_colors(scrollbar_T *sb)
 {
-
 }
 
 
@@ -659,14 +669,46 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 		dir = (char*)initdir;
 	}
 
-	QString file = QFileDialog::getOpenFileName(window, (char*)title, dir, (char*)filter);
+	QString file = QFileDialog::getOpenFileName(window, (char*)title, dir, ".*");
 
-	return NULL; // FIXME: return outcome
+	if ( file.isEmpty() ) {
+		return NULL;
+	}
+	qDebug() << file;
+
+	return vim_strsave((char_u *)file.constData()); // FIXME: return outcome
 }
 
 int
 gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield)
 {
+	QMessageBox msgBox;
+	msgBox.setText( (char*)message );
+	msgBox.setWindowTitle( (char*)title );
+	
+	QMessageBox::Icon icon;
+	switch (type)
+	{
+		case VIM_GENERIC:
+			icon = QMessageBox::NoIcon;
+			break;
+		case VIM_ERROR:
+			icon = QMessageBox::Critical;
+			break;
+		case VIM_WARNING:
+			icon = QMessageBox::Warning;
+			break;
+		case VIM_INFO:
+			icon = QMessageBox::Information;
+			break;
+		case VIM_QUESTION:
+			icon = QMessageBox::Question;
+			break;
+		default:      
+			icon = QMessageBox::NoIcon;
+	};
+	msgBox.setIcon(icon);
+
 	return -1;
 }
 

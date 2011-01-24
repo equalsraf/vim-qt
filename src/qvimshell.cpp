@@ -4,6 +4,70 @@ extern "C" {
 #include "proto/gui.pro"
 }
 
+struct special_key
+{
+	int key_sym;
+	char code0;
+	char code1;
+};
+
+static const struct special_key special_keys[] =
+{
+	{Qt::Key_Up,	'k', 'u'},
+	{Qt::Key_Down,	'k', 'd'},
+	{Qt::Key_Left,	'k', 'l'},
+    {Qt::Key_Right,		'k', 'r'},
+    {Qt::Key_F1,	'k', '1'},
+    {Qt::Key_F2,	'k', '2'},
+    {Qt::Key_F3,	'k', '3'},
+    {Qt::Key_F4,	'k', '4'},
+    {Qt::Key_F5,	'k', '5'},
+    {Qt::Key_F6,		'k', '6'},
+    {Qt::Key_F7,		'k', '7'},
+    {Qt::Key_F8,		'k', '8'},
+    {Qt::Key_F9,		'k', '9'},
+    {Qt::Key_F10,		'k', ';'},
+    {Qt::Key_F11,		'F', '1'},
+    {Qt::Key_F12,		'F', '2'},
+    {Qt::Key_F13,		'F', '3'},
+    {Qt::Key_F14,		'F', '4'},
+    {Qt::Key_F15,		'F', '5'},
+    {Qt::Key_F16,		'F', '6'},
+    {Qt::Key_F17,		'F', '7'},
+    {Qt::Key_F18,		'F', '8'},
+    {Qt::Key_F19,		'F', '9'},
+    {Qt::Key_F20,		'F', 'A'},
+    {Qt::Key_F21,		'F', 'B'},
+    {Qt::Key_Pause,		'F', 'B'}, /* Pause == F21 according to netbeans.txt */
+    {Qt::Key_F22,		'F', 'C'},
+    {Qt::Key_F23,		'F', 'D'},
+    {Qt::Key_F24,		'F', 'E'},
+    {Qt::Key_F25,		'F', 'F'},
+    {Qt::Key_F26,		'F', 'G'},
+    {Qt::Key_F27,		'F', 'H'},
+    {Qt::Key_F28,		'F', 'I'},
+    {Qt::Key_F29,		'F', 'J'},
+    {Qt::Key_F30,		'F', 'K'},
+    {Qt::Key_F31,		'F', 'L'},
+    {Qt::Key_F32,		'F', 'M'},
+    {Qt::Key_F33,		'F', 'N'},
+    {Qt::Key_F34,		'F', 'O'},
+    {Qt::Key_F35,		'F', 'P'},
+    {Qt::Key_Help,		'%', '1'},
+
+    {Qt::Key_Backspace,	'k', 'b'},
+    {Qt::Key_Insert,	'k', 'I'},
+    {Qt::Key_Delete,	'k', 'D'},
+    {Qt::Key_Backtab,	'k', 'B'},
+    {Qt::Key_Clear,		'k', 'C'},
+    {Qt::Key_Home,		'k', 'h'},
+    {Qt::Key_End,		'@', '7'},
+    /* Keypad keys: */
+
+    /* End of list marker: */
+    {0, 0, 0}
+};
+
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QGraphicsView(parent), m_foreground(QBrush(Qt::black)), m_gui(gui), 
@@ -16,18 +80,17 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 	connect(&blinkTimer, SIGNAL(timeout()),
 			this, SLOT(blinkEvent()));
 
-//	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-//	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	setAlignment(Qt::AlignLeft | Qt::AlignTop);
 	
-
+	setAttribute(Qt::WA_KeyCompression, true);
 	updateSettings();
 }
 
 void QVimShell::updateSettings()
 {
 	setBackgroundBrush(QBrush( *(m_gui->back_pixel) ));
-
 	update();
 }
 
@@ -56,14 +119,6 @@ void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 	QPointF tl = QPointF(FILL_X(col1), FILL_Y(row1) );
 	QPointF br = QPointF(FILL_X(col2+1), FILL_Y(row2+1) );
 
-	// -- Debug
-	//static QGraphicsRectItem *last = NULL;
-	//if ( last != NULL ) {
-	//	scene()->removeItem(last);
-	//}
-	//last = scene()->addRect(QRectF(tl, br), QPen(Qt::red));
-	// -------
-
 	QPainterPath path;
 	path.addRect( QRectF(tl, br) );
 	scene()->setSelectionArea(path);
@@ -73,6 +128,7 @@ void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 		QGraphicsItem *item = it.next();
 		scene()->removeItem( item );
 	}
+	update();
 }
 
 
@@ -117,10 +173,7 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 		back->setFlags( QGraphicsItem::ItemIsSelectable);
 	}
 
-
-
 	QPoint position = mapText(row, col);
-
 	// Fix font position
 	if ( str.length() == 1 ) {
 		int x_fix = (m_gui->char_width*str.length() - br.width())/2;
@@ -130,13 +183,7 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 	item->setPos( position );
 	scene()->addItem(item);
 
-
-	// -- Debug 
-	
-//	static QGraphicsRectItem *last = NULL;
-//	last = scene()->addRect( item->boundingRect(), QPen(Qt::green), QBrush(Qt::NoBrush));
-//	last->setPos( mapText(row, col) );
-
+	update();
 }
 
 QPoint QVimShell::mapText(int row, int col)
@@ -147,16 +194,55 @@ QPoint QVimShell::mapText(int row, int col)
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
 	gui_resize_shell(ev->size().width(), ev->size().height());
+	QGraphicsView::resizeEvent(ev);
+}
+
+
+unsigned int QVimShell::vimModifiers(Qt::KeyboardModifiers mod)
+{
+	if ( mod == Qt::NoModifier ) {
+		return 0;
+	}
+	unsigned int vmod;
+	if ( mod & Qt::ShiftModifier ) {
+		vmod |= MOD_MASK_SHIFT;
+	} if ( mod & Qt::ControlModifier ) {
+		vmod |= MOD_MASK_CTRL;
+	} if ( mod & Qt::AltModifier ) {
+		vmod |= MOD_MASK_ALT;
+	} if ( mod & Qt::MetaModifier ) {
+		vmod |= MOD_MASK_META;
+	}
+
+	return vmod;
+}
+
+bool QVimShell::specialKey(int k, char str[3])
+{
+	int i;
+	for ( i=0; special_keys[i].key_sym != 0; i++ ) {
+		if ( special_keys[i].key_sym == k ) {
+			str[0] = CSI;
+			str[1] = special_keys[i].code0;
+			str[2] = special_keys[i].code1;
+			return true;
+		}
+	}
+	return false;
 }
 
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
 	//QGraphicsView::keyPressEvent(ev);
-	
 	if ( ev->text() != "" ) {
 		add_to_input_buf( (char_u *) ev->text().constData(), ev->count() );
 		return;
 	} 
+
+	char str[3];
+	if ( specialKey( ev->key(), str)) {
+		add_to_input_buf((char_u *) str, 3);
+	}
 }
 
 void QVimShell::closeEvent(QCloseEvent *event)
@@ -172,8 +258,9 @@ void QVimShell::drawPartCursor(const QColor& color, int w, int h)
 			w, h);
 
 	QGraphicsRectItem *back = NULL;
-	back = scene()->addRect( rect, QPen(Qt::NoPen), QBrush(color));
-	back->setFlags( QGraphicsItem::ItemIsSelectable);
+	//back = scene()->addRect( rect, QPen(Qt::NoPen), QBrush(color));
+	//back->setFlags( QGraphicsItem::ItemIsSelectable);
+	update();
 }
 
 void QVimShell::drawHollowCursor(const QColor& color)
@@ -192,6 +279,7 @@ void QVimShell::drawHollowCursor(const QColor& color)
 	QGraphicsRectItem *back = scene()->addRect( rect, QPen(Qt::red));
 	back->setFlags( QGraphicsItem::ItemIsSelectable);
 */
+	update();
 }
 
 long QVimShell::blinkWaitTime()
@@ -233,6 +321,7 @@ void QVimShell::startBlinking()
 	blinkTimer.start(blinkWaitTime());
 	gui_update_cursor(TRUE, FALSE);
 	*/
+	update();
 }
 
 void QVimShell::stopBlinking()
@@ -242,6 +331,7 @@ void QVimShell::stopBlinking()
 	if ( blinkState == BLINK_OFF ) {
 		gui_update_cursor(TRUE, FALSE);
 	}
+	update();
 }
 
 void QVimShell::blinkEvent()
@@ -272,8 +362,9 @@ void QVimShell::deleteLines(int row, int num_lines)
 	// Clear area
 	clearBlock(row, gui.scroll_region_right, row+num_lines-1, gui.scroll_region_right);
 
-	QPointF tl = mapText( row+num_lines, 0 );
-	QPoint br = mapText( m_gui->scroll_region_bot, m_gui->scroll_region_right);
+	// Move 
+	QPointF tl = mapText( row+num_lines-1, 0 );
+	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
 
 	QPainterPath path;
 	path.addRect( QRectF(tl, br) );
@@ -282,6 +373,26 @@ void QVimShell::deleteLines(int row, int num_lines)
 	QListIterator<QGraphicsItem *> it(scene()->selectedItems());
 	while(it.hasNext()) {
 		QGraphicsItem *item = it.next();
-		item->moveBy( num_lines*m_gui->char_height, 0); // FIXME
+		item->moveBy( 0, -num_lines*m_gui->char_height); // FIXME
 	}
+	update();
+}
+
+
+void QVimShell::insertLines(int row, int num_lines)
+{
+	// Move 
+	QPointF tl = mapText( row+num_lines-1, 0 );
+	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
+
+	QPainterPath path;
+	path.addRect( QRectF(tl, br) );
+	scene()->setSelectionArea(path);
+
+	QListIterator<QGraphicsItem *> it(scene()->selectedItems());
+	while(it.hasNext()) {
+		QGraphicsItem *item = it.next();
+		item->moveBy( 0, num_lines*m_gui->char_height); // FIXME
+	}
+	update();
 }

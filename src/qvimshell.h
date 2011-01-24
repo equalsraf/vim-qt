@@ -29,6 +29,8 @@ public:
 	void setBlinkOffTime(long);
 
 	void deleteLines(int row, int num_lines);
+	void insertLines(int row, int num_lines);
+
 
 public slots:
 	void setBackground(const QColor&);
@@ -47,7 +49,9 @@ protected:
 	void keyPressEvent ( QKeyEvent *);
 	virtual void closeEvent(QCloseEvent *event);
 	QPoint mapText(int row, int col);
-
+	
+	unsigned int vimModifiers(Qt::KeyboardModifiers);
+	bool specialKey(int, char[3]);
 
 protected slots:
 	void blinkEvent();

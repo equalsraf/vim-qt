@@ -182,6 +182,10 @@
 				   is no console input possible */
 #endif
 
+#ifdef FEAT_GUI_QT
+struct QScrollBar;
+#endif
+
 typedef struct GuiScrollbar
 {
     long	ident;		/* Unique identifier for each scrollbar */
@@ -224,6 +228,9 @@ typedef struct GuiScrollbar
 #endif
 #ifdef FEAT_GUI_PHOTON
     PtWidget_t	*id;
+#endif
+#ifdef FEAT_GUI_QT
+    struct QScrollBar* wid;
 #endif
 } scrollbar_T;
 

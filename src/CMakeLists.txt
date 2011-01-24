@@ -17,6 +17,6 @@ set(MOC_SOURCES qvimshell.cpp)
 
 qt4_automoc(${MOC_SOURCES})
 
-add_definitions(-DHAVE_CONFIG_H -DFEAT_GUI -DNO_X11_INCLUDES -DFEAT_GUI_QT -UHAVE_X11 -UFEAT_MENU)
+add_definitions(-DHAVE_CONFIG_H -DFEAT_GUI -DNO_X11_INCLUDES -DFEAT_GUI_QT -UHAVE_X11 -UFEAT_MENU -DFEAT_BROWSE -DFEAT_GUI_DIALOG -DFEAT_MBYTE)
 add_executable(vim ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES})
 target_link_libraries(vim -lm -lncurses -lacl -lgpm ${QT_LIBRARIES})
