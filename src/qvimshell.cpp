@@ -18,7 +18,7 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 
 //	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 //	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	
+	setAlignment(Qt::AlignLeft | Qt::AlignTop);
 	
 
 	updateSettings();
@@ -102,7 +102,6 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 	item->setFont( f );
 	item->setFlags( QGraphicsItem::ItemIsSelectable);
 
-
 	// Draw background box
 	QRectF br = item->boundingRect();
 
@@ -133,13 +132,10 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 
 
 	// -- Debug 
-	/*
-	static QGraphicsRectItem *last = NULL;
-	if ( last != NULL ) {
-		scene()->removeItem(last);
-	}
-	last = scene()->addRect( item->boundingRect(), QPen(Qt::green), QBrush(Qt::green));
-	last->setPos( mapText(row, col) ); */
+	
+//	static QGraphicsRectItem *last = NULL;
+//	last = scene()->addRect( item->boundingRect(), QPen(Qt::green), QBrush(Qt::NoBrush));
+//	last->setPos( mapText(row, col) );
 
 }
 
@@ -171,28 +167,18 @@ void QVimShell::closeEvent(QCloseEvent *event)
 
 void QVimShell::drawPartCursor(const QColor& color, int w, int h)
 {
-	//qDebug() << __func__ << h << m_gui->char_height-h;
+	QRect rect( m_gui->col*m_gui->char_width,
+			m_gui->row*m_gui->char_height,
+			w, h);
 
-	QPoint tl = QPoint(FILL_X(m_gui->col+1), 
-			FILL_Y(m_gui->row) + m_gui->char_height-h );
-
-	QPoint br = QPoint(FILL_X(m_gui->col)+w, 
-			FILL_Y(m_gui->row) + gui.char_height);
-
-	QRect rect(tl, br);
-
-	static QGraphicsRectItem *back = NULL;
-	//if ( back != NULL ) {
-	//	scene()->removeItem(back);
-	//}
-
+	QGraphicsRectItem *back = NULL;
 	back = scene()->addRect( rect, QPen(Qt::NoPen), QBrush(color));
 	back->setFlags( QGraphicsItem::ItemIsSelectable);
-
 }
 
 void QVimShell::drawHollowCursor(const QColor& color)
 {
+	qDebug() << __func__;
 	int w = m_gui->char_width;
 	int h = m_gui->char_height;
 
@@ -279,4 +265,23 @@ void QVimShell::blinkEvent()
 void QVimShell::setFont(const QFont& font)
 {
 	m_font = font;
+}
+
+void QVimShell::deleteLines(int row, int num_lines)
+{
+	// Clear area
+	clearBlock(row, gui.scroll_region_right, row+num_lines-1, gui.scroll_region_right);
+
+	QPointF tl = mapText( row+num_lines, 0 );
+	QPoint br = mapText( m_gui->scroll_region_bot, m_gui->scroll_region_right);
+
+	QPainterPath path;
+	path.addRect( QRectF(tl, br) );
+	scene()->setSelectionArea(path);
+
+	QListIterator<QGraphicsItem *> it(scene()->selectedItems());
+	while(it.hasNext()) {
+		QGraphicsItem *item = it.next();
+		item->moveBy( num_lines*m_gui->char_height, 0); // FIXME
+	}
 }

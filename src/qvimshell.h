@@ -28,6 +28,7 @@ public:
 	void setBlinkOnTime(long);
 	void setBlinkOffTime(long);
 
+	void deleteLines(int row, int num_lines);
 
 public slots:
 	void setBackground(const QColor&);

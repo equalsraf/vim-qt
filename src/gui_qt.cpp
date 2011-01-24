@@ -224,8 +224,8 @@ gui_mch_insert_lines(int row, int num_lines)
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
-	//qDebug() << __func__;
-	//window->clearBlock(row, gui.scroll_region_right, row+num_lines-1, gui.scroll_region_right);
+	qDebug() << __func__;
+	window->deleteLines(row, num_lines);
 }
 
 
@@ -456,6 +456,9 @@ gui_mch_get_color(char_u *reqname)
 	if ( QColor::isValidColor((char *)reqname) ) {
 		QColor *color = new QColor((char *)reqname);
 		return color;
+	} else if ( qstrcmp( (char *)reqname, "Grey40" ) == 0 ) {
+		QColor *color = new QColor("#666666");
+		return color;
 	}
 
 	return INVALCOLOR;
@@ -574,6 +577,9 @@ void gui_mch_show_popupmenu(vimmenu_T *menu)
 {
 }
 
+/*
+ * Set the menu and scrollbar colors to their default values.
+ */
 void
 gui_mch_def_colors()
 {
