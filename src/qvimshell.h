@@ -33,6 +33,8 @@ public slots:
 	void setBackground(const QColor&);
 	void setForeground(const QColor&);
 	void setSpecial(const QColor&);
+	void setFont(const QFont&);
+
 	void clearAll();
 	void clearBlock(int row1, int col1, int row2, int col2);
 	void updateSettings();
@@ -54,6 +56,7 @@ private:
 	QBrush m_background;
 	QBrush m_special;
 	gui_T *m_gui;
+	QFont m_font;
 
 	long m_blinkWaitTime, m_blinkOnTime, m_blinkOffTime;
 

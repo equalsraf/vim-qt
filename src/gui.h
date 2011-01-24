@@ -228,9 +228,7 @@ typedef struct GuiScrollbar
 } scrollbar_T;
 
 #ifdef FEAT_GUI_QT
-
 struct QColor;
-
 typedef struct QColor*	    guicolor_T;
 #define INVALCOLOR  (guicolor_T)NULL
 

@@ -121,12 +121,14 @@ gui_mch_set_bg_color(guicolor_T color)
 void
 gui_mch_start_blink()
 {
+	gui_update_cursor(TRUE, FALSE);
 //	window->startBlinking();
 }
 
 void
 gui_mch_stop_blink()
 {
+	gui_update_cursor(TRUE, FALSE);
 //	window->stopBlinking();
 }
 
@@ -162,8 +164,8 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	QFontMetrics metric( *qf );
 
 	gui.norm_font = qf;
-	gui.char_width  = metric.width("_");
-	gui.char_height = metric.height();
+	gui.char_width  = metric.boundingRect("_").width();
+	gui.char_height  = metric.boundingRect("_").height();
 	gui.char_ascent = metric.ascent();
 
 	return OK;
@@ -222,7 +224,7 @@ gui_mch_insert_lines(int row, int num_lines)
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
-	qDebug() << __func__;
+	//qDebug() << __func__;
 	//window->clearBlock(row, gui.scroll_region_right, row+num_lines-1, gui.scroll_region_right);
 }
 
@@ -356,7 +358,7 @@ gui_mch_set_font(GuiFont font)
 		return;
 	}
 
-
+	window->setFont(*font);
 }
 
 
@@ -411,7 +413,7 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
-	gui_mch_set_fg_color(color);
+//	gui_mch_set_fg_color(color);
 	window->drawPartCursor(*color, w, h);
 }
 
