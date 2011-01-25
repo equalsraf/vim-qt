@@ -348,18 +348,31 @@ gui_mch_adjust_charheight()
 int
 gui_mch_haskey(char_u *name)
 {
+	int i;
+
+	for (i = 0; special_keys[i].code1 != NUL; i++) {
+		if (name[0] == special_keys[i].code0 &&
+					 name[1] == special_keys[i].code1) {
+			return OK;
+		}
+	}
 	return FAIL;
 }
 
 void
 gui_mch_iconify()
 {
+	window->showMinimized();
 }
 
 
+/*
+ * Invert a rectangle from row r, column c, for nr rows and nc columns.
+ */
 void
 gui_mch_invert_rectangle(int r, int c, int nr, int nc)
 {
+	window->invertRectangle(r, c, nr, nc);
 }
 
 /*
@@ -710,6 +723,18 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 			icon = QMessageBox::NoIcon;
 	};
 	msgBox.setIcon(icon);
+
+	if ( buttons != NULL ) {
+		qDebug() << (char*) buttons;
+	
+		QStringList b_string = QString::fromUtf8((char*)buttons).split(DLG_BUTTON_SEP);
+		QListIterator<QString> it(b_string);
+		while(it.hasNext()) {
+			msgBox.addButton( it.next(), QMessageBox::ApplyRole);
+		}
+	}
+
+	msgBox.exec();
 
 	return -1;
 }
