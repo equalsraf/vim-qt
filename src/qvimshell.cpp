@@ -6,41 +6,29 @@ extern "C" {
 
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
-:QGraphicsView(parent), m_foreground(QBrush(Qt::black)), m_gui(gui), 
+:QWidget(parent), m_foreground(Qt::black), m_gui(gui), 
 	blinkState(BLINK_NONE), m_blinkWaitTime(700), m_blinkOnTime(400), m_blinkOffTime(250)
 {
-
-	setCacheMode(QGraphicsView::CacheBackground);
-
-	setScene(new QGraphicsScene(this));
 
 	connect(&blinkTimer, SIGNAL(timeout()),
 			this, SLOT(blinkEvent()));
 
-	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-	setAlignment(Qt::AlignLeft | Qt::AlignTop);
-	//scale(0.7, 0.7);
-
-	//scene()->setItemIndexMethod(QGraphicsScene::NoIndex);
 	setAttribute(Qt::WA_KeyCompression, true);
 	updateSettings();
 }
 
 void QVimShell::updateSettings()
 {
-	setBackgroundBrush(QBrush( *(m_gui->back_pixel) ));
 }
 
 void QVimShell::setBackground(const QColor& color)
 {
-	m_background = QBrush(color);
+	m_background = color;
 }
 
 void QVimShell::setForeground(const QColor& color)
 {
-	m_foreground = QBrush(color);
+	m_foreground = color;
 }
 
 void QVimShell::setSpecial(const QColor& color)
@@ -50,7 +38,10 @@ void QVimShell::setSpecial(const QColor& color)
 
 void QVimShell::clearAll()
 {
-	scene()->clear();
+	QPixmap *target = &pixmap;
+
+	QPainter p(target);
+	p.fillRect(target->rect(), *(m_gui->back_pixel));
 }
 
 QPoint QVimShell::mapText(int row, int col)
@@ -70,21 +61,10 @@ QRect QVimShell::mapBlock(int row1, int col1, int row2, int col2)
 
 void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 {
-
-	QPainterPath path;
-	path.addRect( mapBlock(row1, col1, row2, col2) );
-//	scene()->setSelectionArea(path, Qt::ContainsItemBoundingRect);
-	scene()->setSelectionArea(path);
-
-	QListIterator<QGraphicsItem *> it(scene()->selectedItems());
-	while(it.hasNext()) {
-		QGraphicsItem *item = it.next();
-		scene()->removeItem( item );
-	}
-
-//	qDebug() << __func__ << scene()->items().length() << row1 << col1 << row2 << col2
-//			<< mapBlock(row1, col1, row2, col2) << " -> " << m_gui->char_height << m_gui->char_width;
-
+	QPainter p(&pixmap);
+	QRect rect = mapBlock(row1, col1, row2, col2); 
+	p.fillRect( rect, *(m_gui->back_pixel));
+	update(rect); // FIXME
 }
 
 
@@ -92,12 +72,23 @@ void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 
 void QVimShell::drawString(int row, int col, const QString& str, int flags)
 {
-	QGraphicsSimpleTextItem *item = new QGraphicsSimpleTextItem( str );
+	QPainter p(&pixmap);
+	QPoint position = mapText(row, col);
 
-	if ( m_foreground.color().isValid() ) {
-		item->setBrush(m_foreground);
+	QRect rect( position.x(), position.y(), m_gui->char_width*str.length(), m_gui->char_height);
+
+	if (flags & DRAW_TRANSP) {
+		// Do we need to do anything?
 	} else {
-		item->setBrush( *(m_gui->norm_pixel) );
+		// Fill in the background
+		p.fillRect( QRect(position.x(), position.y(), 
+					m_gui->char_width*str.length(), m_gui->char_height), m_background );
+	}
+
+	if ( m_foreground.isValid() ) {
+		p.setPen(QPen(m_foreground));
+	} else {
+		p.setPen( QPen(*(m_gui->norm_pixel)) );
 	}
 
 	QFont f = m_font;
@@ -111,46 +102,25 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 		f.setItalic(true);
 	}
 
-	item->setFont( f );
-	item->setFlags( QGraphicsItem::ItemIsSelectable);
-
-	// Draw background box
-	QRectF br = item->boundingRect();
-
-	if (flags & DRAW_TRANSP) {
-		// Do we need to do anything?
-	} else {
-		// Fill in the background
-		QRectF bg = item->boundingRect();
-		bg.setWidth( m_gui->char_width*str.length());
-		QGraphicsRectItem *back = scene()->addRect( bg, QPen(Qt::NoPen), m_background);
-		back->setPos( mapText(row, col) );
-		back->setFlags( QGraphicsItem::ItemIsSelectable);
-
-//		QList<QGraphicsItem *> gone = scene()->items( br, Qt::ContainsItemBoundingRect );
-//		QListIterator<QGraphicsItem *> it(gone);
-//		while(it.hasNext()) {
-//			QGraphicsItem *item = it.next();
-//			scene()->removeItem( item );
-//		}
-	}
-
-	QPoint position = mapText(row, col);
-	// Fix font position
-	if ( str.length() == 1 ) {
-		int x_fix = (m_gui->char_width*str.length() - br.width())/2;
-		position.setX( position.x() + x_fix );
-	}
-
-	item->setPos( position );
-	scene()->addItem(item);
-
+	p.setFont( f );
+	QPoint textPosition = position;
+	textPosition.setY( textPosition.y() + m_gui->char_height - 1 );
+	//p.drawText(textPosition, str);
+	p.drawText(rect, str);
+	update(rect); // FIXME
 }
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
+	pixmap = QPixmap( ev->size() );
+
+	{
+	QPainter p(&pixmap);
+	p.fillRect(pixmap.rect(), QBrush( *(m_gui->back_pixel) ));
+	}
+
 	gui_resize_shell(ev->size().width(), ev->size().height());
-	QGraphicsView::resizeEvent(ev);
+	update();
 }
 
 
@@ -193,23 +163,24 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 
 	char str[3];
 	int modifiers = vimModifiers(ev->modifiers());
-
+/*
 	if ( modifiers ) {
 		str[0] = CSI;
 		str[1] = KS_MODIFIER;
 		str[2] = modifiers;
 		add_to_input_buf((char_u *) str, 3);
 	}
-
+*/
 	if ( ev->text() != "" ) {
-		qDebug() << ev->text();
 		add_to_input_buf( (char_u *) ev->text().constData(), ev->count() );
 		return;
 	} 
 
+/*
 	if ( specialKey( ev->key(), str)) {
 		add_to_input_buf((char_u *) str, 3);
 	}
+*/
 }
 
 void QVimShell::closeEvent(QCloseEvent *event)
@@ -220,18 +191,18 @@ void QVimShell::closeEvent(QCloseEvent *event)
 
 void QVimShell::drawPartCursor(const QColor& color, int w, int h)
 {
+	QPainter p(&pixmap);
+
 	QRect rect( m_gui->col*m_gui->char_width,
 			m_gui->row*m_gui->char_height,
 			w, h);
 
-	QGraphicsRectItem *back = NULL;
-	back = scene()->addRect( rect, QPen(Qt::NoPen), QBrush(color));
-	back->setFlags( QGraphicsItem::ItemIsSelectable);
+	p.fillRect(rect, m_foreground);
+	update(rect); // FIXME
 }
 
 void QVimShell::drawHollowCursor(const QColor& color)
 {
-	qDebug() << __func__;
 	int w = m_gui->char_width;
 	int h = m_gui->char_height;
 
@@ -242,9 +213,9 @@ void QVimShell::drawHollowCursor(const QColor& color)
 
 	QRect rect(tl, br);
 
-	QGraphicsRectItem *back = scene()->addRect( rect, QPen(Qt::red));
-	back->setFlags( QGraphicsItem::ItemIsSelectable);
-
+	QPainter p(&pixmap);
+	p.drawRect(rect);
+	update(rect); // FIXME
 }
 
 long QVimShell::blinkWaitTime()
@@ -326,51 +297,48 @@ void QVimShell::deleteLines(int row, int num_lines)
 	clearBlock(row, gui.scroll_region_left, row+num_lines-1, gui.scroll_region_right);
 
 	// Move 
-	QPointF tl = mapText( row+num_lines, gui.scroll_region_left );
+	QPoint tl = mapText( row+num_lines, gui.scroll_region_left );
 	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
+	QRect rect(tl, br);
 
-	QPainterPath path;
-	path.addRect( QRectF(tl, br) );
-	scene()->setSelectionArea(path);
+	// FIXME - is this the best solution?
+	QPixmap tmp = pixmap.copy(rect);
+	QRect dest = rect;
+	dest.setY( rect.y() - num_lines*m_gui->char_height );
+	QPainter p(&pixmap);
+	p.drawPixmap( rect, tmp);
 
-	QListIterator<QGraphicsItem *> it(scene()->selectedItems());
-	while(it.hasNext()) {
-		QGraphicsItem *item = it.next();
-		item->moveBy( 0, -num_lines*m_gui->char_height); // FIXME
-	}
+	update();
+	//update( dest.united(rect) ); // FIXME
 }
 
 
 void QVimShell::insertLines(int row, int num_lines)
 {
 	// Move 
-	QPointF tl = mapText( m_gui->scroll_region_left,  row);
-	QPointF br = mapText( m_gui->scroll_region_right+1, m_gui->scroll_region_bot + 1);
+	QPoint tl = mapText( m_gui->scroll_region_left,  row);
+	QPoint br = mapText( m_gui->scroll_region_right+1, m_gui->scroll_region_bot + 1);
+	QRect rect(tl, br);
 
-	QPainterPath path;
-	path.addRect( QRectF(tl, br) );
-	scene()->setSelectionArea(path);
+	QPixmap tmp = pixmap.copy(rect);
+	QRect dest = rect;
+	dest.setY( rect.y() + num_lines*m_gui->char_height );
+	QPainter p(&pixmap);
+	p.drawPixmap( rect, tmp);
 
-	QListIterator<QGraphicsItem *> it(scene()->selectedItems());
-	while(it.hasNext()) {
-		QGraphicsItem *item = it.next();
-		item->moveBy( 0, num_lines*m_gui->char_height); // FIXME
-	}
-
-	
 	clearBlock( row, m_gui->scroll_region_left,
 			row+num_lines-1, m_gui->scroll_region_right);
-
+	update(); // FIXME - we can do better
 }
 
 
 void QVimShell::invertRectangle(int row, int col, int nr, int nc)
 {
-	qDebug() << __func__ << row << col << nr << nc;
-	QGraphicsRectItem *item;
-	item = scene()->addRect( mapBlock(row, col, row+nr-1, col+nc-1),
-					QPen(Qt::NoPen), QBrush(Qt::red));
-	item->setPos(mapText(row, col));
-
 }
 
+void QVimShell::paintEvent ( QPaintEvent *ev )
+{
+	QPainter painter(this);
+	//painter.drawPixmap(0, 0, pixmap);
+	painter.drawPixmap( ev->rect(), pixmap, ev->rect());
+}

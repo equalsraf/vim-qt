@@ -7,7 +7,7 @@ extern "C" {
 #include "vim.h"
 }
 
-class QVimShell: public QGraphicsView
+class QVimShell: public QWidget
 {
 	Q_OBJECT
 	Q_PROPERTY(long blinkWaitTime READ blinkWaitTime WRITE setBlinkWaitTime)
@@ -55,14 +55,14 @@ protected:
 
 	unsigned int vimModifiers(Qt::KeyboardModifiers);
 	bool specialKey(int, char[3]);
-
+	virtual void paintEvent( QPaintEvent *);
 
 protected slots:
 	void blinkEvent();
 
 private:
-	QBrush m_foreground;
-	QBrush m_background;
+	QColor m_foreground;
+	QColor m_background;
 	QBrush m_special;
 	gui_T *m_gui;
 	QFont m_font;
@@ -72,6 +72,7 @@ private:
 	QTimer blinkTimer;
 	enum blink_state{BLINK_NONE, BLINK_ON, BLINK_OFF};
 	blink_state blinkState;
+	QPixmap pixmap;
 
 };
 

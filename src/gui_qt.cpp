@@ -177,8 +177,6 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	QFontMetrics metric( *qf );
 
 	gui.norm_font = qf;
-//	gui.char_width  = metric.boundingRect("_").width();
-//	gui.char_height  = metric.boundingRect("_").height();
 	gui.char_width = metric.width("_");
 	gui.char_height = metric.height();
 	
@@ -308,7 +306,7 @@ gui_mch_new_colors()
 {
 	if ( window != NULL ) {
 		window->updateSettings();
-		window->update();
+		//window->update();
 	}
 }
 
@@ -440,7 +438,6 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
-//	gui_mch_set_fg_color(color);
 	window->drawPartCursor(*color, w, h);
 }
 
@@ -636,9 +633,9 @@ void
 gui_mch_create_scrollbar( scrollbar_T *sb, int orient)
 {
 	if ( orient == SBAR_HORIZ) {
-		sb->wid = window->horizontalScrollBar();
+//		sb->wid = window->horizontalScrollBar();
 	} else {
-		sb->wid = window->verticalScrollBar();
+//		sb->wid = window->verticalScrollBar();
 	}
 }
 
