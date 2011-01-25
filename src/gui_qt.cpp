@@ -92,6 +92,8 @@ gui_mch_update()
 	QApplication::processEvents();
 }
 
+
+/* Flush any output to the screen */
 void
 gui_mch_flush()
 {

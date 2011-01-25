@@ -75,6 +75,8 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 {
 
 	setCacheMode(QGraphicsView::CacheBackground);
+	//setAttribute( Qt::WA_PaintOnScreen );
+
 	setScene(new QGraphicsScene(this));
 
 	connect(&blinkTimer, SIGNAL(timeout()),
@@ -83,7 +85,8 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	setAlignment(Qt::AlignLeft | Qt::AlignTop);
-	
+
+	scene()->setItemIndexMethod(QGraphicsScene::NoIndex);
 	setAttribute(Qt::WA_KeyCompression, true);
 	updateSettings();
 }
@@ -91,7 +94,6 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 void QVimShell::updateSettings()
 {
 	setBackgroundBrush(QBrush( *(m_gui->back_pixel) ));
-	update();
 }
 
 void QVimShell::setBackground(const QColor& color)
@@ -128,7 +130,6 @@ void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 		QGraphicsItem *item = it.next();
 		scene()->removeItem( item );
 	}
-	update();
 }
 
 
@@ -182,8 +183,6 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 
 	item->setPos( position );
 	scene()->addItem(item);
-
-	update();
 }
 
 QPoint QVimShell::mapText(int row, int col)
@@ -260,7 +259,6 @@ void QVimShell::drawPartCursor(const QColor& color, int w, int h)
 	QGraphicsRectItem *back = NULL;
 	//back = scene()->addRect( rect, QPen(Qt::NoPen), QBrush(color));
 	//back->setFlags( QGraphicsItem::ItemIsSelectable);
-	update();
 }
 
 void QVimShell::drawHollowCursor(const QColor& color)
@@ -279,7 +277,6 @@ void QVimShell::drawHollowCursor(const QColor& color)
 	QGraphicsRectItem *back = scene()->addRect( rect, QPen(Qt::red));
 	back->setFlags( QGraphicsItem::ItemIsSelectable);
 */
-	update();
 }
 
 long QVimShell::blinkWaitTime()
@@ -321,7 +318,6 @@ void QVimShell::startBlinking()
 	blinkTimer.start(blinkWaitTime());
 	gui_update_cursor(TRUE, FALSE);
 	*/
-	update();
 }
 
 void QVimShell::stopBlinking()
@@ -331,7 +327,6 @@ void QVimShell::stopBlinking()
 	if ( blinkState == BLINK_OFF ) {
 		gui_update_cursor(TRUE, FALSE);
 	}
-	update();
 }
 
 void QVimShell::blinkEvent()
@@ -360,10 +355,10 @@ void QVimShell::setFont(const QFont& font)
 void QVimShell::deleteLines(int row, int num_lines)
 {
 	// Clear area
-	clearBlock(row, gui.scroll_region_right, row+num_lines-1, gui.scroll_region_right);
+	clearBlock(row, gui.scroll_region_left, row+num_lines-1, gui.scroll_region_right);
 
 	// Move 
-	QPointF tl = mapText( row+num_lines-1, 0 );
+	QPointF tl = mapText( row+num_lines, gui.scroll_region_left );
 	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
 
 	QPainterPath path;
@@ -375,15 +370,14 @@ void QVimShell::deleteLines(int row, int num_lines)
 		QGraphicsItem *item = it.next();
 		item->moveBy( 0, -num_lines*m_gui->char_height); // FIXME
 	}
-	update();
 }
 
 
 void QVimShell::insertLines(int row, int num_lines)
 {
 	// Move 
-	QPointF tl = mapText( row+num_lines-1, 0 );
-	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
+	QPointF tl = mapText( m_gui->scroll_region_left,  row);
+	QPointF br = mapText( m_gui->scroll_region_right+1, m_gui->scroll_region_bot + 1);
 
 	QPainterPath path;
 	path.addRect( QRectF(tl, br) );
@@ -394,5 +388,9 @@ void QVimShell::insertLines(int row, int num_lines)
 		QGraphicsItem *item = it.next();
 		item->moveBy( 0, num_lines*m_gui->char_height); // FIXME
 	}
-	update();
+
+	
+	clearBlock( row, m_gui->scroll_region_left,
+			row+num_lines-1, m_gui->scroll_region_right);
+
 }

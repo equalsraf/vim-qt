@@ -103,7 +103,7 @@ gui_start()
 
     vim_free(old_term);
 
-#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11)
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_QT)
     if (gui.in_use)
 	/* Display error messages in a dialog now. */
 	display_errors();
