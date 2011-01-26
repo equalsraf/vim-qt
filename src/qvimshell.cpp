@@ -7,7 +7,8 @@ extern "C" {
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), 
-	blinkState(BLINK_NONE), m_blinkWaitTime(700), m_blinkOnTime(400), m_blinkOffTime(250)
+	blinkState(BLINK_NONE), m_blinkWaitTime(700), m_blinkOnTime(400), m_blinkOffTime(250),
+	pixmap(1,1)
 {
 	pm_painter = new QPainter(&pixmap);
 
@@ -39,8 +40,7 @@ void QVimShell::setSpecial(const QColor& color)
 
 void QVimShell::clearAll()
 {
-	QPixmap *target = &pixmap;
-	pm_painter->fillRect(target->rect(), *(m_gui->back_pixel));
+	pm_painter->fillRect(pixmap.rect(), *(m_gui->back_pixel));
 }
 
 QPoint QVimShell::mapText(int row, int col)
@@ -103,8 +103,10 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
-	pixmap = QPixmap( ev->size() );
+	pm_painter->end();
 	free(pm_painter);
+
+	pixmap = QPixmap( ev->size() );
 
 	pm_painter = new QPainter(&pixmap);
 	pm_painter->fillRect(pixmap.rect(), QBrush( *(m_gui->back_pixel) ));

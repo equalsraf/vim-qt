@@ -5,8 +5,9 @@ extern "C" {
 
 #include "vim.h"
 
-static QVimShell *window = NULL;
-static QBrush fg_brush;
+//static QVimShell *window = NULL;
+static QVimShell *vimshell = NULL;
+static QMainWindow *window = NULL;
 
 
 void
@@ -49,11 +50,6 @@ void
 gui_mch_free_font(GuiFont font)
 {
 	free(font);
-}
-
-void
-gui_mch_menu_grey(vimmenu_T *menu, int grey)
-{
 }
 
 /*
@@ -104,11 +100,11 @@ void
 gui_mch_set_fg_color(guicolor_T	color)
 {
 	if ( color == NULL ) {
-		window->setForeground(QColor());
+		vimshell->setForeground(QColor());
 		return;
 	}
 
-	window->setForeground(*color);
+	vimshell->setForeground(*color);
 }
 
 /*
@@ -118,11 +114,11 @@ void
 gui_mch_set_bg_color(guicolor_T color)
 {
 	if ( color == NULL ) {
-		window->setBackground(QColor());
+		vimshell->setBackground(QColor());
 		return;
 	}
 
-	window->setBackground(*color);
+	vimshell->setBackground(*color);
 }
 
 
@@ -155,7 +151,7 @@ gui_mch_beep()
 void
 gui_mch_clear_all()
 {
-	window->clearAll();
+	vimshell->clearAll();
 }
 
 void
@@ -187,6 +183,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 
 /*
  * Get current mouse coordinates in text window.
+ * FIXME: This is currently broken
  */
 void
 gui_mch_getmouse(int *x, int *y)
@@ -221,7 +218,7 @@ gui_mch_get_rgb(guicolor_T pixel)
 void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
-	window->clearBlock(row1, col1, row2, col2);
+	vimshell->clearBlock(row1, col1, row2, col2);
 }
 
 /*
@@ -231,7 +228,7 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
-	window->insertLines(row, num_lines);
+	vimshell->insertLines(row, num_lines);
 }
 
 /*
@@ -241,7 +238,7 @@ gui_mch_insert_lines(int row, int num_lines)
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
-	window->deleteLines(row, num_lines);
+	vimshell->deleteLines(row, num_lines);
 }
 
 
@@ -274,17 +271,21 @@ gui_mch_init()
 
 	highlight_gui_started();
 
-	QGraphicsScene *scene = new QGraphicsScene();
-	window = new QVimShell(&gui);
+
+	window = new QMainWindow();
+	vimshell = new QVimShell(&gui, window);
+	window->setCentralWidget(vimshell);
+	vimshell->setFocus();
+
 	return OK;
 }
 
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
-	window->setBlinkWaitTime(waittime);
-	window->setBlinkOnTime(on);
-	window->setBlinkOffTime(off);
+	vimshell->setBlinkWaitTime(waittime);
+	vimshell->setBlinkOnTime(on);
+	vimshell->setBlinkOffTime(off);
 }
 
 void
@@ -304,7 +305,7 @@ void
 gui_mch_new_colors()
 {
 	if ( window != NULL ) {
-		window->updateSettings();
+		vimshell->updateSettings();
 		//window->update();
 	}
 }
@@ -315,14 +316,14 @@ gui_mch_set_winpos(int x, int y)
 	window->move(x, y);
 }
 
-void
-gui_mch_menu_hidden(vimmenu_T *menu, int hidden)
-{
-}
 
 void
-gui_mch_draw_menubar()
+gui_mch_settitle(char_u *title, char_u *icon UNUSED)
 {
+	qDebug() << __func__;
+	if ( title != NULL ) {
+		window->setWindowTitle( QString::fromUtf8((char*)title) );
+	}
 }
 
 void
@@ -368,7 +369,7 @@ gui_mch_iconify()
 void
 gui_mch_invert_rectangle(int r, int c, int nr, int nc)
 {
-	window->invertRectangle(r, c, nr, nc);
+	vimshell->invertRectangle(r, c, nr, nc);
 }
 
 /*
@@ -381,7 +382,7 @@ gui_mch_set_font(GuiFont font)
 		return;
 	}
 
-	window->setFont(*font);
+	vimshell->setFont(*font);
 }
 
 
@@ -430,13 +431,13 @@ void
 gui_mch_draw_hollow_cursor(guicolor_T color)
 {
 	gui_mch_set_fg_color(color);
-	window->drawHollowCursor(*color);
+	vimshell->drawHollowCursor(*color);
 }
 
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
-	window->drawPartCursor(*color, w, h);
+	vimshell->drawPartCursor(*color, w, h);
 }
 
 
@@ -447,11 +448,11 @@ void
 gui_mch_set_sp_color(guicolor_T color) 
 {
 	if ( color == NULL ) {
-		window->setSpecial(QColor());
+		vimshell->setSpecial(QColor());
 		return;
 	}
 
-	window->setSpecial(*color);
+	vimshell->setSpecial(*color);
 }
 
 void
@@ -463,7 +464,7 @@ gui_mch_draw_string(
     int		flags)
 {
 	QString str = QString::fromUtf8((char *)s, len);
-	window->drawString(row, col, str, flags);
+	vimshell->drawString(row, col, str, flags);
 }
 
 
@@ -501,7 +502,7 @@ clip_mch_request_selection(VimClipboard *cbd)
 int
 gui_mch_get_winpos(int *x, int *y)
 {
-	QPoint pos = window->pos();
+	QPoint pos = vimshell->pos();
 
 	*x = pos.x();
 	*y = pos.y();
@@ -511,15 +512,9 @@ gui_mch_get_winpos(int *x, int *y)
 
 
 void
-gui_mch_set_toolbar_pos(int x, int y, int w, int h)
-{
-
-}
-
-
-void
 gui_mch_set_text_area_pos(int x, int y, int w, int h)
 {
+	/* Do we need to do anything here? */
 }
 
 
@@ -535,66 +530,114 @@ gui_mch_new_tooltip_colors()
 }
 
 void
-gui_mch_add_menu_item(vimmenu_T menu, int idx)
-{
-
-}
-
-
-void
 gui_mch_show_toolbar(int showit)
 {
-
+	qDebug() << __func__;
 }
 
 int
 gui_mch_compute_toolbar_height()
 {
-	return -1;
+	return 0;
 }
 
+void
+gui_mch_set_toolbar_pos(int x, int y, int w, int h)
+{
 
+}
 
 /* Menu */
 
 void
 gui_mch_toggle_tearoffs(int enable)
 {
+	qDebug() << __func__;
+
+}
+
+void
+gui_mch_draw_menubar()
+{
+	qDebug() << __func__;
+	gui_mch_update();
+}
+
+void
+gui_mch_menu_grey(vimmenu_T *menu, int grey)
+{
+	qDebug() << __func__;
+
+}
+
+
+void
+gui_mch_add_menu_item(vimmenu_T menu, int idx)
+{
+	qDebug() << __func__;
+
+
 }
 
 void
 gui_mch_new_menu_colors()
 {
+	qDebug() << __func__;
+
 }
 
 void
 gui_mch_enable_menu(int flag)
 {
+	qDebug() << __func__ << flag;
+	if (flag) {
+		window->menuBar()->show();
+	} else {
+		window->menuBar()->hide();
+	}
+}
+
+void
+gui_mch_menu_hidden(vimmenu_T *menu, int hidden)
+{
+	qDebug() << __func__;
 }
 
 void
 gui_mch_set_menu_pos(int x, int y, int w, int h)
 {
-
+	/* The mainwindow handles this */
 }
 
+
+/*
+ * Add a sub menu to the menu bar.
+ */
 void
 gui_mch_add_menu(vimmenu_T *menu, int idx)
 {
+	QMenu *m = window->menuBar()->addMenu( QString::fromUtf8((char*)menu->name) );
+	menu->qmenu = m;
+	qDebug() << __func__ <<  m->title();
 }
 
 void
 gui_mch_new_menu_font()
 {
+	qDebug() << __func__;
+
 }
 
 void
 gui_mch_destroy_menu(vimmenu_T *menu)
 {
+	/* Nothing to do */
 }
 
 void gui_mch_show_popupmenu(vimmenu_T *menu)
 {
+	qDebug() << __func__;
+
 }
 
 /*
@@ -625,6 +668,7 @@ gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
 void
 gui_mch_enable_scrollbar(scrollbar_T *sb, int flag)
 {
+
 }
 
 void
@@ -641,11 +685,14 @@ void
 gui_mch_destroy_scrollbar(scrollbar_T *sb)
 {
 	// ScrollBar is owned by the viewport, do nothing
+	qDebug() << __func__;
 }
 
 void
 gui_mch_set_scrollbar_colors(scrollbar_T *sb)
 {
+	qDebug() << __func__;
+
 }
 
 /*
