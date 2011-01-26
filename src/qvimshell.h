@@ -72,8 +72,9 @@ private:
 	QTimer blinkTimer;
 	enum blink_state{BLINK_NONE, BLINK_ON, BLINK_OFF};
 	blink_state blinkState;
-	QPixmap pixmap;
 
+	QPixmap pixmap;
+	QPainter *pm_painter;
 };
 
 struct special_key

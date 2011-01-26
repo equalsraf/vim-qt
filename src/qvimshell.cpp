@@ -9,12 +9,12 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), 
 	blinkState(BLINK_NONE), m_blinkWaitTime(700), m_blinkOnTime(400), m_blinkOffTime(250)
 {
+	pm_painter = new QPainter(&pixmap);
 
 	connect(&blinkTimer, SIGNAL(timeout()),
 			this, SLOT(blinkEvent()));
 
 	setAttribute(Qt::WA_KeyCompression, true);
-	//setAttribute(Qt::WA_PaintOnScreen, true);
 	updateSettings();
 }
 
@@ -40,9 +40,7 @@ void QVimShell::setSpecial(const QColor& color)
 void QVimShell::clearAll()
 {
 	QPixmap *target = &pixmap;
-
-	QPainter p(target);
-	p.fillRect(target->rect(), *(m_gui->back_pixel));
+	pm_painter->fillRect(target->rect(), *(m_gui->back_pixel));
 }
 
 QPoint QVimShell::mapText(int row, int col)
@@ -62,9 +60,8 @@ QRect QVimShell::mapBlock(int row1, int col1, int row2, int col2)
 
 void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 {
-	QPainter p(&pixmap);
 	QRect rect = mapBlock(row1, col1, row2, col2); 
-	p.fillRect( rect, *(m_gui->back_pixel));
+	pm_painter->fillRect( rect, *(m_gui->back_pixel));
 	update(rect);
 }
 
@@ -73,7 +70,6 @@ void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 
 void QVimShell::drawString(int row, int col, const QString& str, int flags)
 {
-	QPainter p(&pixmap);
 	QPoint position = mapText(row, col);
 
 	QRect rect( position.x(), position.y(), m_gui->char_width*str.length(), m_gui->char_height);
@@ -82,42 +78,36 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 		// Do we need to do anything?
 	} else {
 		// Fill in the background
-		p.fillRect( QRect(position.x(), position.y(), 
+		pm_painter->fillRect( QRect(position.x(), position.y(), 
 					m_gui->char_width*str.length(), m_gui->char_height), m_background );
 	}
 
 	if ( m_foreground.isValid() ) {
-		p.setPen(QPen(m_foreground));
+		pm_painter->setPen(QPen(m_foreground));
 	} else {
-		p.setPen( QPen(*(m_gui->norm_pixel)) );
+		pm_painter->setPen( QPen(*(m_gui->norm_pixel)) );
 	}
 
 	QFont f = m_font;
-	if (flags & DRAW_BOLD) {
-		f.setBold(true);
-	}
-	if (flags & DRAW_UNDERL) {
-		f.setUnderline(true);
-	}
-	if (flags & DRAW_ITALIC) {
-		f.setItalic(true);
-	}
+	f.setBold( flags & DRAW_BOLD);
+	f.setUnderline( flags & DRAW_UNDERL);
+	f.setItalic( flags & DRAW_ITALIC);
+	// FIXME: missing undercurl
 
-	p.setFont( f );
+	pm_painter->setFont( f );
 	QPoint textPosition = position;
 	textPosition.setY( textPosition.y() + m_gui->char_height - 1 );
-	p.drawText(rect, str);
+	pm_painter->drawText(rect, str);
 	update(rect);
 }
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
 	pixmap = QPixmap( ev->size() );
+	free(pm_painter);
 
-	{
-	QPainter p(&pixmap);
-	p.fillRect(pixmap.rect(), QBrush( *(m_gui->back_pixel) ));
-	}
+	pm_painter = new QPainter(&pixmap);
+	pm_painter->fillRect(pixmap.rect(), QBrush( *(m_gui->back_pixel) ));
 
 	gui_resize_shell(ev->size().width(), ev->size().height());
 	update();
@@ -191,13 +181,11 @@ void QVimShell::closeEvent(QCloseEvent *event)
 
 void QVimShell::drawPartCursor(const QColor& color, int w, int h)
 {
-	QPainter p(&pixmap);
-
 	QRect rect( m_gui->col*m_gui->char_width,
 			m_gui->row*m_gui->char_height,
 			w, h);
 
-	p.fillRect(rect, m_foreground);
+	pm_painter->fillRect(rect, m_foreground);
 	update(rect);
 }
 
@@ -213,8 +201,7 @@ void QVimShell::drawHollowCursor(const QColor& color)
 
 	QRect rect(tl, br);
 
-	QPainter p(&pixmap);
-	p.drawRect(rect);
+	pm_painter->drawRect(rect);
 	update(rect);
 }
 
@@ -293,22 +280,28 @@ void QVimShell::setFont(const QFont& font)
 
 void QVimShell::deleteLines(int row, int num_lines)
 {
-	// Clear area
-	clearBlock(row, gui.scroll_region_left, row+num_lines-1, gui.scroll_region_right);
 
 	// Move 
 	QPoint tl = mapText( row+num_lines, gui.scroll_region_left );
 	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
 	QRect rect(tl, br);
 
+	
 	QPixmap tmp = pixmap.copy(rect);
-	tmp.save("debug.jpg");
 	QRect dest = rect;
 	dest.setY( rect.y() - num_lines*m_gui->char_height );
 
+//	QTransform t;
+//	QPixmap tmp = pixmap.transformed( t.translate(0, -22) );
+//	test.save("debug.jpg");
+//	qDebug() << "saving..." << !test.isNull();
 
-	QPainter p(&pixmap);
-	p.drawPixmap( tmp.rect(), tmp, tmp.rect());
+	pm_painter->drawPixmap( tmp.rect(), tmp, tmp.rect());
+
+	// Clear area
+	clearBlock(m_gui->scroll_region_bot-num_lines+1, m_gui->scroll_region_left, 
+			m_gui->scroll_region_bot, m_gui->scroll_region_right);
+ 
 	update( dest.united(rect) );
 }
 
@@ -326,17 +319,14 @@ void QVimShell::insertLines(int row, int num_lines)
 	QPoint br = mapText(m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
 
 	QRect rect(tl, br);
-
 	QPixmap tmp = pixmap.copy(rect);
 
 	tl.setY( tl.y() + num_lines*m_gui->char_height );
 	QRect dest( tl, br);
 
-	QRect src( QPoint(0,0),  mapText( m_gui->scroll_region_bot+1-num_lines , m_gui->scroll_region_right+1));
+	QRect src( QPoint(0,0), mapText( m_gui->scroll_region_bot+1-num_lines , m_gui->scroll_region_right+1));
 	
-	QPainter p(&pixmap);
-	p.drawPixmap( dest, tmp, src);
-	p.end();
+	pm_painter->drawPixmap( dest, tmp, src);
 
 	clearBlock( row, m_gui->scroll_region_left,
 			row+num_lines-1, m_gui->scroll_region_right);

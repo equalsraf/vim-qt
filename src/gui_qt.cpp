@@ -97,7 +97,7 @@ gui_mch_update()
 void
 gui_mch_flush()
 {
-	QApplication::flush();
+	//QApplication::flush();
 }
 
 void
@@ -231,7 +231,6 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
-	qDebug() << __func__ << row << num_lines;
 	window->insertLines(row, num_lines);
 }
 
@@ -301,7 +300,6 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	window->resize(width, height);
 }
 
-
 void
 gui_mch_new_colors()
 {
@@ -310,7 +308,6 @@ gui_mch_new_colors()
 		//window->update();
 	}
 }
-
 
 void
 gui_mch_set_winpos(int x, int y)
@@ -651,8 +648,6 @@ gui_mch_set_scrollbar_colors(scrollbar_T *sb)
 {
 }
 
-
-
 /*
  * Pop open a file browser and return the file selected, in allocated memory,
  * or NULL if Cancel is hit.
@@ -699,6 +694,7 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 	msgBox.setText( (char*)message );
 	msgBox.setWindowTitle( (char*)title );
 	
+	// Set icon
 	QMessageBox::Icon icon;
 	switch (type)
 	{
@@ -722,17 +718,40 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 	};
 	msgBox.setIcon(icon);
 
+	// Add buttons
+	QList<QPushButton *> buttonList;
 	if ( buttons != NULL ) {
-		qDebug() << (char*) buttons;
-	
 		QStringList b_string = QString::fromUtf8((char*)buttons).split(DLG_BUTTON_SEP);
 		QListIterator<QString> it(b_string);
+		int bt=1;
 		while(it.hasNext()) {
-			msgBox.addButton( it.next(), QMessageBox::ApplyRole);
+			QPushButton *b = msgBox.addButton( it.next(), QMessageBox::ApplyRole);
+			buttonList.append(b);
+
+			if ( bt == dfltbutton ) {
+				b->setDefault(true);
+			}
+
+			bt++;
 		}
 	}
 
 	msgBox.exec();
+
+	if ( msgBox.clickedButton() == 0 ) {
+		return 0;
+	}
+
+	int i=1;
+	QListIterator<QPushButton *> it(buttonList);
+	while( it.hasNext() ){
+		QPushButton *b = it.next();
+
+		if ( b == msgBox.clickedButton() ) {
+			return i;
+		}
+		i++;
+	}
 
 	return -1;
 }
