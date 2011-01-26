@@ -795,7 +795,7 @@
  */
 #if defined(FEAT_NORMAL)
 # define FEAT_BROWSE_CMD
-# if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC)
+# if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_QT)
 #  define FEAT_BROWSE
 # endif
 #endif
@@ -811,7 +811,8 @@
 	|| defined(FEAT_GUI_GTK) \
 	|| defined(FEAT_GUI_PHOTON) \
 	|| defined(FEAT_GUI_MSWIN) \
-	|| defined(FEAT_GUI_MAC)
+	|| defined(FEAT_GUI_MAC) \
+	|| defined(FEAT_GUI_QT)
 #  define FEAT_CON_DIALOG
 #  define FEAT_GUI_DIALOG
 # else

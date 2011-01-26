@@ -109,6 +109,11 @@
 # define FEAT_GUI_MAC
 #endif
 
+#if defined(FEAT_GUI_QT)
+# define FEAT_GUI
+#endif
+
+
 #if defined(FEAT_GUI_MOTIF) \
     || defined(FEAT_GUI_GTK) \
     || defined(FEAT_GUI_ATHENA) \
