@@ -231,6 +231,7 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
+	qDebug() << __func__ << row << num_lines;
 	window->insertLines(row, num_lines);
 }
 

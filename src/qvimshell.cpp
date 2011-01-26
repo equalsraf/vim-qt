@@ -14,6 +14,7 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 			this, SLOT(blinkEvent()));
 
 	setAttribute(Qt::WA_KeyCompression, true);
+	//setAttribute(Qt::WA_PaintOnScreen, true);
 	updateSettings();
 }
 
@@ -64,7 +65,7 @@ void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 	QPainter p(&pixmap);
 	QRect rect = mapBlock(row1, col1, row2, col2); 
 	p.fillRect( rect, *(m_gui->back_pixel));
-	update(rect); // FIXME
+	update(rect);
 }
 
 
@@ -105,9 +106,8 @@ void QVimShell::drawString(int row, int col, const QString& str, int flags)
 	p.setFont( f );
 	QPoint textPosition = position;
 	textPosition.setY( textPosition.y() + m_gui->char_height - 1 );
-	//p.drawText(textPosition, str);
 	p.drawText(rect, str);
-	update(rect); // FIXME
+	update(rect);
 }
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
@@ -198,7 +198,7 @@ void QVimShell::drawPartCursor(const QColor& color, int w, int h)
 			w, h);
 
 	p.fillRect(rect, m_foreground);
-	update(rect); // FIXME
+	update(rect);
 }
 
 void QVimShell::drawHollowCursor(const QColor& color)
@@ -215,7 +215,7 @@ void QVimShell::drawHollowCursor(const QColor& color)
 
 	QPainter p(&pixmap);
 	p.drawRect(rect);
-	update(rect); // FIXME
+	update(rect);
 }
 
 long QVimShell::blinkWaitTime()
@@ -301,34 +301,47 @@ void QVimShell::deleteLines(int row, int num_lines)
 	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
 	QRect rect(tl, br);
 
-	// FIXME - is this the best solution?
 	QPixmap tmp = pixmap.copy(rect);
+	tmp.save("debug.jpg");
 	QRect dest = rect;
 	dest.setY( rect.y() - num_lines*m_gui->char_height );
-	QPainter p(&pixmap);
-	p.drawPixmap( rect, tmp);
 
-	update();
-	//update( dest.united(rect) ); // FIXME
+
+	QPainter p(&pixmap);
+	p.drawPixmap( tmp.rect(), tmp, tmp.rect());
+	update( dest.united(rect) );
 }
 
+/*
+ * @Warning
+ *
+ * Evidently mapText implies there will be breakage when scrolling
+ *
+ */
 
 void QVimShell::insertLines(int row, int num_lines)
 {
 	// Move 
-	QPoint tl = mapText( m_gui->scroll_region_left,  row);
-	QPoint br = mapText( m_gui->scroll_region_right+1, m_gui->scroll_region_bot + 1);
+	QPoint tl = mapText( row, m_gui->scroll_region_left);
+	QPoint br = mapText(m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
+
 	QRect rect(tl, br);
 
 	QPixmap tmp = pixmap.copy(rect);
-	QRect dest = rect;
-	dest.setY( rect.y() + num_lines*m_gui->char_height );
+
+	tl.setY( tl.y() + num_lines*m_gui->char_height );
+	QRect dest( tl, br);
+
+	QRect src( QPoint(0,0),  mapText( m_gui->scroll_region_bot+1-num_lines , m_gui->scroll_region_right+1));
+	
 	QPainter p(&pixmap);
-	p.drawPixmap( rect, tmp);
+	p.drawPixmap( dest, tmp, src);
+	p.end();
 
 	clearBlock( row, m_gui->scroll_region_left,
 			row+num_lines-1, m_gui->scroll_region_right);
 	update(); // FIXME - we can do better
+
 }
 
 
@@ -339,6 +352,5 @@ void QVimShell::invertRectangle(int row, int col, int nr, int nc)
 void QVimShell::paintEvent ( QPaintEvent *ev )
 {
 	QPainter painter(this);
-	//painter.drawPixmap(0, 0, pixmap);
 	painter.drawPixmap( ev->rect(), pixmap, ev->rect());
 }
