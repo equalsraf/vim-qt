@@ -295,64 +295,48 @@ void QVimShell::setFont(const QFont& font)
 
 void QVimShell::deleteLines(int row, int num_lines)
 {
+	qDebug() << __func__;
 
-	// Move 
-	QPoint tl = mapText( row+num_lines, gui.scroll_region_left );
-	QPoint br = mapText( m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
-	QRect rect(tl, br);
+	pm_painter->end();
 
-	
-	QPixmap tmp = pixmap.copy(rect);
-	QRect dest = rect;
-	dest.setY( rect.y() - num_lines*m_gui->char_height );
+	QRegion exposed;
+	QRect scrollRect = mapBlock(row, m_gui->scroll_region_left, 
+					m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
+	pixmap.scroll(0, -num_lines*m_gui->char_height,
+			 scrollRect, &exposed);
 
-//	QTransform t;
-//	QPixmap tmp = pixmap.transformed( t.translate(0, -22) );
-//	test.save("debug.jpg");
-//	qDebug() << "saving..." << !test.isNull();
+	pm_painter->begin(&pixmap);
 
-	pm_painter->drawPixmap( tmp.rect(), tmp, tmp.rect());
-
-	// Clear area
-	clearBlock(m_gui->scroll_region_bot-num_lines+1, m_gui->scroll_region_left, 
-			m_gui->scroll_region_bot, m_gui->scroll_region_right);
- 
-	update( dest.united(rect) );
+	// i.e. clearBlock
+	pm_painter->fillRect( exposed.boundingRect(), *(m_gui->back_pixel));
+	update( scrollRect );
 }
-
-/*
- * @Warning
- *
- * Evidently mapText implies there will be breakage when scrolling
- *
- */
 
 void QVimShell::insertLines(int row, int num_lines)
 {
-	// Move 
-	QPoint tl = mapText( row, m_gui->scroll_region_left);
-	QPoint br = mapText(m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
+	qDebug() << __func__;
+	QRegion exposed;
+	QRect scrollRect = mapBlock(row, m_gui->scroll_region_left, 
+					m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
 
-	QRect rect(tl, br);
-	QPixmap tmp = pixmap.copy(rect);
+	pm_painter->end();
+	pixmap.scroll(0, num_lines*m_gui->char_height,
+			 scrollRect, &exposed);
 
-	tl.setY( tl.y() + num_lines*m_gui->char_height );
-	QRect dest( tl, br);
-
-	QRect src( QPoint(0,0), mapText( m_gui->scroll_region_bot+1-num_lines , m_gui->scroll_region_right+1));
-	
-	pm_painter->drawPixmap( dest, tmp, src);
-
-	clearBlock( row, m_gui->scroll_region_left,
-			row+num_lines-1, m_gui->scroll_region_right);
-	update(); // FIXME - we can do better
-
+	pm_painter->begin(&pixmap);
+	// i.e. clearBlock
+	pm_painter->fillRect( exposed.boundingRect(), *(m_gui->back_pixel));
+	update( scrollRect );
 }
 
 
 void QVimShell::invertRectangle(int row, int col, int nr, int nc)
 {
-	
+	QRect rect = mapBlock(row, col, row+nr-1, col +nr-1);
+
+	pm_painter->setCompositionMode( QPainter::CompositionMode_Difference );
+	pm_painter->fillRect( rect, Qt::black);
+	pm_painter->setCompositionMode( QPainter::CompositionMode_SourceOver );
 }
 
 void QVimShell::paintEvent ( QPaintEvent *ev )

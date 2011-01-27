@@ -374,6 +374,7 @@ gui_mch_iconify()
 void
 gui_mch_invert_rectangle(int r, int c, int nr, int nc)
 {
+	qDebug() << __func__;
 	vimshell->invertRectangle(r, c, nr, nc);
 }
 
@@ -564,7 +565,6 @@ gui_mch_toggle_tearoffs(int enable)
 void
 gui_mch_draw_menubar()
 {
-	qDebug() << __func__;
 	gui_mch_update();
 }
 
