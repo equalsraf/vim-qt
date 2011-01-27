@@ -16,6 +16,7 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 			this, SLOT(blinkEvent()));
 
 	setAttribute(Qt::WA_KeyCompression, true);
+	setMouseTracking(true);
 	updateSettings();
 }
 
@@ -149,30 +150,42 @@ bool QVimShell::specialKey(int k, char str[3])
 	return false;
 }
 
+// FIXME
+QByteArray QVimShell::convert(const QString& s)
+{
+	QByteArray encodedString;
+
+	if ( enc_utf8 ) {
+		return s.toUtf8();
+	} else {
+		return s.toAscii();
+	}
+}
+
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
 	//QGraphicsView::keyPressEvent(ev);
 
 	char str[3];
+
+	if ( specialKey( ev->key(), str)) {
+		add_to_input_buf((char_u *) str, 3);
+		return;
+	}
+
+	/*
 	int modifiers = vimModifiers(ev->modifiers());
-/*
 	if ( modifiers ) {
 		str[0] = CSI;
 		str[1] = KS_MODIFIER;
 		str[2] = modifiers;
 		add_to_input_buf((char_u *) str, 3);
-	}
-*/
-	if ( ev->text() != "" ) {
-		add_to_input_buf( (char_u *) ev->text().constData(), ev->count() );
-		return;
-	} 
+	}*/
 
-/*
-	if ( specialKey( ev->key(), str)) {
-		add_to_input_buf((char_u *) str, 3);
+	if ( !ev->text().isEmpty() ) {
+		add_to_input_buf( (char_u *) convert(ev->text()).data(), ev->count() );
+		return;
 	}
-*/
 }
 
 void QVimShell::closeEvent(QCloseEvent *event)
@@ -339,10 +352,65 @@ void QVimShell::insertLines(int row, int num_lines)
 
 void QVimShell::invertRectangle(int row, int col, int nr, int nc)
 {
+	
 }
 
 void QVimShell::paintEvent ( QPaintEvent *ev )
 {
 	QPainter painter(this);
 	painter.drawPixmap( ev->rect(), pixmap, ev->rect());
+}
+
+//
+// Mouse events
+// FIXME: not handling modifiers
+
+void QVimShell::mouseMoveEvent(QMouseEvent *ev)
+{	
+	if ( ev->buttons() ) {
+		gui_send_mouse_event(MOUSE_DRAG, ev->pos().x(),
+					  ev->pos().y(), FALSE, 0);
+	} else {
+		gui_mouse_moved(ev->pos().x(), ev->pos().y());
+	}
+}
+
+void QVimShell::mousePressEvent(QMouseEvent *ev)
+{
+	int but;
+
+	switch( ev->button() ) {
+	case Qt::LeftButton:
+		but = MOUSE_LEFT;
+		break;
+	case Qt::RightButton:
+		but = MOUSE_RIGHT;
+		break;
+	case Qt::MiddleButton:
+		but = MOUSE_MIDDLE;
+		break;
+	default:
+		return;
+	}
+
+	gui_send_mouse_event(but, ev->pos().x(),
+					  ev->pos().y(), FALSE, 0);
+}
+
+void QVimShell::mouseDoubleClickEvent(QMouseEvent *ev)
+{
+	gui_send_mouse_event(MOUSE_LEFT, ev->pos().x(),
+					  ev->pos().y(), TRUE, 0);
+}
+
+void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
+{
+	gui_send_mouse_event(MOUSE_RELEASE, ev->pos().x(),
+					  ev->pos().y(), FALSE, 0);
+}
+
+void QVimShell::wheelEvent(QWheelEvent *ev)
+{
+	gui_send_mouse_event((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
+					    ev->pos().x(), ev->pos().y(), FALSE, 0);
 }

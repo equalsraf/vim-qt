@@ -329,6 +329,11 @@ gui_mch_settitle(char_u *title, char_u *icon UNUSED)
 void
 gui_mch_mousehide(int hide)
 {
+	if ( hide ) {
+		QApplication::setOverrideCursor(Qt::BlankCursor);
+	} else {
+		QApplication::restoreOverrideCursor();
+	}
 }
 
 int
@@ -731,7 +736,7 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 	}
 	qDebug() << file;
 
-	return vim_strsave((char_u *)file.constData()); // FIXME: return outcome
+	return vim_strsave((char_u *)file.toUtf8().data()); // FIXME: return outcome
 }
 
 int
@@ -778,7 +783,6 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 			if ( bt == dfltbutton ) {
 				b->setDefault(true);
 			}
-
 			bt++;
 		}
 	}
@@ -793,13 +797,11 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 	QListIterator<QPushButton *> it(buttonList);
 	while( it.hasNext() ){
 		QPushButton *b = it.next();
-
 		if ( b == msgBox.clickedButton() ) {
 			return i;
 		}
 		i++;
 	}
-
 	return -1;
 }
 
