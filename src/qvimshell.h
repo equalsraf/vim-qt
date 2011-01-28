@@ -10,9 +10,6 @@ extern "C" {
 class QVimShell: public QWidget
 {
 	Q_OBJECT
-	Q_PROPERTY(long blinkWaitTime READ blinkWaitTime WRITE setBlinkWaitTime)
-	Q_PROPERTY(long blinkOnTime READ blinkOnTime WRITE setBlinkOnTime)
-	Q_PROPERTY(long blinkOffTime READ blinkOffTime WRITE setBlinkOffTime)
 
 public:
 	QVimShell(gui_T* gui, QWidget *parent=0);
@@ -21,12 +18,6 @@ public:
 	void drawHollowCursor(const QColor&);
 	void drawPartCursor(const QColor&, int, int);
 
-	long blinkWaitTime();
-	long blinkOnTime();
-	long blinkOffTime();
-	void setBlinkWaitTime(long);
-	void setBlinkOnTime(long);
-	void setBlinkOffTime(long);
 
 	void deleteLines(int row, int num_lines);
 	void insertLines(int row, int num_lines);
@@ -41,8 +32,6 @@ public slots:
 	void clearAll();
 	void clearBlock(int row1, int col1, int row2, int col2);
 	void updateSettings();
-	void startBlinking();
-	void stopBlinking();
 	void invertRectangle(int row, int col, int nr, int nc);
 
 
@@ -64,9 +53,6 @@ protected:
 	virtual void paintEvent( QPaintEvent *);
 	QByteArray convert(const QString& s);
 
-protected slots:
-	void blinkEvent();
-
 private:
 	QColor m_foreground;
 	QColor m_background;
@@ -76,7 +62,6 @@ private:
 
 	long m_blinkWaitTime, m_blinkOnTime, m_blinkOffTime;
 
-	QTimer blinkTimer;
 	enum blink_state{BLINK_NONE, BLINK_ON, BLINK_OFF};
 	blink_state blinkState;
 

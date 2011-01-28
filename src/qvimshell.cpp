@@ -7,14 +7,9 @@ extern "C" {
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), 
-	blinkState(BLINK_NONE), m_blinkWaitTime(700), m_blinkOnTime(400), m_blinkOffTime(250),
 	pixmap(1,1)
 {
 	pm_painter = new QPainter(&pixmap);
-
-	connect(&blinkTimer, SIGNAL(timeout()),
-			this, SLOT(blinkEvent()));
-
 	setAttribute(Qt::WA_KeyCompression, true);
 	setMouseTracking(true);
 	updateSettings();
@@ -165,7 +160,6 @@ QByteArray QVimShell::convert(const QString& s)
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
 	//QGraphicsView::keyPressEvent(ev);
-
 	char str[3];
 
 	if ( specialKey( ev->key(), str)) {
@@ -220,73 +214,6 @@ void QVimShell::drawHollowCursor(const QColor& color)
 	update(rect);
 }
 
-long QVimShell::blinkWaitTime()
-{
-	return m_blinkWaitTime;
-}
-
-long QVimShell::blinkOnTime()
-{
-	return m_blinkOnTime;
-}
-
-long QVimShell::blinkOffTime()
-{
-	return m_blinkOffTime;
-}
-void QVimShell::setBlinkWaitTime(long t)
-{
-	m_blinkWaitTime = t;
-}
-void QVimShell::setBlinkOnTime(long t)
-{
-	m_blinkOnTime = t;
-}
-void QVimShell::setBlinkOffTime(long t)
-{
-	m_blinkOffTime = t;
-}
-
-void QVimShell::startBlinking()
-{
-	/*
-	if ( blinkState != BLINK_NONE ) {
-		return;
-	}
-
-	qDebug() << __func__;
-	blinkState = BLINK_ON;
-	blinkTimer.start(blinkWaitTime());
-	gui_update_cursor(TRUE, FALSE);
-	*/
-}
-
-void QVimShell::stopBlinking()
-{
-	blinkTimer.stop();
-	blinkState = BLINK_NONE;
-	if ( blinkState == BLINK_OFF ) {
-		gui_update_cursor(TRUE, FALSE);
-	}
-}
-
-void QVimShell::blinkEvent()
-{
-	// FIXME
-	if ( blinkState == BLINK_ON ) {
-		gui_undraw_cursor();
-		blinkState = BLINK_OFF;
-		blinkTimer.start(blinkOnTime());
-		qDebug() << __func__<< "OFF";
-
-	} else if (blinkState == BLINK_OFF ) {
-		gui_update_cursor(TRUE, FALSE);
-		blinkState = BLINK_ON;
-		blinkTimer.start(blinkOffTime());
-		qDebug() << __func__<< "ON";
-
-	}
-}
 
 void QVimShell::setFont(const QFont& font)
 {

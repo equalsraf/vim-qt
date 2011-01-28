@@ -130,7 +130,6 @@ void
 gui_mch_start_blink()
 {
 	gui_update_cursor(TRUE, FALSE);
-//	window->startBlinking();
 
 }
 
@@ -138,7 +137,6 @@ void
 gui_mch_stop_blink()
 {
 	gui_update_cursor(TRUE, FALSE);
-//	window->stopBlinking();
 }
 
 
@@ -283,9 +281,6 @@ gui_mch_init()
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
-	vimshell->setBlinkWaitTime(waittime);
-	vimshell->setBlinkOnTime(on);
-	vimshell->setBlinkOffTime(off);
 }
 
 void
