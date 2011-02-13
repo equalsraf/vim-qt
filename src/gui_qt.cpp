@@ -13,6 +13,8 @@ static QMainWindow *window = NULL;
 void
 gui_mch_set_foreground()
 {
+	qDebug() << __func__;
+
 	window->activateWindow();
 	window->raise();
 }
@@ -20,6 +22,8 @@ gui_mch_set_foreground()
 GuiFont
 gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
+	qDebug() << __func__;
+
 	QString family = (char*)name;
 	QFont *font = new QFont();
 
@@ -39,6 +43,8 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 char_u *
 gui_mch_get_fontname(GuiFont font, char_u  *name)
 {
+	qDebug() << __func__;
+
 	if (font == NULL) {
 		return NULL;
 	}
@@ -49,6 +55,8 @@ gui_mch_get_fontname(GuiFont font, char_u  *name)
 void
 gui_mch_free_font(GuiFont font)
 {
+	qDebug() << __func__;
+
 	free(font);
 }
 
@@ -64,13 +72,20 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	if ( wtime > 0 ) {
-		QApplication::processEvents( QEventLoop::WaitForMoreEvents, wtime);
-		return FAIL;
-	}
+	qDebug() << __func__ << wtime;
+
+	long left = wtime;	
+
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers);
-		return OK;
+	} else {
+		QTime t;
+		t.start();
+		do {
+			QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers, wtime - t.elapsed());
+			if ( vimshell->hasInput() )
+				return OK;
+		} while( t.elapsed() < wtime );
 	}
 
 	return FAIL;
@@ -85,6 +100,8 @@ gui_mch_wait_for_chars(long wtime)
 void
 gui_mch_update()
 {
+	qDebug() << __func__;
+
 	QApplication::processEvents();
 }
 
@@ -93,12 +110,16 @@ gui_mch_update()
 void
 gui_mch_flush()
 {
+	qDebug() << __func__;
+
 	//QApplication::flush();
 }
 
 void
 gui_mch_set_fg_color(guicolor_T	color)
 {
+	qDebug() << __func__;
+
 	if ( color == NULL ) {
 		vimshell->setForeground(QColor());
 		return;
@@ -113,6 +134,8 @@ gui_mch_set_fg_color(guicolor_T	color)
 void
 gui_mch_set_bg_color(guicolor_T color)
 {
+	qDebug() << __func__;
+
 	if ( color == NULL ) {
 		vimshell->setBackground(QColor());
 		return;
@@ -129,6 +152,8 @@ gui_mch_set_bg_color(guicolor_T color)
 void
 gui_mch_start_blink()
 {
+	qDebug() << __func__;
+
 	gui_update_cursor(TRUE, FALSE);
 
 }
@@ -136,6 +161,8 @@ gui_mch_start_blink()
 void
 gui_mch_stop_blink()
 {
+	qDebug() << __func__;
+
 	gui_update_cursor(TRUE, FALSE);
 }
 
@@ -143,12 +170,16 @@ gui_mch_stop_blink()
 void
 gui_mch_beep() 
 {
+	qDebug() << __func__;
+
 	QApplication::beep();
 }
 
 void
 gui_mch_clear_all()
 {
+	qDebug() << __func__;
+
 	vimshell->clearAll();
 }
 
@@ -167,6 +198,7 @@ gui_mch_flash(int msec)
 int
 gui_mch_init_font(char_u *font_name, int do_fontset)
 {
+	qDebug() << __func__;
 	QFont *qf = gui_mch_get_font(font_name, 0);
 	QFontMetrics metric( *qf );
 
@@ -186,6 +218,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 void
 gui_mch_getmouse(int *x, int *y)
 {
+	qDebug() << __func__;
 
 	QPoint pos = window->mapFromGlobal( QCursor::pos() );
 	// FIXME: check for error
@@ -196,6 +229,8 @@ gui_mch_getmouse(int *x, int *y)
 void
 gui_mch_setmouse(int x, int y)
 {
+	qDebug() << __func__;
+
 	QPoint pos = window->mapToGlobal(QPoint(x, y));
 	QCursor::setPos(pos.x(), pos.y());
 }
@@ -206,6 +241,8 @@ gui_mch_setmouse(int x, int y)
 long_u
 gui_mch_get_rgb(guicolor_T pixel)
 {
+	qDebug() << __func__;
+
 	if ( pixel != NULL ) {
 		return ((pixel->red() & 0xff00) << 8) + (pixel->green() & 0xff00)
 						   + ((unsigned)pixel->blue() >> 8);
@@ -216,6 +253,8 @@ gui_mch_get_rgb(guicolor_T pixel)
 void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
+	qDebug() << __func__;
+
 	vimshell->clearBlock(row1, col1, row2, col2);
 }
 
@@ -226,6 +265,8 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
+	qDebug() << __func__;
+
 	vimshell->insertLines(row, num_lines);
 }
 
@@ -236,6 +277,8 @@ gui_mch_insert_lines(int row, int num_lines)
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
+	qDebug() << __func__;
+
 	vimshell->deleteLines(row, num_lines);
 }
 
@@ -244,6 +287,8 @@ gui_mch_delete_lines(int row, int num_lines)
 void
 gui_mch_get_screen_dimensions(int *screen_w, int *screen_h)
 {
+	qDebug() << __func__;
+
 	QDesktopWidget *dw = QApplication::desktop();
 
 	QRect geo = dw->screenGeometry(window);
@@ -254,9 +299,7 @@ gui_mch_get_screen_dimensions(int *screen_w, int *screen_h)
 int
 gui_mch_init()
 {
-	fprintf(stderr, "%s\n", __func__);
-
-
+	qDebug() << __func__;
 	/* Colors */
 	gui.norm_pixel = new QColor(Qt::black);
 	gui.back_pixel = new QColor(Qt::white);
@@ -281,11 +324,15 @@ gui_mch_init()
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
+	qDebug() << __func__;
+
 }
 
 void
 gui_mch_prepare(int *argc, char **argv)
 {
+	qDebug() << __func__;
+
 	QApplication *app = new QApplication(*argc, argv);
 }
 
@@ -293,12 +340,16 @@ void
 gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
 {
+	qDebug() << __func__;
+
 	window->resize(width, height);
 }
 
 void
 gui_mch_new_colors()
 {
+	qDebug() << __func__;
+
 	if ( window != NULL ) {
 		vimshell->updateSettings();
 		//window->update();
@@ -308,6 +359,8 @@ gui_mch_new_colors()
 void
 gui_mch_set_winpos(int x, int y)
 {
+	qDebug() << __func__;
+
 	window->move(x, y);
 }
 
@@ -324,6 +377,8 @@ gui_mch_settitle(char_u *title, char_u *icon UNUSED)
 void
 gui_mch_mousehide(int hide)
 {
+	qDebug() << __func__;
+
 	if ( hide ) {
 		QApplication::setOverrideCursor(Qt::BlankCursor);
 	} else {
@@ -334,6 +389,8 @@ gui_mch_mousehide(int hide)
 int
 gui_mch_adjust_charheight()
 {
+	qDebug() << __func__;
+
 	QFontMetrics metric( *gui.norm_font );
 
 	gui.char_height = metric.height();
@@ -346,6 +403,7 @@ int
 gui_mch_haskey(char_u *name)
 {
 	int i;
+	qDebug() << __func__;
 
 	for (i = 0; special_keys[i].code1 != NUL; i++) {
 		if (name[0] == special_keys[i].code0 &&
@@ -359,6 +417,8 @@ gui_mch_haskey(char_u *name)
 void
 gui_mch_iconify()
 {
+	qDebug() << __func__;
+
 	window->showMinimized();
 }
 
@@ -379,6 +439,8 @@ gui_mch_invert_rectangle(int r, int c, int nr, int nc)
 void
 gui_mch_set_font(GuiFont font)
 {
+	qDebug() << __func__;
+
 	if (font == NULL) {
 		return;
 	}
@@ -390,26 +452,52 @@ gui_mch_set_font(GuiFont font)
 void
 gui_mch_exit(int rc)
 {
+	qDebug() << __func__;
+
 	QApplication::quit();
 }
 
 int
 gui_mch_init_check()
 {
+	qDebug() << __func__;
+
 	return OK;
 }
 
 int
 clip_mch_own_selection(VimClipboard *cbd)
 {
+	qDebug() << __func__;
 
+	return OK;
 }
 
 void
 clip_mch_lose_selection(VimClipboard *cbd)
 {
+	qDebug() << __func__;
+
 }
 
+/*
+ * Send the current selection to the clipboard
+ */
+void
+clip_mch_set_selection(VimClipboard *cbd)
+{
+	qDebug() << __func__;
+
+	QClipboard *clip = QApplication::clipboard();
+	clip->setText( "Hello World", QClipboard::Selection);
+
+}
+
+void
+clip_mch_request_selection(VimClipboard *cbd)
+{
+	qDebug() << __func__;
+}
 
 /*
  * Open the GUI window which was created by a call to gui_mch_init().
@@ -417,6 +505,7 @@ clip_mch_lose_selection(VimClipboard *cbd)
 int
 gui_mch_open()
 {
+	qDebug() << __func__;
 	if ( window != NULL ) {
 		window->show();
 		return OK;
@@ -431,6 +520,8 @@ gui_mch_open()
 void
 gui_mch_draw_hollow_cursor(guicolor_T color)
 {
+	qDebug() << __func__;
+
 	gui_mch_set_fg_color(color);
 	vimshell->drawHollowCursor(*color);
 }
@@ -438,6 +529,8 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
+	qDebug() << __func__;
+
 	vimshell->drawPartCursor(*color, w, h);
 }
 
@@ -448,6 +541,8 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 void
 gui_mch_set_sp_color(guicolor_T color) 
 {
+	qDebug() << __func__;
+
 	if ( color == NULL ) {
 		vimshell->setSpecial(QColor());
 		return;
@@ -464,6 +559,8 @@ gui_mch_draw_string(
     int		len,
     int		flags)
 {
+	qDebug() << __func__;
+
 	QString str = QString::fromUtf8((char *)s, len);
 	vimshell->drawString(row, col, str, flags);
 }
@@ -476,6 +573,8 @@ gui_mch_draw_string(
 guicolor_T
 gui_mch_get_color(char_u *reqname)
 {
+	qDebug() << __func__;
+
 	if ( QColor::isValidColor((char *)reqname) ) {
 		QColor *color = new QColor((char *)reqname);
 		return color;
@@ -487,22 +586,14 @@ gui_mch_get_color(char_u *reqname)
 	return INVALCOLOR;
 }
 
-void
-clip_mch_set_selection(VimClipboard *cbd)
-{
-}
-
-void
-clip_mch_request_selection(VimClipboard *cbd)
-{
-}
-
 /*
  * Get the position of the top left corner of the window.
  */
 int
 gui_mch_get_winpos(int *x, int *y)
 {
+	qDebug() << __func__;
+
 	QPoint pos = vimshell->pos();
 
 	*x = pos.x();
@@ -515,6 +606,8 @@ gui_mch_get_winpos(int *x, int *y)
 void
 gui_mch_set_text_area_pos(int x, int y, int w, int h)
 {
+	qDebug() << __func__;
+
 	/* Do we need to do anything here? */
 }
 
@@ -523,11 +616,15 @@ gui_mch_set_text_area_pos(int x, int y, int w, int h)
 void
 gui_mch_new_tooltip_font()
 {
+	qDebug() << __func__;
+
 }
 
 void
 gui_mch_new_tooltip_colors()
 {
+	qDebug() << __func__;
+
 }
 
 void
@@ -539,12 +636,15 @@ gui_mch_show_toolbar(int showit)
 int
 gui_mch_compute_toolbar_height()
 {
+	qDebug() << __func__;
+
 	return 0;
 }
 
 void
 gui_mch_set_toolbar_pos(int x, int y, int w, int h)
 {
+	qDebug() << __func__;
 
 }
 
@@ -560,6 +660,8 @@ gui_mch_toggle_tearoffs(int enable)
 void
 gui_mch_draw_menubar()
 {
+	qDebug() << __func__;
+
 	gui_mch_update();
 }
 
@@ -607,6 +709,8 @@ void
 gui_mch_set_menu_pos(int x, int y, int w, int h)
 {
 	/* The mainwindow handles this */
+	qDebug() << __func__;
+
 }
 
 
@@ -632,6 +736,8 @@ void
 gui_mch_destroy_menu(vimmenu_T *menu)
 {
 	/* Nothing to do */
+	qDebug() << __func__;
+
 }
 
 void gui_mch_show_popupmenu(vimmenu_T *menu)
@@ -646,6 +752,8 @@ void gui_mch_show_popupmenu(vimmenu_T *menu)
 void
 gui_mch_def_colors()
 {
+	qDebug() << __func__;
+
 	gui.norm_pixel = new QColor(Qt::black);
 	gui.back_pixel = new QColor(Qt::white);
 	gui.def_norm_pixel = gui.norm_pixel;
@@ -657,23 +765,26 @@ gui_mch_def_colors()
 void
 gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
 {
-	
+	qDebug() << __func__;
 }
 
 void
 gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
 {
+	qDebug() << __func__;
+
 }
 
 void
 gui_mch_enable_scrollbar(scrollbar_T *sb, int flag)
 {
-
+	qDebug() << __func__;
 }
 
 void
 gui_mch_create_scrollbar( scrollbar_T *sb, int orient)
 {
+	qDebug() << __func__;
 	if ( orient == SBAR_HORIZ) {
 //		sb->wid = window->horizontalScrollBar();
 	} else {

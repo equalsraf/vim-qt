@@ -21,7 +21,7 @@ public:
 
 	void deleteLines(int row, int num_lines);
 	void insertLines(int row, int num_lines);
-
+	bool hasInput();
 
 public slots:
 	void setBackground(const QColor&);
@@ -67,6 +67,7 @@ private:
 
 	QPixmap pixmap;
 	QPainter *pm_painter;
+	volatile bool m_input;
 };
 
 struct special_key

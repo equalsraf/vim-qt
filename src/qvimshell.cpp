@@ -7,7 +7,7 @@ extern "C" {
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), 
-	pixmap(1,1)
+	pixmap(1,1), m_input(false)
 {
 	pm_painter = new QPainter(&pixmap);
 	setAttribute(Qt::WA_KeyCompression, true);
@@ -37,6 +37,7 @@ void QVimShell::setSpecial(const QColor& color)
 void QVimShell::clearAll()
 {
 	pm_painter->fillRect(pixmap.rect(), *(m_gui->back_pixel));
+	update();
 }
 
 QPoint QVimShell::mapText(int row, int col)
@@ -157,11 +158,20 @@ QByteArray QVimShell::convert(const QString& s)
 	}
 }
 
+bool QVimShell::hasInput()
+{
+	if (m_input) {
+		m_input = false;
+		return true;
+	}
+	return false;
+}
+
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
-	//QGraphicsView::keyPressEvent(ev);
 	char str[3];
 
+	m_input = true;
 	if ( specialKey( ev->key(), str)) {
 		add_to_input_buf((char_u *) str, 3);
 		return;
@@ -222,8 +232,6 @@ void QVimShell::setFont(const QFont& font)
 
 void QVimShell::deleteLines(int row, int num_lines)
 {
-	qDebug() << __func__;
-
 	pm_painter->end();
 
 	QRegion exposed;
@@ -241,7 +249,6 @@ void QVimShell::deleteLines(int row, int num_lines)
 
 void QVimShell::insertLines(int row, int num_lines)
 {
-	qDebug() << __func__;
 	QRegion exposed;
 	QRect scrollRect = mapBlock(row, m_gui->scroll_region_left, 
 					m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
