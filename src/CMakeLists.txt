@@ -39,6 +39,6 @@ qt4_automoc(${MOC_SOURCES})
 
 add_definitions(-DHAVE_CONFIG_H -DNO_X11_INCLUDES -DFEAT_GUI_QT -UHAVE_X11 -DFEAT_NORMAL -DFEAT_MBYTE)
 
-add_executable(vim ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES})
-add_dependencies(vim osdef)
-target_link_libraries(vim -lm -lncurses -lacl -lgpm ${QT_LIBRARIES})
+add_executable(qvim ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES})
+add_dependencies(qvim osdef)
+target_link_libraries(qvim -lm -lncurses -lacl -lgpm ${QT_LIBRARIES})
