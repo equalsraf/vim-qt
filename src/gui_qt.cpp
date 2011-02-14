@@ -1,20 +1,17 @@
 #include <Qt/QtGui>
 #include "qvimshell.h"
+#include "mainwindow.h"
 
 extern "C" {
 
 #include "vim.h"
 
-//static QVimShell *window = NULL;
 static QVimShell *vimshell = NULL;
-static QMainWindow *window = NULL;
-
+static MainWindow *window = NULL;
 
 void
 gui_mch_set_foreground()
 {
-	qDebug() << __func__;
-
 	window->activateWindow();
 	window->raise();
 }
@@ -55,8 +52,6 @@ gui_mch_get_fontname(GuiFont font, char_u  *name)
 void
 gui_mch_free_font(GuiFont font)
 {
-	qDebug() << __func__;
-
 	free(font);
 }
 
@@ -72,8 +67,6 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	qDebug() << __func__ << wtime;
-
 	long left = wtime;	
 
 	if ( wtime == -1 ) {
@@ -100,8 +93,6 @@ gui_mch_wait_for_chars(long wtime)
 void
 gui_mch_update()
 {
-	qDebug() << __func__;
-
 	QApplication::processEvents();
 }
 
@@ -110,16 +101,13 @@ gui_mch_update()
 void
 gui_mch_flush()
 {
-	qDebug() << __func__;
-
+	// Is this necessary
 	//QApplication::flush();
 }
 
 void
 gui_mch_set_fg_color(guicolor_T	color)
 {
-	qDebug() << __func__;
-
 	if ( color == NULL ) {
 		vimshell->setForeground(QColor());
 		return;
@@ -134,8 +122,6 @@ gui_mch_set_fg_color(guicolor_T	color)
 void
 gui_mch_set_bg_color(guicolor_T color)
 {
-	qDebug() << __func__;
-
 	if ( color == NULL ) {
 		vimshell->setBackground(QColor());
 		return;
@@ -198,7 +184,6 @@ gui_mch_flash(int msec)
 int
 gui_mch_init_font(char_u *font_name, int do_fontset)
 {
-	qDebug() << __func__;
 	QFont *qf = gui_mch_get_font(font_name, 0);
 	QFontMetrics metric( *qf );
 
@@ -241,8 +226,6 @@ gui_mch_setmouse(int x, int y)
 long_u
 gui_mch_get_rgb(guicolor_T pixel)
 {
-	qDebug() << __func__;
-
 	if ( pixel != NULL ) {
 		return ((pixel->red() & 0xff00) << 8) + (pixel->green() & 0xff00)
 						   + ((unsigned)pixel->blue() >> 8);
@@ -312,11 +295,8 @@ gui_mch_init()
 
 	highlight_gui_started();
 
-
-	window = new QMainWindow();
-	vimshell = new QVimShell(&gui, window);
-	window->setCentralWidget(vimshell);
-	vimshell->setFocus();
+	window = new MainWindow(&gui);
+	vimshell = window->vimShell();
 
 	return OK;
 }
@@ -331,8 +311,6 @@ gui_mch_set_blinking(long waittime, long on, long off)
 void
 gui_mch_prepare(int *argc, char **argv)
 {
-	qDebug() << __func__;
-
 	QApplication *app = new QApplication(*argc, argv);
 }
 
@@ -352,7 +330,6 @@ gui_mch_new_colors()
 
 	if ( window != NULL ) {
 		vimshell->updateSettings();
-		//window->update();
 	}
 }
 
@@ -360,7 +337,6 @@ void
 gui_mch_set_winpos(int x, int y)
 {
 	qDebug() << __func__;
-
 	window->move(x, y);
 }
 
@@ -417,8 +393,6 @@ gui_mch_haskey(char_u *name)
 void
 gui_mch_iconify()
 {
-	qDebug() << __func__;
-
 	window->showMinimized();
 }
 
@@ -439,12 +413,9 @@ gui_mch_invert_rectangle(int r, int c, int nr, int nc)
 void
 gui_mch_set_font(GuiFont font)
 {
-	qDebug() << __func__;
-
 	if (font == NULL) {
 		return;
 	}
-
 	vimshell->setFont(*font);
 }
 
@@ -453,7 +424,6 @@ void
 gui_mch_exit(int rc)
 {
 	qDebug() << __func__;
-
 	QApplication::quit();
 }
 
@@ -461,7 +431,6 @@ int
 gui_mch_init_check()
 {
 	qDebug() << __func__;
-
 	return OK;
 }
 
@@ -469,7 +438,6 @@ int
 clip_mch_own_selection(VimClipboard *cbd)
 {
 	qDebug() << __func__;
-
 	return OK;
 }
 
@@ -477,7 +445,6 @@ void
 clip_mch_lose_selection(VimClipboard *cbd)
 {
 	qDebug() << __func__;
-
 }
 
 /*

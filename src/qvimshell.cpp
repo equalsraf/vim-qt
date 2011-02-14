@@ -291,6 +291,7 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 	} else {
 		gui_mouse_moved(ev->pos().x(), ev->pos().y());
 	}
+	update();
 }
 
 void QVimShell::mousePressEvent(QMouseEvent *ev)
@@ -313,6 +314,8 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 	gui_send_mouse_event(but, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
+
+	update();
 }
 
 void QVimShell::mouseDoubleClickEvent(QMouseEvent *ev)

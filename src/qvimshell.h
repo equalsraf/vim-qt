@@ -33,12 +33,12 @@ public slots:
 	void clearBlock(int row1, int col1, int row2, int col2);
 	void updateSettings();
 	void invertRectangle(int row, int col, int nr, int nc);
+	virtual void closeEvent(QCloseEvent *event);
 
 
 protected:
 	void resizeEvent(QResizeEvent *);
 	void keyPressEvent ( QKeyEvent *);
-	virtual void closeEvent(QCloseEvent *event);
 	virtual void mouseMoveEvent(QMouseEvent *event);
 	virtual void mousePressEvent(QMouseEvent *event);
 	virtual void mouseReleaseEvent(QMouseEvent *event);
