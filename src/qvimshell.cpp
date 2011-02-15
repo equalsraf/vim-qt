@@ -349,14 +349,13 @@ QIcon QVimShell::icon(const QString& name)
 	} else if ( "Print" == name ) {
 		icon = QIcon::fromTheme("document-print");
 	} else if ( "Undo" == name ) {
-		icon = QIcon::fromTheme("edit-revert");
+		icon = QIcon::fromTheme("edit-undo");
 	} else if ( "Redo"== name ) {
-		icon = QIcon::fromTheme("edit-undo");
+		icon = QIcon::fromTheme("edit-redo");
 	} else if ( "Cut" == name ) {
-		icon = QIcon::fromTheme("edit-undo");
+		icon = QIcon::fromTheme("edit-cut");
 	} else if ( "Copy" == name ) {
 		icon = QIcon::fromTheme("edit-copy");
-
 	} else if ( "Paste" == name ) {
 		icon = QIcon::fromTheme("edit-paste");
 	} else if ( "Replace" == name ) {
