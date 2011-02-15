@@ -19,3 +19,5 @@ void MainWindow::closeEvent (QCloseEvent * event)
 {
 	vimshell->closeEvent(event);
 }
+
+

@@ -57,13 +57,11 @@ QRect QVimShell::mapBlock(int row1, int col1, int row2, int col2)
 
 void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 {
+	qDebug() << __func__ << row1 << col1 << row2 << col2;
 	QRect rect = mapBlock(row1, col1, row2, col2); 
 	pm_painter->fillRect( rect, *(m_gui->back_pixel));
 	update(rect);
 }
-
-
-
 
 void QVimShell::drawString(int row, int col, const QString& str, int flags)
 {
@@ -334,4 +332,53 @@ void QVimShell::wheelEvent(QWheelEvent *ev)
 {
 	gui_send_mouse_event((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
 					    ev->pos().x(), ev->pos().y(), FALSE, 0);
+}
+
+QIcon QVimShell::icon(const QString& name)
+{
+	
+	QIcon icon = QIcon::fromTheme(name.toLower());
+
+	// Theme icons
+	if ( "Open" == name ) {
+		icon = QIcon::fromTheme("document-open");
+	} else if ( "Save" == name ) {
+		icon = QIcon::fromTheme("document-save");
+	} else if ( "SaveAll" == name ) {
+		icon = QIcon::fromTheme("document-save-as");
+	} else if ( "Print" == name ) {
+		icon = QIcon::fromTheme("document-print");
+	} else if ( "Undo" == name ) {
+		icon = QIcon::fromTheme("edit-revert");
+	} else if ( "Redo"== name ) {
+		icon = QIcon::fromTheme("edit-undo");
+	} else if ( "Cut" == name ) {
+		icon = QIcon::fromTheme("edit-undo");
+	} else if ( "Copy" == name ) {
+		icon = QIcon::fromTheme("edit-copy");
+
+	} else if ( "Paste" == name ) {
+		icon = QIcon::fromTheme("edit-paste");
+	} else if ( "Replace" == name ) {
+		icon = QIcon::fromTheme("edit-find-replace");
+	} else if ( "FindNext" == name ) {
+		icon = QIcon::fromTheme("go-next");
+	} else if ( "FindPrev" == name ) {
+		icon = QIcon::fromTheme("go-previous");
+	} else if ( "LoadSesn" == name ) {
+	} else if ( "SaveSesn" == name ) {
+	} else if ( "RunScript" == name ) {
+		icon = QIcon::fromTheme("system-run");
+	} else if ( "Make" == name ) {
+	} else if ( "RunCtags" == name ) {
+	} else if ( "TagJump" == name ) {
+	} else if ( "FindHelp" == name ) {
+		icon = QIcon::fromTheme("help-contents");
+	}
+
+	if ( icon.isNull() ) {
+		return QApplication::style()->standardIcon(QStyle::SP_FileIcon);
+	}
+
+	return icon;
 }

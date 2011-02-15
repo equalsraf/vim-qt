@@ -22,6 +22,7 @@ public:
 	void deleteLines(int row, int num_lines);
 	void insertLines(int row, int num_lines);
 	bool hasInput();
+	static QIcon icon(const QString&);
 
 public slots:
 	void setBackground(const QColor&);

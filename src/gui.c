@@ -1231,7 +1231,7 @@ gui_get_base_height()
     base_height = 2 * gui.border_offset;
     if (gui.which_scrollbars[SBAR_BOTTOM])
 	base_height += gui.scrollbar_height;
-#ifdef FEAT_GUI_GTK
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
     /* We can't take the sizes properly into account until anything is
      * realized.  Therefore we recalculate all the values here just before
      * setting the size. (--mdcki) */

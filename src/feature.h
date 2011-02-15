@@ -768,7 +768,8 @@
 		|| defined(FEAT_GUI_MSWIN) \
 		|| ((defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA)) \
 			&& defined(HAVE_XPM)) \
-		|| defined(FEAT_GUI_PHOTON))
+		|| defined(FEAT_GUI_PHOTON) \
+		|| defined(FEAT_GUI_QT))
 # define FEAT_TOOLBAR
 #endif
 

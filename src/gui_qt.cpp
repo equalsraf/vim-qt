@@ -156,8 +156,6 @@ gui_mch_stop_blink()
 void
 gui_mch_beep() 
 {
-	qDebug() << __func__;
-
 	QApplication::beep();
 }
 
@@ -304,8 +302,6 @@ gui_mch_init()
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
-	qDebug() << __func__;
-
 }
 
 void
@@ -508,8 +504,6 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 void
 gui_mch_set_sp_color(guicolor_T color) 
 {
-	qDebug() << __func__;
-
 	if ( color == NULL ) {
 		vimshell->setSpecial(QColor());
 		return;
@@ -526,8 +520,6 @@ gui_mch_draw_string(
     int		len,
     int		flags)
 {
-	qDebug() << __func__;
-
 	QString str = QString::fromUtf8((char *)s, len);
 	vimshell->drawString(row, col, str, flags);
 }
@@ -540,8 +532,6 @@ gui_mch_draw_string(
 guicolor_T
 gui_mch_get_color(char_u *reqname)
 {
-	qDebug() << __func__;
-
 	if ( QColor::isValidColor((char *)reqname) ) {
 		QColor *color = new QColor((char *)reqname);
 		return color;
@@ -573,12 +563,8 @@ gui_mch_get_winpos(int *x, int *y)
 void
 gui_mch_set_text_area_pos(int x, int y, int w, int h)
 {
-	qDebug() << __func__;
-
 	/* Do we need to do anything here? */
 }
-
-
 
 void
 gui_mch_new_tooltip_font()
@@ -603,49 +589,47 @@ gui_mch_show_toolbar(int showit)
 int
 gui_mch_compute_toolbar_height()
 {
-	qDebug() << __func__;
-
+	/* Do nothing - the main window handles this */
 	return 0;
 }
 
 void
 gui_mch_set_toolbar_pos(int x, int y, int w, int h)
 {
-	qDebug() << __func__;
-
+	/* Do nothing - the main window handles this */
 }
 
-/* Menu */
+//
+// MENU
+//
+///////////////////
 
 void
 gui_mch_toggle_tearoffs(int enable)
 {
 	qDebug() << __func__;
-
+	
 }
 
+/*
+ * Called after all menus are set,
+ */
 void
 gui_mch_draw_menubar()
 {
-	qDebug() << __func__;
-
 	gui_mch_update();
 }
 
+/*
+ * Disable a menu entry
+ */
 void
 gui_mch_menu_grey(vimmenu_T *menu, int grey)
 {
-	qDebug() << __func__;
-
-}
-
-
-void
-gui_mch_add_menu_item(vimmenu_T menu, int idx)
-{
-	qDebug() << __func__;
-
-
+	if ( menu == NULL || menu->qaction == NULL )  {
+		return;
+	}
+	menu->qaction->setEnabled( !(grey != 0) );
 }
 
 void
@@ -655,6 +639,9 @@ gui_mch_new_menu_colors()
 
 }
 
+/*
+ * Enable/Disable the application menubar
+ */
 void
 gui_mch_enable_menu(int flag)
 {
@@ -666,31 +653,72 @@ gui_mch_enable_menu(int flag)
 	}
 }
 
+/*
+ * Conceal menu entry
+ */
 void
 gui_mch_menu_hidden(vimmenu_T *menu, int hidden)
 {
-	qDebug() << __func__;
+	qDebug() << __func__ << (char*)menu->name;
+	if ( menu == NULL || menu->qaction == NULL ) {
+		return;
+	}
+	menu->qaction->setVisible( hidden != 0 );
 }
 
 void
 gui_mch_set_menu_pos(int x, int y, int w, int h)
 {
-	/* The mainwindow handles this */
-	qDebug() << __func__;
-
+	/* Do nothing - The mainwindow handles this */
 }
 
-
 /*
- * Add a sub menu to the menu bar.
+ * Add a new ( menubar menu | toolbar action | )
  */
 void
 gui_mch_add_menu(vimmenu_T *menu, int idx)
 {
-	QMenu *m = window->menuBar()->addMenu( QString::fromUtf8((char*)menu->name) );
-	menu->qmenu = m;
-	qDebug() << __func__ <<  m->title();
+	menu->qmenu = NULL;
+
+	if ( menu_is_popup(menu->name) ) {
+		return;
+	} else if ( menu_is_toolbar(menu->name) ) {
+		menu->qmenu = menu->qmenu = window->addToolBar( QString::fromUtf8((char*)menu->name) );
+	} else if (  menu->parent == NULL ) {
+		menu->qmenu = window->menuBar()->addMenu( QString::fromUtf8((char*)menu->name) );
+	}
 }
+
+void
+gui_mch_add_menu_item(vimmenu_T *menu, int idx)
+{
+	menu->qmenu = NULL;
+	if ( menu->parent == NULL || menu->parent->qmenu == NULL ) {
+		return;
+	}
+
+	if ( menu_is_toolbar(menu->parent->name) ) {
+
+		QToolBar *b = (QToolBar*)menu->parent->qmenu;
+		if (menu_is_separator(menu->name)) {
+			b->addSeparator();
+		} else {
+			QString tip = QString::fromUtf8((char*) menu->strings[MENU_INDEX_TIP]);
+			QString name = QString::fromUtf8((char*) menu->name);
+			menu->qaction = b->addAction( QVimShell::icon(name), tip);
+		}
+	} else {
+
+		QMenu *m = (QMenu *)menu->parent->qmenu;
+		if (menu_is_separator(menu->name)) {
+			m->addSeparator();
+		} else {
+			menu->qaction = m->addAction( QString::fromUtf8((char*)menu->name));
+		}
+	}
+}
+
+
 
 void
 gui_mch_new_menu_font()
@@ -699,11 +727,20 @@ gui_mch_new_menu_font()
 
 }
 
+/*
+ * Destroy menu 
+ */
 void
 gui_mch_destroy_menu(vimmenu_T *menu)
 {
 	/* Nothing to do */
 	qDebug() << __func__;
+	if ( menu->qmenu != NULL ) {
+		menu->qmenu->deleteLater();
+	}
+	if ( menu->qaction != NULL ) {
+		menu->qaction->deleteLater();
+	}
 
 }
 

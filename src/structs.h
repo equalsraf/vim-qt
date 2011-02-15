@@ -2353,7 +2353,8 @@ struct VimMenu
     PtWidget_t	*submenu_id;
 #endif
 #ifdef FEAT_GUI_QT
-    struct QMenu	*qmenu;
+    struct QWidget	*qmenu;
+    struct QAction	*qaction;
 #endif
 };
 #else
