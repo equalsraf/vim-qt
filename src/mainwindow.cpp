@@ -3,7 +3,6 @@
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 :QMainWindow(parent)
 {
-	QScrollArea *sa = new QScrollArea(this);
 
 	vimshell = new QVimShell( gui, this );
 	setCentralWidget(vimshell);

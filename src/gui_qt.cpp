@@ -1,6 +1,7 @@
 #include <Qt/QtGui>
 #include "qvimshell.h"
 #include "mainwindow.h"
+#include "vimaction.h"
 
 extern "C" {
 
@@ -138,17 +139,12 @@ gui_mch_set_bg_color(guicolor_T color)
 void
 gui_mch_start_blink()
 {
-	qDebug() << __func__;
-
 	gui_update_cursor(TRUE, FALSE);
-
 }
 
 void
 gui_mch_stop_blink()
 {
-	qDebug() << __func__;
-
 	gui_update_cursor(TRUE, FALSE);
 }
 
@@ -698,27 +694,27 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 	}
 
 	if ( menu_is_toolbar(menu->parent->name) ) {
-
+		// Toolbar
 		QToolBar *b = (QToolBar*)menu->parent->qmenu;
 		if (menu_is_separator(menu->name)) {
 			b->addSeparator();
 		} else {
-			QString tip = QString::fromUtf8((char*) menu->strings[MENU_INDEX_TIP]);
-			QString name = QString::fromUtf8((char*) menu->name);
-			menu->qaction = b->addAction( QVimShell::icon(name), tip);
+			QAction *action = new VimAction( menu, window );
+			b->addAction( action );
+			menu->qaction = action;
 		}
 	} else {
-
+		// Menu entries
 		QMenu *m = (QMenu *)menu->parent->qmenu;
 		if (menu_is_separator(menu->name)) {
 			m->addSeparator();
 		} else {
-			menu->qaction = m->addAction( QString::fromUtf8((char*)menu->name));
+			QAction *action = new VimAction( menu, window );
+			m->addAction( action );
+			menu->qaction = action;
 		}
 	}
 }
-
-
 
 void
 gui_mch_new_menu_font()

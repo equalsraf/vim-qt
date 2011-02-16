@@ -57,7 +57,6 @@ QRect QVimShell::mapBlock(int row1, int col1, int row2, int col2)
 
 void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
 {
-	qDebug() << __func__ << row1 << col1 << row2 << col2;
 	QRect rect = mapBlock(row1, col1, row2, col2); 
 	pm_painter->fillRect( rect, *(m_gui->back_pixel));
 	update(rect);
@@ -336,7 +335,6 @@ void QVimShell::wheelEvent(QWheelEvent *ev)
 
 QIcon QVimShell::icon(const QString& name)
 {
-	
 	QIcon icon = QIcon::fromTheme(name.toLower());
 
 	// Theme icons
