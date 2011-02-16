@@ -23,6 +23,8 @@ public:
 	void insertLines(int row, int num_lines);
 	bool hasInput();
 	static QIcon icon(const QString&);
+	void loadColors(const QString&);
+	QColor color(const QString&);
 
 public slots:
 	void setBackground(const QColor&);
@@ -69,6 +71,7 @@ private:
 	QPixmap pixmap;
 	QPainter *pm_painter;
 	volatile bool m_input;
+	QHash<QString, QColor> m_colorTable;
 };
 
 struct special_key

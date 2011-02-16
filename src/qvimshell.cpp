@@ -379,3 +379,51 @@ QIcon QVimShell::icon(const QString& name)
 
 	return icon;
 }
+
+void QVimShell::loadColors(const QString& name)
+{
+	m_colorTable.clear();
+	
+	qDebug() << name;
+	QFile f(name);
+	if (!f.open(QFile::ReadOnly)) {
+		return;
+	}
+	
+	while (!f.atEnd()) {
+		QString line = QString::fromUtf8( f.readLine() );
+		if ( line.startsWith("!") ) {
+			continue;
+		}
+
+		// FIXME: some color names have spaces
+		QStringList list = line.split( " ", QString::SkipEmptyParts);
+		if ( list.size() != 4 ) {
+			continue;
+		}
+
+		int r,g,b;
+		bool ok_r, ok_g, ok_b;
+
+		r = list[0].toUInt(&ok_r);
+		g = list[1].toUInt(&ok_g);
+		b = list[2].toUInt(&ok_b);
+		if ( !ok_r || !ok_g || !ok_b ) {
+			continue;
+		}
+
+		QColor c(r,g,b);
+		m_colorTable.insert(list[3].simplified(), c);
+		qDebug() << list[3].simplified();
+	}
+}
+
+QColor QVimShell::color(const QString& name)
+{
+	if ( QColor::isValidColor(name) ) {
+		return QColor(name);
+	}
+
+	return m_colorTable.value( name, QColor());
+
+}

@@ -278,6 +278,7 @@ gui_mch_init()
 {
 	qDebug() << __func__;
 	/* Colors */
+
 	gui.norm_pixel = new QColor(Qt::black);
 	gui.back_pixel = new QColor(Qt::white);
 
@@ -291,6 +292,7 @@ gui_mch_init()
 
 	window = new MainWindow(&gui);
 	vimshell = window->vimShell();
+	vimshell->loadColors( QString::fromUtf8((char*)expand_env_save((char_u *)"$VIMRUNTIME/rgb.txt")));
 
 	return OK;
 }

@@ -14,16 +14,16 @@ include_directories(proto auto .)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pathdef.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/auto/pathdef.c)
 
 # osdef
-add_custom_command( OUTPUT auto/osdef.h 
-	COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/osdef.sh 
-	ARGS srcdir="${CMAKE_CURRENT_SOURCE_DIR}"  
-	COMMENT "Generating osdef.h"
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	)
+# add_custom_command( OUTPUT auto/osdef.h 
+#	COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/osdef.sh 
+#	ARGS srcdir="${CMAKE_CURRENT_SOURCE_DIR}"  
+#	COMMENT "Generating osdef.h"
+#	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+#	)
 
-add_custom_target( osdef
-	DEPENDS auto/osdef.h
-	)
+#add_custom_target( osdef
+#	DEPENDS auto/osdef.h
+#	)
 
 
 #
@@ -40,5 +40,4 @@ qt4_automoc(${MOC_SOURCES})
 add_definitions(-DHAVE_CONFIG_H -DNO_X11_INCLUDES -DFEAT_GUI_QT -UHAVE_X11 -DFEAT_NORMAL -DFEAT_MBYTE)
 
 add_executable(qvim ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES})
-add_dependencies(qvim osdef)
 target_link_libraries(qvim -lm -lncurses -lacl -lgpm ${QT_LIBRARIES})
