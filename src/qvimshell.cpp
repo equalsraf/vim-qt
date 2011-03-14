@@ -164,6 +164,11 @@ bool QVimShell::hasInput()
 	return false;
 }
 
+void QVimShell::forceInput()
+{
+	m_input = true;
+}
+
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
 	char str[3];
@@ -309,18 +314,21 @@ void QVimShell::mouseDoubleClickEvent(QMouseEvent *ev)
 {
 	gui_send_mouse_event(MOUSE_LEFT, ev->pos().x(),
 					  ev->pos().y(), TRUE, 0);
+	m_input = true;
 }
 
 void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {
 	gui_send_mouse_event(MOUSE_RELEASE, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
+	m_input = true;
 }
 
 void QVimShell::wheelEvent(QWheelEvent *ev)
 {
 	gui_send_mouse_event((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
 					    ev->pos().x(), ev->pos().y(), FALSE, 0);
+	m_input = true;
 }
 
 QIcon QVimShell::icon(const QString& name)

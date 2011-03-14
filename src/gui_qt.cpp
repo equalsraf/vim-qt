@@ -707,6 +707,9 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 			QAction *action = new VimAction( menu, window );
 			b->addAction( action );
 			menu->qaction = action;
+
+			QObject::connect( action, SIGNAL(triggered()),
+					vimshell, SLOT(forceInput()));
 		}
 	} else {
 		// Menu entries
@@ -717,6 +720,10 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 			QAction *action = new VimAction( menu, window );
 			m->addAction( action );
 			menu->qaction = action;
+			
+			QObject::connect( action, SIGNAL(triggered()),
+					vimshell, SLOT(forceInput()));
+
 		}
 	}
 }

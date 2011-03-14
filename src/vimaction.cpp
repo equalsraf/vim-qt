@@ -16,4 +16,5 @@ VimAction::VimAction(vimmenu_T* menu, QObject *parent)
 void VimAction::actionTriggered()
 {
 	gui_menu_cb(m_menu);
+	QApplication::processEvents();	
 }

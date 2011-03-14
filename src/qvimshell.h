@@ -26,6 +26,7 @@ public:
 	void loadColors(const QString&);
 	QColor color(const QString&);
 
+
 public slots:
 	void setBackground(const QColor&);
 	void setForeground(const QColor&);
@@ -37,6 +38,7 @@ public slots:
 	void updateSettings();
 	void invertRectangle(int row, int col, int nr, int nc);
 	virtual void closeEvent(QCloseEvent *event);
+	void forceInput();
 
 
 protected:
