@@ -174,15 +174,6 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 		return;
 	}
 
-	/*
-	int modifiers = vimModifiers(ev->modifiers());
-	if ( modifiers ) {
-		str[0] = CSI;
-		str[1] = KS_MODIFIER;
-		str[2] = modifiers;
-		add_to_input_buf((char_u *) str, 3);
-	}*/
-
 	if ( !ev->text().isEmpty() ) {
 		add_to_input_buf( (char_u *) convert(ev->text()).data(), ev->count() );
 		return;
@@ -288,7 +279,7 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 	} else {
 		gui_mouse_moved(ev->pos().x(), ev->pos().y());
 	}
-	update();
+	m_input = true;
 }
 
 void QVimShell::mousePressEvent(QMouseEvent *ev)
@@ -311,8 +302,7 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 	gui_send_mouse_event(but, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
-
-	update();
+	m_input = true;
 }
 
 void QVimShell::mouseDoubleClickEvent(QMouseEvent *ev)

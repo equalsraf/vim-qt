@@ -68,6 +68,8 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
+	qDebug() << __func__ << wtime;
+
 	long left = wtime;	
 
 	if ( wtime == -1 ) {
@@ -94,6 +96,7 @@ gui_mch_wait_for_chars(long wtime)
 void
 gui_mch_update()
 {
+	qDebug() << __func__;
 	QApplication::processEvents();
 }
 
@@ -102,8 +105,8 @@ gui_mch_update()
 void
 gui_mch_flush()
 {
+	qDebug() << __func__;
 	// Is this necessary
-	//QApplication::flush();
 }
 
 void

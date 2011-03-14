@@ -103,17 +103,14 @@ static const struct special_key special_keys[] =
     {Qt::Key_F13,		'F', '3'},
     {Qt::Key_F14,		'F', '4'},
 
-
-//    {Qt::Key_Delete,	'k', 'b'},
+    {Qt::Key_Backspace,	'k', 'b'},
+    {Qt::Key_Delete,	'k', 'D'},
     {Qt::Key_Insert,	'k', 'i'},
     {Qt::Key_Home,	'k', 'h'},
     {Qt::Key_End,	'@', '7'},
-/*  {xk_prior,		'k', 'p'}, */
-/*  {xk_next,		'k', 'n'}, */
-/*  {xk_print,		'%', '9'}, */
 
-    {Qt::Key_PageUp,	'k', 'p'},
-    {Qt::Key_PageDown,	'k', 'n'},
+    {Qt::Key_PageUp,	'k', 'P'},
+    {Qt::Key_PageDown,	'k', 'N'},
 
 
     /* End of list marker: */
