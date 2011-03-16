@@ -7,21 +7,19 @@ extern "C" {
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), 
-	pixmap(1,1), m_input(false)
+	m_input(false)
 {
-	pm_painter = new QPainter(&pixmap);
 	setAttribute(Qt::WA_KeyCompression, true);
 	setMouseTracking(true);
-	updateSettings();
-}
-
-void QVimShell::updateSettings()
-{
 }
 
 void QVimShell::setBackground(const QColor& color)
 {
 	m_background = color;
+}
+QColor QVimShell::background()
+{
+	return m_background;
 }
 
 void QVimShell::setForeground(const QColor& color)
@@ -29,82 +27,20 @@ void QVimShell::setForeground(const QColor& color)
 	m_foreground = color;
 }
 
+QColor QVimShell::foreground()
+{
+	return m_foreground;
+}
+
+
 void QVimShell::setSpecial(const QColor& color)
 {
 	m_special = QBrush(color);
 }
 
-void QVimShell::clearAll()
-{
-	pm_painter->fillRect(pixmap.rect(), *(m_gui->back_pixel));
-	update();
-}
-
-QPoint QVimShell::mapText(int row, int col)
-{
-	return QPoint( m_gui->char_width*col, m_gui->char_height*row );
-}
-
-QRect QVimShell::mapBlock(int row1, int col1, int row2, int col2)
-{
-	QPoint tl = mapText( row1, col1 );
-	QPoint br = mapText( row2+1, col2+1);
-	br.setX( br.x()-1 );
-	br.setY( br.y()-1 );
-
-	return QRect(tl, br);
-}
-
-void QVimShell::clearBlock(int row1, int col1, int row2, int col2)
-{
-	QRect rect = mapBlock(row1, col1, row2, col2); 
-	pm_painter->fillRect( rect, *(m_gui->back_pixel));
-	update(rect);
-}
-
-void QVimShell::drawString(int row, int col, const QString& str, int flags)
-{
-	QPoint position = mapText(row, col);
-
-	QRect rect( position.x(), position.y(), m_gui->char_width*str.length(), m_gui->char_height);
-
-	if (flags & DRAW_TRANSP) {
-		// Do we need to do anything?
-	} else {
-		// Fill in the background
-		pm_painter->fillRect( QRect(position.x(), position.y(), 
-					m_gui->char_width*str.length(), m_gui->char_height), m_background );
-	}
-
-	if ( m_foreground.isValid() ) {
-		pm_painter->setPen(QPen(m_foreground));
-	} else {
-		pm_painter->setPen( QPen(*(m_gui->norm_pixel)) );
-	}
-
-	QFont f = m_font;
-	f.setBold( flags & DRAW_BOLD);
-	f.setUnderline( flags & DRAW_UNDERL);
-	f.setItalic( flags & DRAW_ITALIC);
-	// FIXME: missing undercurl
-
-	pm_painter->setFont( f );
-	QPoint textPosition = position;
-	textPosition.setY( textPosition.y() + m_gui->char_height - 1 );
-	pm_painter->drawText(rect, str);
-	update(rect);
-}
-
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
-	pm_painter->end();
-	free(pm_painter);
-
-	pixmap = QPixmap( ev->size() );
-
-	pm_painter = new QPainter(&pixmap);
-	pm_painter->fillRect(pixmap.rect(), QBrush( *(m_gui->back_pixel) ));
-
+	canvas = QPixmap( ev->size() );
 	gui_resize_shell(ev->size().width(), ev->size().height());
 	update();
 }
@@ -191,85 +127,52 @@ void QVimShell::closeEvent(QCloseEvent *event)
 	event->ignore();
 }
 
-void QVimShell::drawPartCursor(const QColor& color, int w, int h)
+void QVimShell::flushPaintOps()
 {
-	QRect rect( m_gui->col*m_gui->char_width,
-			m_gui->row*m_gui->char_height,
-			w, h);
+	QPainter painter(&canvas);
+	while ( !paintOps.isEmpty() ) {
 
-	pm_painter->fillRect(rect, m_foreground);
-	update(rect);
+		PaintOperation op = paintOps.dequeue();
+		switch( op.type ) {
+		case CLEARALL:
+			painter.fillRect(canvas.rect(), op.color);
+			break;
+		case FILLRECT:
+			painter.fillRect(op.rect, op.color);
+			break;
+		case DRAWRECT:
+			painter.drawRect(op.rect); // FIXME: need color
+			break;
+		case DRAWSTRING:
+			painter.setPen( op.color );
+			painter.setFont( op.font );
+			painter.drawText(op.rect, op.str);
+			break;
+		case INVERTRECT:
+			painter.setCompositionMode( QPainter::CompositionMode_Difference );
+			painter.fillRect( op.rect, Qt::black);
+			painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
+			break;
+		case SCROLLRECT:
+			painter.end();
+
+			QRegion exposed;
+			canvas.scroll(op.pos.x(), op.pos.y(),
+			 	op.rect, &exposed);
+
+			painter.begin(&canvas);
+			painter.fillRect(exposed.boundingRect(), op.color);
+			break;
+		}
+	}
 }
 
-void QVimShell::drawHollowCursor(const QColor& color)
-{
-	int w = m_gui->char_width;
-	int h = m_gui->char_height;
-
-	QPoint tl = QPoint(FILL_X(m_gui->col), 
-			FILL_Y(m_gui->row) + m_gui->char_height-h );
-	QPoint br = QPoint(FILL_X(m_gui->col)+w, 
-			FILL_Y(m_gui->row)+gui.char_height);
-
-	QRect rect(tl, br);
-
-	pm_painter->drawRect(rect);
-	update(rect);
-}
-
-
-void QVimShell::setFont(const QFont& font)
-{
-	m_font = font;
-}
-
-void QVimShell::deleteLines(int row, int num_lines)
-{
-	pm_painter->end();
-
-	QRegion exposed;
-	QRect scrollRect = mapBlock(row, m_gui->scroll_region_left, 
-					m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
-	pixmap.scroll(0, -num_lines*m_gui->char_height,
-			 scrollRect, &exposed);
-
-	pm_painter->begin(&pixmap);
-
-	// i.e. clearBlock
-	pm_painter->fillRect( exposed.boundingRect(), *(m_gui->back_pixel));
-	update( scrollRect );
-}
-
-void QVimShell::insertLines(int row, int num_lines)
-{
-	QRegion exposed;
-	QRect scrollRect = mapBlock(row, m_gui->scroll_region_left, 
-					m_gui->scroll_region_bot+1, m_gui->scroll_region_right+1);
-
-	pm_painter->end();
-	pixmap.scroll(0, num_lines*m_gui->char_height,
-			 scrollRect, &exposed);
-
-	pm_painter->begin(&pixmap);
-	// i.e. clearBlock
-	pm_painter->fillRect( exposed.boundingRect(), *(m_gui->back_pixel));
-	update( scrollRect );
-}
-
-
-void QVimShell::invertRectangle(int row, int col, int nr, int nc)
-{
-	QRect rect = mapBlock(row, col, row+nr-1, col +nr-1);
-
-	pm_painter->setCompositionMode( QPainter::CompositionMode_Difference );
-	pm_painter->fillRect( rect, Qt::black);
-	pm_painter->setCompositionMode( QPainter::CompositionMode_SourceOver );
-}
 
 void QVimShell::paintEvent ( QPaintEvent *ev )
 {
-	QPainter painter(this);
-	painter.drawPixmap( ev->rect(), pixmap, ev->rect());
+	flushPaintOps();
+	QPainter realpainter(this);
+	realpainter.drawPixmap( ev->rect(), canvas, ev->rect());
 }
 
 //
@@ -424,4 +327,14 @@ QColor QVimShell::color(const QString& name)
 
 	return m_colorTable.value( name, QColor());
 
+}
+
+void QVimShell::queuePaintOp(PaintOperation op)
+{
+	paintOps.enqueue(op);
+	if ( op.rect.isValid() ) {
+		update(op.rect); // FIXME: use rect
+	} else {
+		update();
+	}
 }

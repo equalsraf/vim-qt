@@ -10,6 +10,23 @@ extern "C" {
 static QVimShell *vimshell = NULL;
 static MainWindow *window = NULL;
 
+static QPoint 
+mapText(int row, int col)
+{
+	return QPoint( gui.char_width*col, gui.char_height*row );
+}
+
+static QRect 
+mapBlock(int row1, int col1, int row2, int col2)
+{
+	QPoint tl = mapText( row1, col1 );
+	QPoint br = mapText( row2+1, col2+1);
+	br.setX( br.x()-1 );
+	br.setY( br.y()-1 );
+
+	return QRect(tl, br);
+}
+
 void
 gui_mch_set_foreground()
 {
@@ -116,7 +133,6 @@ gui_mch_set_fg_color(guicolor_T	color)
 		vimshell->setForeground(QColor());
 		return;
 	}
-
 	vimshell->setForeground(*color);
 }
 
@@ -161,9 +177,14 @@ gui_mch_beep()
 void
 gui_mch_clear_all()
 {
-	qDebug() << __func__;
+	//vimshell->clearAll();
+	
 
-	vimshell->clearAll();
+	qDebug() << __func__;
+	PaintOperation op;
+	op.type = CLEARALL;
+	op.color = *(gui.back_pixel);
+	vimshell->queuePaintOp(op);
 }
 
 void
@@ -234,8 +255,14 @@ void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
 	qDebug() << __func__;
+	//vimshell->clearBlock(row1, col1, row2, col2);
+	QRect rect = mapBlock(row1, col1, row2, col2); 
 
-	vimshell->clearBlock(row1, col1, row2, col2);
+	PaintOperation op;
+	op.type = FILLRECT;
+	op.color = *(gui.back_pixel);
+	op.rect = rect;
+	vimshell->queuePaintOp(op);
 }
 
 /*
@@ -246,8 +273,18 @@ void
 gui_mch_insert_lines(int row, int num_lines)
 {
 	qDebug() << __func__;
+	//vimshell->insertLines(row, num_lines);
 
-	vimshell->insertLines(row, num_lines);
+	//QRegion exposed;
+	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
+					gui.scroll_region_bot+1, gui.scroll_region_right+1);
+
+	PaintOperation op1;
+	op1.type = SCROLLRECT;
+	op1.rect = scrollRect;
+	op1.pos = QPoint(0, num_lines*gui.char_height);
+	op1.color = *(gui.back_pixel);
+	vimshell->queuePaintOp(op1);
 }
 
 /*
@@ -258,8 +295,17 @@ void
 gui_mch_delete_lines(int row, int num_lines)
 {
 	qDebug() << __func__;
+	//vimshell->deleteLines(row, num_lines);
 
-	vimshell->deleteLines(row, num_lines);
+	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
+					gui.scroll_region_bot+1, gui.scroll_region_right+1);
+
+	PaintOperation op;
+	op.type = SCROLLRECT;
+	op.rect = scrollRect;
+	op.pos = QPoint(0, -num_lines*gui.char_height);
+	op.color = *(gui.back_pixel);
+	vimshell->queuePaintOp(op);
 }
 
 
@@ -324,10 +370,6 @@ void
 gui_mch_new_colors()
 {
 	qDebug() << __func__;
-
-	if ( window != NULL ) {
-		vimshell->updateSettings();
-	}
 }
 
 void
@@ -398,10 +440,16 @@ gui_mch_iconify()
  * Invert a rectangle from row r, column c, for nr rows and nc columns.
  */
 void
-gui_mch_invert_rectangle(int r, int c, int nr, int nc)
+gui_mch_invert_rectangle(int row, int col, int nr, int nc)
 {
 	qDebug() << __func__;
-	vimshell->invertRectangle(r, c, nr, nc);
+	//vimshell->invertRectangle(r, c, nr, nc);
+	QRect rect = mapBlock(row, col, row+nr-1, col +nr-1);
+
+	PaintOperation op;
+	op.type = INVERTRECT;
+	op.rect = rect;
+	vimshell->queuePaintOp(op);
 }
 
 /*
@@ -486,18 +534,40 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 {
 	qDebug() << __func__;
 
-	gui_mch_set_fg_color(color);
-	vimshell->drawHollowCursor(*color);
+	//gui_mch_set_fg_color(color);
+	//vimshell->drawHollowCursor(*color);
+
+	int w = gui.char_width;
+	int h = gui.char_height;
+
+	QPoint tl = QPoint(FILL_X(gui.col), 
+			FILL_Y(gui.row) + gui.char_height-h );
+	QPoint br = QPoint(FILL_X(gui.col)+w, 
+			FILL_Y(gui.row)+gui.char_height);
+	QRect rect(tl, br);
+
+	PaintOperation op;
+	op.type = DRAWRECT;
+	op.rect = rect;
+	op.color = *color; // FIXME:
+	vimshell->queuePaintOp(op);
 }
 
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
 	qDebug() << __func__;
+	QRect rect( gui.col*gui.char_width,
+			gui.row*gui.char_height,
+			w, h);
 
-	vimshell->drawPartCursor(*color, w, h);
+	//vimshell->drawPartCursor(*color, w, h);
+	PaintOperation op;
+	op.type = FILLRECT;
+	op.rect = rect;
+	op.color = vimshell->foreground(); // FIXME: use foreground color
+	vimshell->queuePaintOp(op);
 }
-
 
 /*
  * Set the current text special color.
@@ -522,7 +592,37 @@ gui_mch_draw_string(
     int		flags)
 {
 	QString str = QString::fromUtf8((char *)s, len);
-	vimshell->drawString(row, col, str, flags);
+	//vimshell->drawString(row, col, str, flags);
+	
+	QPoint pos = mapText(row, col);
+	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
+
+	if (flags & DRAW_TRANSP) {
+		// Do we need to do anything?
+	} else {
+		// Fill in the background
+		PaintOperation op;
+		op.type = FILLRECT;
+		op.rect = QRect(pos.x(), pos.y(),gui.char_width*str.length(), gui.char_height);
+		op.color = vimshell->background();
+		vimshell->queuePaintOp(op);
+	}
+
+	// Font
+	QFont f = vimshell->font();
+	f.setBold( flags & DRAW_BOLD);
+	f.setUnderline( flags & DRAW_UNDERL);
+	f.setItalic( flags & DRAW_ITALIC);
+	// FIXME: missing undercurl
+
+	PaintOperation op;
+	op.type = DRAWSTRING;
+	op.font = f;
+	op.rect = rect;
+	op.str = str;
+	op.color = vimshell->foreground(); // FIXME: set correct color foreground
+
+	vimshell->queuePaintOp(op);
 }
 
 

@@ -7,6 +7,21 @@ extern "C" {
 #include "vim.h"
 }
 
+
+typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT} PaintOperationType;
+
+class PaintOperation {
+public:
+	PaintOperationType type;
+	QRect rect;
+	QColor color;
+	// DRAWSTRING
+	QFont font;
+	QString str;
+	// SCROLL
+	QPoint pos;
+};
+
 class QVimShell: public QWidget
 {
 	Q_OBJECT
@@ -14,34 +29,39 @@ class QVimShell: public QWidget
 public:
 	QVimShell(gui_T* gui, QWidget *parent=0);
 
-	void drawString(int row, int col, const QString& str, int flags);
-	void drawHollowCursor(const QColor&);
-	void drawPartCursor(const QColor&, int, int);
+	//void drawString(int row, int col, const QString& str, int flags);
+	//void drawHollowCursor(const QColor&);
+	//void drawPartCursor(const QColor&, int, int);
 
 
-	void deleteLines(int row, int num_lines);
-	void insertLines(int row, int num_lines);
 	bool hasInput();
 	static QIcon icon(const QString&);
 	void loadColors(const QString&);
 	QColor color(const QString&);
 
+	void queuePaintOp(PaintOperation);
+//	static QRect mapBlock(int row1, int col1, int row2, int col2);
+//	static QPoint mapText(int row, int col);
+
+	QColor background();
+	QColor foreground();
 
 public slots:
 	void setBackground(const QColor&);
 	void setForeground(const QColor&);
 	void setSpecial(const QColor&);
-	void setFont(const QFont&);
+//	void setFont(const QFont&);
 
-	void clearAll();
-	void clearBlock(int row1, int col1, int row2, int col2);
-	void updateSettings();
-	void invertRectangle(int row, int col, int nr, int nc);
+//	void clearAll();
+//	void clearBlock(int row1, int col1, int row2, int col2);
+//	void invertRectangle(int row, int col, int nr, int nc);
 	virtual void closeEvent(QCloseEvent *event);
 	void forceInput();
 
 
 protected:
+	void flushPaintOps();
+
 	void resizeEvent(QResizeEvent *);
 	void keyPressEvent ( QKeyEvent *);
 	virtual void mouseMoveEvent(QMouseEvent *event);
@@ -49,9 +69,6 @@ protected:
 	virtual void mouseReleaseEvent(QMouseEvent *event);
 	virtual void mouseDoubleClickEvent(QMouseEvent *event);
 	virtual void wheelEvent(QWheelEvent *event );
-
-	QPoint mapText(int row, int col);
-	QRect mapBlock(int row1, int col1, int row2, int col2);
 
 	unsigned int vimModifiers(Qt::KeyboardModifiers);
 	bool specialKey(int, char[3]);
@@ -70,10 +87,12 @@ private:
 	enum blink_state{BLINK_NONE, BLINK_ON, BLINK_OFF};
 	blink_state blinkState;
 
-	QPixmap pixmap;
-	QPainter *pm_painter;
+	//QPixmap pixmap;
+	//QPainter *pm_painter;
 	volatile bool m_input;
 	QHash<QString, QColor> m_colorTable;
+	QQueue<PaintOperation> paintOps;
+	QPixmap canvas;
 };
 
 struct special_key
