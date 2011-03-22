@@ -37,8 +37,6 @@ gui_mch_set_foreground()
 GuiFont
 gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
-	qDebug() << __func__;
-
 	QString family = (char*)name;
 	QFont *font = new QFont();
 
@@ -58,8 +56,6 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 char_u *
 gui_mch_get_fontname(GuiFont font, char_u  *name)
 {
-	qDebug() << __func__;
-
 	if (font == NULL) {
 		return NULL;
 	}
@@ -85,7 +81,7 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	qDebug() << __func__ << wtime;
+	//qDebug() << __func__ << wtime;
 
 	long left = wtime;	
 
@@ -113,7 +109,6 @@ gui_mch_wait_for_chars(long wtime)
 void
 gui_mch_update()
 {
-	qDebug() << __func__;
 	QApplication::processEvents();
 }
 
@@ -122,7 +117,6 @@ gui_mch_update()
 void
 gui_mch_flush()
 {
-	qDebug() << __func__;
 	// Is this necessary
 }
 
@@ -177,10 +171,6 @@ gui_mch_beep()
 void
 gui_mch_clear_all()
 {
-	//vimshell->clearAll();
-	
-
-	qDebug() << __func__;
 	PaintOperation op;
 	op.type = CLEARALL;
 	op.color = *(gui.back_pixel);
@@ -229,6 +219,7 @@ gui_mch_getmouse(int *x, int *y)
 	*y = pos.y();
 }
 
+// FIXME: this is most likely using the wrong coordinates
 void
 gui_mch_setmouse(int x, int y)
 {
@@ -254,8 +245,6 @@ gui_mch_get_rgb(guicolor_T pixel)
 void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
-	qDebug() << __func__;
-	//vimshell->clearBlock(row1, col1, row2, col2);
 	QRect rect = mapBlock(row1, col1, row2, col2); 
 
 	PaintOperation op;
@@ -272,10 +261,6 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
-	qDebug() << __func__;
-	//vimshell->insertLines(row, num_lines);
-
-	//QRegion exposed;
 	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
 					gui.scroll_region_bot+1, gui.scroll_region_right+1);
 
@@ -294,9 +279,6 @@ gui_mch_insert_lines(int row, int num_lines)
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
-	qDebug() << __func__;
-	//vimshell->deleteLines(row, num_lines);
-
 	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
 					gui.scroll_region_bot+1, gui.scroll_region_right+1);
 
@@ -313,8 +295,6 @@ gui_mch_delete_lines(int row, int num_lines)
 void
 gui_mch_get_screen_dimensions(int *screen_w, int *screen_h)
 {
-	qDebug() << __func__;
-
 	QDesktopWidget *dw = QApplication::desktop();
 
 	QRect geo = dw->screenGeometry(window);
@@ -325,7 +305,6 @@ gui_mch_get_screen_dimensions(int *screen_w, int *screen_h)
 int
 gui_mch_init()
 {
-	qDebug() << __func__;
 	/* Colors */
 
 	gui.norm_pixel = new QColor(Qt::black);
@@ -357,12 +336,13 @@ gui_mch_prepare(int *argc, char **argv)
 	QApplication *app = new QApplication(*argc, argv);
 }
 
+//
+// FIXME: handle toolbar and menu gracefully
+//
 void
 gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
 {
-	qDebug() << __func__;
-
 	window->resize(width, height);
 }
 
@@ -375,7 +355,6 @@ gui_mch_new_colors()
 void
 gui_mch_set_winpos(int x, int y)
 {
-	qDebug() << __func__;
 	window->move(x, y);
 }
 
@@ -392,7 +371,6 @@ gui_mch_settitle(char_u *title, char_u *icon UNUSED)
 void
 gui_mch_mousehide(int hide)
 {
-	qDebug() << __func__;
 
 	if ( hide ) {
 		QApplication::setOverrideCursor(Qt::BlankCursor);
@@ -404,8 +382,6 @@ gui_mch_mousehide(int hide)
 int
 gui_mch_adjust_charheight()
 {
-	qDebug() << __func__;
-
 	QFontMetrics metric( *gui.norm_font );
 
 	gui.char_height = metric.height();
@@ -442,8 +418,6 @@ gui_mch_iconify()
 void
 gui_mch_invert_rectangle(int row, int col, int nr, int nc)
 {
-	qDebug() << __func__;
-	//vimshell->invertRectangle(r, c, nr, nc);
 	QRect rect = mapBlock(row, col, row+nr-1, col +nr-1);
 
 	PaintOperation op;
@@ -468,14 +442,12 @@ gui_mch_set_font(GuiFont font)
 void
 gui_mch_exit(int rc)
 {
-	qDebug() << __func__;
 	QApplication::quit();
 }
 
 int
 gui_mch_init_check()
 {
-	qDebug() << __func__;
 	return OK;
 }
 
@@ -517,7 +489,6 @@ clip_mch_request_selection(VimClipboard *cbd)
 int
 gui_mch_open()
 {
-	qDebug() << __func__;
 	if ( window != NULL ) {
 		window->show();
 		return OK;
@@ -532,11 +503,6 @@ gui_mch_open()
 void
 gui_mch_draw_hollow_cursor(guicolor_T color)
 {
-	qDebug() << __func__;
-
-	//gui_mch_set_fg_color(color);
-	//vimshell->drawHollowCursor(*color);
-
 	int w = gui.char_width;
 	int h = gui.char_height;
 
@@ -556,12 +522,10 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
-	qDebug() << __func__;
 	QRect rect( gui.col*gui.char_width,
 			gui.row*gui.char_height,
 			w, h);
 
-	//vimshell->drawPartCursor(*color, w, h);
 	PaintOperation op;
 	op.type = FILLRECT;
 	op.rect = rect;
@@ -592,7 +556,6 @@ gui_mch_draw_string(
     int		flags)
 {
 	QString str = QString::fromUtf8((char *)s, len);
-	//vimshell->drawString(row, col, str, flags);
 	
 	QPoint pos = mapText(row, col);
 	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
@@ -650,8 +613,6 @@ gui_mch_get_color(char_u *reqname)
 int
 gui_mch_get_winpos(int *x, int *y)
 {
-	qDebug() << __func__;
-
 	QPoint pos = vimshell->pos();
 
 	*x = pos.x();
@@ -877,13 +838,11 @@ gui_mch_def_colors()
 void
 gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
 {
-	qDebug() << __func__;
 }
 
 void
 gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
 {
-	qDebug() << __func__;
 
 }
 

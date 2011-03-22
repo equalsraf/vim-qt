@@ -234,9 +234,9 @@ void QVimShell::wheelEvent(QWheelEvent *ev)
 	m_input = true;
 }
 
-QIcon QVimShell::icon(const QString& name)
+QIcon QVimShell::iconFromTheme(const QString& name)
 {
-	QIcon icon = QIcon::fromTheme(name.toLower());
+	QIcon icon;
 
 	// Theme icons
 	if ( "Open" == name ) {
@@ -264,18 +264,36 @@ QIcon QVimShell::icon(const QString& name)
 	} else if ( "FindPrev" == name ) {
 		icon = QIcon::fromTheme("go-previous");
 	} else if ( "LoadSesn" == name ) {
+		icon = QIcon::fromTheme("folder-open");
 	} else if ( "SaveSesn" == name ) {
 	} else if ( "RunScript" == name ) {
 		icon = QIcon::fromTheme("system-run");
 	} else if ( "Make" == name ) {
 	} else if ( "RunCtags" == name ) {
 	} else if ( "TagJump" == name ) {
+		icon = QIcon::fromTheme("go-jump");
 	} else if ( "FindHelp" == name ) {
 		icon = QIcon::fromTheme("help-contents");
 	}
 
+	if ( icon.isNull() ) { // last resort
+		icon = QIcon::fromTheme(name.toLower());
+	}
+
+	return icon;
+}
+
+
+/**
+ * Get an icon for a given name
+ *
+ */
+QIcon QVimShell::icon(const QString& name)
+{
+	QIcon icon = iconFromTheme(name);
+
 	if ( icon.isNull() ) {
-		return QApplication::style()->standardIcon(QStyle::SP_FileIcon);
+		return QApplication::style()->standardIcon(QStyle::SP_FileLinkIcon);
 	}
 
 	return icon;

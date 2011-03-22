@@ -29,19 +29,13 @@ class QVimShell: public QWidget
 public:
 	QVimShell(gui_T* gui, QWidget *parent=0);
 
-	//void drawString(int row, int col, const QString& str, int flags);
-	//void drawHollowCursor(const QColor&);
-	//void drawPartCursor(const QColor&, int, int);
-
-
 	bool hasInput();
+	static QIcon iconFromTheme(const QString&);
 	static QIcon icon(const QString&);
 	void loadColors(const QString&);
 	QColor color(const QString&);
 
 	void queuePaintOp(PaintOperation);
-//	static QRect mapBlock(int row1, int col1, int row2, int col2);
-//	static QPoint mapText(int row, int col);
 
 	QColor background();
 	QColor foreground();
@@ -50,11 +44,7 @@ public slots:
 	void setBackground(const QColor&);
 	void setForeground(const QColor&);
 	void setSpecial(const QColor&);
-//	void setFont(const QFont&);
 
-//	void clearAll();
-//	void clearBlock(int row1, int col1, int row2, int col2);
-//	void invertRectangle(int row, int col, int nr, int nc);
 	virtual void closeEvent(QCloseEvent *event);
 	void forceInput();
 
@@ -87,8 +77,6 @@ private:
 	enum blink_state{BLINK_NONE, BLINK_ON, BLINK_OFF};
 	blink_state blinkState;
 
-	//QPixmap pixmap;
-	//QPainter *pm_painter;
 	volatile bool m_input;
 	QHash<QString, QColor> m_colorTable;
 	QQueue<PaintOperation> paintOps;
@@ -114,24 +102,25 @@ static const struct special_key special_keys[] =
     {Qt::Key_F3,	'k', '3'},
     {Qt::Key_F4,	'k', '4'},
     {Qt::Key_F5,	'k', '5'},
-    {Qt::Key_F6,		'k', '6'},
-    {Qt::Key_F7,		'k', '7'},
-    {Qt::Key_F8,		'k', '8'},
-    {Qt::Key_F9,		'k', '9'},
-    {Qt::Key_F10,		'k', ';'},
-    {Qt::Key_F11,		'F', '1'},
-    {Qt::Key_F12,		'F', '2'},
-    {Qt::Key_F13,		'F', '3'},
-    {Qt::Key_F14,		'F', '4'},
-
+    {Qt::Key_F6,	'k', '6'},
+    {Qt::Key_F7,	'k', '7'},
+    {Qt::Key_F8,	'k', '8'},
+    {Qt::Key_F9,	'k', '9'},
+    {Qt::Key_F10,	'k', ';'},
+    {Qt::Key_F11,	'F', '1'},
+    {Qt::Key_F12,	'F', '2'},
+    {Qt::Key_F13,	'F', '3'},
+    {Qt::Key_F14,	'F', '4'},
     {Qt::Key_Backspace,	'k', 'b'},
+
     {Qt::Key_Delete,	'k', 'D'},
     {Qt::Key_Insert,	'k', 'i'},
     {Qt::Key_Home,	'k', 'h'},
     {Qt::Key_End,	'@', '7'},
-
     {Qt::Key_PageUp,	'k', 'P'},
     {Qt::Key_PageDown,	'k', 'N'},
+
+    {Qt::Key_Print,	'%', '9'},
 
 
     /* End of list marker: */
