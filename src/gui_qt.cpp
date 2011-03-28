@@ -81,7 +81,7 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	//qDebug() << __func__ << wtime;
+	qDebug() << __func__ << wtime;
 
 	long left = wtime;	
 
@@ -279,15 +279,20 @@ gui_mch_insert_lines(int row, int num_lines)
 void
 gui_mch_delete_lines(int row, int num_lines)
 {
+	// This used to be Bottom+1 and right+1
 	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
-					gui.scroll_region_bot+1, gui.scroll_region_right+1);
+					gui.scroll_region_bot, gui.scroll_region_right);
 
 	PaintOperation op;
 	op.type = SCROLLRECT;
 	op.rect = scrollRect;
 	op.pos = QPoint(0, -num_lines*gui.char_height);
-	op.color = *(gui.back_pixel);
+	//op.color = *(gui.back_pixel);
+	op.color = QColor(Qt::red);
 	vimshell->queuePaintOp(op);
+
+	qDebug() << "delete_lines " << row << num_lines << scrollRect;
+
 }
 
 
