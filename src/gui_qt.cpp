@@ -287,8 +287,7 @@ gui_mch_delete_lines(int row, int num_lines)
 	op.type = SCROLLRECT;
 	op.rect = scrollRect;
 	op.pos = QPoint(0, -num_lines*gui.char_height);
-	//op.color = *(gui.back_pixel);
-	op.color = QColor(Qt::red);
+	op.color = *(gui.back_pixel);
 	vimshell->queuePaintOp(op);
 
 	qDebug() << "delete_lines " << row << num_lines << scrollRect;
