@@ -695,7 +695,7 @@ gui_mch_menu_grey(vimmenu_T *menu, int grey)
 	if ( menu == NULL || menu->qaction == NULL )  {
 		return;
 	}
-	menu->qaction->setEnabled( !(grey != 0) );
+	menu->qaction->setEnabled( (grey == 0) );
 }
 
 void
@@ -729,7 +729,7 @@ gui_mch_menu_hidden(vimmenu_T *menu, int hidden)
 	if ( menu == NULL || menu->qaction == NULL ) {
 		return;
 	}
-	menu->qaction->setVisible( hidden != 0 );
+	menu->qaction->setVisible( hidden == 0 );
 }
 
 void
