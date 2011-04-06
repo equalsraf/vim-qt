@@ -785,6 +785,7 @@
     && (defined(FEAT_GUI_GTK) \
 	|| (defined(FEAT_GUI_MOTIF) && defined(HAVE_XM_NOTEBOOK_H)) \
 	|| defined(FEAT_GUI_MAC) \
+	|| defined(FEAT_GUI_QT) \
 	|| (defined(FEAT_GUI_MSWIN) && !defined(WIN16) \
 	    && (!defined(_MSC_VER) || _MSC_VER > 1020)))
 # define FEAT_GUI_TABLINE

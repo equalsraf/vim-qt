@@ -48,6 +48,8 @@ public slots:
 	virtual void closeEvent(QCloseEvent *event);
 	void forceInput();
 
+	void switchTab(int idx);
+	void closeTab(int idx);
 
 protected:
 	void flushPaintOps();

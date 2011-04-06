@@ -81,7 +81,7 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	qDebug() << __func__ << wtime;
+	//qDebug() << __func__ << wtime;
 
 	long left = wtime;	
 
@@ -117,7 +117,7 @@ gui_mch_update()
 void
 gui_mch_flush()
 {
-	// Is this necessary
+	// Is this necessary?
 }
 
 void
@@ -148,6 +148,8 @@ gui_mch_set_bg_color(guicolor_T color)
 /*
  * Start the cursor blinking.  If it was already blinking, this restarts the
  * waiting time and shows the cursor.
+ *
+ * FIXME: We dont blink
  */
 void
 gui_mch_start_blink()
@@ -289,9 +291,6 @@ gui_mch_delete_lines(int row, int num_lines)
 	op.pos = QPoint(0, -num_lines*gui.char_height);
 	op.color = *(gui.back_pixel);
 	vimshell->queuePaintOp(op);
-
-	qDebug() << "delete_lines " << row << num_lines << scrollRect;
-
 }
 
 
@@ -375,7 +374,6 @@ gui_mch_settitle(char_u *title, char_u *icon UNUSED)
 void
 gui_mch_mousehide(int hide)
 {
-
 	if ( hide ) {
 		QApplication::setOverrideCursor(Qt::BlankCursor);
 	} else {
@@ -725,7 +723,6 @@ gui_mch_enable_menu(int flag)
 void
 gui_mch_menu_hidden(vimmenu_T *menu, int hidden)
 {
-	qDebug() << __func__ << (char*)menu->name;
 	if ( menu == NULL || menu->qaction == NULL ) {
 		return;
 	}
@@ -749,7 +746,7 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	if ( menu_is_popup(menu->name) ) {
 		return;
 	} else if ( menu_is_toolbar(menu->name) ) {
-		menu->qmenu = menu->qmenu = window->addToolBar( QString::fromUtf8((char*)menu->name) );
+		menu->qmenu = window->addToolBar( QString::fromUtf8((char*)menu->name) );
 	} else if (  menu->parent == NULL ) {
 		menu->qmenu = window->menuBar()->addMenu( QString::fromUtf8((char*)menu->name) );
 	}
@@ -853,7 +850,7 @@ gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
 void
 gui_mch_enable_scrollbar(scrollbar_T *sb, int flag)
 {
-	qDebug() << __func__;
+	//qDebug() << __func__;
 }
 
 void
@@ -871,7 +868,6 @@ void
 gui_mch_destroy_scrollbar(scrollbar_T *sb)
 {
 	// ScrollBar is owned by the viewport, do nothing
-	qDebug() << __func__;
 }
 
 void
@@ -920,6 +916,10 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 	return vim_strsave((char_u *)file.toUtf8().data()); // FIXME: return outcome
 }
 
+
+/*
+ * Open a dialog window
+ */
 int
 gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield)
 {
@@ -984,6 +984,65 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 		i++;
 	}
 	return -1;
+}
+
+//
+// TabLine 
+//
+
+/*
+ * Show or hide the tabline.
+ */
+void
+gui_mch_show_tabline(int showit)
+{
+	window->showTabline(showit != 0);
+}
+
+/*
+ * Return TRUE when tabline is displayed.
+ */
+int
+gui_mch_showing_tabline(void)
+{
+	qDebug() << __func__ << window->tablineVisible();
+	if ( window->tablineVisible() ) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+/*
+ * Update the labels of the tabline.
+ */
+void
+gui_mch_update_tabline(void)
+{
+	qDebug() << __func__;
+
+	tabpage_T *tp;
+	int current, nr = 0;
+
+
+	for (tp = first_tabpage; tp != NULL; tp = tp->tp_next, nr++)
+	{
+		if (tp == curtab) {
+			current = nr;
+		}
+
+		window->setTab( nr, "[No name]");
+	}
+	window->removeTabs(nr);
+	window->setCurrentTab(current);
+
+}
+
+void
+gui_mch_set_curtab(int nr)
+{
+	qDebug() << __func__ << nr;
+	window->setCurrentTab(nr-1);
 }
 
 } // extern "C"

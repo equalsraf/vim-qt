@@ -17,6 +17,20 @@ void QVimShell::setBackground(const QColor& color)
 {
 	m_background = color;
 }
+
+void QVimShell::switchTab(int idx)
+{
+	send_tabline_event(idx);
+	m_input = true;
+}
+
+void QVimShell::closeTab(int idx)
+{
+	send_tabline_menu_event(idx, TABLINE_MENU_CLOSE);
+	m_input = true;
+}
+
+
 QColor QVimShell::background()
 {
 	return m_background;

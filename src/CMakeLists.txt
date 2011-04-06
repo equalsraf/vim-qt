@@ -37,7 +37,7 @@ set(MOC_SOURCES qvimshell.cpp mainwindow.cpp vimaction.cpp)
 
 qt4_automoc(${MOC_SOURCES})
 
-add_definitions(-DHAVE_CONFIG_H -DNO_X11_INCLUDES -DFEAT_GUI_QT -UHAVE_X11 -DFEAT_NORMAL -DFEAT_MBYTE)
+add_definitions(-DHAVE_CONFIG_H -DNO_X11_INCLUDES -DFEAT_GUI_QT -UHAVE_X11 -DFEAT_HUGE -DFEAT_MBYTE -DFEAT_TITLE)
 
 add_executable(qvim ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES})
 target_link_libraries(qvim -lm -lncurses -lacl -lgpm ${QT_LIBRARIES})
