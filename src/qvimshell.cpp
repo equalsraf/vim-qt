@@ -10,7 +10,6 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 	m_input(false)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
-	setMouseTracking(true);
 }
 
 void QVimShell::setBackground(const QColor& color)
@@ -207,6 +206,7 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 void QVimShell::mousePressEvent(QMouseEvent *ev)
 {
 	int but;
+	setMouseTracking(true);
 
 	switch( ev->button() ) {
 	case Qt::LeftButton:
@@ -239,6 +239,7 @@ void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 	gui_send_mouse_event(MOUSE_RELEASE, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
 	m_input = true;
+	setMouseTracking(false);
 }
 
 void QVimShell::wheelEvent(QWheelEvent *ev)

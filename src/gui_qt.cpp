@@ -81,19 +81,28 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	//qDebug() << __func__ << wtime;
+	qDebug() << __func__ << wtime;
 
 	long left = wtime;	
 
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers);
+		return OK;
 	} else {
+		//
+		// FIXME
+		// This is, evidently, broken. We should block until we get an event or the given
+		// time expires. Since we have practical way to block Qt for a certain time step
+		// instead we wait indefinitely. In practice this works because vim likes pass in
+		// large time slots(4s).
+
 		QTime t;
 		t.start();
 		do {
-			QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers, wtime - t.elapsed());
-			if ( vimshell->hasInput() )
+			QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers);
+			if ( vimshell->hasInput() ) {
 				return OK;
+			}
 		} while( t.elapsed() < wtime );
 	}
 
