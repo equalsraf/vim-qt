@@ -81,8 +81,6 @@ gui_mch_free_font(GuiFont font)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	qDebug() << __func__ << wtime;
-
 	long left = wtime;	
 
 	if ( wtime == -1 ) {
@@ -1051,7 +1049,10 @@ gui_mch_update_tabline(void)
 			current = nr;
 		}
 
-		window->setTab( nr, "[No name]");
+		get_tabline_label(tp, FALSE);
+		char_u *labeltext = CONVERT_TO_UTF8(NameBuff);
+		window->setTab( nr, QString::fromUtf8((char*)labeltext));
+		CONVERT_TO_UTF8_FREE(labeltext);
 	}
 	window->removeTabs(nr);
 	window->setCurrentTab(current);
