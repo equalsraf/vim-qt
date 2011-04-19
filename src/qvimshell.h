@@ -1,7 +1,7 @@
 #ifndef __QVIMSHELL__
 #define __QVIMSHELL__
 
-#include <QtGui>
+#include <Qt/QtGui>
 
 extern "C" {
 #include "vim.h"

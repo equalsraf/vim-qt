@@ -1,7 +1,7 @@
 #ifndef __GUI_QT_MAINWINDOW__
 #define __GUI_QT_MAINWINDOW__
 
-#include <QtGui>
+#include <Qt/QtGui>
 #include "qvimshell.h"
 
 class MainWindow: public QMainWindow

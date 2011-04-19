@@ -96,13 +96,7 @@ bool QVimShell::specialKey(int k, char str[3])
 // FIXME
 QByteArray QVimShell::convert(const QString& s)
 {
-	QByteArray encodedString;
-
-	if ( enc_utf8 ) {
-		return s.toUtf8();
-	} else {
-		return s.toAscii();
-	}
+	return s.toUtf8();
 }
 
 bool QVimShell::hasInput()

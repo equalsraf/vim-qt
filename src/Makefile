@@ -1231,6 +1231,24 @@ NEXTAW_MAN_TARGETS = yes
 NEXTAW_TESTTARGET = gui
 NEXTAW_BUNDLE	=
 
+
+### Qt
+#
+
+QT_LIBS1	= -lQtGui
+QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
+			qvimshell.cpp mainwindow.cpp vimaction.cpp
+QT_OBJ	= objects/gui.o objects/gui_qt.o \
+			objects/pty.o objects/gui_beval.o \
+			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o
+QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO)
+QT_IPATH	= $(GUI_INC_LOC)
+QT_LIBS_DIR = $(GUI_LIB_LOC)
+
+QT_INSTALL  = install_normal install_gui_extra
+
+
+
 ### (J)  Sun OpenWindows 3.2 (SunOS 4.1.x) or earlier that produce these ld
 #	 errors:  ld: Undefined symbol
 #		      _get_wmShellWidgetClass
@@ -1275,7 +1293,7 @@ APPDIR = $(VIMNAME).app
 CARBONGUI_TESTARG = VIMPROG=../$(APPDIR)/Contents/MacOS/$(VIMTARGET)
 
 # All GUI files
-ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c
+ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qvimshell.cpp mainwindow.cpp
 ALL_GUI_PRO  = gui.pro gui_gtk.pro gui_motif.pro gui_xmdlg.pro gui_athena.pro gui_gtk_x11.pro gui_x11.pro gui_w16.pro gui_w32.pro gui_photon.pro
 
 # }}}
@@ -2457,6 +2475,23 @@ objects/gui_at_sb.o: gui_at_sb.c
 
 objects/gui_athena.o: gui_athena.c
 	$(CCC) -o $@ gui_athena.c
+
+## Qt objects
+objects/gui_qt.o: gui_qt.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c gui_qt.cpp
+
+objects/mainwindow.o: mainwindow.cpp
+	moc mainwindow.h > mainwindow.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c mainwindow.cpp
+
+objects/qvimshell.o: qvimshell.cpp
+	moc qvimshell.h > qvimshell.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qvimshell.cpp
+
+objects/vimaction.o: vimaction.cpp
+	moc vimaction.h > vimaction.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c vimaction.cpp
+
 
 objects/gui_beval.o: gui_beval.c
 	$(CCC) -o $@ gui_beval.c
