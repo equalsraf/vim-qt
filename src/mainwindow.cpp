@@ -1,8 +1,12 @@
 #include "mainwindow.moc"
 
+#include "../runtime/vim32x32.xpm"
+
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 :QMainWindow(parent)
 {
+	setWindowIcon(QPixmap(vim32x32));
+
 	// Menu
 	QToolBar *menutoolbar = addToolBar("Menu");
 	menu = new QMenuBar(menutoolbar);
