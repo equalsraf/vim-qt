@@ -30,7 +30,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pathdef.cmake.in ${CMAKE_CURRENT_BINA
 # Vim executable
 #
 
-set(VIM_SOURCES buffer.c blowfish.c charset.c diff.c digraph.c edit.c eval.c ex_cmds.c ex_cmds2.c ex_docmd.c ex_eval.c ex_getln.c fileio.c fold.c getchar.c hardcopy.c hashtab.c  if_cscope.c if_xcmdsrv.c main.c mark.c memfile.c memline.c menu.c message.c misc1.c misc2.c move.c mbyte.c normal.c ops.c option.c os_unix.c popupmnu.c quickfix.c regexp.c screen.c search.c sha256.c spell.c syntax.c  tag.c term.c ui.c undo.c window.c gui.c  netbeans.c pty.c version.c  ${CMAKE_CURRENT_BINARY_DIR}/auto/pathdef.c)
+set(VIM_SOURCES buffer.c blowfish.c charset.c diff.c digraph.c edit.c eval.c ex_cmds.c ex_cmds2.c ex_docmd.c ex_eval.c ex_getln.c fileio.c fold.c getchar.c hardcopy.c hashtab.c  if_cscope.c if_xcmdsrv.c main.c mark.c memfile.c memline.c menu.c message.c misc1.c misc2.c move.c mbyte.c normal.c ops.c option.c os_unix.c popupmnu.c quickfix.c regexp.c screen.c search.c sha256.c spell.c syntax.c  tag.c term.c ui.c undo.c window.c gui.c  netbeans.c pty.c version.c auto/pathdef.c)
 
 set(GUI_SOURCES gui_qt.cpp)
 set(MOC_SOURCES qvimshell.cpp mainwindow.cpp vimaction.cpp)
