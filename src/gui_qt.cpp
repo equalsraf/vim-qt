@@ -336,7 +336,7 @@ gui_mch_init()
 	settings.endGroup();
 
 	vimshell = window->vimShell();
-	vimshell->loadColors( QString::fromUtf8((char*)expand_env_save((char_u *)"$VIMRUNTIME/rgb.txt")));
+	vimshell->loadColors( QString::fromLatin1((char*)expand_env_save((char_u *)"$VIMRUNTIME/rgb.txt")));
 
 	return OK;
 }
@@ -380,7 +380,7 @@ gui_mch_settitle(char_u *title, char_u *icon UNUSED)
 {
 	qDebug() << __func__;
 	if ( title != NULL ) {
-		window->setWindowTitle( QString::fromUtf8((char*)title) );
+		window->setWindowTitle( QString::fromLatin1((char*)title) );
 	}
 }
 
@@ -575,7 +575,7 @@ gui_mch_draw_string(
     int		len,
     int		flags)
 {
-	QString str = QString::fromUtf8((char *)s, len);
+	QString str = QString::fromLatin1((char *)s, len);
 	
 	QPoint pos = mapText(row, col);
 	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
@@ -764,9 +764,9 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	if ( menu_is_popup(menu->name) ) {
 		return;
 	} else if ( menu_is_toolbar(menu->name) ) {
-		menu->qmenu = window->addToolBar( QString::fromUtf8((char*)menu->name) );
+		menu->qmenu = window->addToolBar( QString::fromLatin1((char*)menu->name) );
 	} else if (  menu->parent == NULL ) {
-		menu->qmenu = window->menuBar()->addMenu( QString::fromUtf8((char*)menu->name) );
+		menu->qmenu = window->menuBar()->addMenu( QString::fromLatin1((char*)menu->name) );
 	}
 }
 
@@ -931,7 +931,7 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 	}
 	qDebug() << file;
 
-	return vim_strsave((char_u *)file.toUtf8().data()); // FIXME: return outcome
+	return vim_strsave((char_u *)file.toLatin1().data()); // FIXME: return outcome
 }
 
 
@@ -972,7 +972,10 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 	// Add buttons
 	QList<QPushButton *> buttonList;
 	if ( buttons != NULL ) {
-		QStringList b_string = QString::fromUtf8((char*)buttons).split(DLG_BUTTON_SEP);
+		QStringList b_string;
+
+		b_string = QString::fromLatin1((char*)buttons).split(DLG_BUTTON_SEP);
+
 		QListIterator<QString> it(b_string);
 		int bt=1;
 		while(it.hasNext()) {
@@ -1051,7 +1054,7 @@ gui_mch_update_tabline(void)
 
 		get_tabline_label(tp, FALSE);
 		char_u *labeltext = CONVERT_TO_UTF8(NameBuff);
-		window->setTab( nr, QString::fromUtf8((char*)labeltext));
+		window->setTab( nr, QString::fromLatin1((char*)labeltext));
 		CONVERT_TO_UTF8_FREE(labeltext);
 	}
 	window->removeTabs(nr);

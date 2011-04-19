@@ -19,12 +19,12 @@ VIEWNAME	= view
 
 CC		= gcc
 DEFS		= -DHAVE_CONFIG_H
-CFLAGS		= -O2 -fno-strength-reduce -Wall -D_FORTIFY_SOURCE=1
+CFLAGS		= -g -O2 -D_FORTIFY_SOURCE=1
 CPPFLAGS	= 
 srcdir		= .
 
 LDFLAGS		=  -L/usr/local/lib
-LIBS		= -lm -lncurses -lnsl  -lgpm
+LIBS		= -lm -lncurses -lelf -lnsl  -lacl -lattr -lgpm
 TAGPRG		= ctags
 
 CPP		= gcc -E
@@ -33,7 +33,7 @@ DEPEND_CFLAGS_FILTER = | sed 's+-I */+-isystem /+g'
 X_CFLAGS	=  
 X_LIBS_DIR	=  
 X_PRE_LIBS	=  -lSM -lICE -lXpm
-X_EXTRA_LIBS	=  -lXdmcp -lSM -lICE -ldl
+X_EXTRA_LIBS	=  -lXdmcp -lSM -lICE
 X_LIBS		= -lXt -lX11
 
 LUA_LIBS	= 
@@ -118,7 +118,7 @@ QUOTESED        = sed -e 's/[\\"]/\\&/g' -e 's/\\"/"/' -e 's/\\";$$/";/'
 NL		= "\\012"
 
 ### Top directory for everything
-prefix		= /usr/local
+prefix		= /usr
 
 ### Top directory for the binary
 exec_prefix	= ${prefix}
@@ -138,21 +138,21 @@ MANDIR		= ${datarootdir}/man
 ### Do we have a GUI
 GUI_INC_LOC	= 
 GUI_LIB_LOC	= 
-GUI_SRC		= $(ATHENA_SRC)
-GUI_OBJ		= $(ATHENA_OBJ)
-GUI_DEFS	= $(ATHENA_DEFS)
-GUI_IPATH	= $(ATHENA_IPATH)
-GUI_LIBS_DIR	= $(ATHENA_LIBS_DIR)
-GUI_LIBS1	= $(ATHENA_LIBS1)
-GUI_LIBS2	= $(ATHENA_LIBS2)
-GUI_INSTALL	= $(ATHENA_INSTALL)
-GUI_TARGETS	= $(ATHENA_TARGETS)
-GUI_MAN_TARGETS	= $(ATHENA_MAN_TARGETS)
-GUI_TESTTARGET	= $(ATHENA_TESTTARGET)
-GUI_TESTARG	= $(ATHENA_TESTARG)
-GUI_BUNDLE	= $(ATHENA_BUNDLE)
-NARROW_PROTO	= -DFUNCPROTO=15 -DNARROWPROTO
-GUI_X_LIBS	= -lXmu -lXext
+GUI_SRC		= $(QT_SRC)
+GUI_OBJ		= $(QT_OBJ)
+GUI_DEFS	= $(QT_DEFS)
+GUI_IPATH	= $(QT_IPATH)
+GUI_LIBS_DIR	= $(QT_LIBS_DIR)
+GUI_LIBS1	= $(QT_LIBS1)
+GUI_LIBS2	= $(QT_LIBS2)
+GUI_INSTALL	= $(QT_INSTALL)
+GUI_TARGETS	= $(QT_TARGETS)
+GUI_MAN_TARGETS	= $(QT_MAN_TARGETS)
+GUI_TESTTARGET	= $(QT_TESTTARGET)
+GUI_TESTARG	= $(QT_TESTARG)
+GUI_BUNDLE	= $(QT_BUNDLE)
+NARROW_PROTO	= 
+GUI_X_LIBS	= 
 MOTIF_LIBNAME	= 
 GTK_LIBNAME	= 
 

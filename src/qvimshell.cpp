@@ -6,7 +6,7 @@ extern "C" {
 
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
-:QWidget(parent), m_foreground(Qt::black), m_gui(gui), 
+:QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(),
 	m_input(false)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
@@ -96,7 +96,11 @@ bool QVimShell::specialKey(int k, char str[3])
 // FIXME
 QByteArray QVimShell::convert(const QString& s)
 {
-	return s.toUtf8();
+	if ( m_encoding_utf8 ) {
+		return s.toUtf8();
+	} else {
+		return s.toAscii();
+	}
 }
 
 bool QVimShell::hasInput()
@@ -320,7 +324,7 @@ void QVimShell::loadColors(const QString& name)
 	}
 	
 	while (!f.atEnd()) {
-		QString line = QString::fromUtf8( f.readLine() );
+		QString line = QString::fromLatin1( f.readLine() );
 		if ( line.startsWith("!") ) {
 			continue;
 		}
@@ -365,4 +369,9 @@ void QVimShell::queuePaintOp(PaintOperation op)
 	} else {
 		update();
 	}
+}
+
+void QVimShell::setEncodingUtf8(bool enabled)
+{
+	m_encoding_utf8 = enabled;
 }

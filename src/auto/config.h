@@ -243,7 +243,7 @@
 #define HAVE_STRINGS_H 1
 #define HAVE_STROPTS_H 1
 /* #undef HAVE_SYS_ACCESS_H */
-/* #undef HAVE_SYS_ACL_H */
+#define HAVE_SYS_ACL_H 1
 /* #undef HAVE_SYS_DIR_H */
 #define HAVE_SYS_IOCTL_H 1
 /* #undef HAVE_SYS_NDIR_H */
@@ -269,7 +269,7 @@
 /* #undef HAVE_UTIL_DEBUG_H */
 /* #undef HAVE_UTIL_MSGI18N_H */
 #define HAVE_UTIME_H 1
-#define HAVE_X11_SUNKEYSYM_H 1
+/* #undef HAVE_X11_SUNKEYSYM_H */
 /* #undef HAVE_XM_XM_H */
 /* #undef HAVE_XM_XPMP_H */
 /* #undef HAVE_XM_TRAITP_H */
@@ -277,8 +277,8 @@
 /* #undef HAVE_XM_UNHIGHLIGHTT_H */
 /* #undef HAVE_XM_JOINSIDET_H */
 /* #undef HAVE_XM_NOTEBOOK_H */
-#define HAVE_X11_XPM_H 1
-#define HAVE_X11_XMU_EDITRES_H 1
+/* #undef HAVE_X11_XPM_H */
+/* #undef HAVE_X11_XMU_EDITRES_H */
 #define HAVE_X11_SM_SMLIB_H 1
 
 /* Define to the type of the XpmAttributes type. */
@@ -357,7 +357,7 @@
 /* #undef FEAT_SNIFF */
 
 /* Define if you want to add support for ACL */
-/* #undef HAVE_POSIX_ACL */
+#define HAVE_POSIX_ACL 1
 /* #undef HAVE_SOLARIS_ACL */
 /* #undef HAVE_AIX_ACL */
 
@@ -377,7 +377,7 @@
 /* #undef FEAT_XFONTSET */
 
 /* Define if you want to include XIM support. */
-#define FEAT_XIM 1
+/* #undef FEAT_XIM */
 
 /* Define if you want to include Hangul input support. */
 /* #undef FEAT_HANGULIN */

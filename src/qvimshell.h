@@ -25,7 +25,7 @@ public:
 class QVimShell: public QWidget
 {
 	Q_OBJECT
-
+	Q_PROPERTY(bool encodingUtf8 WRITE setEncodingUtf8);
 public:
 	QVimShell(gui_T* gui, QWidget *parent=0);
 
@@ -39,6 +39,8 @@ public:
 
 	QColor background();
 	QColor foreground();
+
+	void setEncodingUtf8(bool);
 
 public slots:
 	void setBackground(const QColor&);
@@ -83,6 +85,8 @@ private:
 	QHash<QString, QColor> m_colorTable;
 	QQueue<PaintOperation> paintOps;
 	QPixmap canvas;
+
+	bool m_encoding_utf8;
 };
 
 struct special_key
