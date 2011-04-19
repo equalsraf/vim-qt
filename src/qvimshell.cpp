@@ -10,6 +10,7 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 	m_input(false)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
+	setAttribute(Qt::WA_OpaquePaintEvent, true);
 }
 
 void QVimShell::setBackground(const QColor& color)

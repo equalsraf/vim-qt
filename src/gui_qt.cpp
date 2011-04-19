@@ -331,6 +331,12 @@ gui_mch_init()
 	highlight_gui_started();
 
 	window = new MainWindow(&gui);
+
+	QSettings settings("Vim", "qVim");
+	settings.beginGroup("mainwindow");
+	window->restoreState( settings.value("state").toByteArray() );
+	settings.endGroup();
+
 	vimshell = window->vimShell();
 	vimshell->loadColors( QString::fromUtf8((char*)expand_env_save((char_u *)"$VIMRUNTIME/rgb.txt")));
 
@@ -453,6 +459,11 @@ gui_mch_set_font(GuiFont font)
 void
 gui_mch_exit(int rc)
 {
+	QSettings settings("Vim", "qVim");
+	settings.beginGroup("mainwindow");
+	settings.setValue("state", window->saveState());
+	settings.endGroup();
+
 	QApplication::quit();
 }
 
