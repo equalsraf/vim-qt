@@ -375,14 +375,11 @@ gui_mch_prepare(int *argc, char **argv)
 	QApplication *app = new QApplication(*argc, argv);
 }
 
-//
-// FIXME: handle toolbar and menu gracefully
-//
 void
 gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
 {
-	window->resize(width, height);
+	vimshell->resize(width, height);
 }
 
 void

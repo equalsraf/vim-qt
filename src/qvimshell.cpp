@@ -54,9 +54,21 @@ void QVimShell::setSpecial(const QColor& color)
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
-	canvas = QPixmap( ev->size() );
-	gui_resize_shell(ev->size().width(), ev->size().height());
+	if ( canvas.isNull() ) {
+		canvas = QPixmap( ev->size() );
+	} else {
+		// Keep old contents
+		QPixmap old = canvas.copy(QRect(QPoint(0,0), ev->size()));
+		canvas = QPixmap( ev->size() );
+
+		{
+		QPainter p(&canvas);
+		p.drawPixmap(QPoint(0,0), old);
+		}
+	}
+
 	update();
+	gui_resize_shell(ev->size().width(), ev->size().height());
 }
 
 
