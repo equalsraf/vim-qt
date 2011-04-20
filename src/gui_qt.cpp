@@ -264,6 +264,27 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 }
 
 /*
+ * Clear the extra space bellow the shell
+ */
+static void
+clear_shell_border()
+{
+	QPoint tl, br;
+
+	tl.setX(0);
+	tl.setY( (gui.scroll_region_bot+1)*gui.char_height);
+	
+	br.setX(vimshell->width());
+	br.setY(vimshell->height());
+
+	PaintOperation op;
+	op.type = FILLRECT;
+	op.color = *(gui.back_pixel);
+	op.rect = QRect(tl, br);
+	vimshell->queuePaintOp(op);
+}
+
+/*
  * Insert the given number of lines before the given row, scrolling down any
  * following text within the scroll region.
  */
@@ -279,6 +300,8 @@ gui_mch_insert_lines(int row, int num_lines)
 	op1.pos = QPoint(0, num_lines*gui.char_height);
 	op1.color = *(gui.back_pixel);
 	vimshell->queuePaintOp(op1);
+
+	clear_shell_border();
 }
 
 /*
