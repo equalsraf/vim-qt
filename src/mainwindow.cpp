@@ -8,10 +8,12 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	setWindowIcon(QPixmap(vim32x32));
 
 	// Menu
-	QToolBar *menutoolbar = addToolBar("Menu");
+	menutoolbar = addToolBar("Menu");
 	menu = new QMenuBar(menutoolbar);
 	menutoolbar->addWidget(menu);
 
+	// Tool bar
+	toolbar = addToolBar("ToolBar");
 
 	// Vim shell
 	vimshell = new QVimShell( gui, this );
@@ -46,6 +48,11 @@ QMenuBar* MainWindow::menuBar() const
 	return menu;
 }
 
+QToolBar* MainWindow::toolBar() const
+{
+	return toolbar;
+}
+
 void MainWindow::closeEvent (QCloseEvent * event)
 {
 	vimshell->closeEvent(event);
@@ -53,8 +60,17 @@ void MainWindow::closeEvent (QCloseEvent * event)
 
 void MainWindow::showTabline(bool show)
 {
-	//tabdock->setVisible(show);
 	tabtoolbar->setVisible(show);
+}
+
+void MainWindow::showToolbar(bool show)
+{
+	toolbar->setVisible(show);
+}
+
+void MainWindow::showMenu(bool show)
+{
+	menutoolbar->setVisible(show);
 }
 
 bool MainWindow::tablineVisible()

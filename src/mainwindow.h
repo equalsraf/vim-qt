@@ -14,9 +14,12 @@ public:
 	bool tablineVisible();
 
 	QMenuBar* menuBar() const;
+	QToolBar* toolBar() const;
 
 public slots:
 	void showTabline(bool show);
+	void showMenu(bool show);
+	void showToolbar(bool show);
 	void setCurrentTab(int idx);
 	void setTab( int, const QString& );
 	void removeTabs(int);
@@ -27,10 +30,13 @@ protected:
 	virtual void closeEvent( QCloseEvent *);
 
 private:
+	QToolBar *toolbar;
+
 	QVimShell *vimshell;
 	QToolBar *tabtoolbar;
 	QTabBar *tabbar;
-
+	
+	QToolBar *menutoolbar;
 	QMenuBar *menu;
 };
 

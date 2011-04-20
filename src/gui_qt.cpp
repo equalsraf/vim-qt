@@ -706,6 +706,11 @@ void
 gui_mch_show_toolbar(int showit)
 {
 	qDebug() << __func__;
+	if ( showit ) {
+		window->showToolbar(true);
+	} else {
+		window->showToolbar(false);
+	}
 }
 
 int
@@ -769,9 +774,9 @@ gui_mch_enable_menu(int flag)
 {
 	qDebug() << __func__ << flag;
 	if (flag) {
-		window->menuBar()->show();
+		window->showMenu(true);
 	} else {
-		window->menuBar()->hide();
+		window->showMenu(false);
 	}
 }
 
@@ -804,7 +809,7 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	if ( menu_is_popup(menu->name) ) {
 		return;
 	} else if ( menu_is_toolbar(menu->name) ) {
-		menu->qmenu = window->addToolBar( QString::fromLatin1((char*)menu->name) );
+		menu->qmenu = window->toolBar();
 	} else if (  menu->parent == NULL ) {
 		menu->qmenu = window->menuBar()->addMenu( QString::fromLatin1((char*)menu->name) );
 	}
