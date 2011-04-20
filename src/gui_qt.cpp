@@ -494,6 +494,8 @@ gui_mch_init_check()
 	return OK;
 }
 
+/* Clipboard */
+
 int
 clip_mch_own_selection(VimClipboard *cbd)
 {
@@ -515,9 +517,24 @@ clip_mch_set_selection(VimClipboard *cbd)
 {
 	qDebug() << __func__;
 
-	QClipboard *clip = QApplication::clipboard();
-	clip->setText( "Hello World", QClipboard::Selection);
+	int type;
+	long size;
+	char_u *str = NULL;
 
+	if (!cbd->owned)
+		return;
+	clip_get_selection(cbd);
+	cbd->owned = FALSE;
+
+	type = clip_convert_selection(&str, (long_u *)&size, cbd);
+
+	qDebug()<< type << QString::fromLatin1((char *)str, size) ;
+	if (type >= 0) {
+		QClipboard *clip = QApplication::clipboard();
+		clip->setText( QString::fromLatin1((char *)str, size), QClipboard::Selection);
+	}
+
+	vim_free(str);
 }
 
 void
@@ -1041,6 +1058,7 @@ void
 gui_mch_show_tabline(int showit)
 {
 	window->showTabline(showit != 0);
+	gui_mch_update();
 }
 
 /*
