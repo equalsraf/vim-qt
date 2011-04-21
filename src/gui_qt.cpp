@@ -272,10 +272,12 @@ clear_shell_border()
 	QPoint tl, br;
 
 	tl.setX(0);
-	tl.setY( (gui.scroll_region_bot+1)*gui.char_height);
+	//tl.setY( (gui.scroll_region_bot+1)*gui.char_height);
+	tl.setY( vimshell->height() - (vimshell->height() % gui.char_height ));
 	
 	br.setX(vimshell->width());
 	br.setY(vimshell->height());
+	qDebug() << tl << br;
 
 	PaintOperation op;
 	op.type = FILLRECT;
