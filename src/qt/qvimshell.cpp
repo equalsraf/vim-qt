@@ -174,9 +174,11 @@ void QVimShell::flushPaintOps()
 			painter.drawText(op.rect, op.str);
 			break;
 		case INVERTRECT:
-			painter.setCompositionMode( QPainter::CompositionMode_Difference );
-			painter.fillRect( op.rect, Qt::black);
+			painter.setCompositionMode( QPainter::RasterOp_SourceXorDestination );
+
+			painter.fillRect( op.rect, Qt::color0);
 			painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
+
 			break;
 		case SCROLLRECT:
 			painter.end();

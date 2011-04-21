@@ -453,7 +453,7 @@ gui_mch_iconify()
 void
 gui_mch_invert_rectangle(int row, int col, int nr, int nc)
 {
-	QRect rect = mapBlock(row, col, row+nr-1, col +nr-1);
+	QRect rect = mapBlock(row, col, row+nr-1, col +nc-1);
 
 	PaintOperation op;
 	op.type = INVERTRECT;
