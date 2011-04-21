@@ -4,6 +4,7 @@ extern "C" {
 #include "proto/gui.pro"
 }
 
+QHash<QString, QColor> QVimShell::m_colorTable;
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(),
@@ -327,9 +328,6 @@ QIcon QVimShell::icon(const QString& name)
 
 void QVimShell::loadColors(const QString& name)
 {
-	m_colorTable.clear();
-	
-	qDebug() << name;
 	QFile f(name);
 	if (!f.open(QFile::ReadOnly)) {
 		return;
@@ -359,7 +357,6 @@ void QVimShell::loadColors(const QString& name)
 
 		QColor c(r,g,b);
 		m_colorTable.insert(list[3].simplified(), c);
-		qDebug() << list[3].simplified();
 	}
 }
 
@@ -369,15 +366,14 @@ QColor QVimShell::color(const QString& name)
 		return QColor(name);
 	}
 
-	return m_colorTable.value( name, QColor());
-
+	return QVimShell::m_colorTable.value( name, QColor());
 }
 
 void QVimShell::queuePaintOp(PaintOperation op)
 {
 	paintOps.enqueue(op);
 	if ( op.rect.isValid() ) {
-		update(op.rect); // FIXME: use rect
+		update(op.rect);
 	} else {
 		update();
 	}
@@ -387,3 +383,5 @@ void QVimShell::setEncodingUtf8(bool enabled)
 {
 	m_encoding_utf8 = enabled;
 }
+
+

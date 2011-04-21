@@ -339,7 +339,6 @@ int
 gui_mch_init()
 {
 	/* Colors */
-
 	gui.norm_pixel = new QColor(Qt::black);
 	gui.back_pixel = new QColor(Qt::white);
 
@@ -356,10 +355,10 @@ gui_mch_init()
 	QSettings settings("Vim", "qVim");
 	settings.beginGroup("mainwindow");
 	window->restoreState( settings.value("state").toByteArray() );
+	window->resize( settings.value("size", QSize(400, 400)).toSize() );
 	settings.endGroup();
 
 	vimshell = window->vimShell();
-	vimshell->loadColors( QString::fromLatin1((char*)expand_env_save((char_u *)"$VIMRUNTIME/rgb.txt")));
 
 	return OK;
 }
@@ -380,6 +379,7 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
 {
 	vimshell->resize(width, height);
+	gui_mch_update();
 }
 
 void
@@ -480,6 +480,7 @@ gui_mch_exit(int rc)
 	QSettings settings("Vim", "qVim");
 	settings.beginGroup("mainwindow");
 	settings.setValue("state", window->saveState());
+	settings.setValue("size", window->size());
 	settings.endGroup();
 
 	QApplication::quit();
@@ -653,12 +654,9 @@ gui_mch_draw_string(
 guicolor_T
 gui_mch_get_color(char_u *reqname)
 {
-	if ( QColor::isValidColor((char *)reqname) ) {
-		QColor *color = new QColor((char *)reqname);
-		return color;
-	} else if ( qstrcmp( (char *)reqname, "Grey40" ) == 0 ) {
-		QColor *color = new QColor("#666666");
-		return color;
+	QColor c = QVimShell::color((char*)reqname);
+	if ( c.isValid() ) {
+		return new QColor(c);
 	}
 
 	return INVALCOLOR;

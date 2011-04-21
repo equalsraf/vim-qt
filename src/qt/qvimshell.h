@@ -33,7 +33,7 @@ public:
 	static QIcon iconFromTheme(const QString&);
 	static QIcon icon(const QString&);
 	void loadColors(const QString&);
-	QColor color(const QString&);
+	static QColor color(const QString&);
 
 	void queuePaintOp(PaintOperation);
 
@@ -41,6 +41,7 @@ public:
 	QColor foreground();
 
 	void setEncodingUtf8(bool);
+	static QHash<QString, QColor> m_colorTable;
 
 public slots:
 	void setBackground(const QColor&);
@@ -82,7 +83,6 @@ private:
 	blink_state blinkState;
 
 	volatile bool m_input;
-	QHash<QString, QColor> m_colorTable;
 	QQueue<PaintOperation> paintOps;
 	QPixmap canvas;
 
@@ -132,5 +132,11 @@ static const struct special_key special_keys[] =
     /* End of list marker: */
     {0, 0, 0}
 };
+
+static struct {
+	QHash<QString, QColor> m_colorTable;
+} color_table;
+
+
 
 #endif

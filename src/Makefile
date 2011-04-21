@@ -1237,11 +1237,11 @@ NEXTAW_BUNDLE	=
 
 QT_LIBS1	= -lQtGui
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
-			qvimshell.cpp mainwindow.cpp vimaction.cpp
+			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o
-QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO)
+QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I.
 QT_IPATH	= $(GUI_INC_LOC)
 QT_LIBS_DIR = $(GUI_LIB_LOC)
 
@@ -1293,7 +1293,7 @@ APPDIR = $(VIMNAME).app
 CARBONGUI_TESTARG = VIMPROG=../$(APPDIR)/Contents/MacOS/$(VIMTARGET)
 
 # All GUI files
-ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qvimshell.cpp mainwindow.cpp
+ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qt/qvimshell.cpp qt/mainwindow.cpp
 ALL_GUI_PRO  = gui.pro gui_gtk.pro gui_motif.pro gui_xmdlg.pro gui_athena.pro gui_gtk_x11.pro gui_x11.pro gui_w16.pro gui_w32.pro gui_photon.pro
 
 # }}}
@@ -2480,17 +2480,17 @@ objects/gui_athena.o: gui_athena.c
 objects/gui_qt.o: gui_qt.cpp
 	$(CXX) $(ALL_CFLAGS) -o $@ -c gui_qt.cpp
 
-objects/mainwindow.o: mainwindow.cpp
-	moc mainwindow.h > mainwindow.moc
-	$(CXX) $(ALL_CFLAGS) -o $@ -c mainwindow.cpp
+objects/mainwindow.o: qt/mainwindow.cpp
+	moc qt/mainwindow.h > mainwindow.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/mainwindow.cpp
 
-objects/qvimshell.o: qvimshell.cpp
-	moc qvimshell.h > qvimshell.moc
-	$(CXX) $(ALL_CFLAGS) -o $@ -c qvimshell.cpp
+objects/qvimshell.o: qt/qvimshell.cpp
+	moc qt/qvimshell.h > qvimshell.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/qvimshell.cpp
 
-objects/vimaction.o: vimaction.cpp
-	moc vimaction.h > vimaction.moc
-	$(CXX) $(ALL_CFLAGS) -o $@ -c vimaction.cpp
+objects/vimaction.o: qt/vimaction.cpp
+	moc qt/vimaction.h > vimaction.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimaction.cpp
 
 
 objects/gui_beval.o: gui_beval.c

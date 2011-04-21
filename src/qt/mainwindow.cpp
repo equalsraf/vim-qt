@@ -9,11 +9,13 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 
 	// Menu
 	menutoolbar = addToolBar("Menu");
+	menutoolbar->setObjectName("menu");
 	menu = new QMenuBar(menutoolbar);
 	menutoolbar->addWidget(menu);
 
 	// Tool bar
 	toolbar = addToolBar("ToolBar");
+	toolbar->setObjectName("toolbar");
 
 	// Vim shell
 	vimshell = new QVimShell( gui, this );
@@ -22,6 +24,7 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 
 	// TabLine
 	tabtoolbar = addToolBar("tabline");
+	tabtoolbar->setObjectName("tabline");
 
 	tabbar = new QTabBar(tabtoolbar);
 	tabbar->setTabsClosable(true);
