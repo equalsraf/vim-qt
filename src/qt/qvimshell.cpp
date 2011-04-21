@@ -8,7 +8,7 @@ QHash<QString, QColor> QVimShell::m_colorTable;
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(),
-	m_input(false)
+	m_input(false), m_lastClickEvent(-1)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
@@ -236,17 +236,29 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 		return;
 	}
 
+	int repeat=0;
+
+	if ( !m_lastClick.isNull() 
+		&& m_lastClick.elapsed() < QApplication::doubleClickInterval() 
+		&& m_lastClickEvent == ev->button() ) {
+		repeat = 1;
+	}
+
+	m_lastClick.restart();
+	m_lastClickEvent = ev->button();
 	gui_send_mouse_event(but, ev->pos().x(),
-					  ev->pos().y(), FALSE, 0);
+					  ev->pos().y(), repeat, 0);
 	m_input = true;
 }
 
+/*
 void QVimShell::mouseDoubleClickEvent(QMouseEvent *ev)
 {
 	gui_send_mouse_event(MOUSE_LEFT, ev->pos().x(),
 					  ev->pos().y(), TRUE, 0);
+	qDebug() << __func__;
 	m_input = true;
-}
+}*/
 
 void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {

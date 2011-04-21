@@ -62,7 +62,6 @@ protected:
 	virtual void mouseMoveEvent(QMouseEvent *event);
 	virtual void mousePressEvent(QMouseEvent *event);
 	virtual void mouseReleaseEvent(QMouseEvent *event);
-	virtual void mouseDoubleClickEvent(QMouseEvent *event);
 	virtual void wheelEvent(QWheelEvent *event );
 
 	unsigned int vimModifiers(Qt::KeyboardModifiers);
@@ -87,6 +86,8 @@ private:
 	QPixmap canvas;
 
 	bool m_encoding_utf8;
+	QTime m_lastClick;
+	int m_lastClickEvent;
 };
 
 struct special_key
