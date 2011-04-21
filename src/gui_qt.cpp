@@ -494,6 +494,9 @@ gui_mch_init_check()
 
 /* Clipboard */
 
+/*
+ * Own the selection and return OK if it worked.
+ */
 int
 clip_mch_own_selection(VimClipboard *cbd)
 {
@@ -501,6 +504,9 @@ clip_mch_own_selection(VimClipboard *cbd)
 	return OK;
 }
 
+/*
+ * Disown the selection.
+ */
 void
 clip_mch_lose_selection(VimClipboard *cbd)
 {
@@ -539,6 +545,22 @@ void
 clip_mch_request_selection(VimClipboard *cbd)
 {
 	qDebug() << __func__;
+
+
+	QClipboard *clip = QApplication::clipboard();
+	QByteArray text = clip->text().toLatin1();
+
+	char_u	*buffer;
+	buffer = lalloc( text.size(), TRUE);
+	if (buffer == NULL)
+		return;
+
+	for (int i = 0; i < text.size(); ++i) {
+		buffer[i] = text[i];
+	}
+
+	clip_yank_selection(MCHAR, buffer, text.size(), cbd);
+	vim_free(buffer);
 }
 
 /*
