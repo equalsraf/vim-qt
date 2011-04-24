@@ -394,14 +394,17 @@ gui_mch_set_winpos(int x, int y)
 	window->move(x, y);
 }
 
-
+/*
+ * Set the window title and icon.
+ */
 void
-gui_mch_settitle(char_u *title, char_u *icon UNUSED)
+gui_mch_settitle(char_u *title, char_u *icon)
 {
-	qDebug() << __func__;
 	if ( title != NULL ) {
 		window->setWindowTitle( QString::fromLatin1((char*)title) );
 	}
+
+	// We don't set the icon
 }
 
 void
