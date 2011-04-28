@@ -1,2 +1,11 @@
 *.o
-.*.sw[op]
+.*.sw[oplnm]
+*.moc
+*.mo
+.swp
+*.log
+*.status
+auto/
+vim
+qvim
+autom4te.cache
