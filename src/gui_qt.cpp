@@ -238,6 +238,38 @@ gui_mch_setmouse(int x, int y)
 	QCursor::setPos(pos.x(), pos.y());
 }
 
+/* Table for shape IDs.  Keep in sync with the mshape_names[] table in
+ * misc2.c! */
+static Qt::CursorShape mshape_ids[] =
+{
+    Qt::ArrowCursor,
+    Qt::BlankCursor,
+    Qt::IBeamCursor,
+    Qt::SizeVerCursor,
+    Qt::SizeFDiagCursor,
+    Qt::SizeHorCursor,
+    Qt::SizeFDiagCursor,
+    Qt::BusyCursor,
+    Qt::ForbiddenCursor,
+    Qt::CrossCursor,
+    Qt::OpenHandCursor,
+    Qt::ClosedHandCursor,
+    Qt::ArrowCursor,
+    Qt::WhatsThisCursor,
+    Qt::ArrowCursor,
+    Qt::UpArrowCursor
+};
+
+/**
+ * Set mouse shape
+ */
+void
+mch_set_mouse_shape(int shape)
+{
+	vimshell->setCursor(QCursor(mshape_ids[shape]));
+}
+
+
 /*
  * Return the RGB value of a pixel as a long.
  */

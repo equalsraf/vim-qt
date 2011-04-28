@@ -1161,7 +1161,7 @@
 # endif
 # if defined(FEAT_GUI_W32) || defined(FEAT_GUI_W16) || defined(FEAT_GUI_MOTIF) \
 	|| defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_GTK) \
-	|| defined(FEAT_GUI_PHOTON)
+	|| defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_QT)
 #  define FEAT_MOUSESHAPE
 # endif
 #endif
