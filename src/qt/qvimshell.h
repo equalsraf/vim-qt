@@ -40,6 +40,9 @@ public:
 	QColor background();
 	QColor foreground();
 
+	QByteArray convertTo(const QString& s);
+	QString convertFrom(const char *, int size=-1);
+
 	void setEncodingUtf8(bool);
 	static QHash<QString, QColor> m_colorTable;
 
@@ -67,7 +70,6 @@ protected:
 	unsigned int vimModifiers(Qt::KeyboardModifiers);
 	bool specialKey(int, char[3]);
 	virtual void paintEvent( QPaintEvent *);
-	QByteArray convert(const QString& s);
 
 private:
 	QColor m_foreground;

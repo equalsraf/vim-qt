@@ -7,7 +7,7 @@ extern "C" {
 QHash<QString, QColor> QVimShell::m_colorTable;
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
-:QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(),
+:QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(true),
 	m_input(false), m_lastClickEvent(-1)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
@@ -107,7 +107,7 @@ bool QVimShell::specialKey(int k, char str[3])
 }
 
 // FIXME
-QByteArray QVimShell::convert(const QString& s)
+QByteArray QVimShell::convertTo(const QString& s)
 {
 	if ( m_encoding_utf8 ) {
 		return s.toUtf8();
@@ -115,6 +115,16 @@ QByteArray QVimShell::convert(const QString& s)
 		return s.toAscii();
 	}
 }
+
+QString QVimShell::convertFrom(const char *s, int size)
+{
+	if ( m_encoding_utf8 ) {
+		return QString::fromUtf8(s, size);
+	} else {
+		return QString::fromAscii(s, size);
+	}
+}
+
 
 bool QVimShell::hasInput()
 {
@@ -141,7 +151,7 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	}
 
 	if ( !ev->text().isEmpty() ) {
-		add_to_input_buf( (char_u *) convert(ev->text()).data(), ev->count() );
+		add_to_input_buf( (char_u *) convertTo(ev->text()).data(), ev->count() );
 		return;
 	}
 }
@@ -372,7 +382,7 @@ void QVimShell::loadColors(const QString& name)
 	}
 	
 	while (!f.atEnd()) {
-		QString line = QString::fromLatin1( f.readLine() );
+		QString line = convertFrom( f.readLine() );
 		if ( line.startsWith("!") ) {
 			continue;
 		}

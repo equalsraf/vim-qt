@@ -433,7 +433,7 @@ void
 gui_mch_settitle(char_u *title, char_u *icon)
 {
 	if ( title != NULL ) {
-		window->setWindowTitle( QString::fromLatin1((char*)title) );
+		window->setWindowTitle( vimshell->convertFrom((char*)title) );
 	}
 
 	// We don't set the icon
@@ -567,10 +567,10 @@ clip_mch_set_selection(VimClipboard *cbd)
 
 	type = clip_convert_selection(&str, (long_u *)&size, cbd);
 
-	qDebug()<< type << QString::fromLatin1((char *)str, size) ;
+	qDebug()<< type << vimshell->convertFrom((char *)str, size) ;
 	if (type >= 0) {
 		QClipboard *clip = QApplication::clipboard();
-		clip->setText( QString::fromLatin1((char *)str, size), QClipboard::Selection);
+		clip->setText( vimshell->convertFrom((char *)str, size), QClipboard::Selection);
 	}
 
 	vim_free(str);
@@ -583,7 +583,7 @@ clip_mch_request_selection(VimClipboard *cbd)
 
 
 	QClipboard *clip = QApplication::clipboard();
-	QByteArray text = clip->text().toLatin1();
+	QByteArray text = vimshell->convertTo(clip->text());
 
 	char_u	*buffer;
 	buffer = lalloc( text.size(), TRUE);
@@ -670,7 +670,7 @@ gui_mch_draw_string(
     int		len,
     int		flags)
 {
-	QString str = QString::fromLatin1((char *)s, len);
+	QString str = vimshell->convertFrom((char *)s, len);
 	
 	QPoint pos = mapText(row, col);
 	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
@@ -863,7 +863,7 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	} else if ( menu_is_toolbar(menu->name) ) {
 		menu->qmenu = window->toolBar();
 	} else if (  menu->parent == NULL ) {
-		menu->qmenu = window->menuBar()->addMenu( QString::fromLatin1((char*)menu->name) );
+		menu->qmenu = window->menuBar()->addMenu( vimshell->convertFrom((char*)menu->name) );
 	}
 }
 
@@ -1022,13 +1022,11 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 	}
 
 	QString file = QFileDialog::getOpenFileName(window, (char*)title, dir, ".*");
-
 	if ( file.isEmpty() ) {
 		return NULL;
 	}
-	qDebug() << file;
 
-	return vim_strsave((char_u *)file.toLatin1().data()); // FIXME: return outcome
+	return vim_strsave((char_u *) vimshell->convertTo(file).data()); // FIXME: return outcome
 }
 
 
@@ -1071,7 +1069,7 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 	if ( buttons != NULL ) {
 		QStringList b_string;
 
-		b_string = QString::fromLatin1((char*)buttons).split(DLG_BUTTON_SEP);
+		b_string = vimshell->convertFrom((char*)buttons).split(DLG_BUTTON_SEP);
 
 		QListIterator<QString> it(b_string);
 		int bt=1;
@@ -1152,7 +1150,7 @@ gui_mch_update_tabline(void)
 
 		get_tabline_label(tp, FALSE);
 		char_u *labeltext = CONVERT_TO_UTF8(NameBuff);
-		window->setTab( nr, QString::fromLatin1((char*)labeltext));
+		window->setTab( nr, vimshell->convertFrom((char*)labeltext));
 		CONVERT_TO_UTF8_FREE(labeltext);
 	}
 	window->removeTabs(nr);
