@@ -281,40 +281,64 @@ QIcon QVimShell::iconFromTheme(const QString& name)
 
 	// Theme icons
 	if ( "Open" == name ) {
-		icon = QIcon::fromTheme("document-open");
+		icon = QIcon::fromTheme("document-open", 
+				QIcon(":/icons/document-open.png"));
 	} else if ( "Save" == name ) {
-		icon = QIcon::fromTheme("document-save");
+		icon = QIcon::fromTheme("document-save",
+				QIcon(":/icons/document-save.png"));
 	} else if ( "SaveAll" == name ) {
-		icon = QIcon::fromTheme("document-save-as");
+		icon = QIcon::fromTheme("document-save-all",
+				QIcon(":/icons/document-save-all.png"));
 	} else if ( "Print" == name ) {
-		icon = QIcon::fromTheme("document-print");
+		icon = QIcon::fromTheme("document-print",
+				QIcon(":/icons/document-print.png"));
 	} else if ( "Undo" == name ) {
-		icon = QIcon::fromTheme("edit-undo");
+		icon = QIcon::fromTheme("edit-undo",
+				QIcon(":/icons/edit-undo.png"));
 	} else if ( "Redo"== name ) {
-		icon = QIcon::fromTheme("edit-redo");
+		icon = QIcon::fromTheme("edit-redo",
+				QIcon(":/icons/edit-redo.png"));
 	} else if ( "Cut" == name ) {
-		icon = QIcon::fromTheme("edit-cut");
+		icon = QIcon::fromTheme("edit-cut",
+				QIcon(":/icons/edit-cut.png"));
 	} else if ( "Copy" == name ) {
-		icon = QIcon::fromTheme("edit-copy");
+		icon = QIcon::fromTheme("edit-copy",
+				QIcon(":/icons/edit-copy.png"));
 	} else if ( "Paste" == name ) {
-		icon = QIcon::fromTheme("edit-paste");
+		icon = QIcon::fromTheme("edit-paste",
+				QIcon(":/icons/edit-paste.png"));
 	} else if ( "Replace" == name ) {
-		icon = QIcon::fromTheme("edit-find-replace");
+		icon = QIcon::fromTheme("edit-find-replace",
+				QIcon(":/icons/edit-find-replace.png"));
 	} else if ( "FindNext" == name ) {
-		icon = QIcon::fromTheme("go-next");
+		icon = QIcon::fromTheme("go-next",
+				QIcon(":/icons/go-next.png"));
 	} else if ( "FindPrev" == name ) {
-		icon = QIcon::fromTheme("go-previous");
+		icon = QIcon::fromTheme("go-previous",
+				QIcon(":/icons/go-previous.png"));
 	} else if ( "LoadSesn" == name ) {
-		icon = QIcon::fromTheme("folder-open");
+		icon = QIcon::fromTheme("folder-open",
+				QIcon(":/icons/document-open-folder.png"));
 	} else if ( "SaveSesn" == name ) {
+		icon = QIcon::fromTheme("document-save-as",
+				QIcon(":/icons/document-save-as.png"));
 	} else if ( "RunScript" == name ) {
-		icon = QIcon::fromTheme("system-run");
+		icon = QIcon::fromTheme("system-run",
+				QIcon(":/icons/system-run.png"));
 	} else if ( "Make" == name ) {
+		icon = QIcon::fromTheme("run-build", 
+				QIcon(":/icons/run-build.png"));
 	} else if ( "RunCtags" == name ) {
+		icon = QIcon(":/icons/table.png");
 	} else if ( "TagJump" == name ) {
-		icon = QIcon::fromTheme("go-jump");
+		icon = QIcon::fromTheme("go-jump",
+				QIcon(":/icons/go-jump.png"));
+	} else if ( "Help" == name ) {
+		icon = QIcon::fromTheme("help-contents",
+				QIcon(":/icons/help-contents.png"));
 	} else if ( "FindHelp" == name ) {
-		icon = QIcon::fromTheme("help-contents");
+		icon = QIcon::fromTheme("help-faq",
+				QIcon(":/icons/help-contextual.png"));
 	}
 
 	if ( icon.isNull() ) { // last resort

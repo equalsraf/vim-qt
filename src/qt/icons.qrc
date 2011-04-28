@@ -1,0 +1,25 @@
+ <!DOCTYPE RCC><RCC version="1.0">
+ <qresource>
+     <file>icons/document-open.png</file>
+     <file>icons/document-save.png</file>
+     <file>icons/document-save-all.png</file>
+     <file>icons/document-print.png</file>
+     <file>icons/edit-undo.png</file>
+     <file>icons/edit-redo.png</file>
+     <file>icons/edit-cut.png</file>
+     <file>icons/edit-copy.png</file>
+     <file>icons/edit-paste.png</file>
+     <file>icons/edit-find-replace.png</file>
+     <file>icons/go-next.png</file>
+     <file>icons/go-previous.png</file>
+     <file>icons/document-open-folder.png</file>
+     <file>icons/document-save-as.png</file>
+     <file>icons/run-build-clean.png</file>
+     <file>icons/run-build.png</file>
+     <file>icons/table.png</file>
+     <file>icons/go-jump.png</file>
+     <file>icons/help-contents.png</file>
+     <file>icons/help-contextual.png</file>
+
+ </qresource>
+ </RCC>
