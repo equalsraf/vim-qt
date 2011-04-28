@@ -292,7 +292,7 @@ void
 gui_mch_insert_lines(int row, int num_lines)
 {
 	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
-					gui.scroll_region_bot+1, gui.scroll_region_right+1);
+					gui.scroll_region_bot, gui.scroll_region_right);
 
 	PaintOperation op1;
 	op1.type = SCROLLRECT;
