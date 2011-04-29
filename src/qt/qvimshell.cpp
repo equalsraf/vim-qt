@@ -410,8 +410,57 @@ void QVimShell::loadColors(const QString& name)
 
 QColor QVimShell::color(const QString& name)
 {
+
+    static const char *const vimnames[][2] =
+    {
+	{"LightRed",	"#FFBBBB"},
+	{"LightGreen",	"#88FF88"},
+	{"LightMagenta","#FFBBFF"},
+	{"DarkCyan",	"#008888"},
+	{"DarkBlue",	"#0000BB"},
+	{"DarkRed",	"#BB0000"},
+	{"DarkMagenta", "#BB00BB"},
+	{"DarkGrey",	"#BBBBBB"},
+	{"DarkYellow",	"#BBBB00"},
+	{"Gray10",	"#1A1A1A"},
+	{"Grey10",	"#1A1A1A"},
+	{"Gray20",	"#333333"},
+	{"Grey20",	"#333333"},
+	{"Gray30",	"#4D4D4D"},
+	{"Grey30",	"#4D4D4D"},
+	{"Gray40",	"#666666"},
+	{"Grey40",	"#666666"},
+	{"Gray50",	"#7F7F7F"},
+	{"Grey50",	"#7F7F7F"},
+	{"Gray60",	"#999999"},
+	{"Grey60",	"#999999"},
+	{"Gray70",	"#B3B3B3"},
+	{"Grey70",	"#B3B3B3"},
+	{"Gray80",	"#CCCCCC"},
+	{"Grey80",	"#CCCCCC"},
+	{"Gray90",	"#E5E5E5"},
+	{"Grey90",	"#E5E5E5"},
+	{"grey15",	"#262626"},
+	{"grey20",	"#333333"},
+	{"grey40",	"#666666"},
+	{"grey50",	"#7f7f7f"},
+	{"lightred",	"#FFA0A0"},
+	{"yellow2",	"#EEEE00"},
+	{"lightmagenta",	"#f0a0f0"},
+
+	{NULL, NULL}
+    };
+
 	if ( QColor::isValidColor(name) ) {
 		return QColor(name);
+	}
+
+	int i;
+	for ( i=0; vimnames[i][0] != NULL; i++ ) {
+
+		if ( name == vimnames[i][0] ) {
+			return QColor(vimnames[i][1]);
+		}
 	}
 
 	return QVimShell::m_colorTable.value( name, QColor());

@@ -215,15 +215,11 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 
 /*
  * Get current mouse coordinates in text window.
- * FIXME: This is currently broken
  */
 void
 gui_mch_getmouse(int *x, int *y)
 {
-	qDebug() << __func__;
-
 	QPoint pos = window->mapFromGlobal( QCursor::pos() );
-	// FIXME: check for error
 	*x = pos.x();
 	*y = pos.y();
 }
@@ -795,11 +791,28 @@ gui_mch_set_toolbar_pos(int x, int y, int w, int h)
 //
 ///////////////////
 
+
+static void
+toggle_tearoffs(QWidget *widget, bool enable)
+{
+	foreach (QAction *action, widget->actions()) {
+		if ( action->menu() ) {
+			action->menu()->setTearOffEnabled(enable);
+			toggle_tearoffs(action->menu(), enable);
+		}
+	}
+}
+
+/*
+ * Enable/Disable tearoff for all menus
+ */
 void
 gui_mch_toggle_tearoffs(int enable)
 {
 	qDebug() << __func__;
 	
+	QMenuBar *mb = window->menuBar();
+	toggle_tearoffs(mb, enable != 0);
 }
 
 /*
@@ -874,8 +887,11 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 		return;
 	} else if ( menu_is_toolbar(menu->name) ) {
 		menu->qmenu = window->toolBar();
-	} else if (  menu->parent == NULL ) {
+	} else if ( menu->parent == NULL ) {
 		menu->qmenu = window->menuBar()->addMenu( vimshell->convertFrom((char*)menu->name) );
+	} else if ( menu->parent && menu->parent->qmenu ) {
+		QMenu *m = (QMenu*)menu->parent->qmenu;
+		menu->qmenu = m->addMenu( vimshell->convertFrom((char*)menu->name) );
 	}
 }
 
@@ -930,12 +946,26 @@ gui_mch_new_menu_font()
 void
 gui_mch_destroy_menu(vimmenu_T *menu)
 {
-	/* Nothing to do */
 	qDebug() << __func__;
+
+	QMenu *parent;
+	if ( menu->parent ) {
+		parent = (QMenu*)menu->parent->qmenu;
+	}
+
 	if ( menu->qmenu != NULL ) {
+		QMenu *m = (QMenu*)menu->qmenu;
+		if ( parent ) {
+			parent->removeAction(m->menuAction());
+		}
 		menu->qmenu->deleteLater();
 	}
+
 	if ( menu->qaction != NULL ) {
+		QAction *a = (QAction*)menu->qaction;
+		if ( parent ) {
+			parent->removeAction(a);
+		}
 		menu->qaction->deleteLater();
 	}
 
@@ -1134,7 +1164,6 @@ gui_mch_show_tabline(int showit)
 int
 gui_mch_showing_tabline(void)
 {
-	qDebug() << __func__ << window->tablineVisible();
 	if ( window->tablineVisible() ) {
 		return 1;
 	} else {

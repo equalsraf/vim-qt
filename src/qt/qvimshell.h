@@ -136,10 +136,4 @@ static const struct special_key special_keys[] =
     {0, 0, 0}
 };
 
-static struct {
-	QHash<QString, QColor> m_colorTable;
-} color_table;
-
-
-
 #endif
