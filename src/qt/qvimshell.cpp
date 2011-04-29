@@ -261,15 +261,6 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 	m_input = true;
 }
 
-/*
-void QVimShell::mouseDoubleClickEvent(QMouseEvent *ev)
-{
-	gui_send_mouse_event(MOUSE_LEFT, ev->pos().x(),
-					  ev->pos().y(), TRUE, 0);
-	qDebug() << __func__;
-	m_input = true;
-}*/
-
 void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {
 	gui_send_mouse_event(MOUSE_RELEASE, ev->pos().x(),

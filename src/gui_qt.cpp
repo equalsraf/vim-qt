@@ -10,12 +10,19 @@ extern "C" {
 static QVimShell *vimshell = NULL;
 static MainWindow *window = NULL;
 
+/**
+ * Map a row/col coordinate to a point in widget coordinates
+ */
 static QPoint 
 mapText(int row, int col)
 {
 	return QPoint( gui.char_width*col, gui.char_height*row );
 }
 
+/**
+ * Map an area in row/col(inclusive) coordinates into
+ * widget coordinates
+ */
 static QRect 
 mapBlock(int row1, int col1, int row2, int col2)
 {
@@ -27,6 +34,9 @@ mapBlock(int row1, int col1, int row2, int col2)
 	return QRect(tl, br);
 }
 
+/**
+ * Raise application window
+ */
 void
 gui_mch_set_foreground()
 {
@@ -34,6 +44,11 @@ gui_mch_set_foreground()
 	window->raise();
 }
 
+/**
+ * Get the font with the given name
+ *
+ * FIXME: implement giveErrorIfMissing
+ */
 GuiFont
 gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
@@ -53,6 +68,9 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 	return font;
 }
 
+/**
+ * Get the name of the given font
+ */
 char_u *
 gui_mch_get_fontname(GuiFont font, char_u  *name)
 {
@@ -60,9 +78,12 @@ gui_mch_get_fontname(GuiFont font, char_u  *name)
 		return NULL;
 	}
 
-	return (char_u *)font->family().constData(); // FIXME: return family name
+	return (char_u *)font->family().constData();
 }
 
+/**
+ * Free font object
+ */
 void
 gui_mch_free_font(GuiFont font)
 {
@@ -107,7 +128,7 @@ gui_mch_wait_for_chars(long wtime)
 	return FAIL;
 }
 
-/*
+/**
  * Catch up with any queued X events.  This may put keyboard input into the
  * input buffer, call resize call-backs, trigger timers etc.  If there is
  * nothing in the X event queue (& no timers pending), then we return
@@ -120,13 +141,18 @@ gui_mch_update()
 }
 
 
-/* Flush any output to the screen */
+/** 
+ * Flush any output to the screen 
+ */
 void
 gui_mch_flush()
 {
 	// Is this necessary?
 }
 
+/**
+ * Set the foreground color
+ */
 void
 gui_mch_set_fg_color(guicolor_T	color)
 {
@@ -137,7 +163,7 @@ gui_mch_set_fg_color(guicolor_T	color)
 	vimshell->setForeground(*color);
 }
 
-/*
+/**
  * Set the current text background color.
  */
 void
@@ -152,11 +178,11 @@ gui_mch_set_bg_color(guicolor_T color)
 }
 
 
-/*
+/**
  * Start the cursor blinking.  If it was already blinking, this restarts the
  * waiting time and shows the cursor.
  *
- * FIXME: We dont blink
+ * FIXME: We dont blink, we simply update the cursor
  */
 void
 gui_mch_start_blink()
@@ -164,19 +190,30 @@ gui_mch_start_blink()
 	gui_update_cursor(TRUE, FALSE);
 }
 
+/**
+ * Start the cursor blinking.
+ *
+ * FIXME: We dont blink, we simply update the cursor
+ */
 void
 gui_mch_stop_blink()
 {
 	gui_update_cursor(TRUE, FALSE);
 }
 
-
+/**
+ * Sound the bell
+ */
 void
 gui_mch_beep() 
 {
 	QApplication::beep();
 }
 
+/**
+ * Clear the entire shell, i.e. paint it with the
+ * background color
+ */
 void
 gui_mch_clear_all()
 {
@@ -186,13 +223,17 @@ gui_mch_clear_all()
 	vimshell->queuePaintOp(op);
 }
 
+/**
+ * Trigger the visual bell
+ * FIXME: not implemented
+ */
 void
 gui_mch_flash(int msec)
 {
-	qDebug() << __func__;
+
 }
 
-/*
+/**
  * Initialise vim to use the font "font_name".  If it's NULL, pick a default
  * font.
  * If "fontset" is TRUE, load the "font_name" as a fontset.
@@ -213,7 +254,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	return OK;
 }
 
-/*
+/**
  * Get current mouse coordinates in text window.
  */
 void
@@ -224,12 +265,12 @@ gui_mch_getmouse(int *x, int *y)
 	*y = pos.y();
 }
 
-// FIXME: this is most likely using the wrong coordinates
+/**
+ * Move the mouse pointer to the given position
+ */
 void
 gui_mch_setmouse(int x, int y)
 {
-	qDebug() << __func__;
-
 	QPoint pos = window->mapToGlobal(QPoint(x, y));
 	QCursor::setPos(pos.x(), pos.y());
 }
@@ -257,7 +298,7 @@ static Qt::CursorShape mshape_ids[] =
 };
 
 /**
- * Set mouse shape
+ * Set mouse pointer shape
  */
 void
 mch_set_mouse_shape(int shape)
@@ -266,7 +307,7 @@ mch_set_mouse_shape(int shape)
 }
 
 
-/*
+/**
  * Return the RGB value of a pixel as a long.
  */
 long_u
@@ -279,6 +320,9 @@ gui_mch_get_rgb(guicolor_T pixel)
 	return 0;
 }
 
+/**
+ * Clear the block with the given coordinates
+ */
 void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
@@ -291,8 +335,11 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 	vimshell->queuePaintOp(op);
 }
 
-/*
- * Clear the extra space bellow the shell
+/**
+ * Clear the shell margin
+ *
+ * The shell is a grid whose size is a multiple of its column/row size.
+ * Sometimes an extra margin is in place, this paints that margin.
  */
 static void
 clear_shell_border()
@@ -312,7 +359,7 @@ clear_shell_border()
 	vimshell->queuePaintOp(op);
 }
 
-/*
+/**
  * Insert the given number of lines before the given row, scrolling down any
  * following text within the scroll region.
  */
@@ -352,7 +399,9 @@ gui_mch_delete_lines(int row, int num_lines)
 }
 
 
-
+/**
+ * Get the size of the screen where the application window is placed
+ */
 void
 gui_mch_get_screen_dimensions(int *screen_w, int *screen_h)
 {
@@ -363,6 +412,13 @@ gui_mch_get_screen_dimensions(int *screen_w, int *screen_h)
 	*screen_h = geo.height();
 }
 
+/**
+ * Initialize vim
+ *
+ * - Set default colors
+ * - Create window and shell
+ * - Read settings
+ */
 int
 gui_mch_init()
 {
@@ -391,17 +447,27 @@ gui_mch_init()
 	return OK;
 }
 
+/**
+ *
+ * FIXME: We dont blink
+ */
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
 }
 
+/**
+ * Initialise Qt, pass in command line arguments
+ */
 void
 gui_mch_prepare(int *argc, char **argv)
 {
 	QApplication *app = new QApplication(*argc, argv);
 }
 
+/**
+ * Resize the shell
+ */
 void
 gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
@@ -410,20 +476,28 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	gui_mch_update();
 }
 
+/**
+ * Called when the foreground or background color has been changed.
+ */
 void
 gui_mch_new_colors()
 {
-	qDebug() << __func__;
+	// Should we do anything
 }
 
+/**
+ * Move the application window
+ */
 void
 gui_mch_set_winpos(int x, int y)
 {
 	window->move(x, y);
 }
 
-/*
+/**
  * Set the window title and icon.
+ *
+ * FIXME: We don't use the icon argument
  */
 void
 gui_mch_settitle(char_u *title, char_u *icon)
@@ -431,10 +505,11 @@ gui_mch_settitle(char_u *title, char_u *icon)
 	if ( title != NULL ) {
 		window->setWindowTitle( vimshell->convertFrom((char*)title) );
 	}
-
-	// We don't set the icon
 }
 
+/**
+ * Show/Hide the mouse pointer
+ */
 void
 gui_mch_mousehide(int hide)
 {
@@ -445,6 +520,9 @@ gui_mch_mousehide(int hide)
 	}
 }
 
+/**
+ * Adjust gui.char_height (after 'linespace' was changed).
+ */
 int
 gui_mch_adjust_charheight()
 {
@@ -456,6 +534,10 @@ gui_mch_adjust_charheight()
 	return OK;
 }
 
+
+/**
+ * Return OK if the key with the termcap name "name" is supported.
+ */
 int
 gui_mch_haskey(char_u *name)
 {
@@ -471,6 +553,9 @@ gui_mch_haskey(char_u *name)
 	return FAIL;
 }
 
+/**
+ * Iconify application window
+ */
 void
 gui_mch_iconify()
 {
@@ -478,7 +563,7 @@ gui_mch_iconify()
 }
 
 
-/*
+/**
  * Invert a rectangle from row r, column c, for nr rows and nc columns.
  */
 void
@@ -492,7 +577,7 @@ gui_mch_invert_rectangle(int row, int col, int nr, int nc)
 	vimshell->queuePaintOp(op);
 }
 
-/*
+/**
  * Set the current text font.
  */
 void
@@ -505,6 +590,9 @@ gui_mch_set_font(GuiFont font)
 }
 
 
+/**
+ * Close the application
+ */
 void
 gui_mch_exit(int rc)
 {
@@ -517,6 +605,12 @@ gui_mch_exit(int rc)
 	QApplication::quit();
 }
 
+/**
+ * Check if the GUI can be started..
+ * Return OK or FAIL.
+ *
+ * FIXME: We cannot check Qt safely(without aborting) so we always say yes
+ */
 int
 gui_mch_init_check()
 {
@@ -525,8 +619,9 @@ gui_mch_init_check()
 
 /* Clipboard */
 
-/*
+/**
  * Own the selection and return OK if it worked.
+ * 
  */
 int
 clip_mch_own_selection(VimClipboard *cbd)
@@ -535,7 +630,7 @@ clip_mch_own_selection(VimClipboard *cbd)
 	return OK;
 }
 
-/*
+/**
  * Disown the selection.
  */
 void
@@ -544,7 +639,7 @@ clip_mch_lose_selection(VimClipboard *cbd)
 	qDebug() << __func__;
 }
 
-/*
+/**
  * Send the current selection to the clipboard
  */
 void
@@ -563,7 +658,6 @@ clip_mch_set_selection(VimClipboard *cbd)
 
 	type = clip_convert_selection(&str, (long_u *)&size, cbd);
 
-	qDebug()<< type << vimshell->convertFrom((char *)str, size) ;
 	if (type >= 0) {
 		QClipboard *clip = QApplication::clipboard();
 		clip->setText( vimshell->convertFrom((char *)str, size), QClipboard::Selection);
@@ -572,6 +666,11 @@ clip_mch_set_selection(VimClipboard *cbd)
 	vim_free(str);
 }
 
+/**
+ * Get selection from clipboard
+ *
+ * FIXME: Which clipboard do we choose
+ */
 void
 clip_mch_request_selection(VimClipboard *cbd)
 {
@@ -594,7 +693,7 @@ clip_mch_request_selection(VimClipboard *cbd)
 	vim_free(buffer);
 }
 
-/*
+/**
  * Open the GUI window which was created by a call to gui_mch_init().
  */
 int
@@ -608,7 +707,7 @@ gui_mch_open()
 	return FAIL;
 }
 
-/*
+/**
  * Draw a cursor without focus.
  */
 void
@@ -626,10 +725,13 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 	PaintOperation op;
 	op.type = DRAWRECT;
 	op.rect = rect;
-	op.color = *color; // FIXME:
+	op.color = *color;
 	vimshell->queuePaintOp(op);
 }
 
+/**
+ * Draw part of a cursor, only w pixels wide, and h pixels high.
+ */
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
@@ -656,7 +758,7 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 	vimshell->queuePaintOp(op);
 }
 
-/*
+/**
  * Set the current text special color.
  */
 void
@@ -670,6 +772,9 @@ gui_mch_set_sp_color(guicolor_T color)
 	vimshell->setSpecial(*color);
 }
 
+/**
+ * Draw a string in the shell
+ */
 void
 gui_mch_draw_string(
     int		row,
@@ -712,7 +817,7 @@ gui_mch_draw_string(
 }
 
 
-/*
+/**
  * Return the Pixel value (color) for the given color name.
  * Return INVALCOLOR for error.
  */
@@ -727,20 +832,19 @@ gui_mch_get_color(char_u *reqname)
 	return INVALCOLOR;
 }
 
-/*
+/**
  * Get the position of the top left corner of the window.
  */
 int
 gui_mch_get_winpos(int *x, int *y)
 {
-	QPoint pos = vimshell->pos();
+	QPoint pos = window->pos();
 
 	*x = pos.x();
 	*y = pos.y();
 
 	return OK;
 }
-
 
 void
 gui_mch_set_text_area_pos(int x, int y, int w, int h)
@@ -762,10 +866,12 @@ gui_mch_new_tooltip_colors()
 
 }
 
+/**
+ * Show/Hide toolbar
+ */
 void
 gui_mch_show_toolbar(int showit)
 {
-	qDebug() << __func__;
 	if ( showit ) {
 		window->showToolbar(true);
 	} else {
@@ -791,7 +897,12 @@ gui_mch_set_toolbar_pos(int x, int y, int w, int h)
 //
 ///////////////////
 
-
+/**
+ * Disable/Enable tearoff for all menus - I'm kind of shocked there is no trivial way to do this
+ *
+ * Given a widget, recursively find all submenus an set tearoff
+ *
+ */
 static void
 toggle_tearoffs(QWidget *widget, bool enable)
 {
@@ -803,19 +914,17 @@ toggle_tearoffs(QWidget *widget, bool enable)
 	}
 }
 
-/*
+/**
  * Enable/Disable tearoff for all menus
  */
 void
 gui_mch_toggle_tearoffs(int enable)
 {
-	qDebug() << __func__;
-	
 	QMenuBar *mb = window->menuBar();
 	toggle_tearoffs(mb, enable != 0);
 }
 
-/*
+/**
  * Called after all menus are set,
  */
 void
@@ -824,7 +933,7 @@ gui_mch_draw_menubar()
 	gui_mch_update();
 }
 
-/*
+/**
  * Disable a menu entry
  */
 void
@@ -843,13 +952,12 @@ gui_mch_new_menu_colors()
 
 }
 
-/*
+/**
  * Enable/Disable the application menubar
  */
 void
 gui_mch_enable_menu(int flag)
 {
-	qDebug() << __func__ << flag;
 	if (flag) {
 		window->showMenu(true);
 	} else {
@@ -857,7 +965,7 @@ gui_mch_enable_menu(int flag)
 	}
 }
 
-/*
+/**
  * Conceal menu entry
  */
 void
@@ -869,13 +977,17 @@ gui_mch_menu_hidden(vimmenu_T *menu, int hidden)
 	menu->qaction->setVisible( hidden == 0 );
 }
 
+/**
+ * Set the menubar position
+ *
+ * @warn We do nothing - The mainwindow handles this
+ */
 void
 gui_mch_set_menu_pos(int x, int y, int w, int h)
 {
-	/* Do nothing - The mainwindow handles this */
 }
 
-/*
+/**
  * Add a new ( menubar menu | toolbar action | )
  */
 void
@@ -895,6 +1007,9 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	}
 }
 
+/**
+ * Add menu item to menu
+ */
 void
 gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 {
@@ -940,14 +1055,14 @@ gui_mch_new_menu_font()
 
 }
 
-/*
+/**
  * Destroy menu 
+ *
+ * Remove menu from parent and delete it
  */
 void
 gui_mch_destroy_menu(vimmenu_T *menu)
 {
-	qDebug() << __func__;
-
 	QMenu *parent;
 	if ( menu->parent ) {
 		parent = (QMenu*)menu->parent->qmenu;
@@ -977,14 +1092,12 @@ void gui_mch_show_popupmenu(vimmenu_T *menu)
 
 }
 
-/*
+/**
  * Set the menu and scrollbar colors to their default values.
  */
 void
 gui_mch_def_colors()
 {
-	qDebug() << __func__;
-
 	gui.norm_pixel = new QColor(Qt::black);
 	gui.back_pixel = new QColor(Qt::white);
 	gui.def_norm_pixel = gui.norm_pixel;
@@ -1034,7 +1147,8 @@ gui_mch_set_scrollbar_colors(scrollbar_T *sb)
 
 }
 
-/*
+/**
+ *
  * Pop open a file browser and return the file selected, in allocated memory,
  * or NULL if Cancel is hit.
  *  saving  - TRUE if the file will be saved to, FALSE if it will be opened.
@@ -1068,11 +1182,11 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 		return NULL;
 	}
 
-	return vim_strsave((char_u *) vimshell->convertTo(file).data()); // FIXME: return outcome
+	return vim_strsave((char_u *) vimshell->convertTo(file).data());
 }
 
 
-/*
+/**
  * Open a dialog window
  */
 int
@@ -1148,7 +1262,7 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 // TabLine 
 //
 
-/*
+/**
  * Show or hide the tabline.
  */
 void
@@ -1158,7 +1272,7 @@ gui_mch_show_tabline(int showit)
 	gui_mch_update();
 }
 
-/*
+/**
  * Return TRUE when tabline is displayed.
  */
 int
@@ -1171,14 +1285,12 @@ gui_mch_showing_tabline(void)
 	}
 }
 
-/*
+/**
  * Update the labels of the tabline.
  */
 void
 gui_mch_update_tabline(void)
 {
-	qDebug() << __func__;
-
 	tabpage_T *tp;
 	int current, nr = 0;
 
@@ -1199,10 +1311,12 @@ gui_mch_update_tabline(void)
 
 }
 
+/**
+ * Change the current tab
+ */
 void
 gui_mch_set_curtab(int nr)
 {
-	qDebug() << __func__ << nr;
 	window->setCurrentTab(nr-1);
 }
 

@@ -9,7 +9,6 @@ extern "C" {
 
 
 typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT} PaintOperationType;
-
 class PaintOperation {
 public:
 	PaintOperationType type;
