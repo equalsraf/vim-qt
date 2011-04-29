@@ -637,9 +637,21 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 void
 gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 {
-	QRect rect( gui.col*gui.char_width,
-			gui.row*gui.char_height,
-			w, h);
+	int x, y;
+
+
+#ifdef FEAT_RIGHTLEFT
+	if ( CURSOR_BAR_RIGHT ) {
+		x = (gui.col+1)*gui.char_width- w;
+		y = gui.row*gui.char_height;
+	} else
+#endif
+	{
+		x = gui.col*gui.char_width;
+		y = gui.row*gui.char_height;
+	}
+
+	QRect rect( x, y, w, h);
 
 	PaintOperation op;
 	op.type = FILLRECT;

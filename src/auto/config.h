@@ -309,10 +309,10 @@
 /* #undef FEAT_SMALL */
 
 /* Define if you want normal features. */
-#define FEAT_NORMAL 1
+/* #undef FEAT_NORMAL */
 
 /* Define if you want big features. */
-/* #undef FEAT_BIG */
+#define FEAT_BIG 1
 
 /* Define if you want huge features. */
 /* #undef FEAT_HUGE */
