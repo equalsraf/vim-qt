@@ -8,13 +8,13 @@ QHash<QString, QColor> QVimShell::m_colorTable;
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(true),
-	m_input(false), m_lastClickEvent(-1)
+	m_input(false), m_lastClickEvent(-1), m_special(QBrush())
 {
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 }
 
-void QVimShell::setBackground(const QColor& color)
+void QVimShell::setBackground(const QColor color)
 {
 	m_background = color;
 }
@@ -56,7 +56,9 @@ void QVimShell::setSpecial(const QColor& color)
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
 	if ( canvas.isNull() ) {
-		canvas = QPixmap( ev->size() );
+		QPixmap newCanvas = QPixmap( ev->size() );
+		newCanvas.fill(m_background);
+		canvas = newCanvas;
 	} else {
 		// Keep old contents
 		QPixmap old = canvas.copy(QRect(QPoint(0,0), ev->size()));
@@ -183,12 +185,14 @@ void QVimShell::flushPaintOps()
 			painter.setFont( op.font );
 			painter.drawText(op.rect, op.str);
 			break;
+		case DRAWUNDERCURL:
+			painter.setPen(QPen(op.color, 0, Qt::DashLine));
+			painter.drawLine( op.rect.right(), op.rect.bottom(), op.rect.left(), op.rect.bottom());
+			break;
 		case INVERTRECT:
 			painter.setCompositionMode( QPainter::RasterOp_SourceXorDestination );
-
 			painter.fillRect( op.rect, Qt::color0);
 			painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
-
 			break;
 		case SCROLLRECT:
 			painter.end();

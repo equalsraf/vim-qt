@@ -10,6 +10,8 @@ extern "C" {
 static QVimShell *vimshell = NULL;
 static MainWindow *window = NULL;
 
+static QColor specialColor;
+
 /**
  * Map a row/col coordinate to a point in widget coordinates
  */
@@ -482,7 +484,9 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 void
 gui_mch_new_colors()
 {
-	// Should we do anything
+	if ( vimshell && gui.back_pixel ) {
+		vimshell->setBackground(*(gui.back_pixel));
+	}
 }
 
 /**
@@ -769,7 +773,7 @@ gui_mch_set_sp_color(guicolor_T color)
 		return;
 	}
 
-	vimshell->setSpecial(*color);
+	specialColor = *color;
 }
 
 /**
@@ -814,6 +818,13 @@ gui_mch_draw_string(
 	op.color = vimshell->foreground(); // FIXME: set correct color foreground
 
 	vimshell->queuePaintOp(op);
+
+	if ( flags & DRAW_UNDERC ) {
+		op.type = DRAWUNDERCURL;
+		op.color = specialColor;
+		op.rect = rect;
+		vimshell->queuePaintOp(op);
+	}
 }
 
 

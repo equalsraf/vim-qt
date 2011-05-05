@@ -8,7 +8,7 @@ extern "C" {
 }
 
 
-typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT} PaintOperationType;
+typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT, DRAWUNDERCURL} PaintOperationType;
 class PaintOperation {
 public:
 	PaintOperationType type;
@@ -46,7 +46,7 @@ public:
 	static QHash<QString, QColor> m_colorTable;
 
 public slots:
-	void setBackground(const QColor&);
+	void setBackground(const QColor);
 	void setForeground(const QColor&);
 	void setSpecial(const QColor&);
 
