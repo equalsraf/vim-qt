@@ -434,6 +434,10 @@ gui_mch_init()
 	gui.def_norm_pixel = gui.norm_pixel;
 	gui.def_back_pixel = gui.back_pixel;
 
+	// Clipboard - the order matters, for safety
+	clip_plus.clipboardMode = QClipboard::Selection;
+	clip_star.clipboardMode = QClipboard::Clipboard;
+
 	highlight_gui_started();
 
 	window = new MainWindow(&gui);
@@ -630,8 +634,6 @@ gui_mch_init_check()
 int
 clip_mch_own_selection(VimClipboard *cbd)
 {
-	qDebug() << __func__;
-	return OK;
 }
 
 /**
@@ -649,22 +651,16 @@ clip_mch_lose_selection(VimClipboard *cbd)
 void
 clip_mch_set_selection(VimClipboard *cbd)
 {
-	qDebug() << __func__;
 
 	int type;
 	long size;
 	char_u *str = NULL;
 
-	if (!cbd->owned)
-		return;
-	clip_get_selection(cbd);
-	cbd->owned = FALSE;
-
 	type = clip_convert_selection(&str, (long_u *)&size, cbd);
 
 	if (type >= 0) {
 		QClipboard *clip = QApplication::clipboard();
-		clip->setText( vimshell->convertFrom((char *)str, size), QClipboard::Selection);
+		clip->setText( vimshell->convertFrom((char *)str, size), (QClipboard::Mode)cbd->clipboardMode);
 	}
 
 	vim_free(str);
@@ -673,16 +669,13 @@ clip_mch_set_selection(VimClipboard *cbd)
 /**
  * Get selection from clipboard
  *
- * FIXME: Which clipboard do we choose
  */
 void
 clip_mch_request_selection(VimClipboard *cbd)
 {
-	qDebug() << __func__;
-
 
 	QClipboard *clip = QApplication::clipboard();
-	QByteArray text = vimshell->convertTo(clip->text());
+	QByteArray text = vimshell->convertTo(clip->text( (QClipboard::Mode)cbd->clipboardMode));
 
 	char_u	*buffer;
 	buffer = lalloc( text.size(), TRUE);

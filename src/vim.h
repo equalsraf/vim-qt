@@ -1904,6 +1904,10 @@ typedef struct VimClipboard
     GdkAtom     gtk_sel_atom;	/* PRIMARY/CLIPBOARD selection ID */
 # endif
 
+# ifdef FEAT_GUI_QT
+    int		clipboardMode;
+# endif
+
 # ifdef MSWIN
     int_u	format;		/* Vim's own special clipboard format */
     int_u	format_raw;	/* Vim's raw text clipboard format */
