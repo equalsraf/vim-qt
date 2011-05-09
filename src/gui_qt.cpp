@@ -485,7 +485,7 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	// We don't actually resize the shell here, instead we
 	// call Qt to do it for us.
 	//
-	//vimshell->resize(width, height);
+	gui_resize_shell(vimshell->size().width(), vimshell->size().height());
 	gui_mch_update();
 }
 
