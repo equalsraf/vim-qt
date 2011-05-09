@@ -188,7 +188,19 @@ void QVimShell::flushPaintOps()
 		case DRAWSTRING:
 			painter.setPen( op.color );
 			painter.setFont( op.font );
-			painter.drawText(op.rect, op.str);
+
+			//
+			// Without a fixed cell layout we must draw
+			// each char at a time.
+			int i;
+			for (i=0; i<op.str.size(); i++)	{
+				QRect r;
+				r.setX( op.rect.x() + i*(op.rect.width()/op.str.size()) );
+				r.setY( op.rect.y() );
+				r.setHeight( op.rect.height() );
+				r.setWidth( op.rect.width()/op.str.size() );
+				painter.drawText( r, Qt::AlignCenter, op.str.at(i) );
+			}
 			break;
 		case DRAWUNDERCURL:
 			painter.setPen(QPen(op.color, 0, Qt::DashLine));

@@ -149,7 +149,7 @@
 /* #undef TGETSTR_CHAR_P */
 
 /* Define if tgetent() returns zero for an error */
-#define TGETENT_ZERO_ERR 0
+/* #undef TGETENT_ZERO_ERR */
 
 /* Define if the getcwd() function should not be used.  */
 /* #undef BAD_GETCWD */
@@ -312,10 +312,10 @@
 /* #undef FEAT_NORMAL */
 
 /* Define if you want big features. */
-#define FEAT_BIG 1
+/* #undef FEAT_BIG */
 
 /* Define if you want huge features. */
-/* #undef FEAT_HUGE */
+#define FEAT_HUGE 1
 
 /* Define if you want to include the Lua interpreter. */
 /* #undef FEAT_LUA */
@@ -327,13 +327,13 @@
 /* #undef FEAT_MZSCHEME */
 
 /* Define if you want to include the Perl interpreter. */
-/* #undef FEAT_PERL */
+#define FEAT_PERL 1
 
 /* Define for linking via dlopen() or LoadLibrary() */
 /* #undef DYNAMIC_PERL */
 
 /* Define if you want to include the Python interpreter. */
-/* #undef FEAT_PYTHON */
+#define FEAT_PYTHON 1
 
 /* Define if you want to include the Python3 interpreter. */
 /* #undef FEAT_PYTHON3 */
@@ -354,7 +354,7 @@
 /* #undef FEAT_TCL */
 
 /* Define if you want to include the Sniff interface. */
-/* #undef FEAT_SNIFF */
+#define FEAT_SNIFF 1
 
 /* Define if you want to add support for ACL */
 #define HAVE_POSIX_ACL 1
@@ -368,10 +368,10 @@
 /* #undef HAVE_SYSMOUSE */
 
 /* Define if you want to include the Cscope interface. */
-/* #undef FEAT_CSCOPE */
+#define FEAT_CSCOPE 1
 
 /* Define if you want to include multibyte support. */
-/* #undef FEAT_MBYTE */
+#define FEAT_MBYTE 1
 
 /* Define if you want to include fontset support. */
 /* #undef FEAT_XFONTSET */

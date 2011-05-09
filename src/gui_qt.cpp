@@ -67,6 +67,9 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 		font->setFamily(family);
 	}
 
+	font->setKerning(false);
+	font->setFixedPitch(true);
+
 	return font;
 }
 
@@ -248,7 +251,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	QFontMetrics metric( *qf );
 
 	gui.norm_font = qf;
-	gui.char_width = metric.width("_");
+	gui.char_width = metric.width(" ");
 	gui.char_height = metric.height();
 	
 	gui.char_ascent = metric.ascent();
