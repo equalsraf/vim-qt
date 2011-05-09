@@ -3,7 +3,7 @@
 #include "../runtime/vim32x32.xpm"
 
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
-:QMainWindow(parent)
+:QMainWindow(parent), m_keepTabbar(false)
 {
 	setWindowIcon(QPixmap(vim32x32));
 
@@ -31,7 +31,6 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	tabbar->setExpanding(false);
 	tabbar->setFocusPolicy(Qt::NoFocus);
 
-
 	tabtoolbar->addWidget(tabbar);
 
 	connect( tabbar, SIGNAL(tabCloseRequested(int)),
@@ -39,6 +38,16 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	connect( tabbar, SIGNAL(currentChanged(int)),
 			this, SLOT(switchTab(int)));
 
+}
+
+bool MainWindow::restoreState(const QByteArray& state, int version)
+{
+	bool ret = QMainWindow::restoreState(state, version);
+	if ( keepTabbar() ) {
+		showTabline(true);
+	}
+
+	return ret;
 }
 
 QVimShell* MainWindow::vimShell()
@@ -63,7 +72,17 @@ void MainWindow::closeEvent (QCloseEvent * event)
 
 void MainWindow::showTabline(bool show)
 {
-	tabtoolbar->setVisible(show);
+	// VIM never removes the second tab,
+	// instead it hides the entire tab bar
+	if ( keepTabbar() && !show ) {
+		removeTabs(1);
+	}
+
+	if ( keepTabbar() ) {
+		tabtoolbar->setVisible(true);
+	} else {
+		tabtoolbar->setVisible(show);
+	}
 }
 
 void MainWindow::showToolbar(bool show)
@@ -85,7 +104,6 @@ void MainWindow::setCurrentTab(int idx)
 {
 	tabbar->setCurrentIndex(idx);
 }
-
 
 void MainWindow::setTab( int idx, const QString& label)
 {
@@ -112,5 +130,20 @@ void MainWindow::switchTab(int idx)
 
 void MainWindow::closeTab(int idx)
 {
-	vimshell->closeTab(idx+1);
+	if ( keepTabbar() && tabbar->count() == 1 ) {
+		vimshell->close();
+	} else {
+		vimshell->closeTab(idx+1);
+	}
 }
+
+void MainWindow::setKeepTabbar(bool keep)
+{
+	m_keepTabbar = keep;
+}
+
+bool MainWindow::keepTabbar()
+{
+	return m_keepTabbar;
+}
+

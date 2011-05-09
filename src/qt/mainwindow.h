@@ -7,6 +7,7 @@
 class MainWindow: public QMainWindow
 {
 	Q_OBJECT
+	Q_PROPERTY(bool m_keepTabbar READ keepTabbar WRITE setKeepTabbar );
 public:
 	MainWindow(gui_T *, QWidget *parent=0);
 	QVimShell* vimShell();
@@ -15,6 +16,9 @@ public:
 
 	QMenuBar* menuBar() const;
 	QToolBar* toolBar() const;
+	bool keepTabbar();
+
+	bool restoreState(const QByteArray& state, int version=0);
 
 public slots:
 	void showTabline(bool show);
@@ -25,6 +29,7 @@ public slots:
 	void removeTabs(int);
 	void switchTab(int idx);
 	void closeTab(int idx);
+	void setKeepTabbar(bool);
 
 protected:
 	virtual void closeEvent( QCloseEvent *);
@@ -38,6 +43,8 @@ private:
 	
 	QToolBar *menutoolbar;
 	QMenuBar *menu;
+
+	bool m_keepTabbar;
 };
 
 #endif

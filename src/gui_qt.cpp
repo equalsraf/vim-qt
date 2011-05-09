@@ -478,7 +478,11 @@ void
 gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
 {
-	vimshell->resize(width, height);
+	//
+	// We don't actually resize the shell here, instead we
+	// call Qt to do it for us.
+	//
+	//vimshell->resize(width, height);
 	gui_mch_update();
 }
 
@@ -1296,8 +1300,8 @@ void
 gui_mch_update_tabline(void)
 {
 	tabpage_T *tp;
-	int current, nr = 0;
-
+	int current = 0;
+	int nr = 0;
 
 	for (tp = first_tabpage; tp != NULL; tp = tp->tp_next, nr++)
 	{
@@ -1312,7 +1316,6 @@ gui_mch_update_tabline(void)
 	}
 	window->removeTabs(nr);
 	window->setCurrentTab(current);
-
 }
 
 /**

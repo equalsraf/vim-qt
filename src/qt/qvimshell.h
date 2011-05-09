@@ -50,6 +50,7 @@ public slots:
 	void setForeground(const QColor&);
 	void setSpecial(const QColor&);
 
+	void close();
 	virtual void closeEvent(QCloseEvent *event);
 	void forceInput();
 

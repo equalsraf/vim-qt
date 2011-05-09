@@ -158,9 +158,14 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	}
 }
 
-void QVimShell::closeEvent(QCloseEvent *event)
+void QVimShell::close()
 {
 	gui_shell_closed();
+}
+
+void QVimShell::closeEvent(QCloseEvent *event)
+{
+	close();
 	event->ignore();
 }
 
