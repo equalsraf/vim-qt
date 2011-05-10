@@ -1237,10 +1237,11 @@ NEXTAW_BUNDLE	=
 
 QT_LIBS1	= -lQtGui
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
-			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp
+			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
-			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o
+			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
+			objects/vimscrollbar.o
 QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I.
 QT_IPATH	= $(GUI_INC_LOC)
 QT_LIBS_DIR = $(GUI_LIB_LOC)
@@ -2496,6 +2497,9 @@ objects/qtresources.o: qt/icons.qrc
 	rcc -no-compress qt/icons.qrc -o qtresources.cpp
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qtresources.cpp
 
+objects/vimscrollbar.o: qt/vimscrollbar.cpp
+	moc qt/vimscrollbar.h > vimscrollbar.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimscrollbar.cpp
 
 objects/gui_beval.o: gui_beval.c
 	$(CCC) -o $@ gui_beval.c

@@ -2,6 +2,7 @@
 #include "qvimshell.h"
 #include "mainwindow.h"
 #include "vimaction.h"
+#include "vimscrollbar.h"
 
 extern "C" {
 
@@ -1113,40 +1114,63 @@ gui_mch_def_colors()
 	gui.def_back_pixel = gui.back_pixel;
 }
 
-/* Scrollbar */
+//
+//
+// Scrollbar 
+// 
 
 void
 gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
 {
+	sb->wid->setValue(val);
+	sb->wid->setMaximum(max);
 }
 
 void
 gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
 {
-
+	sb->wid->setGeometry(x, y, w, h);
 }
 
+/**
+ *
+ * Hide/Show scrollbar
+ *
+ */
 void
 gui_mch_enable_scrollbar(scrollbar_T *sb, int flag)
 {
-	//qDebug() << __func__;
+	sb->wid->setVisible(flag);
 }
 
+/**
+ * Create a new scrollbar
+ */
 void
 gui_mch_create_scrollbar( scrollbar_T *sb, int orient)
 {
-	qDebug() << __func__;
+	Qt::Orientation dir;
 	if ( orient == SBAR_HORIZ) {
-//		sb->wid = window->horizontalScrollBar();
+		dir = Qt::Horizontal;
 	} else {
-//		sb->wid = window->verticalScrollBar();
+		dir = Qt::Vertical;
 	}
+
+	VimScrollBar *widget = new VimScrollBar( sb, dir, vimshell);
+	widget->setMinimumWidth(gui.scrollbar_width);
+
+	sb->wid = widget;
 }
 
+/**
+ * Destroy a scrollbar
+ */
 void
 gui_mch_destroy_scrollbar(scrollbar_T *sb)
 {
-	// ScrollBar is owned by the viewport, do nothing
+	sb->wid->hide();
+	sb->wid->deleteLater();
+	sb->wid = NULL;
 }
 
 void
