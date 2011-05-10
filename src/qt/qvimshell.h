@@ -68,12 +68,13 @@ protected:
 	virtual void mouseReleaseEvent(QMouseEvent *event);
 	virtual void wheelEvent(QWheelEvent *event );
 
-	unsigned int vimModifiers(Qt::KeyboardModifiers);
-	bool specialKey(int, char[3]);
+	bool specialKey(int, char*, int*);
 	virtual void paintEvent( QPaintEvent *);
 
 	void drawString(const PaintOperation&, QPainter& );
 	QFont fixPainterFont(const QFont &);
+
+	int_u vimKeyboardModifiers(Qt::KeyboardModifiers);
 
 private:
 	QColor m_foreground;

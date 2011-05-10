@@ -68,34 +68,17 @@ void QVimShell::resizeEvent(QResizeEvent *ev)
 	gui_resize_shell(ev->size().width(), ev->size().height());
 }
 
-
-unsigned int QVimShell::vimModifiers(Qt::KeyboardModifiers mod)
-{
-	if ( mod == Qt::NoModifier ) {
-		return 0;
-	}
-	unsigned int vmod;
-	if ( mod & Qt::ShiftModifier ) {
-		vmod |= MOD_MASK_SHIFT;
-	} if ( mod & Qt::ControlModifier ) {
-		vmod |= MOD_MASK_CTRL;
-	} if ( mod & Qt::AltModifier ) {
-		vmod |= MOD_MASK_ALT;
-	} if ( mod & Qt::MetaModifier ) {
-		vmod |= MOD_MASK_META;
-	}
-
-	return vmod;
-}
-
-bool QVimShell::specialKey(int k, char str[3])
+bool QVimShell::specialKey(int k, char* str, int *len)
 {
 	int i;
+	int start = *len;
 	for ( i=0; special_keys[i].key_sym != 0; i++ ) {
 		if ( special_keys[i].key_sym == k ) {
-			str[0] = CSI;
-			str[1] = special_keys[i].code0;
-			str[2] = special_keys[i].code1;
+			str[start++] = CSI;
+			str[start++] = special_keys[i].code0;
+			str[start++] = special_keys[i].code1;
+
+			*len = start;
 			return true;
 		}
 	}
@@ -136,17 +119,41 @@ void QVimShell::forceInput()
 	m_input = true;
 }
 
-void QVimShell::keyPressEvent ( QKeyEvent *ev)
+int_u QVimShell::vimKeyboardModifiers(Qt::KeyboardModifiers mod)
 {
-	char str[3];
+	int_u vim = 0x00;
 
-	m_input = true;
-	if ( specialKey( ev->key(), str)) {
-		add_to_input_buf((char_u *) str, 3);
-		return;
+	if ( mod & Qt::ShiftModifier ) {
+		vim |= MOD_MASK_SHIFT;
+	} 
+	if ( mod & Qt::ControlModifier ) {
+		vim |= MOD_MASK_CTRL;
+	}
+	if ( mod & Qt::AltModifier ) {
+		vim |= MOD_MASK_ALT;
 	}
 
-	if ( !ev->text().isEmpty() ) {
+	return vim;
+}
+
+
+void QVimShell::keyPressEvent ( QKeyEvent *ev)
+{
+	char str[20];
+	int len=0;
+
+	m_input = true;
+	if ( specialKey( ev->key(), str, &len)) {
+		int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
+		if ( vmod ) {
+			str[len++] = CSI;
+			str[len++] = KS_MODIFIER;
+			str[len++] = vmod;
+		}
+
+		add_to_input_buf((char_u *) str, len);
+		return;
+	} else if ( !ev->text().isEmpty() ) {
 		add_to_input_buf( (char_u *) convertTo(ev->text()).data(), ev->count() );
 		return;
 	}
