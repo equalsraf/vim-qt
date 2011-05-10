@@ -8,7 +8,7 @@ QHash<QString, QColor> QVimShell::m_colorTable;
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(true),
-	m_input(false), m_lastClickEvent(-1), m_special(QBrush())
+	m_input(false), m_lastClickEvent(-1)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
@@ -45,12 +45,6 @@ void QVimShell::setForeground(const QColor& color)
 QColor QVimShell::foreground()
 {
 	return m_foreground;
-}
-
-
-void QVimShell::setSpecial(const QColor& color)
-{
-	m_special = QBrush(color);
 }
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
@@ -169,6 +163,77 @@ void QVimShell::closeEvent(QCloseEvent *event)
 	event->ignore();
 }
 
+/*
+ * Either by sheer absurdity or font substitution magic, some
+ * monospace fonts end up having different widths for each
+ * style (regular, bold, etc). This causes text painting to
+ * misspaint - particularly when painting a selection -  because
+ * the text will be too wide to fit in its place..
+ *
+ * This obscure piece of code tries to find a pointSize for the
+ * same font that respects the monospace char width. Hopefully
+ * you have a decent monospace font and this is never called!!
+ */
+QFont QVimShell::fixPainterFont( const QFont& pfont )
+{
+	QFontMetrics fm(pfont);
+
+	if ( fm.averageCharWidth() != gui.char_width ) {
+
+		int V = (fm.averageCharWidth() > gui.char_width ) ? -1 :1;
+
+		QFont f1 = pfont;
+		f1.setPointSize(f1.pointSize()-V);
+		QFontMetrics fm1(f1);
+
+		float wdiff = ((float)fm1.averageCharWidth() - fm.averageCharWidth())*V;
+		int pt = (fm.averageCharWidth() - gui.char_width)/wdiff;
+
+		QFont f = pfont;
+		f.setPointSize(f.pointSize()+pt);
+
+		qDebug() << __func__ << "Font size mismatch" << pt;
+		return f;
+	}
+
+	return pfont;
+}
+
+/**
+ * Draw a string into the canvas
+ *
+ * FIXME: this method uses gui.char_width
+ */
+void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
+{
+	painter.setPen( op.color );
+
+	QTextLayout l(op.str);
+	l.setFont(fixPainterFont(op.font));
+
+
+	if (op.undercurl) {
+		QTextCharFormat charFormat;
+		charFormat.setUnderlineStyle(QTextCharFormat::SpellCheckUnderline);
+		charFormat.setUnderlineColor(op.curlcolor);
+
+		QTextLayout::FormatRange format;
+		format.start = 0;
+		format.length = op.str.size();
+		format.format = charFormat;
+
+		QList<QTextLayout::FormatRange> list;
+		list.append(format);
+		l.setAdditionalFormats(list);
+	}
+
+	l.beginLayout();
+	QTextLine line = l.createLine();
+	line.setLineWidth(op.rect.width());
+	l.endLayout();
+	l.draw(&painter, op.rect.topLeft());
+}
+
 void QVimShell::flushPaintOps()
 {
 	QPainter painter(&canvas);
@@ -186,25 +251,7 @@ void QVimShell::flushPaintOps()
 			painter.drawRect(op.rect); // FIXME: need color
 			break;
 		case DRAWSTRING:
-			painter.setPen( op.color );
-			painter.setFont( op.font );
-
-			//
-			// Without a fixed cell layout we must draw
-			// each char at a time.
-			int i;
-			for (i=0; i<op.str.size(); i++)	{
-				QRect r;
-				r.setX( op.rect.x() + i*(op.rect.width()/op.str.size()) );
-				r.setY( op.rect.y() );
-				r.setHeight( op.rect.height() );
-				r.setWidth( op.rect.width()/op.str.size() );
-				painter.drawText( r, Qt::AlignCenter, op.str.at(i) );
-			}
-			break;
-		case DRAWUNDERCURL:
-			painter.setPen(QPen(op.color, 0, Qt::DashLine));
-			painter.drawLine( op.rect.right(), op.rect.bottom(), op.rect.left(), op.rect.bottom());
+			drawString(op, painter);
 			break;
 		case INVERTRECT:
 			painter.setCompositionMode( QPainter::RasterOp_SourceXorDestination );

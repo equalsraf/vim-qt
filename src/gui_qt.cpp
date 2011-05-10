@@ -250,10 +250,13 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	QFont *qf = gui_mch_get_font(font_name, 0);
 	QFontMetrics metric( *qf );
 
+	if ( metric.averageCharWidth() != metric.maxWidth() ) {
+		qDebug() << "Warning, fake monospace font?";
+	}
+
 	gui.norm_font = qf;
 	gui.char_width = metric.width(" ");
 	gui.char_height = metric.height();
-	
 	gui.char_ascent = metric.ascent();
 
 	return OK;
@@ -769,10 +772,9 @@ void
 gui_mch_set_sp_color(guicolor_T color) 
 {
 	if ( color == NULL ) {
-		vimshell->setSpecial(QColor());
+		specialColor = QColor();
 		return;
 	}
-
 	specialColor = *color;
 }
 
@@ -798,7 +800,7 @@ gui_mch_draw_string(
 		// Fill in the background
 		PaintOperation op;
 		op.type = FILLRECT;
-		op.rect = QRect(pos.x(), pos.y(),gui.char_width*str.length(), gui.char_height);
+		op.rect = rect;
 		op.color = vimshell->background();
 		vimshell->queuePaintOp(op);
 	}
@@ -808,7 +810,6 @@ gui_mch_draw_string(
 	f.setBold( flags & DRAW_BOLD);
 	f.setUnderline( flags & DRAW_UNDERL);
 	f.setItalic( flags & DRAW_ITALIC);
-	// FIXME: missing undercurl
 
 	PaintOperation op;
 	op.type = DRAWSTRING;
@@ -816,15 +817,12 @@ gui_mch_draw_string(
 	op.rect = rect;
 	op.str = str;
 	op.color = vimshell->foreground(); // FIXME: set correct color foreground
+	op.undercurl = flags & DRAW_UNDERC;
+	if ( op.undercurl ) { // FIXME: Refactor PaintOperation
+		op.curlcolor = specialColor;
+	}
 
 	vimshell->queuePaintOp(op);
-
-	if ( flags & DRAW_UNDERC ) {
-		op.type = DRAWUNDERCURL;
-		op.color = specialColor;
-		op.rect = rect;
-		vimshell->queuePaintOp(op);
-	}
 }
 
 

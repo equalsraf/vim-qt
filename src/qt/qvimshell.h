@@ -8,7 +8,7 @@ extern "C" {
 }
 
 
-typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT, DRAWUNDERCURL} PaintOperationType;
+typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT} PaintOperationType;
 class PaintOperation {
 public:
 	PaintOperationType type;
@@ -17,6 +17,8 @@ public:
 	// DRAWSTRING
 	QFont font;
 	QString str;
+	bool undercurl;
+	QColor curlcolor;
 	// SCROLL
 	QPoint pos;
 };
@@ -48,7 +50,6 @@ public:
 public slots:
 	void setBackground(const QColor);
 	void setForeground(const QColor&);
-	void setSpecial(const QColor&);
 
 	void close();
 	virtual void closeEvent(QCloseEvent *event);
@@ -71,10 +72,12 @@ protected:
 	bool specialKey(int, char[3]);
 	virtual void paintEvent( QPaintEvent *);
 
+	void drawString(const PaintOperation&, QPainter& );
+	QFont fixPainterFont(const QFont &);
+
 private:
 	QColor m_foreground;
 	QColor m_background;
-	QBrush m_special;
 	gui_T *m_gui;
 	QFont m_font;
 
