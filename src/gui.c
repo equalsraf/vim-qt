@@ -5211,6 +5211,7 @@ gui_do_findrepl(flags, find_text, repl_text, down)
 #if (defined(FEAT_DND) && defined(FEAT_GUI_GTK)) \
 	|| defined(FEAT_GUI_MSWIN) \
 	|| defined(FEAT_GUI_MAC) \
+	|| defined(FEAT_GUI_QT) \
 	|| defined(PROTO)
 
 #ifdef FEAT_WINDOWS

@@ -12,6 +12,7 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
+	setAcceptDrops(true);
 }
 
 void QVimShell::setBackground(const QColor color)
@@ -547,4 +548,41 @@ void QVimShell::setEncodingUtf8(bool enabled)
 	m_encoding_utf8 = enabled;
 }
 
+void QVimShell::dragEnterEvent(QDragEnterEvent *ev)
+{
+	if ( ev->mimeData()->hasFormat("text/uri-list") ||
+		ev->mimeData()->hasFormat("text/html") ||
+		ev->mimeData()->hasFormat("UTF8_STRING") ||
+		ev->mimeData()->hasFormat("STRING") ||
+	  	ev->mimeData()->hasFormat("text/plain") ) {
+		ev->acceptProposedAction();
+	}
+}
+
+void QVimShell::dropEvent(QDropEvent *ev)
+{
+
+	if ( ev->mimeData()->hasFormat("text/uri-list") ) {
+		QList<QUrl> urls = ev->mimeData()->urls();
+		if ( urls.size() == 0 ) {
+			return;
+		}
+
+		char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
+		int i;
+		for (i=0; i<urls.size(); i++) {
+			char *s = convertTo(urls.at(i).toString()).data();
+			fnames[i] = (char_u *) s;
+		}
+		
+		gui_handle_drop(ev->pos().x(), ev->pos().y(), 0, fnames, urls.size());
+	} else {
+		QByteArray text = convertTo(ev->mimeData()->text());
+		dnd_yank_drag_data( (char_u*)text.data(), text.size());
+
+		char_u buf[3] = {CSI, KS_EXTRA, (char_u)KE_DROP};
+		add_to_input_buf(buf, 3);
+	}
+	ev->acceptProposedAction();
+}
 

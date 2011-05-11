@@ -1119,7 +1119,7 @@
 /*
  * +dnd		Drag'n'drop support.  Always used for the GTK+ GUI.
  */
-#if defined(FEAT_CLIPBOARD) && defined(FEAT_GUI_GTK)
+#if defined(FEAT_CLIPBOARD) && (defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT) )
 # define FEAT_DND
 #endif
 

@@ -47,6 +47,7 @@ public:
 	void setEncodingUtf8(bool);
 	static QHash<QString, QColor> m_colorTable;
 
+
 public slots:
 	void setBackground(const QColor);
 	void setForeground(const QColor&);
@@ -75,6 +76,9 @@ protected:
 	QFont fixPainterFont(const QFont &);
 
 	int_u vimKeyboardModifiers(Qt::KeyboardModifiers);
+
+	void dragEnterEvent(QDragEnterEvent *);
+	void dropEvent(QDropEvent *);
 
 private:
 	QColor m_foreground;
