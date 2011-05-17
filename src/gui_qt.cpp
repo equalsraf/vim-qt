@@ -1124,12 +1124,26 @@ gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
 {
 	sb->wid->setValue(val);
 	sb->wid->setMaximum(max);
+	sb->wid->setPageStep(size);
 }
 
+/**
+ * Set scrollbar geometry
+ */
 void
-gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int w, int h)
+gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int width, int height)
 {
-	sb->wid->setGeometry(x, y, w, h);
+	//
+	// Override scrollbar position to take margin 
+	// into consideration
+	//
+	if ( sb->type == SBAR_RIGHT ) {
+		x = vimshell->width() - width;
+	} else if ( sb->type == SBAR_BOTTOM ) {
+		y = vimshell->height() - height;
+	}
+
+	sb->wid->setGeometry(x, y, width, height);
 }
 
 /**
@@ -1171,13 +1185,6 @@ gui_mch_destroy_scrollbar(scrollbar_T *sb)
 	sb->wid->hide();
 	sb->wid->deleteLater();
 	sb->wid = NULL;
-}
-
-void
-gui_mch_set_scrollbar_colors(scrollbar_T *sb)
-{
-	qDebug() << __func__;
-
 }
 
 /**
