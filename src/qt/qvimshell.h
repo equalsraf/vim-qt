@@ -39,7 +39,6 @@ public:
 	void queuePaintOp(PaintOperation);
 
 	QColor background();
-	QColor foreground();
 
 	QByteArray convertTo(const QString& s);
 	QString convertFrom(const char *, int size=-1);
@@ -50,7 +49,6 @@ public:
 
 public slots:
 	void setBackground(const QColor);
-	void setForeground(const QColor&);
 
 	void close();
 	virtual void closeEvent(QCloseEvent *event);
@@ -82,7 +80,6 @@ protected:
 	void dropEvent(QDropEvent *);
 
 private:
-	QColor m_foreground;
 	QColor m_background;
 	gui_T *m_gui;
 	QFont m_font;

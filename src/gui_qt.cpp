@@ -11,6 +11,8 @@ extern "C" {
 static QVimShell *vimshell = NULL;
 static MainWindow *window = NULL;
 
+static QColor foregroundColor;
+static QColor backgroundColor;
 static QColor specialColor;
 
 /**
@@ -163,10 +165,9 @@ void
 gui_mch_set_fg_color(guicolor_T	color)
 {
 	if ( color == NULL ) {
-		vimshell->setForeground(QColor());
 		return;
 	}
-	vimshell->setForeground(*color);
+	foregroundColor = *color;
 }
 
 /**
@@ -176,11 +177,13 @@ void
 gui_mch_set_bg_color(guicolor_T color)
 {
 	if ( color == NULL ) {
-		vimshell->setBackground(QColor());
 		return;
 	}
 
+	// The shell needs a hint background color
+	// to paint the back when resizing
 	vimshell->setBackground(*color);
+	backgroundColor = *color;
 }
 
 
@@ -762,7 +765,7 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 	PaintOperation op;
 	op.type = FILLRECT;
 	op.rect = rect;
-	op.color = vimshell->foreground(); // FIXME: use foreground color
+	op.color = foregroundColor;
 	vimshell->queuePaintOp(op);
 }
 
@@ -802,7 +805,7 @@ gui_mch_draw_string(
 		PaintOperation op;
 		op.type = FILLRECT;
 		op.rect = rect;
-		op.color = vimshell->background();
+		op.color = backgroundColor;
 		vimshell->queuePaintOp(op);
 	}
 
@@ -817,7 +820,7 @@ gui_mch_draw_string(
 	op.font = f;
 	op.rect = rect;
 	op.str = str;
-	op.color = vimshell->foreground(); // FIXME: set correct color foreground
+	op.color = foregroundColor;
 	op.undercurl = flags & DRAW_UNDERC;
 	if ( op.undercurl ) { // FIXME: Refactor PaintOperation
 		op.curlcolor = specialColor;

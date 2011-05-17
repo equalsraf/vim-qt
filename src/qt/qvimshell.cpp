@@ -7,7 +7,7 @@ extern "C" {
 QHash<QString, QColor> QVimShell::m_colorTable;
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
-:QWidget(parent), m_foreground(Qt::black), m_gui(gui), m_encoding_utf8(true),
+:QWidget(parent), m_gui(gui), m_encoding_utf8(true),
 	m_input(false), m_lastClickEvent(-1)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
@@ -36,16 +36,6 @@ void QVimShell::closeTab(int idx)
 QColor QVimShell::background()
 {
 	return m_background;
-}
-
-void QVimShell::setForeground(const QColor& color)
-{
-	m_foreground = color;
-}
-
-QColor QVimShell::foreground()
-{
-	return m_foreground;
 }
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
@@ -86,7 +76,6 @@ bool QVimShell::specialKey(int k, char* str, int *len)
 	return false;
 }
 
-// FIXME
 QByteArray QVimShell::convertTo(const QString& s)
 {
 	if ( m_encoding_utf8 ) {
@@ -197,6 +186,8 @@ void QVimShell::closeEvent(QCloseEvent *event)
  * This obscure piece of code tries to find a pointSize for the
  * same font that respects the monospace char width. Hopefully
  * you have a decent monospace font and this is never called!!
+ *
+ * FIXME: this method uses gui.char_width
  */
 QFont QVimShell::fixPainterFont( const QFont& pfont )
 {
@@ -226,7 +217,6 @@ QFont QVimShell::fixPainterFont( const QFont& pfont )
 /**
  * Draw a string into the canvas
  *
- * FIXME: this method uses gui.char_width
  */
 void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 {
