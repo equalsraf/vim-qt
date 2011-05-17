@@ -137,6 +137,22 @@ int_u QVimShell::vimKeyboardModifiers(Qt::KeyboardModifiers mod)
 	return vim;
 }
 
+int_u QVimShell::vimMouseModifiers(Qt::KeyboardModifiers mod)
+{
+	int_u vim = 0x00;
+
+	if ( mod & Qt::ShiftModifier ) {
+		vim |= MOUSE_SHIFT;
+	} 
+	if ( mod & Qt::ControlModifier ) {
+		vim |= MOUSE_CTRL;
+	}
+	if ( mod & Qt::AltModifier ) {
+		vim |= MOUSE_ALT;
+	}
+
+	return vim;
+}
 
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
@@ -332,8 +348,11 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 	m_lastClick.restart();
 	m_lastClickEvent = ev->button();
+
+	int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
+
 	gui_send_mouse_event(but, ev->pos().x(),
-					  ev->pos().y(), repeat, 0);
+					  ev->pos().y(), repeat, vmod);
 	m_input = true;
 }
 

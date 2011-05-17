@@ -76,6 +76,7 @@ protected:
 	QFont fixPainterFont(const QFont &);
 
 	int_u vimKeyboardModifiers(Qt::KeyboardModifiers);
+	int_u vimMouseModifiers(Qt::KeyboardModifiers);
 
 	void dragEnterEvent(QDragEnterEvent *);
 	void dropEvent(QDropEvent *);
