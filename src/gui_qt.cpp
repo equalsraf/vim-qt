@@ -72,8 +72,6 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 		return NULL;
 	}
 
-	qDebug() << family << size;
-
 	font->setKerning(false);
 	font->setFixedPitch(true);
 	font->setBold(false);
@@ -125,7 +123,7 @@ gui_mch_wait_for_chars(long wtime)
 		//
 		// FIXME
 		// This is, evidently, broken. We should block until we get an event or the given
-		// time expires. Since we have practical way to block Qt for a certain time step
+		// time expires. Since we have no practical way to block Qt for a certain time step
 		// instead we wait indefinitely. In practice this works because vim likes pass in
 		// large time slots(4s).
 
