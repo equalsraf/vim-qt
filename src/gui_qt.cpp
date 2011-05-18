@@ -59,19 +59,25 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
 	QString family = (char*)name;
 	QFont *font = new QFont();
+	font->setStyleHint(QFont::Monospace);
 
 	bool ok;
-	int size = family.section(' ', -1).toInt(&ok);
+	int size = family.section(' ', -1).trimmed().toInt(&ok);
+
 	if ( ok ) {
 		font->setPointSize(size);
-		QString realname = family.section(' ', 0, -2);
+		QString realname = family.section(' ', 0, -2).trimmed();
 		font->setFamily(realname);
 	} else {
-		font->setFamily(family);
+		return NULL;
 	}
+
+	qDebug() << family << size;
 
 	font->setKerning(false);
 	font->setFixedPitch(true);
+	font->setBold(false);
+	font->setItalic(false);
 
 	return font;
 }
@@ -252,6 +258,10 @@ int
 gui_mch_init_font(char_u *font_name, int do_fontset)
 {
 	QFont *qf = gui_mch_get_font(font_name, 0);
+	if ( qf == NULL ) {
+		return FAIL;
+	}
+
 	QFontMetrics metric( *qf );
 
 	if ( metric.averageCharWidth() != metric.maxWidth() ) {
@@ -795,6 +805,14 @@ gui_mch_draw_string(
 {
 	QString str = vimshell->convertFrom((char *)s, len);
 	
+	// Font
+	QFont f = vimshell->font();
+	f.setBold( flags & DRAW_BOLD);
+	f.setUnderline( flags & DRAW_UNDERL);
+	f.setItalic( flags & DRAW_ITALIC);
+
+	QFontMetrics fm(f);
+
 	QPoint pos = mapText(row, col);
 	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
 
@@ -808,12 +826,6 @@ gui_mch_draw_string(
 		op.color = backgroundColor;
 		vimshell->queuePaintOp(op);
 	}
-
-	// Font
-	QFont f = vimshell->font();
-	f.setBold( flags & DRAW_BOLD);
-	f.setUnderline( flags & DRAW_UNDERL);
-	f.setItalic( flags & DRAW_ITALIC);
 
 	PaintOperation op;
 	op.type = DRAWSTRING;
@@ -1360,6 +1372,31 @@ void
 gui_mch_set_curtab(int nr)
 {
 	window->setCurrentTab(nr-1);
+}
+
+/**
+ * Launch font selection dialog
+ * @oldval is the name of the current font
+ *
+ * @return The name of the font or NULL on cancel 
+ */
+char_u *
+gui_mch_font_dialog(char_u *oldval)
+{
+	bool ok;
+	QFont f = QFontDialog::getFont(&ok, QFont((char*)oldval), window);
+	if ( ok ) {
+		QByteArray text = vimshell->convertTo( QString("%1 %2").arg(f.family()).arg(f.pointSize()) );
+
+		char_u	*buffer;
+		buffer = lalloc( text.size(), TRUE);
+		for (int i = 0; i < text.size(); ++i) {
+			buffer[i] = text[i];
+		}
+		return buffer;
+	}
+
+	return NULL;
 }
 
 } // extern "C"

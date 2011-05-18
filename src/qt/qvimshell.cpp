@@ -207,7 +207,7 @@ QFont QVimShell::fixPainterFont( const QFont& pfont )
 		QFont f = pfont;
 		f.setPointSize(f.pointSize()+pt);
 
-		qDebug() << __func__ << "Font size mismatch" << pt;
+		qDebug() << __func__ << "Font size mismatch" << pt << pfont;
 		return f;
 	}
 

@@ -6280,7 +6280,7 @@ did_set_string_option(opt_idx, varp, new_value_alloced, oldval, errbuf,
 	if (gui.in_use)
 	{
 	    p = p_guifont;
-# if defined(FEAT_GUI_GTK)
+# if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
 	    /*
 	     * Put up a font dialog and let the user select a new value.
 	     * If this is cancelled go back to the old value but don't
