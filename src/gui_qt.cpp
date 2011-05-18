@@ -102,6 +102,16 @@ gui_mch_free_font(GuiFont font)
 	free(font);
 }
 
+/**
+ * Trigger the visual bell
+ */
+void
+gui_mch_flash(int msec)
+{
+	qDebug() << __func__ << msec;
+	QApplication::alert(window, msec);
+}
+
 /*
  * GUI input routine called by gui_wait_for_chars().  Waits for a character
  * from the keyboard.
@@ -234,16 +244,6 @@ gui_mch_clear_all()
 	op.type = CLEARALL;
 	op.color = *(gui.back_pixel);
 	vimshell->queuePaintOp(op);
-}
-
-/**
- * Trigger the visual bell
- * FIXME: not implemented
- */
-void
-gui_mch_flash(int msec)
-{
-
 }
 
 /**
