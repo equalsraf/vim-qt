@@ -26,7 +26,6 @@ public:
 class QVimShell: public QWidget
 {
 	Q_OBJECT
-	Q_PROPERTY(bool encodingUtf8 WRITE setEncodingUtf8);
 public:
 	QVimShell(gui_T* gui, QWidget *parent=0);
 
@@ -39,6 +38,7 @@ public:
 	void queuePaintOp(PaintOperation);
 
 	QColor background();
+	int charWidth();
 
 	QByteArray convertTo(const QString& s);
 	QString convertFrom(const char *, int size=-1);
@@ -49,6 +49,7 @@ public:
 
 public slots:
 	void setBackground(const QColor);
+	void setCharWidth(int);
 
 	void close();
 	virtual void closeEvent(QCloseEvent *event);
@@ -81,6 +82,7 @@ protected:
 
 private:
 	QColor m_background;
+	int m_charWidth;
 	gui_T *m_gui;
 	QFont m_font;
 

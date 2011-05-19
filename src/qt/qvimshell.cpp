@@ -42,12 +42,13 @@ void QVimShell::resizeEvent(QResizeEvent *ev)
 {
 	if ( canvas.isNull() ) {
 		QPixmap newCanvas = QPixmap( ev->size() );
-		newCanvas.fill(m_background);
+		newCanvas.fill(background());
 		canvas = newCanvas;
 	} else {
 		// Keep old contents
 		QPixmap old = canvas.copy(QRect(QPoint(0,0), ev->size()));
 		canvas = QPixmap( ev->size() );
+		canvas.fill(background()); // FIXME: please optimise me
 
 		{
 		QPainter p(&canvas);
@@ -187,22 +188,21 @@ void QVimShell::closeEvent(QCloseEvent *event)
  * same font that respects the monospace char width. Hopefully
  * you have a decent monospace font and this is never called!!
  *
- * FIXME: this method uses gui.char_width
  */
 QFont QVimShell::fixPainterFont( const QFont& pfont )
 {
 	QFontMetrics fm(pfont);
 
-	if ( fm.averageCharWidth() != gui.char_width ) {
+	if ( fm.averageCharWidth() != charWidth() ) {
 
-		int V = (fm.averageCharWidth() > gui.char_width ) ? -1 :1;
+		int V = (fm.averageCharWidth() > charWidth() ) ? -1 :1;
 
 		QFont f1 = pfont;
 		f1.setPointSize(f1.pointSize()-V);
 		QFontMetrics fm1(f1);
 
 		float wdiff = ((float)fm1.averageCharWidth() - fm.averageCharWidth())*V;
-		int pt = (fm.averageCharWidth() - gui.char_width)/wdiff;
+		int pt = (fm.averageCharWidth() - charWidth())/wdiff;
 
 		QFont f = pfont;
 		f.setPointSize(f.pointSize()+pt);
@@ -593,5 +593,15 @@ void QVimShell::dropEvent(QDropEvent *ev)
 		add_to_input_buf(buf, 3);
 	}
 	ev->acceptProposedAction();
+}
+
+void QVimShell::setCharWidth(int w)
+{
+	m_charWidth = w;
+}
+
+int QVimShell::charWidth()
+{
+	return m_charWidth;
 }
 

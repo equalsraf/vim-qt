@@ -196,7 +196,6 @@ gui_mch_set_bg_color(guicolor_T color)
 
 	// The shell needs a hint background color
 	// to paint the back when resizing
-	vimshell->setBackground(*color);
 	backgroundColor = *color;
 }
 
@@ -270,6 +269,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	gui.char_width = metric.width(" ");
 	gui.char_height = metric.height();
 	gui.char_ascent = metric.ascent();
+	vimshell->setCharWidth(gui.char_width);
 
 	return OK;
 }
@@ -467,6 +467,7 @@ gui_mch_init()
 	settings.endGroup();
 
 	vimshell = window->vimShell();
+	vimshell->setBackground(*(gui.back_pixel));
 
 	return OK;
 }
