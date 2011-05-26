@@ -125,9 +125,9 @@ int
 gui_mch_wait_for_chars(long wtime)
 {
 	long left = wtime;	
-
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers);
+
 		return OK;
 	} else {
 		//
@@ -159,7 +159,15 @@ gui_mch_wait_for_chars(long wtime)
 void
 gui_mch_update()
 {
-	QApplication::processEvents();
+	//
+	// We used to process Events here, however Qt
+	// cannot handle recursive calls to resiveEvent.
+	// The end result was:
+	//
+	// gui_mch_wait_for_chars -> resizeEvent -> gui_resize_shell-> (??)
+	// -> gui_mch_update -> (!crash!)
+	//
+	//QApplication::processEvents();
 }
 
 
