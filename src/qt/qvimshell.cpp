@@ -498,11 +498,13 @@ void QVimShell::loadColors(const QString& name)
  */
 QColor QVimShell::color(const QString& name)
 {
-	if ( QColor::isValidColor(name) ) {
-		return QColor(name);
+	QString cname = name.toLower().remove(' ');
+	QColor c =m_colorMap.value(cname, QColor());
+	if ( !c.isValid() ) {
+		c.setNamedColor(cname);
 	}
-	
-	return m_colorMap.value( name.toLower().remove(' '), QColor());
+
+	return c;
 }
 
 void QVimShell::queuePaintOp(PaintOperation op)
