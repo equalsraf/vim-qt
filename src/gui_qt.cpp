@@ -496,6 +496,7 @@ void
 gui_mch_prepare(int *argc, char **argv)
 {
 	QApplication *app = new QApplication(*argc, argv);
+	QVimShell::setupColorMap();
 }
 
 /**
@@ -856,7 +857,10 @@ gui_mch_draw_string(
 guicolor_T
 gui_mch_get_color(char_u *reqname)
 {
-	QColor c = QVimShell::color((char*)reqname);
+	if ( reqname == NULL ) {
+		return INVALCOLOR;
+	}
+	QColor c = vimshell->color((char*)reqname);
 	if ( c.isValid() ) {
 		return new QColor(c);
 	}

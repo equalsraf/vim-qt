@@ -44,7 +44,7 @@ public:
 	QString convertFrom(const char *, int size=-1);
 
 	void setEncodingUtf8(bool);
-	static QHash<QString, QColor> m_colorTable;
+	static void setupColorMap();
 
 
 public slots:
@@ -98,6 +98,8 @@ private:
 	bool m_encoding_utf8;
 	QTime m_lastClick;
 	int m_lastClickEvent;
+
+	static QHash<QString, QColor> m_colorMap;
 };
 
 struct special_key
