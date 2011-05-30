@@ -15,6 +15,12 @@ static QColor foregroundColor;
 static QColor backgroundColor;
 static QColor specialColor;
 
+//
+// A mutex guard against concurrent execution 
+// of QApplication::processEvents()
+//
+static QMutex loop_guard;
+
 /**
  * Map a row/col coordinate to a point in widget coordinates
  */
@@ -124,10 +130,10 @@ gui_mch_flash(int msec)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	long left = wtime;	
+	long left = wtime;
+	QMutexLocker l(&loop_guard);
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers);
-
 		return OK;
 	} else {
 		//
@@ -136,6 +142,8 @@ gui_mch_wait_for_chars(long wtime)
 		// time expires. Since we have no practical way to block Qt for a certain time step
 		// instead we wait indefinitely. In practice this works because vim likes pass in
 		// large time slots(4s).
+		//
+		// @see gui_mch_update
 
 		QTime t;
 		t.start();
@@ -146,7 +154,6 @@ gui_mch_wait_for_chars(long wtime)
 			}
 		} while( t.elapsed() < wtime );
 	}
-
 	return FAIL;
 }
 
@@ -161,13 +168,19 @@ gui_mch_update()
 {
 	//
 	// We used to process Events here, however Qt
-	// cannot handle recursive calls to resiveEvent.
+	// cannot handle recursive calls to resizeEvent.
 	// The end result was:
 	//
 	// gui_mch_wait_for_chars -> resizeEvent -> gui_resize_shell-> (??)
 	// -> gui_mch_update -> (!crash!)
 	//
-	//QApplication::processEvents();
+	// Now we enforce that only one of (wait_for_chars/mch_update) may
+	// call process events at a time
+	//
+	if (loop_guard.tryLock()) {
+		QApplication::processEvents();
+		loop_guard.unlock();
+	}
 }
 
 
@@ -178,6 +191,7 @@ void
 gui_mch_flush()
 {
 	// Is this necessary?
+	QApplication::flush();
 }
 
 /**
