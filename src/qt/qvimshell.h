@@ -45,7 +45,7 @@ public:
 
 	void setEncodingUtf8(bool);
 	static void setupColorMap();
-
+	virtual QVariant inputMethodQuery(Qt::InputMethodQuery);
 
 public slots:
 	void setBackground(const QColor);
@@ -67,6 +67,7 @@ protected:
 	virtual void mousePressEvent(QMouseEvent *event);
 	virtual void mouseReleaseEvent(QMouseEvent *event);
 	virtual void wheelEvent(QWheelEvent *event );
+	virtual void inputMethodEvent(QInputMethodEvent *event);
 
 	bool specialKey(int, char*, int*);
 	virtual void paintEvent( QPaintEvent *);

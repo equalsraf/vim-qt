@@ -12,6 +12,7 @@ QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 	m_input(false), m_lastClickEvent(-1)
 {
 	setAttribute(Qt::WA_KeyCompression, true);
+	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 	setAcceptDrops(true);
 }
@@ -570,6 +571,21 @@ int QVimShell::charWidth()
 	return m_charWidth;
 }
 
+void QVimShell::inputMethodEvent(QInputMethodEvent *ev)
+{
+	QByteArray s = convertTo(ev->commitString());
+	add_to_input_buf( (char_u *) s.data(), s.size() );
+	m_input = true;
+}
+
+QVariant QVimShell::inputMethodQuery(Qt::InputMethodQuery query)
+{
+	if ( query == Qt::ImFont) {
+		return font();
+	}
+
+	return QVariant();
+}
 
 
 /*
