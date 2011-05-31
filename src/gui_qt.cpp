@@ -482,14 +482,25 @@ gui_mch_init()
 
 	window = new MainWindow(&gui);
 
+	// Load qVim settings
 	QSettings settings("Vim", "qVim");
 	settings.beginGroup("mainwindow");
 	window->restoreState( settings.value("state").toByteArray() );
 	window->resize( settings.value("size", QSize(400, 400)).toSize() );
 	settings.endGroup();
 
+	// Background color hint
 	vimshell = window->vimShell();
 	vimshell->setBackground(*(gui.back_pixel));
+
+	// Load qVim style
+	QSettings ini(QSettings::IniFormat, QSettings::UserScope, "Vim", "qVim");
+	QFile styleFile( QFileInfo(ini.fileName()).absoluteDir().absoluteFilePath("qVim.style") );
+
+	if ( styleFile.open(QIODevice::ReadOnly) ) {
+		window->setStyleSheet( styleFile.readAll() );
+		styleFile.close();
+	}
 
 	return OK;
 }
