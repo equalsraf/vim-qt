@@ -820,7 +820,7 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 	PaintOperation op;
 	op.type = FILLRECT;
 	op.rect = rect;
-	op.color = foregroundColor;
+	op.color = *color;
 	vimshell->queuePaintOp(op);
 }
 
