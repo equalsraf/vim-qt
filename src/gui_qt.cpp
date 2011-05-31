@@ -22,23 +22,14 @@ static QColor specialColor;
 static QMutex loop_guard;
 
 /**
- * Map a row/col coordinate to a point in widget coordinates
- */
-static QPoint 
-mapText(int row, int col)
-{
-	return QPoint( gui.char_width*col, gui.char_height*row );
-}
-
-/**
  * Map an area in row/col(inclusive) coordinates into
  * widget coordinates
  */
 static QRect 
 mapBlock(int row1, int col1, int row2, int col2)
 {
-	QPoint tl = mapText( row1, col1 );
-	QPoint br = mapText( row2+1, col2+1);
+	QPoint tl = QVimShell::mapText( row1, col1 );
+	QPoint br = QVimShell::mapText( row2+1, col2+1);
 	br.setX( br.x()-1 );
 	br.setY( br.y()-1 );
 
@@ -858,7 +849,7 @@ gui_mch_draw_string(
 
 	QFontMetrics fm(f);
 
-	QPoint pos = mapText(row, col);
+	QPoint pos = QVimShell::mapText(row, col);
 	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
 
 	if (flags & DRAW_TRANSP) {

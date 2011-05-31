@@ -6,7 +6,6 @@ extern "C" {
 
 QHash<QString, QColor> QVimShell::m_colorMap;
 
-
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_gui(gui), m_encoding_utf8(true),
 	m_input(false), m_lastClickEvent(-1)
@@ -573,8 +572,14 @@ int QVimShell::charWidth()
 
 void QVimShell::inputMethodEvent(QInputMethodEvent *ev)
 {
-	QByteArray s = convertTo(ev->commitString());
-	add_to_input_buf( (char_u *) s.data(), s.size() );
+	if ( !ev->commitString().isEmpty() ) {
+		QByteArray s = convertTo(ev->commitString());
+		add_to_input_buf( (char_u *) s.data(), s.size() );
+		QToolTip::hideText();
+	} else {
+		QPoint p = mapText(m_gui->cursor_row-1, m_gui->cursor_col-1);
+		QToolTip::showText( mapToGlobal(p), ev->preeditString(), this);
+	}
 	m_input = true;
 }
 

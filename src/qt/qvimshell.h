@@ -47,6 +47,12 @@ public:
 	static void setupColorMap();
 	virtual QVariant inputMethodQuery(Qt::InputMethodQuery);
 
+	/**
+	 * Map a row/col coordinate to a point in widget coordinates
+	 */
+	static QPoint mapText(int row, int col) { return QPoint( gui.char_width*col, gui.char_height*row ); }
+
+
 public slots:
 	void setBackground(const QColor);
 	void setCharWidth(int);
