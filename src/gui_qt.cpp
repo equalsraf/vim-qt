@@ -509,7 +509,14 @@ gui_mch_set_blinking(long waittime, long on, long off)
 void
 gui_mch_prepare(int *argc, char **argv)
 {
-	QApplication *app = new QApplication(*argc, argv);
+#ifdef Q_WS_X11
+	bool useGUI = getenv("DISPLAY") != 0;
+#else
+	bool useGUI = true;
+#endif
+	QApplication *app = new QApplication(*argc, argv, useGUI);
+
+
 #ifdef Q_WS_X11
 	QColor::setAllowX11ColorNames(true);
 #endif
@@ -665,13 +672,15 @@ gui_mch_exit(int rc)
 /**
  * Check if the GUI can be started..
  * Return OK or FAIL.
- *
- * FIXME: We cannot check Qt safely(without aborting) so we always say yes
  */
 int
 gui_mch_init_check()
 {
+#ifdef Q_WS_X11
+	return (getenv("DISPLAY") != 0);
+#else
 	return OK;
+#endif
 }
 
 /* Clipboard */
