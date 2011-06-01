@@ -8,8 +8,16 @@ QHash<QString, QColor> QVimShell::m_colorMap;
 
 QVimShell::QVimShell(gui_T *gui, QWidget *parent)
 :QWidget(parent), m_gui(gui), m_encoding_utf8(true),
-	m_input(false), m_lastClickEvent(-1)
+	m_input(false), m_lastClickEvent(-1), m_tooltip(0)
 {
+	// IM Tooltip
+	m_tooltip = new QLabel(this);
+	m_tooltip->setVisible(false);
+	m_tooltip->setTextFormat(Qt::PlainText);
+	m_tooltip->setTextInteractionFlags(Qt::NoTextInteraction);
+	m_tooltip->setAutoFillBackground(true);
+
+	// Widget Attributes
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
@@ -575,10 +583,9 @@ void QVimShell::inputMethodEvent(QInputMethodEvent *ev)
 	if ( !ev->commitString().isEmpty() ) {
 		QByteArray s = convertTo(ev->commitString());
 		add_to_input_buf( (char_u *) s.data(), s.size() );
-		QToolTip::hideText();
+		tooltip("");
 	} else {
-		QPoint p = mapText(m_gui->cursor_row-1, m_gui->cursor_col-1);
-		QToolTip::showText( mapToGlobal(p), ev->preeditString(), this);
+		tooltip( ev->preeditString());
 	}
 	m_input = true;
 }
@@ -590,6 +597,34 @@ QVariant QVimShell::inputMethodQuery(Qt::InputMethodQuery query)
 	}
 
 	return QVariant();
+}
+
+/*
+ * Display a tooltip over the shell, covering underlying shell content.
+ * The tooltip is placed at the current shell cursor position.
+ *
+ * When the given string is empty the tooltip is concealed.
+ *
+ * FIXME: using m_gui
+ * FIXME: Colors could use improving
+ */
+void QVimShell::tooltip(const QString& text)
+{
+	m_tooltip->setText(text);
+	if ( text.isEmpty() ) {
+		m_tooltip->hide();
+		return;
+	}
+
+	if ( !m_tooltip->isVisible() ) {
+		m_tooltip->setMinimumHeight(m_gui->char_height);
+		m_tooltip->move( mapText(m_gui->cursor_row, m_gui->cursor_col) );
+		m_tooltip->show();
+	}
+
+	m_tooltip->setMinimumWidth( QFontMetrics(m_tooltip->font()).width(text) );
+	m_tooltip->setMaximumWidth( QFontMetrics(m_tooltip->font()).width(text) );
+	m_tooltip->update();
 }
 
 

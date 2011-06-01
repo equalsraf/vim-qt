@@ -87,6 +87,8 @@ protected:
 	void dragEnterEvent(QDragEnterEvent *);
 	void dropEvent(QDropEvent *);
 
+	void tooltip(const QString& );
+
 private:
 	QColor m_background;
 	int m_charWidth;
@@ -105,6 +107,7 @@ private:
 	bool m_encoding_utf8;
 	QTime m_lastClick;
 	int m_lastClickEvent;
+	QLabel *m_tooltip;
 
 	static QHash<QString, QColor> m_colorMap;
 };
