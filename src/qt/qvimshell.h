@@ -2,10 +2,9 @@
 #define __QVIMSHELL__
 
 #include <Qt/QtGui>
+#include "vimgui.h"
 
-extern "C" {
-#include "vim.h"
-}
+
 
 
 typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT} PaintOperationType;
@@ -27,7 +26,7 @@ class QVimShell: public QWidget
 {
 	Q_OBJECT
 public:
-	QVimShell(gui_T* gui, QWidget *parent=0);
+	QVimShell(QWidget *parent=0);
 
 	bool hasInput();
 	static QIcon iconFromTheme(const QString&);
@@ -46,12 +45,6 @@ public:
 	void setEncodingUtf8(bool);
 	static void setupColorMap();
 	virtual QVariant inputMethodQuery(Qt::InputMethodQuery);
-
-	/**
-	 * Map a row/col coordinate to a point in widget coordinates
-	 */
-	static QPoint mapText(int row, int col) { return QPoint( gui.char_width*col, gui.char_height*row ); }
-
 
 public slots:
 	void setBackground(const QColor);
@@ -92,7 +85,6 @@ protected:
 private:
 	QColor m_background;
 	int m_charWidth;
-	gui_T *m_gui;
 	QFont m_font;
 
 	long m_blinkWaitTime, m_blinkOnTime, m_blinkOffTime;

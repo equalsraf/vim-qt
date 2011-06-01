@@ -6,8 +6,8 @@ extern "C" {
 
 QHash<QString, QColor> QVimShell::m_colorMap;
 
-QVimShell::QVimShell(gui_T *gui, QWidget *parent)
-:QWidget(parent), m_gui(gui), m_encoding_utf8(true),
+QVimShell::QVimShell(QWidget *parent)
+:QWidget(parent), m_encoding_utf8(true),
 	m_input(false), m_lastClickEvent(-1), m_tooltip(0)
 {
 	// IM Tooltip
@@ -605,7 +605,6 @@ QVariant QVimShell::inputMethodQuery(Qt::InputMethodQuery query)
  *
  * When the given string is empty the tooltip is concealed.
  *
- * FIXME: using m_gui
  * FIXME: Colors could use improving
  */
 void QVimShell::tooltip(const QString& text)
@@ -617,8 +616,8 @@ void QVimShell::tooltip(const QString& text)
 	}
 
 	if ( !m_tooltip->isVisible() ) {
-		m_tooltip->setMinimumHeight(m_gui->char_height);
-		m_tooltip->move( mapText(m_gui->cursor_row, m_gui->cursor_col) );
+		m_tooltip->setMinimumHeight(VimGui::charHeight());
+		m_tooltip->move( VimGui::cursorPosition() );
 		m_tooltip->show();
 	}
 

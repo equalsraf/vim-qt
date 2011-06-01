@@ -3,6 +3,7 @@
 #include "mainwindow.h"
 #include "vimaction.h"
 #include "vimscrollbar.h"
+#include "vimgui.h"
 
 extern "C" {
 
@@ -20,21 +21,6 @@ static QColor specialColor;
 // of QApplication::processEvents()
 //
 static QMutex loop_guard;
-
-/**
- * Map an area in row/col(inclusive) coordinates into
- * widget coordinates
- */
-static QRect 
-mapBlock(int row1, int col1, int row2, int col2)
-{
-	QPoint tl = QVimShell::mapText( row1, col1 );
-	QPoint br = QVimShell::mapText( row2+1, col2+1);
-	br.setX( br.x()-1 );
-	br.setY( br.y()-1 );
-
-	return QRect(tl, br);
-}
 
 /**
  * Raise application window
@@ -359,7 +345,7 @@ gui_mch_get_rgb(guicolor_T pixel)
 void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
-	QRect rect = mapBlock(row1, col1, row2, col2); 
+	QRect rect = VimGui::mapBlock(row1, col1, row2, col2); 
 
 	PaintOperation op;
 	op.type = FILLRECT;
@@ -399,7 +385,7 @@ clear_shell_border()
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
-	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
+	QRect scrollRect = VimGui::mapBlock(row, gui.scroll_region_left, 
 					gui.scroll_region_bot, gui.scroll_region_right);
 
 	PaintOperation op1;
@@ -420,7 +406,7 @@ void
 gui_mch_delete_lines(int row, int num_lines)
 {
 	// This used to be Bottom+1 and right+1
-	QRect scrollRect = mapBlock(row, gui.scroll_region_left, 
+	QRect scrollRect = VimGui::mapBlock(row, gui.scroll_region_left, 
 					gui.scroll_region_bot, gui.scroll_region_right);
 
 	PaintOperation op;
@@ -635,7 +621,7 @@ gui_mch_iconify()
 void
 gui_mch_invert_rectangle(int row, int col, int nr, int nc)
 {
-	QRect rect = mapBlock(row, col, row+nr-1, col +nc-1);
+	QRect rect = VimGui::mapBlock(row, col, row+nr-1, col +nc-1);
 
 	PaintOperation op;
 	op.type = INVERTRECT;
@@ -849,7 +835,7 @@ gui_mch_draw_string(
 
 	QFontMetrics fm(f);
 
-	QPoint pos = QVimShell::mapText(row, col);
+	QPoint pos = VimGui::mapText(row, col);
 	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
 
 	if (flags & DRAW_TRANSP) {

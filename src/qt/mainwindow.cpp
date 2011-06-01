@@ -18,7 +18,7 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	toolbar->setObjectName("toolbar");
 
 	// Vim shell
-	vimshell = new QVimShell( gui, this );
+	vimshell = new QVimShell( this );
 	setCentralWidget(vimshell);
 	vimshell->setFocus();
 

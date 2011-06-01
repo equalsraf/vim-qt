@@ -1237,11 +1237,12 @@ NEXTAW_BUNDLE	=
 
 QT_LIBS1	= -lQtGui
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
-			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp
+			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp \
+			qt/vimgui.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
-			objects/vimscrollbar.o
+			objects/vimscrollbar.o objects/vimgui.o
 QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I.
 QT_IPATH	= $(GUI_INC_LOC)
 QT_LIBS_DIR = $(GUI_LIB_LOC)
@@ -1294,7 +1295,7 @@ APPDIR = $(VIMNAME).app
 CARBONGUI_TESTARG = VIMPROG=../$(APPDIR)/Contents/MacOS/$(VIMTARGET)
 
 # All GUI files
-ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qt/qvimshell.cpp qt/mainwindow.cpp
+ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qt/qvimshell.cpp qt/mainwindow.cpp qt/vimgui.cpp
 ALL_GUI_PRO  = gui.pro gui_gtk.pro gui_motif.pro gui_xmdlg.pro gui_athena.pro gui_gtk_x11.pro gui_x11.pro gui_w16.pro gui_w32.pro gui_photon.pro
 
 # }}}
@@ -2500,6 +2501,11 @@ objects/qtresources.o: qt/icons.qrc
 objects/vimscrollbar.o: qt/vimscrollbar.cpp
 	moc qt/vimscrollbar.h > vimscrollbar.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimscrollbar.cpp
+
+objects/vimgui.o: qt/vimgui.cpp
+	moc qt/vimgui.h > vimgui.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimgui.cpp
+
 
 objects/gui_beval.o: gui_beval.c
 	$(CCC) -o $@ gui_beval.c
