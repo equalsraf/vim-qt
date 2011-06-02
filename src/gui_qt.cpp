@@ -835,8 +835,9 @@ gui_mch_draw_string(
 
 	QFontMetrics fm(f);
 
+	int cellwidth = VimGui::stringCellWidth(str);
 	QPoint pos = VimGui::mapText(row, col);
-	QRect rect( pos.x(), pos.y(), gui.char_width*str.length(), gui.char_height);
+	QRect rect( pos.x(), pos.y(), gui.char_width*cellwidth, gui.char_height);
 
 	if (flags & DRAW_TRANSP) {
 		// Do we need to do anything?

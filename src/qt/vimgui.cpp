@@ -57,3 +57,20 @@ QFont VimGui::normalFont()
 
 	return QFont();
 }
+
+int VimGui::stringCellWidth(const QString& s)
+{
+	/*
+	 * Vim kindly provides us with utf_char2cells,
+	 * unfortunately Qt does not have a way measure
+	 * wide char length.
+	 */
+	int len=0;
+	foreach ( QChar c, s ) {
+		int charlen = utf_char2cells(c.unicode());
+		if ( charlen <= 2 ) {
+			len += charlen;
+		}
+	}
+	return len;
+}
