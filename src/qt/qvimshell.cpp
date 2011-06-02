@@ -223,6 +223,41 @@ QFont QVimShell::fixPainterFont( const QFont& pfont )
 	return pfont;
 }
 
+/*
+ * Slow text painting strategy
+ *
+ * - Paints one character at a time
+ * - Looks perfect in any condition
+ * - Takes a looong time
+ * - FIXME: add support for proper undercurl
+ */
+void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
+{
+	painter.save();
+
+	QFont f = op.font;
+	f.setUnderline(op.undercurl);
+	painter.setFont(f);
+	painter.setPen( op.color );
+
+	QRect rect = op.rect;
+	foreach(QChar c, op.str) {
+		if ( VimGui::charCellWidth(c) == 1 ) {
+			rect.setWidth(VimGui::charWidth());
+		} else if (VimGui::charCellWidth(c) == 2) {
+			rect.setWidth(2*VimGui::charWidth());
+		} else {
+			qDebug() << __func__ << "invalid lenght" << c << VimGui::charCellWidth(c);
+			continue;
+		}
+		painter.drawText(rect, 
+				Qt::TextSingleLine | Qt::AlignLeft | Qt::AlignTop, 
+				c);
+		rect.moveTo( rect.x() + rect.width(), rect.y() );
+	}
+	painter.restore();
+}
+
 /**
  * Draw a string into the canvas
  *
@@ -232,8 +267,11 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 	painter.setPen( op.color );
 
 	QTextLayout l(op.str);
-	l.setFont(fixPainterFont(op.font));
+	QTextOption opt;
+	opt.setAlignment(Qt::AlignJustify);
 
+	l.setTextOption(opt);
+	l.setFont(fixPainterFont(op.font));
 
 	if (op.undercurl) {
 		QTextCharFormat charFormat;
@@ -254,6 +292,7 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 	QTextLine line = l.createLine();
 	line.setLineWidth(op.rect.width());
 	l.endLayout();
+
 	l.draw(&painter, op.rect.topLeft());
 }
 
@@ -274,7 +313,12 @@ void QVimShell::flushPaintOps()
 			painter.drawRect(op.rect); // FIXME: need color
 			break;
 		case DRAWSTRING:
-			drawString(op, painter);
+			if ( op.str.length() != VimGui::stringCellWidth(op.str) ) {
+				drawStringSlow(op, painter);
+			} else {
+				drawString(op, painter);
+			}
+
 			break;
 		case INVERTRECT:
 			painter.setCompositionMode( QPainter::RasterOp_SourceXorDestination );

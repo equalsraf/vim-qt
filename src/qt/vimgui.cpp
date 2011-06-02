@@ -58,6 +58,16 @@ QFont VimGui::normalFont()
 	return QFont();
 }
 
+int VimGui::charCellWidth(const QChar& c)
+{
+	int len = utf_char2cells(c.unicode());
+	if ( len <= 2 ) {
+		return len;
+	}
+
+	return 0;
+}
+
 int VimGui::stringCellWidth(const QString& s)
 {
 	/*
@@ -67,10 +77,8 @@ int VimGui::stringCellWidth(const QString& s)
 	 */
 	int len=0;
 	foreach ( QChar c, s ) {
-		int charlen = utf_char2cells(c.unicode());
-		if ( charlen <= 2 ) {
-			len += charlen;
-		}
+		len += charCellWidth(c);
 	}
 	return len;
 }
+

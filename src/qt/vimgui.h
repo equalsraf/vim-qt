@@ -45,6 +45,7 @@ public:
 	static QFont normalFont();
 
 	static int stringCellWidth(const QString&);
+	static int charCellWidth(const QChar&);
 };
 
 #endif

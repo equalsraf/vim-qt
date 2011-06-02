@@ -71,8 +71,10 @@ protected:
 	bool specialKey(int, char*, int*);
 	virtual void paintEvent( QPaintEvent *);
 
-	void drawString(const PaintOperation&, QPainter& );
 	QFont fixPainterFont(const QFont &);
+	void drawString(const PaintOperation&, QPainter& );
+	void drawStringSlow( const PaintOperation&, QPainter &painter );
+
 
 	int_u vimKeyboardModifiers(Qt::KeyboardModifiers);
 	int_u vimMouseModifiers(Qt::KeyboardModifiers);
