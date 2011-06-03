@@ -597,7 +597,14 @@ void QVimShell::dropEvent(QDropEvent *ev)
 		char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
 		int i;
 		for (i=0; i<urls.size(); i++) {
-			char *s = convertTo(urls.at(i).toString()).data();
+			QByteArray encoded = convertTo(urls.at(i).toString());
+			char *s = (char*)alloc(encoded.size()*sizeof(char)+1);
+			int j;
+			for (j=0; j<encoded.size(); j++) {
+				s[j] = encoded.at(j);
+			}
+			s[j]='\0';
+
 			fnames[i] = (char_u *) s;
 		}
 		
