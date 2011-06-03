@@ -4,6 +4,7 @@
 #include "vimaction.h"
 #include "vimscrollbar.h"
 #include "vimgui.h"
+#include "fontdialog.h"
 
 extern "C" {
 
@@ -1409,12 +1410,20 @@ gui_mch_set_curtab(int nr)
 char_u *
 gui_mch_font_dialog(char_u *oldval)
 {
+	QFont *oldfont = gui_mch_get_font(oldval, 0);
+	QFont old;
+	if ( oldfont ) {
+		old = *oldfont;
+	}
+
+
 	bool ok;
-	QFont f = QFontDialog::getFont(&ok, QFont((char*)oldval), window);
+	QFont f = FontDialog::getFont(&ok, old, window);
+
 	if ( ok ) {
 		QByteArray text = vimshell->convertTo( QString("%1 %2").arg(f.family()).arg(f.pointSize()) );
 
-		char_u	*buffer;
+		char_u *buffer;
 		buffer = lalloc( text.size(), TRUE);
 		for (int i = 0; i < text.size(); ++i) {
 			buffer[i] = text[i];
