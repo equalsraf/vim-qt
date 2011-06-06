@@ -46,6 +46,13 @@ public:
 
 	static int stringCellWidth(const QString&);
 	static int charCellWidth(const QChar&);
+
+	/**
+	 * Load icons
+	 */
+	static QIcon iconFromTheme(const QString&);
+	static QIcon icon(const QString&);
+
 };
 
 #endif

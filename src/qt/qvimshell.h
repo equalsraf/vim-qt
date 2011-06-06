@@ -29,8 +29,6 @@ public:
 	QVimShell(QWidget *parent=0);
 
 	bool hasInput();
-	static QIcon iconFromTheme(const QString&);
-	static QIcon icon(const QString&);
 	void loadColors(const QString&);
 	static QColor color(const QString&);
 
