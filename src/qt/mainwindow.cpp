@@ -30,6 +30,7 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	tabbar->setTabsClosable(true);
 	tabbar->setExpanding(false);
 	tabbar->setFocusPolicy(Qt::NoFocus);
+	tabbar->addTab(""); // One tab must always exist
 
 	tabtoolbar->addWidget(tabbar);
 
