@@ -69,15 +69,32 @@ void QVimShell::resizeEvent(QResizeEvent *ev)
 	gui_resize_shell(ev->size().width(), ev->size().height());
 }
 
-bool QVimShell::specialKey(int k, char* str, int *len)
+/**
+ * Encode special keys into something we can pass
+ * Vim through add_to_input_buf.
+ *
+ */
+bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 {
 	int i;
 	int start = *len;
 	for ( i=0; special_keys[i].key_sym != 0; i++ ) {
-		if ( special_keys[i].key_sym == k ) {
+		if ( special_keys[i].key_sym == ev->key() ) {
+
+			int key_char = TO_SPECIAL(special_keys[i].code0, special_keys[i].code1);
+			int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
+
+			key_char = simplify_key(key_char, (int *)&vmod);
+
+			if ( vmod ) {
+				str[start++] = CSI;
+				str[start++] = KS_MODIFIER;
+				str[start++] = vmod;
+			}
+
 			str[start++] = CSI;
-			str[start++] = special_keys[i].code0;
-			str[start++] = special_keys[i].code1;
+			str[start++] = K_SECOND(key_char);
+			str[start++] = K_THIRD(key_char);
 
 			*len = start;
 			return true;
@@ -159,13 +176,7 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	int len=0;
 
 	m_input = true;
-	if ( specialKey( ev->key(), str, &len)) {
-		int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
-		if ( vmod ) {
-			str[len++] = CSI;
-			str[len++] = KS_MODIFIER;
-			str[len++] = vmod;
-		}
+	if ( specialKey( ev, str, &len)) {
 
 		add_to_input_buf((char_u *) str, len);
 		return;

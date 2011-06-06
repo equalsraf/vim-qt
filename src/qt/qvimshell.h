@@ -66,7 +66,7 @@ protected:
 	virtual void wheelEvent(QWheelEvent *event );
 	virtual void inputMethodEvent(QInputMethodEvent *event);
 
-	bool specialKey(int, char*, int*);
+	bool specialKey(QKeyEvent *, char*, int*);
 	virtual void paintEvent( QPaintEvent *);
 
 	QFont fixPainterFont(const QFont &);
