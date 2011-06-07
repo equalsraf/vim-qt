@@ -681,6 +681,7 @@ gui_mch_init_check()
 int
 clip_mch_own_selection(VimClipboard *cbd)
 {
+	return OK;
 }
 
 /**
