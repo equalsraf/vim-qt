@@ -10,6 +10,7 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	// Menu
 	menutoolbar = addToolBar("Menu");
 	menutoolbar->setObjectName("menu");
+	menutoolbar->setAllowedAreas(Qt::BottomToolBarArea | Qt::TopToolBarArea);
 	menu = new QMenuBar(menutoolbar);
 	menutoolbar->addWidget(menu);
 
@@ -25,12 +26,17 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	// TabLine
 	tabtoolbar = addToolBar("tabline");
 	tabtoolbar->setObjectName("tabline");
+	tabtoolbar->setAllowedAreas(Qt::LeftToolBarArea | Qt::TopToolBarArea);
+
+	connect( tabtoolbar, SIGNAL(orientationChanged(Qt::Orientation)),
+			this, SLOT(updateTabOrientation(Qt::Orientation)) );
 
 	tabbar = new QTabBar(tabtoolbar);
 	tabbar->setTabsClosable(true);
 	tabbar->setExpanding(false);
 	tabbar->setFocusPolicy(Qt::NoFocus);
-	tabbar->addTab(""); // One tab must always exist
+	tabbar->setDrawBase(false);
+	tabbar->addTab("VIM"); // One tab must always exist
 
 	tabtoolbar->addWidget(tabbar);
 
@@ -39,6 +45,15 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	connect( tabbar, SIGNAL(currentChanged(int)),
 			this, SLOT(switchTab(int)));
 
+}
+
+void MainWindow::updateTabOrientation(Qt::Orientation orientation)
+{
+	if ( orientation == Qt::Horizontal ) {
+		tabbar->setShape( QTabBar::RoundedNorth );
+	} else {
+		tabbar->setShape( QTabBar::RoundedWest );
+	}
 }
 
 bool MainWindow::restoreState(const QByteArray& state, int version)

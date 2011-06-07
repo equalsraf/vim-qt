@@ -34,6 +34,9 @@ public slots:
 protected:
 	virtual void closeEvent( QCloseEvent *);
 
+protected slots:
+	void updateTabOrientation(Qt::Orientation);
+
 private:
 	QToolBar *toolbar;
 
