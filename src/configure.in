@@ -2226,17 +2226,29 @@ fi
 dnl Check if the Qt files can be found
 
 if test -z "$SKIP_QT"; then
-    AC_MSG_CHECKING(if Qt can be found)
+    AC_LANG_PUSH(C++)
+    AC_CHECK_HEADER(Qt/QtGui, [], [AC_MSG_ERROR(Cannot find Qt include headers)] )
 
-    AC_MSG_RESULT(yes)
+    cppflags_save=$CPPFLAGS
+    CPPFLAGS="$CPPFLAGS -lQtGui"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+		    [[
+		     #include <Qt/QtGui>
+		     ]],
+		    [[
+		     qVersion();
+		     ]]
+		    )],
+		   [],
+		   [AC_MSG_ERROR(Cannot find Qt libraries)])
+
+    AC_LANG_POP(C++)
 fi
 
 if test -z "$SKIP_QT"; then
   GUITYPE=QT
   GUI_X_LIBS=
 fi
-
-
 
 if test -z "$SKIP_ATHENA" -o -z "$SKIP_NEXTAW" -o -z "$SKIP_MOTIF" -o -z "$SKIP_GTK2"; then
   dnl Check for X11/xpm.h and X11/Sunkeysym.h with the GUI include path
