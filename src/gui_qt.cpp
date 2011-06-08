@@ -53,7 +53,7 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 		QString realname = family.section(' ', 0, -2).trimmed();
 		font->setFamily(realname);
 	} else {
-		return NULL;
+		font->setFamily("Monospace");
 	}
 
 	font->setKerning(false);
