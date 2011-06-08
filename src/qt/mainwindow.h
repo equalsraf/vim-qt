@@ -7,7 +7,7 @@
 class MainWindow: public QMainWindow
 {
 	Q_OBJECT
-	Q_PROPERTY(bool m_keepTabbar READ keepTabbar WRITE setKeepTabbar );
+	Q_PROPERTY(bool m_keepTabbar READ keepTabbar WRITE setKeepTabbar )
 public:
 	MainWindow(gui_T *, QWidget *parent=0);
 	QVimShell* vimShell();

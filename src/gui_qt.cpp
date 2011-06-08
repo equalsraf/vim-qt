@@ -108,7 +108,6 @@ gui_mch_flash(int msec)
 int
 gui_mch_wait_for_chars(long wtime)
 {
-	long left = wtime;
 	QMutexLocker l(&loop_guard);
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents | QEventLoop::ExcludeSocketNotifiers);

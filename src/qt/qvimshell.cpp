@@ -87,12 +87,12 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 			key_char = simplify_key(key_char, (int *)&vmod);
 
 			if ( vmod ) {
-				str[start++] = CSI;
-				str[start++] = KS_MODIFIER;
-				str[start++] = vmod;
+				str[start++] = (char)CSI;
+				str[start++] = (char)KS_MODIFIER;
+				str[start++] = (char)vmod;
 			}
 
-			str[start++] = CSI;
+			str[start++] = (char)CSI;
 			str[start++] = K_SECOND(key_char);
 			str[start++] = K_THIRD(key_char);
 

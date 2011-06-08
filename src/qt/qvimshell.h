@@ -91,12 +91,12 @@ private:
 
 	enum blink_state{BLINK_NONE, BLINK_ON, BLINK_OFF};
 	blink_state blinkState;
+	bool m_encoding_utf8;
 
 	volatile bool m_input;
 	QQueue<PaintOperation> paintOps;
 	QPixmap canvas;
 
-	bool m_encoding_utf8;
 	QTime m_lastClick;
 	int m_lastClickEvent;
 	QLabel *m_tooltip;
