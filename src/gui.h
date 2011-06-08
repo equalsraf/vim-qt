@@ -234,19 +234,12 @@ typedef struct GuiScrollbar
 #endif
 } scrollbar_T;
 
-#ifdef FEAT_GUI_QT
-struct QColor;
-typedef struct QColor*	    guicolor_T;
-#define INVALCOLOR  (guicolor_T)NULL
-
-#else
 typedef long	    guicolor_T;	/* handle for a GUI color; for X11 this should
 				   be "Pixel", but that's an unsigned and we
 				   need a signed value */
 #define INVALCOLOR (guicolor_T)-11111	/* number for invalid color; on 32 bit
 				   displays there is a tiny chance this is an
 				   actual color */
-#endif // FEAT_GUI_QT
 
 #ifdef FEAT_GUI_GTK
   typedef PangoFontDescription	*GuiFont;       /* handle for a GUI font */

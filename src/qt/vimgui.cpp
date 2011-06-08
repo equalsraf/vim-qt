@@ -23,20 +23,12 @@ QRect VimGui::mapBlock(int row1, int col1, int row2, int col2)
 
 QColor VimGui::backgroundColor()
 {
-	if (gui.back_pixel) {
-		return *(gui.back_pixel);
-	}
-
-	return QColor();
+	return fromColor(gui.back_pixel);
 }
 
 QColor VimGui::normalColor()
 {
-	if (gui.norm_pixel) {
-		return *(gui.norm_pixel);
-	}
-
-	return QColor();
+	return fromColor(gui.norm_pixel);
 }
 
 int VimGui::charWidth()
@@ -170,3 +162,26 @@ QIcon VimGui::icon(const QString& name)
 
 	return icon;
 }
+
+
+QColor
+VimGui::fromColor(long color)
+{
+	if ( color == INVALCOLOR ) {
+		return QColor();
+	}
+
+	int red = ((color & 0x00FF0000) >> 16);
+	int green = ((color & 0x0000FF00) >>  8);
+	int blue = ((color & 0x000000FF) >>  0);
+
+	return QColor(red, green, blue);
+}
+
+long
+VimGui::toColor(const QColor& c)
+{
+	return ((long)c.red() << 16) + ((long)c.green() << 8) + ((long)c.blue());
+}
+
+

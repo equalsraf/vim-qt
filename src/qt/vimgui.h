@@ -53,6 +53,8 @@ public:
 	static QIcon iconFromTheme(const QString&);
 	static QIcon icon(const QString&);
 
+	static QColor fromColor(long);
+	static long toColor(const QColor&);
 };
 
 #endif

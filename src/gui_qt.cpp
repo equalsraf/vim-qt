@@ -177,10 +177,9 @@ gui_mch_flush()
 void
 gui_mch_set_fg_color(guicolor_T	color)
 {
-	if ( color == NULL ) {
-		return;
+	if ( color != INVALCOLOR ) {
+		foregroundColor = VimGui::fromColor(color);
 	}
-	foregroundColor = *color;
 }
 
 /**
@@ -189,13 +188,11 @@ gui_mch_set_fg_color(guicolor_T	color)
 void
 gui_mch_set_bg_color(guicolor_T color)
 {
-	if ( color == NULL ) {
-		return;
-	}
-
 	// The shell needs a hint background color
 	// to paint the back when resizing
-	backgroundColor = *color;
+	if ( color != INVALCOLOR ) {
+		backgroundColor = VimGui::fromColor(color);
+	}
 }
 
 
@@ -240,7 +237,7 @@ gui_mch_clear_all()
 {
 	PaintOperation op;
 	op.type = CLEARALL;
-	op.color = *(gui.back_pixel);
+	op.color = VimGui::fromColor(gui.back_pixel);
 	vimshell->queuePaintOp(op);
 }
 
@@ -325,18 +322,13 @@ mch_set_mouse_shape(int shape)
 	vimshell->setCursor(QCursor(mshape_ids[shape]));
 }
 
-
 /**
  * Return the RGB value of a pixel as a long.
  */
 long_u
 gui_mch_get_rgb(guicolor_T pixel)
 {
-	if ( pixel != NULL ) {
-		return ((pixel->red() & 0xff00) << 8) + (pixel->green() & 0xff00)
-						   + ((unsigned)pixel->blue() >> 8);
-	}
-	return 0;
+	return (long_u)pixel;
 }
 
 /**
@@ -349,7 +341,7 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 
 	PaintOperation op;
 	op.type = FILLRECT;
-	op.color = *(gui.back_pixel);
+	op.color = VimGui::fromColor(gui.back_pixel);
 	op.rect = rect;
 	vimshell->queuePaintOp(op);
 }
@@ -373,7 +365,7 @@ clear_shell_border()
 
 	PaintOperation op;
 	op.type = FILLRECT;
-	op.color = *(gui.back_pixel);
+	op.color = VimGui::fromColor(gui.back_pixel);
 	op.rect = QRect(tl, br);
 	vimshell->queuePaintOp(op);
 }
@@ -392,7 +384,7 @@ gui_mch_insert_lines(int row, int num_lines)
 	op1.type = SCROLLRECT;
 	op1.rect = scrollRect;
 	op1.pos = QPoint(0, num_lines*gui.char_height);
-	op1.color = *(gui.back_pixel);
+	op1.color = VimGui::fromColor(gui.back_pixel);
 	vimshell->queuePaintOp(op1);
 
 	clear_shell_border();
@@ -413,7 +405,7 @@ gui_mch_delete_lines(int row, int num_lines)
 	op.type = SCROLLRECT;
 	op.rect = scrollRect;
 	op.pos = QPoint(0, -num_lines*gui.char_height);
-	op.color = *(gui.back_pixel);
+	op.color = VimGui::fromColor(gui.back_pixel);
 	vimshell->queuePaintOp(op);
 }
 
@@ -441,21 +433,6 @@ gui_mch_get_screen_dimensions(int *screen_w, int *screen_h)
 int
 gui_mch_init()
 {
-	/* Colors */
-	gui.norm_pixel = new QColor(Qt::black);
-	gui.back_pixel = new QColor(Qt::white);
-
-	set_normal_colors();
-
-	gui_check_colors();
-	gui.def_norm_pixel = gui.norm_pixel;
-	gui.def_back_pixel = gui.back_pixel;
-
-	// Clipboard - the order matters, for safety
-	clip_plus.clipboardMode = QClipboard::Selection;
-	clip_star.clipboardMode = QClipboard::Clipboard;
-
-	highlight_gui_started();
 
 	window = new MainWindow(&gui);
 
@@ -466,9 +443,7 @@ gui_mch_init()
 	window->resize( settings.value("size", QSize(400, 400)).toSize() );
 	settings.endGroup();
 
-	// Background color hint
 	vimshell = window->vimShell();
-	vimshell->setBackground(*(gui.back_pixel));
 
 	// Load qVim style
 	QSettings ini(QSettings::IniFormat, QSettings::UserScope, "Vim", "qVim");
@@ -478,6 +453,27 @@ gui_mch_init()
 		window->setStyleSheet( styleFile.readAll() );
 		styleFile.close();
 	}
+
+	// Clipboard - the order matters, for safety
+	clip_plus.clipboardMode = QClipboard::Selection;
+	clip_star.clipboardMode = QClipboard::Clipboard;
+
+	display_errors();
+
+	/* Colors */
+	gui.norm_pixel = VimGui::toColor(QColor(Qt::black));
+	gui.back_pixel = VimGui::toColor(QColor(Qt::white));
+
+	set_normal_colors();
+	gui_check_colors();
+	highlight_gui_started();
+
+	gui.def_norm_pixel = VimGui::toColor(QColor(Qt::black));
+	gui.def_back_pixel = VimGui::toColor(QColor(Qt::white));
+
+	// Background color hint
+	vimshell->setBackground(VimGui::backgroundColor() );
+
 
 	return OK;
 }
@@ -532,9 +528,6 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 void
 gui_mch_new_colors()
 {
-	if ( vimshell && gui.back_pixel ) {
-		vimshell->setBackground(*(gui.back_pixel));
-	}
 }
 
 /**
@@ -769,7 +762,7 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 	PaintOperation op;
 	op.type = DRAWRECT;
 	op.rect = rect;
-	op.color = *color;
+	op.color = VimGui::fromColor(color);
 	vimshell->queuePaintOp(op);
 }
 
@@ -798,7 +791,7 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 	PaintOperation op;
 	op.type = FILLRECT;
 	op.rect = rect;
-	op.color = *color;
+	op.color = VimGui::fromColor(color);
 	vimshell->queuePaintOp(op);
 }
 
@@ -808,11 +801,9 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 void
 gui_mch_set_sp_color(guicolor_T color) 
 {
-	if ( color == NULL ) {
-		specialColor = QColor();
-		return;
+	if ( color != INVALCOLOR ) {
+		specialColor = VimGui::fromColor(color);
 	}
-	specialColor = *color;
 }
 
 /**
@@ -878,7 +869,7 @@ gui_mch_get_color(char_u *reqname)
 	}
 	QColor c = vimshell->color((char*)reqname);
 	if ( c.isValid() ) {
-		return new QColor(c);
+		return VimGui::toColor(c);
 	}
 
 	return INVALCOLOR;
@@ -1150,8 +1141,8 @@ void gui_mch_show_popupmenu(vimmenu_T *menu)
 void
 gui_mch_def_colors()
 {
-	gui.norm_pixel = new QColor(Qt::black);
-	gui.back_pixel = new QColor(Qt::white);
+	gui.norm_pixel = VimGui::toColor(QColor(Qt::black));
+	gui.back_pixel = VimGui::toColor(QColor(Qt::white));
 	gui.def_norm_pixel = gui.norm_pixel;
 	gui.def_back_pixel = gui.back_pixel;
 }
