@@ -1231,11 +1231,10 @@ NEXTAW_MAN_TARGETS = yes
 NEXTAW_TESTTARGET = gui
 NEXTAW_BUNDLE	=
 
-
 ### Qt
 #
-
-QT_LIBS1	= -lQtGui
+MOC		= $(QT_MOC)
+QT_LIBS1	= -lQtGui -lQtCore -lstdc++
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp \
 			qt/vimgui.cpp qt/fontdialog.cpp
@@ -2483,15 +2482,15 @@ objects/gui_qt.o: gui_qt.cpp
 	$(CXX) $(ALL_CFLAGS) -o $@ -c gui_qt.cpp
 
 objects/mainwindow.o: qt/mainwindow.cpp
-	moc qt/mainwindow.h > mainwindow.moc
+	$(MOC) qt/mainwindow.h > mainwindow.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/mainwindow.cpp
 
 objects/qvimshell.o: qt/qvimshell.cpp
-	moc qt/qvimshell.h > qvimshell.moc
+	$(MOC) qt/qvimshell.h > qvimshell.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/qvimshell.cpp
 
 objects/vimaction.o: qt/vimaction.cpp
-	moc qt/vimaction.h > vimaction.moc
+	$(MOC) qt/vimaction.h > vimaction.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimaction.cpp
 
 objects/qtresources.o: qt/icons.qrc
@@ -2499,15 +2498,15 @@ objects/qtresources.o: qt/icons.qrc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qtresources.cpp
 
 objects/vimscrollbar.o: qt/vimscrollbar.cpp
-	moc qt/vimscrollbar.h > vimscrollbar.moc
+	$(MOC) qt/vimscrollbar.h > vimscrollbar.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimscrollbar.cpp
 
 objects/vimgui.o: qt/vimgui.cpp
-	moc qt/vimgui.h > vimgui.moc
+	$(MOC) qt/vimgui.h > vimgui.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimgui.cpp
 
 objects/fontdialog.o: qt/fontdialog.cpp
-	moc qt/fontdialog.h > fontdialog.moc
+	$(MOC) qt/fontdialog.h > fontdialog.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/fontdialog.cpp
 
 objects/gui_beval.o: gui_beval.c

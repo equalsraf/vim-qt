@@ -2228,7 +2228,8 @@ dnl Check if the Qt files can be found
 if test -z "$SKIP_QT"; then
     AC_LANG_PUSH(C++)
     AC_CHECK_HEADER(Qt/QtGui, [], [AC_MSG_ERROR(Cannot find Qt include headers)] )
-
+    AC_CHECK_PROG( QT_MOC, moc-qt4, moc-qt4, moc)
+    AC_SUBST(QT_MOC)
 #    cppflags_save=$CPPFLAGS
 #    CPPFLAGS="$CPPFLAGS -lQtGui"
 #    AC_LINK_IFELSE([AC_LANG_PROGRAM(
