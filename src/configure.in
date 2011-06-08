@@ -2229,19 +2229,19 @@ if test -z "$SKIP_QT"; then
     AC_LANG_PUSH(C++)
     AC_CHECK_HEADER(Qt/QtGui, [], [AC_MSG_ERROR(Cannot find Qt include headers)] )
 
-    cppflags_save=$CPPFLAGS
-    CPPFLAGS="$CPPFLAGS -lQtGui"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM(
-		    [[
-		     #include <Qt/QtGui>
-		     ]],
-		    [[
-		     qVersion();
-		     ]]
-		    )],
-		   [],
-		   [AC_MSG_ERROR(Cannot find Qt libraries)])
-
+#    cppflags_save=$CPPFLAGS
+#    CPPFLAGS="$CPPFLAGS -lQtGui"
+#    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+#		    [[
+#		     #include <Qt/QtGui>
+#		     ]],
+#		    [[
+#		     qVersion();
+#		     ]]
+#		    )],
+#		   [],
+#		   [AC_MSG_ERROR(Cannot find Qt libraries)])
+#    CPPFLAGS=$cppflags_save
     AC_LANG_POP(C++)
 fi
 
