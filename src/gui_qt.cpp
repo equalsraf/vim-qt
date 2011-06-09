@@ -1039,6 +1039,7 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	menu->qmenu = NULL;
 
 	if ( menu_is_popup(menu->name) ) {
+		menu->qmenu = new QMenu(vimshell->convertFrom((char*)menu->name), vimshell);
 		return;
 	} else if ( menu_is_toolbar(menu->name) ) {
 		menu->qmenu = window->toolBar();
@@ -1131,8 +1132,12 @@ gui_mch_destroy_menu(vimmenu_T *menu)
 
 void gui_mch_show_popupmenu(vimmenu_T *menu)
 {
-	qDebug() << __func__;
+	if ( menu == NULL || menu->qmenu == NULL ) {
+		return;
+	}
 
+	QMenu *m = (QMenu*)menu->qmenu;
+	m->exec( QCursor::pos() );
 }
 
 /**
