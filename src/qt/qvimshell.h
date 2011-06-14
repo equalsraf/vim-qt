@@ -65,6 +65,8 @@ protected:
 	virtual void mouseReleaseEvent(QMouseEvent *event);
 	virtual void wheelEvent(QWheelEvent *event );
 	virtual void inputMethodEvent(QInputMethodEvent *event);
+	virtual void focusInEvent(QFocusEvent *);
+	virtual void focusOutEvent(QFocusEvent *);
 
 	bool specialKey(QKeyEvent *, char*, int*);
 	virtual void paintEvent( QPaintEvent *);

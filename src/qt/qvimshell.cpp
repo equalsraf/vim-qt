@@ -541,6 +541,18 @@ void QVimShell::dropEvent(QDropEvent *ev)
 	ev->acceptProposedAction();
 }
 
+void QVimShell::focusInEvent(QFocusEvent *ev)
+{
+	gui_focus_change(TRUE);
+	QWidget::focusInEvent(ev);
+}
+
+void QVimShell::focusOutEvent(QFocusEvent *ev)
+{
+	gui_focus_change(FALSE);
+	QWidget::focusOutEvent(ev);
+}
+
 void QVimShell::setCharWidth(int w)
 {
 	m_charWidth = w;
