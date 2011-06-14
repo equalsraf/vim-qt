@@ -769,8 +769,8 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 
 	QPoint tl = QPoint(FILL_X(gui.col), 
 			FILL_Y(gui.row) + gui.char_height-h );
-	QPoint br = QPoint(FILL_X(gui.col)+w, 
-			FILL_Y(gui.row)+gui.char_height);
+	QPoint br = QPoint(FILL_X(gui.col)+w-2, 
+			FILL_Y(gui.row)+gui.char_height-2);
 	QRect rect(tl, br);
 
 	PaintOperation op;
