@@ -545,12 +545,14 @@ void QVimShell::focusInEvent(QFocusEvent *ev)
 {
 	gui_focus_change(TRUE);
 	QWidget::focusInEvent(ev);
+	update();
 }
 
 void QVimShell::focusOutEvent(QFocusEvent *ev)
 {
 	gui_focus_change(FALSE);
 	QWidget::focusOutEvent(ev);
+	update();
 }
 
 void QVimShell::setCharWidth(int w)
