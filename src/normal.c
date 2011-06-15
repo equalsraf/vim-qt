@@ -25,6 +25,9 @@ static colnr_T	resel_VIsual_col;		/* nr of cols or end col */
 static int	restart_VIsual_select = 0;
 #endif
 
+#ifdef FEAT_EVAL
+static void	set_vcount_ca __ARGS((cmdarg_T *cap, int *set_prevcount));
+#endif
 static int
 # ifdef __BORLANDC__
 _RTLENTRYF
@@ -648,6 +651,14 @@ normal_cmd(oap, toplevel)
     dont_scroll = FALSE;	/* allow scrolling here */
 #endif
 
+#ifdef FEAT_EVAL
+    /* Set v:count here, when called from main() and not a stuffed
+     * command, so that v:count can be used in an expression mapping
+     * when there is no count. */
+    if (toplevel && stuff_empty())
+	set_vcount_ca(&ca, &set_prevcount);
+#endif
+
     /*
      * Get the command character from the user.
      */
@@ -725,15 +736,7 @@ getcount:
 	     * command, so that v:count can be used in an expression mapping
 	     * right after the count. */
 	    if (toplevel && stuff_empty())
-	    {
-		long count = ca.count0;
-
-		/* multiply with ca.opcount the same way as below */
-		if (ca.opcount != 0)
-		    count = ca.opcount * (count == 0 ? 1 : count);
-		set_vcount(count, count == 0 ? 1 : count, set_prevcount);
-		set_prevcount = FALSE;  /* only set v:prevcount once */
-	    }
+		set_vcount_ca(&ca, &set_prevcount);
 #endif
 	    if (ctrl_w)
 	    {
@@ -1199,7 +1202,16 @@ getcount:
     {
 	clearop(oap);
 #ifdef FEAT_EVAL
-	set_reg_var('"');
+	{
+	    int regname = 0;
+
+	    /* Adjust the register according to 'clipboard', so that when
+	     * "unnamed" is present it becomes '*' or '+' instead of '"'. */
+# ifdef FEAT_CLIPBOARD
+	    adjust_clip_reg(&regname);
+# endif
+	    set_reg_var(regname);
+	}
 #endif
     }
 
@@ -1385,6 +1397,26 @@ normal_end:
     /* Save count before an operator for next time. */
     opcount = ca.opcount;
 }
+
+#ifdef FEAT_EVAL
+/*
+ * Set v:count and v:count1 according to "cap".
+ * Set v:prevcount only when "set_prevcount" is TRUE.
+ */
+    static void
+set_vcount_ca(cap, set_prevcount)
+    cmdarg_T	*cap;
+    int		*set_prevcount;
+{
+    long count = cap->count0;
+
+    /* multiply with cap->opcount the same way as above */
+    if (cap->opcount != 0)
+	count = cap->opcount * (count == 0 ? 1 : count);
+    set_vcount(count, count == 0 ? 1 : count, *set_prevcount);
+    *set_prevcount = FALSE;  /* only set v:prevcount once */
+}
+#endif
 
 /*
  * Handle an operator after visual mode or when the movement is finished
@@ -5666,8 +5698,13 @@ nv_ident(cap)
 	else if (cmdchar == '#')
 	    aux_ptr = (char_u *)(p_magic ? "/?.*~[^$\\" : "/?^$\\");
 	else if (tag_cmd)
-	    /* Don't escape spaces and Tabs in a tag with a backslash */
-	    aux_ptr = (char_u *)"\\|\"\n[";
+	{
+	    if (curbuf->b_help)
+		/* ":help" handles unescaped argument */
+		aux_ptr = (char_u *)"";
+	    else
+		aux_ptr = (char_u *)"\\|\"\n[";
+	}
 	else
 	    aux_ptr = (char_u *)"\\|\"\n*?[";
 
@@ -8524,7 +8561,7 @@ nv_pipe(cap)
     else
 	curwin->w_curswant = 0;
     /* keep curswant at the column where we wanted to go, not where
-       we ended; differs if line is too short */
+     * we ended; differs if line is too short */
     curwin->w_set_curswant = FALSE;
 }
 

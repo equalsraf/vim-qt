@@ -380,9 +380,6 @@ MSVCVER = 10.0
 !if "$(_NMAKE_VER)" == "10.00.30319.01"
 MSVCVER = 10.0
 !endif
-!if "$(_NMAKE_VER)" == "9.00.30729.01"
-MSVCVER = 9.0
-!endif
 !endif
 
 # Abort bulding VIM if version of VC is unrecognised.
@@ -412,8 +409,8 @@ CPUARG = /G7 /arch:SSE2
 CPUARG =
 !endif
 !else
-# VC8/9 only allows specifying SSE architecture
-!if "$(CPUNR)" == "pentium4"
+# VC8/9/10 only allows specifying SSE architecture but only for 32bit
+!if "$(ASSEMBLY_ARCHITECTURE)" == "x86" && "$(CPUNR)" == "pentium4"
 CPUARG = /arch:SSE2
 !endif
 !endif
@@ -705,12 +702,18 @@ PYTHON3_LIB = $(PYTHON3)\libs\python$(PYTHON3_VER).lib
 MZSCHEME_VER = 205_000
 !endif
 CFLAGS = $(CFLAGS) -DFEAT_MZSCHEME -I $(MZSCHEME)\include
-!if EXIST("$(MZSCHEME)\collects\scheme\base.ss")
-# for MzScheme 4.x we need to include byte code for basic Scheme stuff
+!if EXIST("$(MZSCHEME)\collects\scheme\base.ss") \
+	|| EXIST("$(MZSCHEME)\collects\scheme\base.rkt") 
+# for MzScheme >= 4 we need to include byte code for basic Scheme stuff
 MZSCHEME_EXTRA_DEP = mzscheme_base.c
 CFLAGS = $(CFLAGS) -DINCLUDE_MZSCHEME_BASE
 !endif
-!if EXIST("$(MZSCHEME)\lib\msvc\libmzsch$(MZSCHEME_VER).lib") \
+!if EXIST("$(MZSCHEME)\lib\msvc\libmzsch$(MZSCHEME_VER).lib")
+MZSCHEME_MAIN_LIB=mzsch
+!else
+MZSCHEME_MAIN_LIB=racket
+!endif
+!if EXIST("$(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib") \
 	&& !EXIST("$(MZSCHEME)\lib\msvc\libmzgc$(MZSCHEME_VER).lib")
 !message Building with Precise GC
 MZSCHEME_PRECISE_GC = yes
@@ -722,7 +725,7 @@ CFLAGS = $(CFLAGS) -DMZ_PRECISE_GC
 !endif
 !message MzScheme DLLs will be loaded dynamically
 CFLAGS = $(CFLAGS) -DDYNAMIC_MZSCHEME \
-		-DDYNAMIC_MZSCH_DLL=\"libmzsch$(MZSCHEME_VER).dll\" \
+		-DDYNAMIC_MZSCH_DLL=\"lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).dll\" \
 		-DDYNAMIC_MZGC_DLL=\"libmzgc$(MZSCHEME_VER).dll\"
 !else
 !if "$(MZSCHEME_DEBUG)" == "yes"
@@ -730,10 +733,10 @@ CFLAGS = $(CFLAGS) -DMZSCHEME_FORCE_GC
 !endif
 !if "$(MZSCHEME_PRECISE_GC)" == "yes"
 # Precise GC does not use separate dll
-MZSCHEME_LIB = $(MZSCHEME)\lib\msvc\libmzsch$(MZSCHEME_VER).lib
+MZSCHEME_LIB = $(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib
 !else
 MZSCHEME_LIB = $(MZSCHEME)\lib\msvc\libmzgc$(MZSCHEME_VER).lib \
-		$(MZSCHEME)\lib\msvc\libmzsch$(MZSCHEME_VER).lib
+		$(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib
 !endif
 !endif
 MZSCHEME_OBJ = $(OUTDIR)\if_mzsch.obj
@@ -1156,6 +1159,10 @@ $(OUTDIR)/glbl_ime.obj:	$(OUTDIR) glbl_ime.cpp  dimm.h $(INCL)
 E0_CFLAGS = $(CFLAGS:\=\\)
 E_CFLAGS = $(E0_CFLAGS:"=\")
 # ") stop the string
+# $LINKARGS2 may contain backslashes and double quotes, escape them both.
+E0_LINKARGS2 = $(LINKARGS2:\=\\)
+E_LINKARGS2 = $(E0_LINKARGS2:"=\")
+# ") stop the string
 
 $(PATHDEF_SRC): auto
 	@echo creating $(PATHDEF_SRC)
@@ -1164,7 +1171,7 @@ $(PATHDEF_SRC): auto
 	@echo char_u *default_vim_dir = (char_u *)"$(VIMRCLOC:\=\\)"; >> $(PATHDEF_SRC)
 	@echo char_u *default_vimruntime_dir = (char_u *)"$(VIMRUNTIMEDIR:\=\\)"; >> $(PATHDEF_SRC)
 	@echo char_u *all_cflags = (char_u *)"$(CC:\=\\) $(E_CFLAGS)"; >> $(PATHDEF_SRC)
-	@echo char_u *all_lflags = (char_u *)"$(link:\=\\) $(LINKARGS1:\=\\) $(LINKARGS2:\=\\)"; >> $(PATHDEF_SRC)
+	@echo char_u *all_lflags = (char_u *)"$(link:\=\\) $(LINKARGS1:\=\\) $(E_LINKARGS2)"; >> $(PATHDEF_SRC)
 	@echo char_u *compiled_user = (char_u *)"$(USERNAME)"; >> $(PATHDEF_SRC)
 	@echo char_u *compiled_sys = (char_u *)"$(USERDOMAIN)"; >> $(PATHDEF_SRC)
 

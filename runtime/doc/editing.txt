@@ -1,4 +1,4 @@
-*editing.txt*   For Vim version 7.3.  Last change: 2010 Jul 28
+*editing.txt*   For Vim version 7.3.  Last change: 2011 Feb 26
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -276,10 +276,11 @@ If you want to keep the changed buffer without saving it, switch on the
 			'readonly' option for this buffer.  {not in Vi}
 
 							*CTRL-^* *CTRL-6*
-CTRL-^			Edit the alternate file (equivalent to ":e #").
-			Mostly the alternate file is the previously edited
-			file.  This is a quick way to toggle between two
-			files.
+CTRL-^			Edit the alternate file.  Mostly the alternate file is
+			the previously edited file.  This is a quick way to
+			toggle between two files.  It is equivalent to ":e #",
+			except that it also works when there is no file name.
+
 			If the 'autowrite' or 'autowriteall' option is on and
 			the buffer was changed, write it.
 			Mostly the ^ character is positioned on the 6 key,
@@ -984,6 +985,11 @@ explanation of when the copy is made and when the file is renamed.
 If the creation of a backup file fails, the write is not done.  If you want
 to write anyway add a '!' to the command.
 
+							*write-permissions*
+When writing a new file the permissions are read-write.  For unix the mask is
+0666 with additionally umask applied.  When writing a file that was read Vim
+will preserve the permissions, but clear the s-bit.
+
 							*write-readonly*
 When the 'cpoptions' option contains 'W', Vim will refuse to overwrite a
 readonly file.  When 'W' is not present, ":w!" will overwrite a readonly file,
@@ -1340,7 +1346,7 @@ Vim is able to write files encrypted, and read them back.  The encrypted text
 cannot be read without the right key.
 {only available when compiled with the |+cryptv| feature}  *E833*
 
-The text in the swap file and the undo file is also encrypted.
+The text in the swap file and the undo file is also encrypted.  *E843*
 
 Note: The text in memory is not encrypted.  A system administrator may be able
 to see your text while you are editing it.  When filtering text with
@@ -1382,6 +1388,8 @@ To set the default method, used for new files, use one of these in your
 |vimrc| file: >
 	set cm=zip
 	set cm=blowfish
+The message given for reading and writing a file will show "[crypted]" when
+using zip, "[blowfish]" when using blowfish.
 
 When writing an undo file, the same key and method will be used for the text
 in the undo file. |persistent-undo|.
@@ -1431,13 +1439,15 @@ Notes:
   history, showing the 'key' value in a viminfo file.
 - There is never 100% safety.  The encryption in Vim has not been tested for
   robustness.
-- The algorithm used is breakable.  A 4 character key in about one hour, a 6
-  character key in one day (on a Pentium 133 PC).  This requires that you know
-  some text that must appear in the file.  An expert can break it for any key.
-  When the text has been decrypted, this also means that the key can be
-  revealed, and other files encrypted with the same key can be decrypted.
-- Pkzip uses the same encryption, and US Govt has no objection to its export.
-  Pkzip's public file APPNOTE.TXT describes this algorithm in detail.
+- The algorithm used for 'cryptmethod' "zip" is breakable.  A 4 character key
+  in about one hour, a 6 character key in one day (on a Pentium 133 PC).  This
+  requires that you know some text that must appear in the file.  An expert
+  can break it for any key.  When the text has been decrypted, this also means
+  that the key can be revealed, and other files encrypted with the same key
+  can be decrypted.
+- Pkzip uses the same encryption as 'cryptmethod' "zip", and US Govt has no
+  objection to its export.  Pkzip's public file APPNOTE.TXT describes this
+  algorithm in detail.
 - Vim originates from the Netherlands.  That is where the sources come from.
   Thus the encryption code is not exported from the USA.
 

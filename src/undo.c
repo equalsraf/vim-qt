@@ -81,10 +81,6 @@
 #define UH_MAGIC 0x18dade	/* value for uh_magic when in use */
 #define UE_MAGIC 0xabc123	/* value for ue_magic when in use */
 
-#if defined(MSDOS) || defined(WIN16) || defined(WIN32) || defined(_WIN64)
-# include "vimio.h"	/* for vim_read(), must be before vim.h */
-#endif
-
 #include "vim.h"
 
 static void u_unch_branch __ARGS((u_header_T *uhp));
@@ -1386,7 +1382,7 @@ u_write_undo(name, forceit, buf, hash)
 		char_u	mbuf[UF_START_MAGIC_LEN];
 		int	len;
 
-		len = vim_read(fd, mbuf, UF_START_MAGIC_LEN);
+		len = read_eintr(fd, mbuf, UF_START_MAGIC_LEN);
 		close(fd);
 		if (len < UF_START_MAGIC_LEN
 		      || memcmp(mbuf, UF_START_MAGIC, UF_START_MAGIC_LEN) != 0)
@@ -1861,6 +1857,7 @@ u_read_undo(name, hash, orig_name)
     curbuf->b_u_seq_cur = seq_cur;
     curbuf->b_u_time_cur = seq_time;
     curbuf->b_u_save_nr_last = last_save_nr;
+    curbuf->b_u_save_nr_cur = last_save_nr;
 
     curbuf->b_u_synced = TRUE;
     vim_free(uhp_table);
@@ -2794,7 +2791,7 @@ ex_undolist(eap)
 								uhp->uh_time);
 	    if (uhp->uh_save_nr > 0)
 	    {
-		while (STRLEN(IObuff) < 32)
+		while (STRLEN(IObuff) < 33)
 		    STRCAT(IObuff, " ");
 		vim_snprintf_add((char *)IObuff, IOSIZE,
 						   "  %3ld", uhp->uh_save_nr);
@@ -2849,7 +2846,7 @@ ex_undolist(eap)
 	sort_strings((char_u **)ga.ga_data, ga.ga_len);
 
 	msg_start();
-	msg_puts_attr((char_u *)_("number changes  time            saved"),
+	msg_puts_attr((char_u *)_("number changes  when               saved"),
 							      hl_attr(HLF_T));
 	for (i = 0; i < ga.ga_len && !got_int; ++i)
 	{
@@ -2879,7 +2876,15 @@ u_add_time(buf, buflen, tt)
     if (time(NULL) - tt >= 100)
     {
 	curtime = localtime(&tt);
-	(void)strftime((char *)buf, buflen, "%H:%M:%S", curtime);
+	if (time(NULL) - tt < (60L * 60L * 12L))
+	    /* within 12 hours */
+	    (void)strftime((char *)buf, buflen, "%H:%M:%S", curtime);
+	else if (time(NULL) - tt < (60L * 60L * 24L * 180L))
+	    /* within 6 months */
+	    (void)strftime((char *)buf, buflen, "%m/%d %H:%M:%S", curtime);
+	else
+	    /* long ago */
+	    (void)strftime((char *)buf, buflen, "%Y/%m/%d %H:%M:%S", curtime);
     }
     else
 #endif
@@ -3299,7 +3304,7 @@ bufIsChanged(buf)
 #ifdef FEAT_QUICKFIX
 	    !bt_dontwrite(buf) &&
 #endif
-	    (buf->b_changed || file_ff_differs(buf));
+	    (buf->b_changed || file_ff_differs(buf, TRUE));
 }
 
     int
@@ -3309,7 +3314,7 @@ curbufIsChanged()
 #ifdef FEAT_QUICKFIX
 	!bt_dontwrite(curbuf) &&
 #endif
-	(curbuf->b_changed || file_ff_differs(curbuf));
+	(curbuf->b_changed || file_ff_differs(curbuf, TRUE));
 }
 
 #if defined(FEAT_EVAL) || defined(PROTO)

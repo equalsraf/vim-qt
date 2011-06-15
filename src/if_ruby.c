@@ -4,11 +4,16 @@
  *
  * Ruby interface by Shugo Maeda
  *   with improvements by SegPhault (Ryan Paul)
+ *   with improvements by Jon Maken
  *
  * Do ":help uganda"  in Vim to read copying and usage conditions.
  * Do ":help credits" in Vim to see a list of people who contributed.
  * See README.txt for an overview of the Vim source code.
  */
+
+#ifdef HAVE_CONFIG_H
+# include "auto/config.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -26,12 +31,12 @@
 # define RUBYEXTERN extern
 #endif
 
+#ifdef DYNAMIC_RUBY
 /*
  * This is tricky.  In ruby.h there is (inline) function rb_class_of()
  * definition.  This function use these variables.  But we want function to
  * use dll_* variables.
  */
-#ifdef DYNAMIC_RUBY
 # define rb_cFalseClass		(*dll_rb_cFalseClass)
 # define rb_cFixnum		(*dll_rb_cFixnum)
 # define rb_cNilClass		(*dll_rb_cNilClass)
@@ -46,7 +51,22 @@
  */
 #  define RUBY_EXPORT
 # endif
+
+#if !(defined(WIN32) || defined(_WIN64))
+# include <dlfcn.h>
+# define HINSTANCE void*
+# define RUBY_PROC void*
+# define load_dll(n) dlopen((n), RTLD_LAZY|RTLD_GLOBAL)
+# define symbol_from_dll dlsym
+# define close_dll dlclose
+#else
+# define RUBY_PROC FARPROC
+# define load_dll vimLoadLib
+# define symbol_from_dll GetProcAddress
+# define close_dll FreeLibrary
 #endif
+
+#endif  /* ifdef DYNAMIC_RUBY */
 
 /* suggested by Ariya Mizutani */
 #if (_MSC_VER == 1200)
@@ -70,6 +90,7 @@
 # include <ruby/encoding.h>
 #endif
 
+#undef off_t	/* ruby defines off_t as _int64, Mingw uses long */
 #undef EXTERN
 #undef _
 
@@ -160,28 +181,35 @@ static void ruby_vim_init(void);
 #define rb_lastline_get			dll_rb_lastline_get
 #define rb_lastline_set			dll_rb_lastline_set
 #define rb_load_protect			dll_rb_load_protect
+#ifndef RUBY19_OR_LATER
 #define rb_num2long			dll_rb_num2long
+#endif
 #define rb_num2ulong			dll_rb_num2ulong
 #define rb_obj_alloc			dll_rb_obj_alloc
 #define rb_obj_as_string		dll_rb_obj_as_string
 #define rb_obj_id			dll_rb_obj_id
 #define rb_raise			dll_rb_raise
-#define rb_str2cstr			dll_rb_str2cstr
 #define rb_str_cat			dll_rb_str_cat
 #define rb_str_concat			dll_rb_str_concat
 #define rb_str_new			dll_rb_str_new
 #ifdef rb_str_new2
 /* Ruby may #define rb_str_new2 to use rb_str_new_cstr. */
 # define need_rb_str_new_cstr 1
+/* Ruby's headers #define rb_str_new_cstr to make use of GCC's
+ * __builtin_constant_p extension. */
+# undef rb_str_new_cstr
 # define rb_str_new_cstr		dll_rb_str_new_cstr
 #else
 # define rb_str_new2			dll_rb_str_new2
 #endif
 #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+# define rb_string_value		dll_rb_string_value
 # define rb_string_value_ptr		dll_rb_string_value_ptr
 # define rb_float_new			dll_rb_float_new
 # define rb_ary_new			dll_rb_ary_new
 # define rb_ary_push			dll_rb_ary_push
+#else
+# define rb_str2cstr			dll_rb_str2cstr
 #endif
 #ifdef RUBY19_OR_LATER
 # define rb_errinfo			dll_rb_errinfo
@@ -190,9 +218,11 @@ static void ruby_vim_init(void);
 #endif
 #define ruby_init			dll_ruby_init
 #define ruby_init_loadpath		dll_ruby_init_loadpath
-#define NtInitialize			dll_NtInitialize
-#if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
-# define rb_w32_snprintf		dll_rb_w32_snprintf
+#ifdef WIN3264
+# define NtInitialize			dll_NtInitialize
+# if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+#  define rb_w32_snprintf		dll_rb_w32_snprintf
+# endif
 #endif
 
 #ifdef RUBY19_OR_LATER
@@ -201,7 +231,9 @@ static void ruby_vim_init(void);
 # define rb_enc_find			dll_rb_enc_find
 # define rb_enc_str_new			dll_rb_enc_str_new
 # define rb_sprintf			dll_rb_sprintf
+# define rb_require			dll_rb_require
 # define ruby_init_stack		dll_ruby_init_stack
+# define ruby_process_options		dll_ruby_process_options
 #endif
 
 /*
@@ -246,7 +278,11 @@ static VALUE (*dll_rb_obj_alloc) (VALUE);
 static VALUE (*dll_rb_obj_as_string) (VALUE);
 static VALUE (*dll_rb_obj_id) (VALUE);
 static void (*dll_rb_raise) (VALUE, const char*, ...);
+#if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+static VALUE (*dll_rb_string_value) (volatile VALUE*);
+#else
 static char *(*dll_rb_str2cstr) (VALUE,int*);
+#endif
 static VALUE (*dll_rb_str_cat) (VALUE, const char*, long);
 static VALUE (*dll_rb_str_concat) (VALUE, VALUE);
 static VALUE (*dll_rb_str_new) (const char*, long);
@@ -263,7 +299,12 @@ static VALUE *dll_ruby_errinfo;
 #endif
 static void (*dll_ruby_init) (void);
 static void (*dll_ruby_init_loadpath) (void);
+#ifdef WIN3264
 static void (*dll_NtInitialize) (int*, char***);
+# if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+static int (*dll_rb_w32_snprintf)(char*, size_t, const char*, ...);
+# endif
+#endif
 #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
 static char * (*dll_rb_string_value_ptr) (volatile VALUE*);
 static VALUE (*dll_rb_float_new) (double);
@@ -273,9 +314,6 @@ static VALUE (*dll_rb_ary_push) (VALUE, VALUE);
 #ifdef RUBY19_OR_LATER
 static VALUE (*dll_rb_int2big)(SIGNED_VALUE);
 #endif
-#if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
-static int (*dll_rb_w32_snprintf)(char*, size_t, const char*, ...);
-#endif
 
 #ifdef RUBY19_OR_LATER
 static void (*dll_ruby_script) (const char*);
@@ -283,7 +321,9 @@ static int (*dll_rb_enc_find_index) (const char*);
 static rb_encoding* (*dll_rb_enc_find) (const char*);
 static VALUE (*dll_rb_enc_str_new) (const char*, long, rb_encoding*);
 static VALUE (*dll_rb_sprintf) (const char*, ...);
+static VALUE (*dll_rb_require) (const char*);
 static void (*ruby_init_stack)(VALUE*);
+static void* (*ruby_process_options)(int, char**);
 #endif
 
 #ifdef RUBY19_OR_LATER
@@ -297,12 +337,11 @@ VALUE rb_int2big_stub(SIGNED_VALUE x)
 }
 #endif
 
-static HINSTANCE hinstRuby = 0; /* Instance of ruby.dll */
+static HINSTANCE hinstRuby = NULL; /* Instance of ruby.dll */
 
 /*
  * Table of name to function pointer of ruby.
  */
-#define RUBY_PROC FARPROC
 static struct
 {
     char *name;
@@ -347,7 +386,11 @@ static struct
     {"rb_obj_as_string", (RUBY_PROC*)&dll_rb_obj_as_string},
     {"rb_obj_id", (RUBY_PROC*)&dll_rb_obj_id},
     {"rb_raise", (RUBY_PROC*)&dll_rb_raise},
+#if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+    {"rb_string_value", (RUBY_PROC*)&dll_rb_string_value},
+#else
     {"rb_str2cstr", (RUBY_PROC*)&dll_rb_str2cstr},
+#endif
     {"rb_str_cat", (RUBY_PROC*)&dll_rb_str_cat},
     {"rb_str_concat", (RUBY_PROC*)&dll_rb_str_concat},
     {"rb_str_new", (RUBY_PROC*)&dll_rb_str_new},
@@ -363,15 +406,17 @@ static struct
 #endif
     {"ruby_init", (RUBY_PROC*)&dll_ruby_init},
     {"ruby_init_loadpath", (RUBY_PROC*)&dll_ruby_init_loadpath},
+#ifdef WIN3264
     {
-#if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER < 19
+# if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER < 19
     "NtInitialize",
-#else
+# else
     "ruby_sysinit",
-#endif
+# endif
 			(RUBY_PROC*)&dll_NtInitialize},
-#if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+# if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
     {"rb_w32_snprintf", (RUBY_PROC*)&dll_rb_w32_snprintf},
+# endif
 #endif
 #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
     {"rb_string_value_ptr", (RUBY_PROC*)&dll_rb_string_value_ptr},
@@ -386,7 +431,9 @@ static struct
     {"rb_enc_find", (RUBY_PROC*)&dll_rb_enc_find},
     {"rb_enc_str_new", (RUBY_PROC*)&dll_rb_enc_str_new},
     {"rb_sprintf", (RUBY_PROC*)&dll_rb_sprintf},
+    {"rb_require", (RUBY_PROC*)&dll_rb_require},
     {"ruby_init_stack", (RUBY_PROC*)&dll_ruby_init_stack},
+    {"ruby_process_options", (RUBY_PROC*)&dll_ruby_process_options},
 #endif
     {"", NULL},
 };
@@ -399,8 +446,8 @@ end_dynamic_ruby()
 {
     if (hinstRuby)
     {
-	FreeLibrary(hinstRuby);
-	hinstRuby = 0;
+	close_dll(hinstRuby);
+	hinstRuby = NULL;
     }
 }
 
@@ -416,7 +463,7 @@ ruby_runtime_link_init(char *libname, int verbose)
 
     if (hinstRuby)
 	return OK;
-    hinstRuby = LoadLibrary(libname);
+    hinstRuby = load_dll(libname);
     if (!hinstRuby)
     {
 	if (verbose)
@@ -426,11 +473,11 @@ ruby_runtime_link_init(char *libname, int verbose)
 
     for (i = 0; ruby_funcname_table[i].ptr; ++i)
     {
-	if (!(*ruby_funcname_table[i].ptr = GetProcAddress(hinstRuby,
+	if (!(*ruby_funcname_table[i].ptr = symbol_from_dll(hinstRuby,
 			ruby_funcname_table[i].name)))
 	{
-	    FreeLibrary(hinstRuby);
-	    hinstRuby = 0;
+	    close_dll(hinstRuby);
+	    hinstRuby = NULL;
 	    if (verbose)
 		EMSG2(_(e_loadfunc), ruby_funcname_table[i].name);
 	    return FAIL;
@@ -539,9 +586,9 @@ void ex_rubydo(exarg_T *eap)
 	if (u_save(eap->line1 - 1, eap->line2 + 1) != OK)
 	    return;
 	for (i = eap->line1; i <= eap->line2; i++) {
-	    VALUE line, oldline;
+	    VALUE line;
 
-	    line = oldline = vim_str2rb_enc_str((char *)ml_get(i));
+	    line = vim_str2rb_enc_str((char *)ml_get(i));
 	    rb_lastline_set(line);
 	    eval_enc_string_protect((char *) eap->arg, &state);
 	    if (state) {
@@ -616,13 +663,16 @@ static int ensure_ruby_initialized(void)
 		ruby_init();
 	    }
 #ifdef RUBY19_OR_LATER
+	    {
+		int dummy_argc = 2;
+		char *dummy_argv[] = {"vim-ruby", "-e0"};
+		ruby_process_options(dummy_argc, dummy_argv);
+	    }
 	    ruby_script("vim-ruby");
-#endif
+#else
 	    ruby_init_loadpath();
-	    ruby_io_init();
-#ifdef RUBY19_OR_LATER
-	    rb_enc_find_index("encdb");
 #endif
+	    ruby_io_init();
 	    ruby_vim_init();
 	    ruby_initialized = 1;
 #ifdef DYNAMIC_RUBY
@@ -906,15 +956,9 @@ static VALUE buffer_count(VALUE self)
 
 static VALUE get_buffer_line(buf_T *buf, linenr_T n)
 {
-    if (n > 0 && n <= buf->b_ml.ml_line_count)
-    {
-	char *line = (char *)ml_get_buf(buf, n, FALSE);
-	return line ? vim_str2rb_enc_str(line) : Qnil;
-    }
-    rb_raise(rb_eIndexError, "line number %ld out of range", (long)n);
-#ifndef __GNUC__
-    return Qnil; /* For stop warning */
-#endif
+    if (n <= 0 || n > buf->b_ml.ml_line_count)
+	rb_raise(rb_eIndexError, "line number %ld out of range", (long)n);
+    return vim_str2rb_enc_str((char *)ml_get_buf(buf, n, FALSE));
 }
 
 static VALUE buffer_aref(VALUE self, VALUE num)
@@ -953,9 +997,6 @@ static VALUE set_buffer_line(buf_T *buf, linenr_T n, VALUE str)
     else
     {
 	rb_raise(rb_eIndexError, "line number %ld out of range", (long)n);
-#ifndef __GNUC__
-	return Qnil; /* For stop warning */
-#endif
     }
     return str;
 }
@@ -1010,7 +1051,8 @@ static VALUE buffer_append(VALUE self, VALUE num, VALUE str)
     long	n = NUM2LONG(num);
     aco_save_T	aco;
 
-    if (line == NULL) {
+    if (line == NULL)
+    {
 	rb_raise(rb_eIndexError, "NULL line");
     }
     else if (n >= 0 && n <= buf->b_ml.ml_line_count)
@@ -1034,7 +1076,8 @@ static VALUE buffer_append(VALUE self, VALUE num, VALUE str)
 
 	update_curbuf(NOT_VALID);
     }
-    else {
+    else
+    {
 	rb_raise(rb_eIndexError, "line number %ld out of range", n);
     }
     return str;

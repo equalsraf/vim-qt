@@ -569,6 +569,10 @@ emsg(s)
     int		severe;
 #endif
 
+    /* Skip this if not giving error messages at the moment. */
+    if (emsg_not_now())
+	return TRUE;
+
     called_emsg = TRUE;
     ex_exitval = 1;
 
@@ -580,10 +584,6 @@ emsg(s)
     severe = emsg_severe;
     emsg_severe = FALSE;
 #endif
-
-    /* Skip this if not giving error messages at the moment. */
-    if (emsg_not_now())
-	return TRUE;
 
     if (!emsg_off || vim_strchr(p_debug, 't') != NULL)
     {
@@ -879,16 +879,17 @@ wait_return(redraw)
     if (msg_silent != 0)
 	return;
 
-/*
- * With the global command (and some others) we only need one return at the
- * end. Adjust cmdline_row to avoid the next message overwriting the last one.
- * When inside vgetc(), we can't wait for a typed character at all.
- */
+    /*
+     * When inside vgetc(), we can't wait for a typed character at all.
+     * With the global command (and some others) we only need one return at
+     * the end. Adjust cmdline_row to avoid the next message overwriting the
+     * last one.
+     */
     if (vgetc_busy > 0)
 	return;
+    need_wait_return = TRUE;
     if (no_wait_return)
     {
-	need_wait_return = TRUE;
 	if (!exmode_active)
 	    cmdline_row = msg_row;
 	return;
@@ -1477,6 +1478,27 @@ msg_outtrans_special(strstart, from)
     return retval;
 }
 
+#if defined(FEAT_EVAL) || defined(PROTO)
+/*
+ * Return the lhs or rhs of a mapping, with the key codes turned into printable
+ * strings, in an allocated string.
+ */
+    char_u *
+str2special_save(str, is_lhs)
+    char_u  *str;
+    int	    is_lhs;  /* TRUE for lhs, FALSE for rhs */
+{
+    garray_T	ga;
+    char_u	*p = str;
+
+    ga_init2(&ga, 1, 40);
+    while (*p != NUL)
+	ga_concat(&ga, str2special(&p, is_lhs));
+    ga_append(&ga, NUL);
+    return (char_u *)ga.ga_data;
+}
+#endif
+
 /*
  * Return the printable string for the key codes at "*sp".
  * Used for translating the lhs or rhs of a mapping to printable chars.
@@ -1616,8 +1638,16 @@ msg_prt_line(s, list)
 	else if (has_mbyte && (l = (*mb_ptr2len)(s)) > 1)
 	{
 	    col += (*mb_ptr2cells)(s);
-	    mch_memmove(buf, s, (size_t)l);
-	    buf[l] = NUL;
+	    if (lcs_nbsp != NUL && list && mb_ptr2char(s) == 160)
+	    {
+		mb_char2bytes(lcs_nbsp, buf);
+		buf[(*mb_ptr2len)(buf)] = NUL;
+	    }
+	    else
+	    {
+		mch_memmove(buf, s, (size_t)l);
+		buf[l] = NUL;
+	    }
 	    msg_puts(buf);
 	    s += l;
 	    continue;
@@ -1642,6 +1672,11 @@ msg_prt_line(s, list)
 		    c_extra = lcs_tab2;
 		    attr = hl_attr(HLF_8);
 		}
+	    }
+	    else if (c == 160 && list && lcs_nbsp != NUL)
+	    {
+		c = lcs_nbsp;
+		attr = hl_attr(HLF_8);
 	    }
 	    else if (c == NUL && list && lcs_eol != NUL)
 	    {
@@ -3294,7 +3329,7 @@ msg_advance(col)
  * different letter.
  */
     int
-do_dialog(type, title, message, buttons, dfltbutton, textfield)
+do_dialog(type, title, message, buttons, dfltbutton, textfield, ex_cmd)
     int		type UNUSED;
     char_u	*title UNUSED;
     char_u	*message;
@@ -3302,6 +3337,8 @@ do_dialog(type, title, message, buttons, dfltbutton, textfield)
     int		dfltbutton;
     char_u	*textfield UNUSED;	/* IObuff for inputdialog(), NULL
 					   otherwise */
+    int		ex_cmd;	    /* when TRUE pressing : accepts default and starts
+			       Ex command */
 {
     int		oldState;
     int		retval = 0;
@@ -3320,7 +3357,7 @@ do_dialog(type, title, message, buttons, dfltbutton, textfield)
     if (gui.in_use && vim_strchr(p_go, GO_CONDIALOG) == NULL)
     {
 	c = gui_mch_dialog(type, title, message, buttons, dfltbutton,
-								   textfield);
+							   textfield, ex_cmd);
 	/* avoid a hit-enter prompt without clearing the cmdline */
 	need_wait_return = FALSE;
 	emsg_on_display = FALSE;
@@ -3367,6 +3404,13 @@ do_dialog(type, title, message, buttons, dfltbutton, textfield)
 	    default:		/* Could be a hotkey? */
 		if (c < 0)	/* special keys are ignored here */
 		    continue;
+		if (c == ':' && ex_cmd)
+		{
+		    retval = dfltbutton;
+		    ins_char_typebuf(':');
+		    break;
+		}
+
 		/* Make the character lowercase, as chars in "hotkeys" are. */
 		c = MB_TOLOWER(c);
 		retval = 1;
@@ -3640,7 +3684,7 @@ vim_dialog_yesno(type, title, message, dflt)
     if (do_dialog(type,
 		title == NULL ? (char_u *)_("Question") : title,
 		message,
-		(char_u *)_("&Yes\n&No"), dflt, NULL) == 1)
+		(char_u *)_("&Yes\n&No"), dflt, NULL, FALSE) == 1)
 	return VIM_YES;
     return VIM_NO;
 }
@@ -3655,7 +3699,7 @@ vim_dialog_yesnocancel(type, title, message, dflt)
     switch (do_dialog(type,
 		title == NULL ? (char_u *)_("Question") : title,
 		message,
-		(char_u *)_("&Yes\n&No\n&Cancel"), dflt, NULL))
+		(char_u *)_("&Yes\n&No\n&Cancel"), dflt, NULL, FALSE))
     {
 	case 1: return VIM_YES;
 	case 2: return VIM_NO;
@@ -3674,7 +3718,7 @@ vim_dialog_yesnoallcancel(type, title, message, dflt)
 		title == NULL ? (char_u *)"Question" : title,
 		message,
 		(char_u *)_("&Yes\n&No\nSave &All\n&Discard All\n&Cancel"),
-								  dflt, NULL))
+							   dflt, NULL, FALSE))
     {
 	case 1: return VIM_YES;
 	case 2: return VIM_NO;

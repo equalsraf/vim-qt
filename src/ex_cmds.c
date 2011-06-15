@@ -11,10 +11,6 @@
  * ex_cmds.c: some functions for command line commands
  */
 
-#if defined(MSDOS) || defined(WIN16) || defined(WIN32) || defined(_WIN64)
-# include "vimio.h"	/* for mch_open(), must be before vim.h */
-#endif
-
 #include "vim.h"
 #include "version.h"
 
@@ -323,7 +319,8 @@ sort_compare(s1, s2)
     /* When sorting numbers "start_col_nr" is the number, not the column
      * number. */
     if (sort_nr)
-	result = l1.start_col_nr - l2.start_col_nr;
+	result = l1.start_col_nr == l2.start_col_nr ? 0
+				 : l1.start_col_nr > l2.start_col_nr ? 1 : -1;
     else
     {
 	/* We need to copy one line into "sortbuf1", because there is no
@@ -482,7 +479,7 @@ ex_sort(eap)
 	     * of the match, by temporarily terminating the string there */
 	    s2 = s + end_col;
 	    c = *s2;
-	    (*s2) = 0;
+	    *s2 = NUL;
 	    /* Sorting on number: Store the number itself. */
 	    p = s + start_col;
 	    if (sort_hex)
@@ -491,9 +488,13 @@ ex_sort(eap)
 		s = skiptodigit(p);
 	    if (s > p && s[-1] == '-')
 		--s;  /* include preceding negative sign */
-	    vim_str2nr(s, NULL, NULL, sort_oct, sort_hex,
-					&nrs[lnum - eap->line1].start_col_nr, NULL);
-	    (*s2) = c;
+	    if (*s == NUL)
+		/* empty line should sort before any number */
+		nrs[lnum - eap->line1].start_col_nr = -MAXLNUM;
+	    else
+		vim_str2nr(s, NULL, NULL, sort_oct, sort_hex,
+				  &nrs[lnum - eap->line1].start_col_nr, NULL);
+	    *s2 = c;
 	}
 	else
 	{
@@ -898,9 +899,6 @@ free_prev_shellcmd()
  * Handle the ":!cmd" command.	Also for ":r !cmd" and ":w !cmd"
  * Bangs in the argument are replaced with the previously entered command.
  * Remember the argument.
- *
- * RISCOS: Bangs only replaced when followed by a space, since many
- * pathnames contain one.
  */
     void
 do_bang(addr_count, eap, forceit, do_in, do_out)
@@ -979,11 +977,7 @@ do_bang(addr_count, eap, forceit, do_in, do_out)
 	trailarg = NULL;
 	while (*p)
 	{
-	    if (*p == '!'
-#ifdef RISCOS
-			&& (p[1] == ' ' || p[1] == NUL)
-#endif
-					)
+	    if (*p == '!')
 	    {
 		if (p > newcmd && p[-1] == '\\')
 		    STRMOVE(p - 1, p);
@@ -1577,14 +1571,8 @@ make_filter_cmd(cmd, itmp, otmp)
 	    if (p != NULL)
 		*p = NUL;
 	}
-# ifdef RISCOS
-	STRCAT(buf, " { < ");	/* Use RISC OS notation for input. */
-	STRCAT(buf, itmp);
-	STRCAT(buf, " } ");
-# else
 	STRCAT(buf, " <");	/* " < " causes problems on Amiga */
 	STRCAT(buf, itmp);
-# endif
 	if (*p_shq == NUL)
 	{
 	    p = vim_strchr(cmd, '|');
@@ -1633,16 +1621,9 @@ append_redir(buf, buflen, opt, fname)
     else
 	vim_snprintf((char *)end, (size_t)(buflen - (end - buf)),
 #ifdef FEAT_QUICKFIX
-# ifndef RISCOS
-		opt != p_sp ? " %s%s" :
-# endif
 		" %s %s",
 #else
-# ifndef RISCOS
 		" %s%s",	/* " > %s" causes problems on Amiga */
-# else
-		" %s %s",	/* But is needed for 'shellpipe' and RISC OS */
-# endif
 #endif
 		(char *)opt, (char *)fname);
 }
@@ -1843,11 +1824,7 @@ write_viminfo(file, forceit)
 #ifdef VMS
 				    (char_u *)"-tmp",
 #else
-# ifdef RISCOS
-				    (char_u *)"/tmp",
-# else
 				    (char_u *)".tmp",
-# endif
 #endif
 				    FALSE);
 	    if (tempname == NULL)		/* out of memory */
@@ -2700,6 +2677,10 @@ do_write(eap)
 									TRUE);
 		do_modelines(0);
 	    }
+
+	    /* Autocommands may have changed buffer names, esp. when
+	     * 'autochdir' is set. */
+	    fname = curbuf->b_sfname;
 #endif
 	}
 
@@ -2772,7 +2753,7 @@ check_overwrite(eap, buf, fname, ffname, other)
 #if defined(FEAT_GUI_DIALOG) || defined(FEAT_CON_DIALOG)
 	    if (p_confirm || cmdmod.confirm)
 	    {
-		char_u	buff[IOSIZE];
+		char_u	buff[DIALOG_MSG_SIZE];
 
 		dialog_msg(buff, _("Overwrite existing file \"%s\"?"), fname);
 		if (vim_dialog_yesno(VIM_QUESTION, NULL, buff, 2) != VIM_YES)
@@ -2790,7 +2771,7 @@ check_overwrite(eap, buf, fname, ffname, other)
 	/* For ":w! filename" check that no swap file exists for "filename". */
 	if (other && !emsg_silent)
 	{
-	    char_u	dir[MAXPATHL];
+	    char_u	*dir;
 	    char_u	*p;
 	    int		r;
 	    char_u	*swapname;
@@ -2801,20 +2782,29 @@ check_overwrite(eap, buf, fname, ffname, other)
 	     * Use 'shortname' of the current buffer, since there is no buffer
 	     * for the written file. */
 	    if (*p_dir == NUL)
+	    {
+		dir = alloc(5);
+		if (dir == NULL)
+		    return FAIL;
 		STRCPY(dir, ".");
+	    }
 	    else
 	    {
+		dir = alloc(MAXPATHL);
+		if (dir == NULL)
+		    return FAIL;
 		p = p_dir;
 		copy_option_part(&p, dir, MAXPATHL, ",");
 	    }
 	    swapname = makeswapname(fname, ffname, curbuf, dir);
+	    vim_free(dir);
 	    r = vim_fexists(swapname);
 	    if (r)
 	    {
 #if defined(FEAT_GUI_DIALOG) || defined(FEAT_CON_DIALOG)
 		if (p_confirm || cmdmod.confirm)
 		{
-		    char_u	buff[IOSIZE];
+		    char_u	buff[DIALOG_MSG_SIZE];
 
 		    dialog_msg(buff,
 			    _("Swap file \"%s\" exists, overwrite anyway?"),
@@ -2964,7 +2954,7 @@ check_readonly(forceit, buf)
 #if defined(FEAT_GUI_DIALOG) || defined(FEAT_CON_DIALOG)
 	if ((p_confirm || cmdmod.confirm) && buf->b_fname != NULL)
 	{
-	    char_u	buff[IOSIZE];
+	    char_u	buff[DIALOG_MSG_SIZE];
 
 	    if (buf->b_p_ro)
 		dialog_msg(buff, _("'readonly' option is set for \"%s\".\nDo you wish to write anyway?"),
@@ -3498,9 +3488,7 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 	curbuf->b_p_bin = FALSE;	/* reset 'bin' before reading file */
 	curwin->w_p_nu = 0;		/* no line numbers */
 	curwin->w_p_rnu = 0;		/* no relative line numbers */
-#ifdef FEAT_SCROLLBIND
-	curwin->w_p_scb = FALSE;	/* no scroll binding */
-#endif
+	RESET_BINDING(curwin);		/* no scroll or cursor binding */
 #ifdef FEAT_ARABIC
 	curwin->w_p_arab = FALSE;	/* no arabic mode */
 #endif
@@ -4109,8 +4097,8 @@ ex_z(eap)
     switch (*kind)
     {
 	case '-':
-	    start = lnum - bigness * (linenr_T)(x - kind);
-	    end = start + bigness;
+	    start = lnum - bigness * (linenr_T)(x - kind) + 1;
+	    end = start + bigness - 1;
 	    curs = end;
 	    break;
 
@@ -4637,7 +4625,15 @@ do_sub(eap)
 			 * for a match in this line again. */
 			skip_match = TRUE;
 		    else
-			++matchcol; /* search for a match at next column */
+		    {
+			 /* search for a match at next column */
+#ifdef FEAT_MBYTE
+			if (has_mbyte)
+			    matchcol += mb_ptr2len(sub_firstline + matchcol);
+			else
+#endif
+			    ++matchcol;
+		    }
 		    goto skip;
 		}
 
@@ -5353,8 +5349,9 @@ ex_global(eap)
 global_exe(cmd)
     char_u	*cmd;
 {
-    linenr_T	old_lcount;	/* b_ml.ml_line_count before the command */
-    linenr_T	lnum;		/* line number according to old situation */
+    linenr_T old_lcount;	/* b_ml.ml_line_count before the command */
+    buf_T    *old_buf = curbuf;	/* remember what buffer we started in */
+    linenr_T lnum;		/* line number according to old situation */
 
     /*
      * Set current position only once for a global command.
@@ -5398,8 +5395,10 @@ global_exe(cmd)
 	msg_didout = FALSE;
 
     /* If substitutes done, report number of substitutes, otherwise report
-     * number of extra or deleted lines. */
-    if (!do_sub_msg(FALSE))
+     * number of extra or deleted lines.
+     * Don't report extra or deleted lines in the edge case where the buffer
+     * we are in after execution is different from the buffer we started in. */
+    if (!do_sub_msg(FALSE) && curbuf == old_buf)
 	msgmore(curbuf->b_ml.ml_line_count - old_lcount);
 }
 
@@ -5409,7 +5408,7 @@ read_viminfo_sub_string(virp, force)
     vir_T	*virp;
     int		force;
 {
-    if (old_sub != NULL && force)
+    if (force)
 	vim_free(old_sub);
     if (force || old_sub == NULL)
 	old_sub = viminfo_readstring(virp, 1, TRUE);
@@ -5471,9 +5470,8 @@ prepare_tagpreview(undo_sync)
 		return FALSE;
 	    curwin->w_p_pvw = TRUE;
 	    curwin->w_p_wfh = TRUE;
-# ifdef FEAT_SCROLLBIND
-	    curwin->w_p_scb = FALSE;	    /* don't take over 'scrollbind' */
-# endif
+	    RESET_BINDING(curwin);	    /* don't take over 'scrollbind'
+					       and 'cursorbind' */
 # ifdef FEAT_DIFF
 	    curwin->w_p_diff = FALSE;	    /* no 'diff' */
 # endif
@@ -6559,8 +6557,7 @@ typedef struct sign sign_T;
 struct sign
 {
     sign_T	*sn_next;	/* next sign in list */
-    int		sn_typenr;	/* type number of sign (negative if not equal
-				   to name) */
+    int		sn_typenr;	/* type number of sign */
     char_u	*sn_name;	/* name of sign */
     char_u	*sn_icon;	/* name of pixmap */
 #ifdef FEAT_SIGN_ICONS
@@ -6572,7 +6569,7 @@ struct sign
 };
 
 static sign_T	*first_sign = NULL;
-static int	last_sign_typenr = MAX_TYPENR;	/* is decremented */
+static int	next_sign_typenr = 1;
 
 static int sign_cmd_idx __ARGS((char_u *begin_cmd, char_u *end_cmd));
 static void sign_list_defined __ARGS((sign_T *sp));
@@ -6654,9 +6651,14 @@ ex_sign(eap)
 	    EMSG(_("E156: Missing sign name"));
 	else
 	{
+	    /* Isolate the sign name.  If it's a number skip leading zeroes,
+	     * so that "099" and "99" are the same sign.  But keep "0". */
 	    p = skiptowhite(arg);
 	    if (*p != NUL)
 		*p++ = NUL;
+	    while (arg[0] == '0' && arg[1] != NUL)
+		++arg;
+
 	    sp_prev = NULL;
 	    for (sp = first_sign; sp != NULL; sp = sp->sn_next)
 	    {
@@ -6669,46 +6671,52 @@ ex_sign(eap)
 		/* ":sign define {name} ...": define a sign */
 		if (sp == NULL)
 		{
+		    sign_T	*lp;
+		    int		start = next_sign_typenr;
+
 		    /* Allocate a new sign. */
 		    sp = (sign_T *)alloc_clear((unsigned)sizeof(sign_T));
 		    if (sp == NULL)
 			return;
+
+		    /* Check that next_sign_typenr is not already being used.
+		     * This only happens after wrapping around.  Hopefully
+		     * another one got deleted and we can use its number. */
+		    for (lp = first_sign; lp != NULL; )
+		    {
+			if (lp->sn_typenr == next_sign_typenr)
+			{
+			    ++next_sign_typenr;
+			    if (next_sign_typenr == MAX_TYPENR)
+				next_sign_typenr = 1;
+			    if (next_sign_typenr == start)
+			    {
+				vim_free(sp);
+				EMSG(_("E612: Too many signs defined"));
+				return;
+			    }
+			    lp = first_sign;  /* start all over */
+			    continue;
+			}
+			lp = lp->sn_next;
+		    }
+
+		    sp->sn_typenr = next_sign_typenr;
+		    if (++next_sign_typenr == MAX_TYPENR)
+			next_sign_typenr = 1; /* wrap around */
+
+		    sp->sn_name = vim_strsave(arg);
+		    if (sp->sn_name == NULL)  /* out of memory */
+		    {
+			vim_free(sp);
+			return;
+		    }
+
+		    /* add the new sign to the list of signs */
 		    if (sp_prev == NULL)
 			first_sign = sp;
 		    else
 			sp_prev->sn_next = sp;
-		    sp->sn_name = vim_strnsave(arg, (int)(p - arg));
-
-		    /* If the name is a number use that for the typenr,
-		     * otherwise use a negative number. */
-		    if (VIM_ISDIGIT(*arg))
-			sp->sn_typenr = atoi((char *)arg);
-		    else
-		    {
-			sign_T	*lp;
-			int	start = last_sign_typenr;
-
-			for (lp = first_sign; lp != NULL; lp = lp->sn_next)
-			{
-			    if (lp->sn_typenr == last_sign_typenr)
-			    {
-				--last_sign_typenr;
-				if (last_sign_typenr == 0)
-				    last_sign_typenr = MAX_TYPENR;
-				if (last_sign_typenr == start)
-				{
-				    EMSG(_("E612: Too many signs defined"));
-				    return;
-				}
-				lp = first_sign;
-				continue;
-			    }
-			}
-
-			sp->sn_typenr = last_sign_typenr--;
-			if (last_sign_typenr == 0)
-			    last_sign_typenr = MAX_TYPENR; /* wrap around */
-		    }
 		}
 
 		/* set values for a defined sign. */
@@ -6886,6 +6894,8 @@ ex_sign(eap)
 		arg = skiptowhite(arg);
 		if (*arg != NUL)
 		    *arg++ = NUL;
+		while (sign_name[0] == '0' && sign_name[1] != NUL)
+		    ++sign_name;
 	    }
 	    else if (STRNCMP(arg, "file=", 5) == 0)
 	    {

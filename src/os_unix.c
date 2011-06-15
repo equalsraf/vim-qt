@@ -283,7 +283,7 @@ static struct signalinfo
 #ifdef SIGTERM
     {SIGTERM,	    "TERM",	TRUE},
 #endif
-#ifdef SIGVTALRM
+#if defined(SIGVTALRM) && !defined(FEAT_RUBY)
     {SIGVTALRM,	    "VTALRM",	TRUE},
 #endif
 #if defined(SIGPROF) && !defined(FEAT_MZSCHEME) && !defined(WE_ARE_PROFILING)
@@ -1107,7 +1107,7 @@ deathtrap SIGDEFARG(sigarg)
  * On Linux, signal is not always handled immediately either.
  * See https://bugs.launchpad.net/bugs/291373
  *
- * volatile because it is used in in signal handler sigcont_handler().
+ * volatile because it is used in signal handler sigcont_handler().
  */
 static volatile int sigcont_received;
 static RETSIGTYPE sigcont_handler __ARGS(SIGPROTOARG);
@@ -1120,6 +1120,30 @@ sigcont_handler SIGDEFARG(sigarg)
 {
     sigcont_received = TRUE;
     SIGRETURN;
+}
+#endif
+
+# if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+static void loose_clipboard __ARGS((void));
+
+/*
+ * Called when Vim is going to sleep or execute a shell command.
+ * We can't respond to requests for the X selections.  Lose them, otherwise
+ * other applications will hang.  But first copy the text to cut buffer 0.
+ */
+    static void
+loose_clipboard()
+{
+    if (clip_star.owned || clip_plus.owned)
+    {
+	x11_export_final_selection();
+	if (clip_star.owned)
+	    clip_lose_selection(&clip_star);
+	if (clip_plus.owned)
+	    clip_lose_selection(&clip_plus);
+	if (x11_display != NULL)
+	    XFlush(x11_display);
+    }
 }
 #endif
 
@@ -1137,19 +1161,7 @@ mch_suspend()
     out_flush();	    /* needed to disable mouse on some systems */
 
 # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
-    /* Since we are going to sleep, we can't respond to requests for the X
-     * selections.  Lose them, otherwise other applications will hang.  But
-     * first copy the text to cut buffer 0. */
-    if (clip_star.owned || clip_plus.owned)
-    {
-	x11_export_final_selection();
-	if (clip_star.owned)
-	    clip_lose_selection(&clip_star);
-	if (clip_plus.owned)
-	    clip_lose_selection(&clip_plus);
-	if (x11_display != NULL)
-	    XFlush(x11_display);
-    }
+    loose_clipboard();
 # endif
 
 # if defined(_REENTRANT) && defined(SIGCONT)
@@ -1726,6 +1738,11 @@ get_x11_windis()
     }
     if (x11_window == 0 || x11_display == NULL)
 	return (result = FAIL);
+
+# ifdef FEAT_EVAL
+    set_vim_var_nr(VV_WINDOWID, (long)x11_window);
+# endif
+
     return (result = OK);
 }
 
@@ -3706,6 +3723,10 @@ mch_call_shell(cmd, options)
     if (options & SHELL_COOKED)
 	settmode(TMODE_COOK);	    /* set to normal mode */
 
+# if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+    loose_clipboard();
+# endif
+
 # ifdef __EMX__
     if (cmd == NULL)
 	x = system("");	/* this starts an interactive shell in emx */
@@ -3814,13 +3835,17 @@ mch_call_shell(cmd, options)
 # endif
     int		did_settmode = FALSE;	/* settmode(TMODE_RAW) called */
 
+    newcmd = vim_strsave(p_sh);
+    if (newcmd == NULL)		/* out of memory */
+	goto error;
+
     out_flush();
     if (options & SHELL_COOKED)
 	settmode(TMODE_COOK);		/* set to normal mode */
 
-    newcmd = vim_strsave(p_sh);
-    if (newcmd == NULL)		/* out of memory */
-	goto error;
+# if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+    loose_clipboard();
+# endif
 
     /*
      * Do this loop twice:
@@ -4148,7 +4173,6 @@ mch_call_shell(cmd, options)
 # ifdef FEAT_GUI
 		if (pty_master_fd >= 0)
 		{
-		    close(pty_slave_fd);	/* close slave side of pty */
 		    fromshell_fd = pty_master_fd;
 		    toshell_fd = dup(pty_master_fd);
 		}
@@ -4221,7 +4245,7 @@ mch_call_shell(cmd, options)
 				 * should not have one. */
 				if (lnum != curbuf->b_op_end.lnum
 					|| !curbuf->b_p_bin
-					|| (lnum != write_no_eol_lnum
+					|| (lnum != curbuf->b_no_eol_lnum
 					    && (lnum !=
 						    curbuf->b_ml.ml_line_count
 						    || curbuf->b_p_eol)))
@@ -4430,7 +4454,7 @@ mch_call_shell(cmd, options)
 		    ++noread_cnt;
 		    while (RealWaitForChar(fromshell_fd, 10L, NULL))
 		    {
-			len = read(fromshell_fd, (char *)buffer
+			len = read_eintr(fromshell_fd, buffer
 # ifdef FEAT_MBYTE
 				+ buffer_off, (size_t)(BUFLEN - buffer_off)
 # else
@@ -4564,10 +4588,10 @@ finished:
 		    {
 			append_ga_line(&ga);
 			/* remember that the NL was missing */
-			write_no_eol_lnum = curwin->w_cursor.lnum;
+			curbuf->b_no_eol_lnum = curwin->w_cursor.lnum;
 		    }
 		    else
-			write_no_eol_lnum = 0;
+			curbuf->b_no_eol_lnum = 0;
 		    ga_clear(&ga);
 		}
 
@@ -4616,6 +4640,14 @@ finished:
 		   )
 		    break;
 	    }
+
+# ifdef FEAT_GUI
+	    /* Close slave side of pty.  Only do this after the child has
+	     * exited, otherwise the child may hang when it tries to write on
+	     * the pty. */
+	    if (pty_master_fd >= 0)
+		close(pty_slave_fd);
+# endif
 
 	    /* Make sure the child that writes to the external program is
 	     * dead. */
@@ -5693,6 +5725,7 @@ mch_expand_wildcards(num_pat, pat, num_file, file, flags)
 	if (shell_style == STYLE_PRINT && !did_find_nul)
 	{
 	    /* If there is a NUL, set did_find_nul, else set check_spaces */
+	    buffer[len] = NUL;
 	    if (len && (int)STRLEN(buffer) < (int)len - 1)
 		did_find_nul = TRUE;
 	    else
@@ -6562,7 +6595,7 @@ do_xterm_trace()
 	    xterm_hints.x = 2;
 	return TRUE;
     }
-    if (mouse_code == NULL)
+    if (mouse_code == NULL || STRLEN(mouse_code) > 45)
     {
 	xterm_trace = 0;
 	return FALSE;

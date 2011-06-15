@@ -52,7 +52,7 @@
 
 /*
  * Here are the builtin termcap entries.  They are not stored as complete
- * Tcarr structures, as such a structure is too big.
+ * structures with all entries, as such a structure is too big.
  *
  * The entries are compact, therefore they normally are included even when
  * HAVE_TGETENT is defined. When HAVE_TGETENT is defined, the builtin entries
@@ -199,71 +199,6 @@ static struct builtin_term builtin_termcaps[] =
 #endif
 
 #ifndef NO_BUILTIN_TCAPS
-# if defined(RISCOS) || defined(ALL_BUILTIN_TCAPS)
-/*
- * Default for the Acorn.
- */
-    {(int)KS_NAME,	"riscos"},
-    {(int)KS_CL,	"\014"},		/* Cls and Home Cursor */
-    {(int)KS_CM,	"\001%d\001%d\002"},	/* Position cursor */
-
-    {(int)KS_CCO,	"16"},			/* Allow 16 colors */
-
-    {(int)KS_CAF,	"\001%d\021"},		/* Set foreground colour */
-    {(int)KS_CAB,	"\001%d\022"},		/* Set background colour */
-
-
-    {(int)KS_ME,	"\004"},		/* Normal mode */
-    {(int)KS_MR,	"\005"},		/* Reverse */
-
-    {(int)KS_VI,	"\016"},		/* Cursor invisible */
-    {(int)KS_VE,	"\017"},		/* Cursor visible */
-    {(int)KS_VS,	"\020"},		/* Cursor very visible */
-
-    {(int)KS_CS,	"\001%d\001%d\003"},	/* Set scroll region */
-    {(int)KS_SR,	"\023"},		/* Scroll text down */
-    {K_UP,		"\217"},
-    {K_DOWN,		"\216"},
-    {K_LEFT,		"\214"},
-    {K_RIGHT,		"\215"},
-    {K_S_UP,		"\237"},
-    {K_S_DOWN,		"\236"},
-    {K_S_LEFT,		"\234"},
-    {K_S_RIGHT,		"\235"},
-
-    {K_F1,		"\201"},
-    {K_F2,		"\202"},
-    {K_F3,		"\203"},
-    {K_F4,		"\204"},
-    {K_F5,		"\205"},
-    {K_F6,		"\206"},
-    {K_F7,		"\207"},
-    {K_F8,		"\210"},
-    {K_F9,		"\211"},
-    {K_F10,		"\312"},
-    {K_F11,		"\313"},
-    {K_F12,		"\314"},
-    {K_S_F1,		"\221"},
-    {K_S_F2,		"\222"},
-    {K_S_F3,		"\223"},
-    {K_S_F4,		"\224"},
-    {K_S_F5,		"\225"},
-    {K_S_F6,		"\226"},
-    {K_S_F7,		"\227"},
-    {K_S_F8,		"\230"},
-    {K_S_F9,		"\231"},
-    {K_S_F10,		"\332"},
-    {K_S_F11,		"\333"},
-    {K_S_F12,		"\334"},
-    {K_BS,		"\010"},
-    {K_INS,		"\315"},
-    {K_DEL,		"\177"},
-    {K_HOME,		"\036"},
-    {K_END,		"\213"},
-    {K_PAGEUP,		"\237"},
-    {K_PAGEDOWN,	"\236"},
-# endif	/* Acorn terminal */
-
 
 # if defined(AMIGA) || defined(ALL_BUILTIN_TCAPS)
 /*
@@ -1399,10 +1334,6 @@ static struct builtin_term builtin_termcaps[] =
 /*
  * DEFAULT_TERM is used, when no terminal is specified with -T option or $TERM.
  */
-#ifdef RISCOS
-# define DEFAULT_TERM	(char_u *)"riscos"
-#endif
-
 #ifdef AMIGA
 # define DEFAULT_TERM	(char_u *)"amiga"
 #endif
@@ -3053,10 +2984,13 @@ shell_resized_check()
     int		old_Rows = Rows;
     int		old_Columns = Columns;
 
-    (void)ui_get_shellsize();
-    check_shellsize();
-    if (old_Rows != Rows || old_Columns != Columns)
-	shell_resized();
+    if (!exiting)
+    {
+	(void)ui_get_shellsize();
+	check_shellsize();
+	if (old_Rows != Rows || old_Columns != Columns)
+	    shell_resized();
+    }
 }
 
 /*
@@ -3828,6 +3762,7 @@ set_mouse_topline(wp)
  * Check from typebuf.tb_buf[typebuf.tb_off] to typebuf.tb_buf[typebuf.tb_off
  * + max_offset].
  * Return 0 for no match, -1 for partial match, > 0 for full match.
+ * Return KEYLEN_REMOVED when a key code was deleted.
  * With a match, the match is removed, the replacement code is inserted in
  * typebuf.tb_buf[] and the number of characters in typebuf.tb_buf[] is
  * returned.
@@ -3845,6 +3780,7 @@ check_termcode(max_offset, buf, buflen)
     int		slen = 0;	/* init for GCC */
     int		modslen;
     int		len;
+    int		retval = 0;
     int		offset;
     char_u	key_name[2];
     int		modifiers;
@@ -4940,6 +4876,13 @@ check_termcode(max_offset, buf, buflen)
 #endif
 		string[new_slen++] = key_name[1];
 	}
+	else if (new_slen == 0 && key_name[0] == KS_EXTRA
+						  && key_name[1] == KE_IGNORE)
+	{
+	    /* Do not put K_IGNORE into the buffer, do return KEYLEN_REMOVED
+	     * to indicate what happened. */
+	    retval = KEYLEN_REMOVED;
+	}
 	else
 	{
 	    string[new_slen++] = K_SPECIAL;
@@ -4976,7 +4919,7 @@ check_termcode(max_offset, buf, buflen)
 						   (size_t)(buflen - offset));
 	    mch_memmove(buf + offset, string, (size_t)new_slen);
 	}
-	return (len + extra + offset);
+	return retval == 0 ? (len + extra + offset) : retval;
     }
 
     return 0;			    /* no match found */

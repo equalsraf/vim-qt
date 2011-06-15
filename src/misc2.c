@@ -200,7 +200,6 @@ coladvance2(pos, addspaces, finetune, wcol)
 	}
 #endif
 
-	idx = -1;
 	ptr = line;
 	while (col <= wcol && *ptr != NUL)
 	{
@@ -1223,7 +1222,7 @@ free_all_mem()
 #endif
 
 /*
- * copy a string into newly allocated memory
+ * Copy "string" into newly allocated memory.
  */
     char_u *
 vim_strsave(string)
@@ -1239,6 +1238,12 @@ vim_strsave(string)
     return p;
 }
 
+/*
+ * Copy up to "len" bytes of "string" into newly allocated memory and
+ * terminate with a NUL.
+ * The allocated memory always has size "len + 1", also when "string" is
+ * shorter.
+ */
     char_u *
 vim_strnsave(string, len)
     char_u	*string;
@@ -1639,6 +1644,28 @@ vim_strncpy(to, from, len)
 {
     STRNCPY(to, from, len);
     to[len] = NUL;
+}
+
+/*
+ * Like strcat(), but make sure the result fits in "tosize" bytes and is
+ * always NUL terminated.
+ */
+    void
+vim_strcat(to, from, tosize)
+    char_u	*to;
+    char_u	*from;
+    size_t	tosize;
+{
+    size_t tolen = STRLEN(to);
+    size_t fromlen = STRLEN(from);
+
+    if (tolen + fromlen + 1 > tosize)
+    {
+	mch_memmove(to + tolen, from, tosize - tolen - 1);
+	to[tosize - 1] = NUL;
+    }
+    else
+	STRCPY(to + tolen, from);
 }
 
 /*

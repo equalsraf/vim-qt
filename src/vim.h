@@ -27,6 +27,11 @@
 # endif
 #endif
 
+#if defined(MSDOS) || defined(WIN16) || defined(WIN32) || defined(_WIN64) \
+	|| defined(__EMX__)
+# include "vimio.h"
+#endif
+
 /* ============ the header file puzzle (ca. 50-100 pieces) ========= */
 
 #ifdef HAVE_CONFIG_H	/* GNU autoconf (or something else) was here */
@@ -116,6 +121,7 @@
     || defined(FEAT_GUI_W32) \
     || defined(FEAT_GUI_W16) \
     || defined(FEAT_GUI_PHOTON)
+# define FEAT_GUI_ENABLED  /* also defined with NO_X11_INCLUDES */
 # if !defined(FEAT_GUI) && !defined(NO_X11_INCLUDES)
 #  define FEAT_GUI
 # endif
@@ -179,9 +185,6 @@
 #  define SIZEOF_INT 2
 # endif
 #endif
-#ifdef RISCOS
-# define SIZEOF_INT 4
-#endif
 
 
 #include "feature.h"	/* #defines for optionals and features */
@@ -192,8 +195,8 @@
 #endif
 
 #ifdef NO_X11_INCLUDES
-    /* In os_mac_conv.c NO_X11_INCLUDES is defined to avoid X11 headers.
-     * Disable all X11 related things to avoid conflicts. */
+    /* In os_mac_conv.c and os_macosx.m NO_X11_INCLUDES is defined to avoid
+     * X11 headers.  Disable all X11 related things to avoid conflicts. */
 # ifdef FEAT_X11
 #  undef FEAT_X11
 # endif
@@ -335,10 +338,6 @@
 # include "os_mac.h"
 #endif
 
-#ifdef RISCOS
-# include "os_riscos.h"
-#endif
-
 #ifdef __QNX__
 # include "os_qnx.h"
 #endif
@@ -473,6 +472,11 @@ typedef unsigned long u8char_T;	    /* long should be 32 bits or more */
 #endif
 #if defined(MSDOS) || defined(MSWIN)
 # include <sys/stat.h>
+#endif
+
+#if defined(HAVE_ERRNO_H) || defined(DJGPP) || defined(WIN16) \
+	|| defined(WIN32) || defined(_WIN64) || defined(__EMX__)
+# include <errno.h>
 #endif
 
 /*
@@ -776,6 +780,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EXPAND_FILETYPE		37
 #define EXPAND_FILES_IN_PATH	38
 #define EXPAND_OWNSYNTAX	39
+#define EXPAND_LOCALES		40
 
 /* Values for exmode_active (0 is no exmode) */
 #define EXMODE_NORMAL		1
@@ -798,6 +803,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define WILD_KEEP_ALL		32
 #define WILD_SILENT		64
 #define WILD_ESCAPE		128
+#define WILD_ICASE		256
 
 /* Flags for expand_wildcards() */
 #define EW_DIR		0x01	/* include directory names */
@@ -808,6 +814,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EW_SILENT	0x20	/* don't print "1 returned" from shell */
 #define EW_EXEC		0x40	/* executable files */
 #define EW_PATH		0x80	/* search in 'path' too */
+#define EW_ICASE	0x100	/* ignore case */
 /* Note: mostly EW_NOTFOUND and EW_SILENT are mutually exclusive: EW_NOTFOUND
  * is used when executing commands and EW_SILENT for interactive expanding. */
 
@@ -1269,6 +1276,7 @@ enum auto_event
     EVENT_WINENTER,		/* after entering a window */
     EVENT_WINLEAVE,		/* before leaving a window */
     EVENT_ENCODINGCHANGED,	/* after changing the 'encoding' option */
+    EVENT_INSERTCHARPRE,	/* before inserting a char */
     EVENT_CURSORHOLD,		/* cursor in same position for a while */
     EVENT_CURSORHOLDI,		/* idem, in Insert mode */
     EVENT_FUNCUNDEFINED,	/* if calling a function which doesn't exist */
@@ -1422,6 +1430,8 @@ typedef UINT32_TYPEDEF UINT32_T;
 #define LSIZE	    512		/* max. size of a line in the tags file */
 
 #define IOSIZE	   (1024+1)	/* file i/o and sprintf buffer size */
+
+#define DIALOG_MSG_SIZE 1000	/* buffer size for dialog_msg() */
 
 #ifdef FEAT_MBYTE
 # define MSG_BUF_LEN 480	/* length of buffer for small messages */
@@ -1640,6 +1650,11 @@ int vim_memcmp __ARGS((void *, void *, size_t));
 # define USE_INPUT_BUF
 #endif
 
+#ifndef EINTR
+# define read_eintr(fd, buf, count) vim_read((fd), (buf), (count))
+# define write_eintr(fd, buf, count) vim_write((fd), (buf), (count))
+#endif
+
 #ifdef MSWIN
 /* On MS-Windows the third argument isn't size_t.  This matters for Win64,
  * where sizeof(size_t)==8, not 4 */
@@ -1842,7 +1857,8 @@ typedef int proftime_T;	    /* dummy for function prototypes */
 #define VV_OP		52
 #define VV_SEARCHFORWARD 53
 #define VV_OLDFILES	54
-#define VV_LEN		55	/* number of v: vars */
+#define VV_WINDOWID	55
+#define VV_LEN		56	/* number of v: vars */
 
 #ifdef FEAT_CLIPBOARD
 
@@ -2192,5 +2208,15 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 #define MSCR_UP		1
 #define MSCR_LEFT	-1
 #define MSCR_RIGHT	-2
+
+#define KEYLEN_PART_KEY -1	/* keylen value for incomplete key-code */
+#define KEYLEN_PART_MAP -2	/* keylen value for incomplete mapping */
+#define KEYLEN_REMOVED  9999	/* keylen value for removed sequence */
+
+/* Return values from win32_fileinfo(). */
+#define FILEINFO_OK	     0
+#define FILEINFO_ENC_FAIL    1	/* enc_to_utf16() failed */
+#define FILEINFO_READ_FAIL   2	/* CreateFile() failed */
+#define FILEINFO_INFO_FAIL   3	/* GetFileInformationByHandle() failed */
 
 #endif /* VIM__H */

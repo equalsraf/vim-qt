@@ -105,8 +105,18 @@ gui_start()
 
 #if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11)
     if (gui.in_use)
+    {
+# ifdef FEAT_EVAL
+	Window	x11_window;
+	Display	*x11_display;
+
+	if (gui_get_x11_windis(&x11_window, &x11_display) == OK)
+	    set_vim_var_nr(VV_WINDOWID, (long)x11_window);
+# endif
+
 	/* Display error messages in a dialog now. */
 	display_errors();
+    }
 #endif
 
 #if defined(MAY_FORK) && !defined(__QNXNTO__)
@@ -2146,7 +2156,7 @@ gui_outstr_nowrap(s, len, flags, fg, bg, back)
 
     if (highlight_mask & (HL_INVERSE | HL_STANDOUT))
     {
-#if defined(AMIGA) || defined(RISCOS)
+#if defined(AMIGA)
 	gui_mch_set_colors(bg_color, fg_color);
 #else
 	gui_mch_set_fg_color(bg_color);
@@ -2155,7 +2165,7 @@ gui_outstr_nowrap(s, len, flags, fg, bg, back)
     }
     else
     {
-#if defined(AMIGA) || defined(RISCOS)
+#if defined(AMIGA)
 	gui_mch_set_colors(fg_color, bg_color);
 #else
 	gui_mch_set_fg_color(fg_color);
@@ -2183,7 +2193,7 @@ gui_outstr_nowrap(s, len, flags, fg, bg, back)
     if (back != 0 && ((draw_flags & DRAW_BOLD) || (highlight_mask & HL_ITALIC)))
 	return FAIL;
 
-#if defined(RISCOS) || defined(FEAT_GUI_GTK)
+#if defined(FEAT_GUI_GTK)
     /* If there's no italic font, then fake it.
      * For GTK2, we don't need a different font for italic style. */
     if (hl_mask_todo & HL_ITALIC)
@@ -2352,7 +2362,7 @@ gui_outstr_nowrap(s, len, flags, fg, bg, back)
     if (draw_sign)
 	/* Draw the sign on top of the spaces. */
 	gui_mch_drawsign(gui.row, col, gui.highlight_mask);
-# if defined(FEAT_NETBEANS_INTG) && (defined(FEAT_GUI_MOTIF) \
+# if defined(FEAT_NETBEANS_INTG) && (defined(FEAT_GUI_X11) \
 	|| defined(FEAT_GUI_GTK) || defined(FEAT_GUI_W32))
     if (multi_sign)
 	netbeans_draw_multisign_indicator(gui.row);
@@ -2975,26 +2985,11 @@ button_set:
 	    did_clip = TRUE;
 	}
 	/* Allow the left button to start the selection */
-	else if (button ==
-# ifdef RISCOS
-		/* Only start a drag on a drag event. Otherwise
-		 * we don't get a release event. */
-		    MOUSE_DRAG
-# else
-		    MOUSE_LEFT
-# endif
-				)
+	else if (button == MOUSE_LEFT)
 	{
 	    clip_start_selection(X_2_COL(x), Y_2_ROW(y), repeated_click);
 	    did_clip = TRUE;
 	}
-# ifdef RISCOS
-	else if (button == MOUSE_LEFT)
-	{
-	    clip_clear_selection();
-	    did_clip = TRUE;
-	}
-# endif
 
 	/* Always allow pasting */
 	if (button != MOUSE_MIDDLE)
@@ -4893,7 +4888,7 @@ display_errors()
 		if (STRLEN(p) > 2000)
 		    STRCPY(p + 2000 - 14, "...(truncated)");
 		(void)do_dialog(VIM_ERROR, (char_u *)_("Error"),
-					      p, (char_u *)_("&Ok"), 1, NULL);
+				       p, (char_u *)_("&Ok"), 1, NULL, FALSE);
 		break;
 	    }
 	ga_clear(&error_ga);

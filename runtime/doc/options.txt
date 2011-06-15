@@ -1,4 +1,4 @@
-*options.txt*	For Vim version 7.3.  Last change: 2010 Aug 15
+*options.txt*	For Vim version 7.3.  Last change: 2011 May 17
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -149,6 +149,18 @@ example, if Alt-b produces <Esc>b, use this: >
 	:set <M-b>=^[b
 (the ^[ is a real <Esc> here, use CTRL-V <Esc> to enter it)
 The advantage over a mapping is that it works in all situations.
+
+You can define any key codes, e.g.: >
+	:set t_xy=^[foo;
+There is no warning for using a name that isn't recognized.  You can map these
+codes as you like: >
+	:map <t_xy> something
+<								*E846*
+When a key code is not set, it's like it does not exist.  Trying to get its
+value will result in an error: >
+	:set t_kb=
+	:set t_kb
+	E846: Key code not set: t_kb
 
 The t_xx options cannot be set from a |modeline| or in the |sandbox|, for
 security reasons.
@@ -361,6 +373,7 @@ Setting the filetype
 			settings and syntax files to be loaded.
 			{not in Vi}
 
+				*option-window* *optwin*
 :bro[wse] se[t]			*:set-browse* *:browse-set* *:opt* *:options*
 :opt[ions]		Open a window for viewing and setting all options.
 			Options are grouped by function.
@@ -802,7 +815,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	been set.
 
 							*'background'* *'bg'*
-'background' 'bg'	string	(default "dark" or "light")
+'background' 'bg'	string	(default "dark" or "light", see below)
 			global
 			{not in Vi}
 	When set to "dark", Vim will try to use colors that look good on a
@@ -836,6 +849,12 @@ A jump table for the options with a short description can be found at |Q_op|.
 	color).  To get around this, force the GUI window to be opened by
 	putting a ":gui" command in the .gvimrc file, before where the value
 	of 'background' is used (e.g., before ":syntax on").
+
+	For MS-DOS, Windows and OS/2 the default is "dark".
+	For other systems "dark" is used when 'term' is "linux",
+	"screen.linux", "cygwin" or "putty", or $COLORFGBG suggests a dark
+	background.  Otherwise the default is "light".
+
 	Normally this option would be set in the .vimrc file.  Possibly
 	depending on the terminal name.  Example: >
 		:if &term == "pcterm"
@@ -1434,6 +1453,15 @@ A jump table for the options with a short description can be found at |Q_op|.
 			explicitly accessed using the "* notation.  Also see
 			|gui-clipboard|.
 
+	unnamedplus	A variant of "unnamed" flag which uses the clipboard
+			register '+' (|quoteplus|) instead of register '*' for
+			all operations except yank.  Yank shall copy the text
+			into register '+' and also into '*' when "unnamed" is
+			included.
+			Only available with the |+X11| feature.
+			Availability can be checked with: >
+				if has('unnamedplus')
+<
 	autoselect	Works like the 'a' flag in 'guioptions': If present,
 			then whenever Visual mode is started, or the Visual
 			area extended, Vim tries to become the owner of the
@@ -1495,6 +1523,25 @@ A jump table for the options with a short description can be found at |Q_op|.
 			{not available when compiled without the |+vertsplit|
 			feature}
 	Number of screen lines to use for the command-line window. |cmdwin|
+
+						*'colorcolumn'* *'cc'*
+'colorcolumn' 'cc'	string	(default "")
+			local to window
+			{not in Vi}
+			{not available when compiled without the |+syntax|
+			feature}
+	'colorcolumn' is a comma separated list of screen columns that are
+	highlighted with ColorColumn |hl-ColorColumn|.  Useful to align
+	text.  Will make screen redrawing slower.
+	The screen column can be an absolute number, or a number preceded with
+	'+' or '-', which is added to or subtracted from 'textwidth'. >
+
+		:set cc=+1  " highlight column after 'textwidth'
+		:set cc=+1,+2,+3  " highlight three columns after 'textwidth'
+		:hi ColorColumn ctermbg=lightgrey guibg=lightgrey
+<
+	When 'textwidth' is zero then the items with '-' and '+' are not used.
+	A maximum of 256 columns are highlighted.
 
 						*'columns'* *'co'* *E594*
 'columns' 'co'		number	(default 80 or terminal width)
@@ -1680,7 +1727,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	with CTRL-X CTRL-U. |i_CTRL-X_CTRL-U|
 	See |complete-functions| for an explanation of how the function is
 	invoked and what it should return.
-
+	This option cannot be set from a |modeline| or in the |sandbox|, for
+	security reasons.
 
 						*'completeopt'* *'cot'*
 'completeopt' 'cot'	string	(default: "menu,preview")
@@ -2160,6 +2208,16 @@ A jump table for the options with a short description can be found at |Q_op|.
 			{not in Vi}
 	Specifies whether to use quickfix window to show cscope results.
 	See |cscopequickfix|.
+
+						*'cscoperelative'* *'csre'*
+'cscoperelative' 'csre' boolean (default off)
+			global
+			{not available when compiled without the |+cscope|
+			feature}
+			{not in Vi}
+	In the absence of a prefix (-P) for cscope. setting this option enables
+	to use the basename of cscope.out path as the prefix.
+	See |cscoperelative|.
 
 				*'cscopetag'* *'cst'* *'nocscopetag'* *'nocst'*
 'cscopetag' 'cst'	boolean (default off)
@@ -2817,19 +2875,23 @@ A jump table for the options with a short description can be found at |Q_op|.
 	  2. If a <NL> is found and 'fileformats' includes "unix", 'fileformat'
 	     is set to "unix".  Note that when a <NL> is found without a
 	     preceding <CR>, "unix" is preferred over "dos".
-	  3. If 'fileformats' includes "mac", 'fileformat' is set to "mac".
-	     This means that "mac" is only chosen when "unix" is not present,
-	     or when no <NL> is found in the file, and when "dos" is not
-	     present, or no <CR><NL> is present in the file.
-	     Also if "unix" was first chosen, but the first <CR> is before
-	     the first <NL> and there appears to be more <CR>'s than <NL>'s in
-	     the file, then 'fileformat' is set to "mac".
+	  3. If 'fileformat' has not yet been set, and if 'fileformats'
+	     includes "mac", 'fileformat' is set to "mac".
+	     This means that "mac" is only chosen when:
+	      "unix" is not present or no <NL> is found in the file, and
+	      "dos" is not present or no <CR><NL> is found in the file.
+	     Except: if "unix" was chosen, but there is a <CR> before
+	     the first <NL>, and there appear to be more <CR>s than <NL>s in
+	     the first few lines, "mac" is used.
 	  4. If 'fileformat' is still not set, the first name from
 	     'fileformats' is used.
 	  When reading a file into an existing buffer, the same is done, but
 	  this happens like 'fileformat' has been set appropriately for that
 	  file only, the option is not changed.
 	When 'binary' is set, the value of 'fileformats' is not used.
+
+	Note that when Vim starts up with an empty buffer this option is not
+	used.  Set 'fileformat' in your .vimrc instead.
 
 	For systems with a Dos-like <EOL> (<CR><NL>), when reading files that
 	are ":source"ed and for vimrc files, automatic <EOL> detection may be
@@ -3044,9 +3106,11 @@ A jump table for the options with a short description can be found at |Q_op|.
 			{not in Vi}
 			{not available when compiled without the |+folding|
 			feature}
-	Sets the minimum number of screen lines for a fold to be displayed
-	closed.  Also for manually closed folds.
-	Note that this only has an effect of what is displayed.  After using
+	Sets the number of screen lines above which a fold can be displayed
+	closed.  Also for manually closed folds.  With the default value of
+	one a fold can only be closed if it takes up two or more screen lines.
+	Set to zero to be able to close folds of just one screen line.
+	Note that this only has an effect on what is displayed.  After using
 	"zc" to close a fold, which is displayed open because it's smaller
 	than 'foldminlines', a following "zc" may close a containing fold.
 
@@ -3070,6 +3134,10 @@ A jump table for the options with a short description can be found at |Q_op|.
 	Specifies for which type of commands folds will be opened, if the
 	command moves the cursor into a closed fold.  It is a comma separated
 	list of items.
+	NOTE: When the command is part of a mapping this option is not used.
+	Add the |zv| command to the mapping to get the same effect.
+	(rationale: the mapping may want to control opening folds itself)
+
 		item		commands ~
 		all		any
 		block		"(", "{", "[[", "[{", etc.
@@ -3084,8 +3152,6 @@ A jump table for the options with a short description can be found at |Q_op|.
 				Also for |[s| and |]s|.
 		tag		jumping to a tag: ":ta", CTRL-T, etc.
 		undo		undo or redo: "u" and CTRL-R
-	When the command is part of a mapping this option is not used.  Add
-	the |zv| command to the mapping to get the same effect.
 	When a movement command is used for an operator (e.g., "dl" or "y%")
 	this option is not used.  This means the operator will include the
 	whole closed fold.
@@ -3186,7 +3252,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	the internal format mechanism.
 
 	The expression may be evaluated in the |sandbox|, see
-	|sandbox-option|.
+	|sandbox-option|.  That stops the option from working, since changing
+	the buffer text is not allowed.
 
 						*'fsync'* *'fs'*
 'fsync' 'fs'		boolean	(default on)
@@ -4047,7 +4114,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	It is used when a new line is created, for the |=| operator and
 	in Insert mode as specified with the 'indentkeys' option.
 	When this option is not empty, it overrules the 'cindent' and
-	'smartindent' indenting.
+	'smartindent' indenting.  When 'lisp' is set, this option is
+	overridden by the Lisp indentation algorithm.
 	When 'paste' is set this option is not used for indenting.
 	The expression is evaluated with |v:lnum| set to the line number for
 	which the indent is to be computed.  The cursor is also in this line
@@ -4270,6 +4338,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	"echo &key".  This is to avoid showing it to someone who shouldn't
 	know.  It also means you cannot see it yourself once you have set it,
 	be careful not to make a typing error!
+	You can use "&key" in an expression to detect whether encryption is
+	enabled.  When 'key' is set it returns "*****" (five stars).
 
 					*'keymap'* *'kmp'* *E544*
 'keymap' 'kmp'		string	(default "")
@@ -4600,25 +4670,6 @@ A jump table for the options with a short description can be found at |Q_op|.
 	    :set makeprg=latex\ \\\\nonstopmode\ \\\\input\\{$*}
 <	This option cannot be set from a |modeline| or in the |sandbox|, for
 	security reasons.
-
-						*'colorcolumn'* *'cc'*
-'colorcolumn' 'cc'	string	(default "")
-			local to window
-			{not in Vi}
-			{not available when compiled without the |+syntax|
-			feature}
-	'colorcolumn' is a comma separated list of screen columns that are
-	highlighted with ColorColumn |hl-ColorColumn|.  Useful to align
-	text.  Will make screen redrawing slower.
-	The screen column can be an absolute number, or a number preceded with
-	'+' or '-', which is added to or subtracted from 'textwidth'. >
-
-		:set cc=+1  " highlight column after 'textwidth'
-		:set cc=+1,+2,+3  " highlight three columns after 'textwidth'
-		:hi ColorColumn ctermbg=lightgrey guibg=lightgrey
-<
-	When 'textwidth' is zero then the items with '-' and '+' are not used.
-	A maximum of 256 columns are highlighted.
 
 						*'matchpairs'* *'mps'*
 'matchpairs' 'mps'	string	(default "(:),{:},[:]")
@@ -5873,9 +5924,10 @@ A jump table for the options with a short description can be found at |Q_op|.
 	For Unix the default it "| tee".  The stdout of the compiler is saved
 	in a file and echoed to the screen.  If the 'shell' option is "csh" or
 	"tcsh" after initializations, the default becomes "|& tee".  If the
-	'shell' option is "sh", "ksh", "zsh" or "bash" the default becomes
-	"2>&1| tee".  This means that stderr is also included.  Before using
-	the 'shell' option a path is removed, thus "/bin/sh" uses "sh".
+	'shell' option is "sh", "ksh", "mksh", "pdksh", "zsh" or "bash" the
+	default becomes "2>&1| tee".  This means that stderr is also included.
+	Before using the 'shell' option a path is removed, thus "/bin/sh" uses
+	"sh".
 	The initialization of this option is done after reading the ".vimrc"
 	and the other initializations, so that when the 'shell' option is set
 	there, the 'shellpipe' option changes automatically, unless it was
@@ -6228,8 +6280,9 @@ A jump table for the options with a short description can be found at |Q_op|.
 	Do smart autoindenting when starting a new line.  Works for C-like
 	programs, but can also be used for other languages.  'cindent' does
 	something like this, works better in most cases, but is more strict,
-	see |C-indenting|.  When 'cindent' is on, setting 'si' has no effect.
-	'indentexpr' is a more advanced alternative.
+	see |C-indenting|.  When 'cindent' is on or 'indentexpr' is set,
+	setting 'si' has no effect.  'indentexpr' is a more advanced
+	alternative.
 	Normally 'autoindent' should also be on when using 'smartindent'.
 	An indent is automatically inserted:
 	- After a line ending in '{'.
@@ -6467,7 +6520,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	where it was the last time the buffer was edited.
 	NOTE: This option is set when 'compatible' is set.
 
-			   *'statusline'* *'stl'* *E540* *E541* *E542*
+			   *'statusline'* *'stl'* *E540* *E542*
 'statusline' 'stl'	string	(default empty)
 			global or local to window |global-local|
 			{not in Vi}
@@ -6480,7 +6533,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	normal text.  Each status line item is of the form:
 	  %-0{minwid}.{maxwid}{item}
 	All fields except the {item} is optional.  A single percent sign can
-	be given as "%%".  Up to 80 items can be specified.
+	be given as "%%".  Up to 80 items can be specified.  *E541*
 
 	When the option starts with "%!" then it is used as an expression,
 	evaluated and the result is used as the option value.  Example: >
@@ -6533,7 +6586,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	k S   Value of "b:keymap_name" or 'keymap' when |:lmap| mappings are
 	      being used: "<keymap>"
 	n N   Buffer number.
-	b N   Value of byte under cursor.
+	b N   Value of character under cursor.
 	B N   As above, in hexadecimal.
 	o N   Byte number in file of byte under cursor, first byte is 1.
 	      Mnemonic: Offset from start of file (with one added)
@@ -7530,8 +7583,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	!	When included, save and restore global variables that start
 		with an uppercase letter, and don't contain a lowercase
 		letter.  Thus "KEEPTHIS and "K_L_M" are stored, but "KeepThis"
-		and "_K_L_M" are not.  Only String and Number types are
-		stored.
+		and "_K_L_M" are not.  Nested List and Dict items may not be
+		read back correctly, you end up with an empty item.
 	"	Maximum number of lines saved for each register.  Old name of
 		the '<' item, with the disadvantage that you need to put a
 		backslash before the ", otherwise it will be recognized as the
@@ -7746,6 +7799,17 @@ A jump table for the options with a short description can be found at |Q_op|.
 <	The use of |:set+=| and |:set-=| is preferred when adding or removing
 	a pattern from the list.  This avoids problems when a future version
 	uses another default.
+
+
+			*'wildignorecase'* *'wic'* *'nowildignorecase'* *'nowic'*
+'wildignorecase' 'wic'	boolean	(default off)
+			global
+			{not in Vi}
+	When set case is ignored when completing file names and directories.
+	Has no effect on systems where file name case is generally ignored.
+	Does not apply when the shell is used to expand wildcards, which
+	happens when there are special characters.
+
 
 				*'wildmenu'* *'wmnu'* *'nowildmenu'* *'nowmnu'*
 'wildmenu' 'wmnu'	boolean	(default off)

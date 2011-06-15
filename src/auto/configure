@@ -593,6 +593,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+LINK_AS_NEEDED
 DEPEND_CFLAGS_FILTER
 MAKEMO
 MSGFMT
@@ -1427,7 +1428,7 @@ Optional Features:
   --enable-pythoninterp=OPTS   Include Python interpreter. default=no OPTS=no/yes/dynamic
   --enable-python3interp=OPTS   Include Python3 interpreter. default=no OPTS=no/yes/dynamic
   --enable-tclinterp      Include Tcl interpreter.
-  --enable-rubyinterp     Include Ruby interpreter.
+  --enable-rubyinterp=OPTS     Include Ruby interpreter.  default=no OPTS=no/yes/dynamic
   --enable-cscope         Include cscope interface.
   --enable-workshop       Include Sun Visual Workshop support.
   --disable-netbeans      Disable NetBeans integration support.
@@ -4862,16 +4863,36 @@ $as_echo "yes" >&6; }
       else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if scheme.h can be found in /usr/include/plt/" >&5
-$as_echo_n "checking if scheme.h can be found in /usr/include/plt/... " >&6; }
-	if test -f /usr/include/plt/scheme.h; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if scheme.h can be found in $vi_cv_path_mzscheme_pfx/include/racket" >&5
+$as_echo_n "checking if scheme.h can be found in $vi_cv_path_mzscheme_pfx/include/racket... " >&6; }
+	if test -f $vi_cv_path_mzscheme_pfx/include/racket/scheme.h; then
 	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-	  SCHEME_INC=/usr/include/plt
+	  SCHEME_INC=${vi_cv_path_mzscheme_pfx}/include/racket
 	else
 	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	  vi_cv_path_mzscheme_pfx=
+	  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if scheme.h can be found in /usr/include/plt/" >&5
+$as_echo_n "checking if scheme.h can be found in /usr/include/plt/... " >&6; }
+	  if test -f /usr/include/plt/scheme.h; then
+	    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	    SCHEME_INC=/usr/include/plt
+	  else
+	    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if scheme.h can be found in /usr/include/racket/" >&5
+$as_echo_n "checking if scheme.h can be found in /usr/include/racket/... " >&6; }
+	    if test -f /usr/include/racket/scheme.h; then
+	      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	      SCHEME_INC=/usr/include/racket
+	    else
+	      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	      vi_cv_path_mzscheme_pfx=
+	    fi
+	  fi
 	fi
       fi
     fi
@@ -4883,12 +4904,22 @@ $as_echo "no" >&6; }
     elif test -f "${vi_cv_path_mzscheme_pfx}/lib/libmzscheme3m.a"; then
       MZSCHEME_LIBS="${vi_cv_path_mzscheme_pfx}/lib/libmzscheme3m.a"
       MZSCHEME_CFLAGS="-DMZ_PRECISE_GC"
-    elif test -f "${vi_cv_path_mzscheme_pfx}/lib/libmzgc.a"; then
+    elif test -f "${vi_cv_path_mzscheme_pfx}/lib/libracket3m.a"; then
+      MZSCHEME_LIBS="${vi_cv_path_mzscheme_pfx}/lib/libracket3m.a"
+      MZSCHEME_CFLAGS="-DMZ_PRECISE_GC"
+    elif test -f "${vi_cv_path_mzscheme_pfx}/lib/libracket.a"; then
+      MZSCHEME_LIBS="${vi_cv_path_mzscheme_pfx}/lib/libracket.a ${vi_cv_path_mzscheme_pfx}/lib/libmzgc.a"
+    elif test -f "${vi_cv_path_mzscheme_pfx}/lib/libmzscheme.a"; then
       MZSCHEME_LIBS="${vi_cv_path_mzscheme_pfx}/lib/libmzscheme.a ${vi_cv_path_mzscheme_pfx}/lib/libmzgc.a"
     else
             if test -f "${vi_cv_path_mzscheme_pfx}/lib/libmzscheme3m.so"; then
         MZSCHEME_LIBS="-L${vi_cv_path_mzscheme_pfx}/lib -lmzscheme3m"
 	MZSCHEME_CFLAGS="-DMZ_PRECISE_GC"
+      elif test -f "${vi_cv_path_mzscheme_pfx}/lib/libracket3m.so"; then
+        MZSCHEME_LIBS="-L${vi_cv_path_mzscheme_pfx}/lib -lracket3m"
+	MZSCHEME_CFLAGS="-DMZ_PRECISE_GC"
+      elif test -f "${vi_cv_path_mzscheme_pfx}/lib/libracket.so"; then
+        MZSCHEME_LIBS="-L${vi_cv_path_mzscheme_pfx}/lib -lracket -lmzgc"
       else
         MZSCHEME_LIBS="-L${vi_cv_path_mzscheme_pfx}/lib -lmzscheme -lmzgc"
       fi
@@ -4901,10 +4932,20 @@ $as_echo "no" >&6; }
     fi
     if test -d $vi_cv_path_mzscheme_pfx/lib/plt/collects; then
       SCHEME_COLLECTS=lib/plt/
+    else
+      if test -d $vi_cv_path_mzscheme_pfx/lib/racket/collects; then
+	SCHEME_COLLECTS=lib/racket/
+      fi
     fi
     if test -f "${vi_cv_path_mzscheme_pfx}/${SCHEME_COLLECTS}collects/scheme/base.ss" ; then
-            MZSCHEME_EXTRA="mzscheme_base.c"
-      MZSCHEME_CFLAGS="${MZSCHEME_CFLAGS} -DINCLUDE_MZSCHEME_BASE"
+      MZSCHEME_EXTRA="mzscheme_base.c"
+    else
+      if test -f "${vi_cv_path_mzscheme_pfx}/${SCHEME_COLLECTS}collects/scheme/base.rkt" ; then
+	MZSCHEME_EXTRA="mzscheme_base.c"
+      fi
+    fi
+    if test "X$MZSCHEME_EXTRA" != "X" ; then
+            MZSCHEME_CFLAGS="${MZSCHEME_CFLAGS} -DINCLUDE_MZSCHEME_BASE"
       MZSCHEME_MZC="${vi_cv_path_mzscheme_pfx}/bin/mzc"
     fi
     MZSCHEME_CFLAGS="${MZSCHEME_CFLAGS} -I${SCHEME_INC} \
@@ -5285,9 +5326,9 @@ fi
 
 	PYTHON_LIBS="${vi_cv_path_python_plibs}"
 	if test "${vi_cv_path_python_pfx}" = "${vi_cv_path_python_epfx}"; then
-	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version}"
+	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME=\\\"${vi_cv_path_python_pfx}\\\""
 	else
-	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -I${vi_cv_path_python_epfx}/include/python${vi_cv_var_python_version}"
+	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -I${vi_cv_path_python_epfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME=\\\"${vi_cv_path_python_pfx}\\\""
 	fi
 	PYTHON_SRC="if_python.c"
 		if test "x$MACOSX" = "xyes"; then
@@ -5298,7 +5339,7 @@ fi
 	if test "${vi_cv_var_python_version}" = "1.4"; then
 	   PYTHON_OBJ="$PYTHON_OBJ objects/py_getpath.o"
 	fi
-	PYTHON_GETPATH_CFLAGS="-DPYTHONPATH='\"${vi_cv_path_pythonpath}\"' -DPREFIX='\"${vi_cv_path_python_pfx}\"' -DEXEC_PREFIX='\"${vi_cv_path_python_epfx}\"'"
+    PYTHON_GETPATH_CFLAGS="-DPYTHONPATH='\"${vi_cv_path_pythonpath}\"' -DPREFIX='\"${vi_cv_path_python_pfx}\"' -DEXEC_PREFIX='\"${vi_cv_path_python_epfx}\"'"
 
 								{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if -pthread should be used" >&5
 $as_echo_n "checking if -pthread should be used... " >&6; }
@@ -5464,6 +5505,23 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_var_python3_version" >&5
 $as_echo "$vi_cv_var_python3_version" >&6; }
 
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking Python's abiflags" >&5
+$as_echo_n "checking Python's abiflags... " >&6; }
+if test "${vi_cv_var_python3_abiflags+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+
+     vi_cv_var_python3_abiflags=
+     if ${vi_cv_path_python3} -c \
+         "import sys; sys.exit(${vi_cv_var_python3_version} < 3.2)"
+     then
+       vi_cv_var_python3_abiflags=`${vi_cv_path_python3} -c \
+         "import sys; print(sys.abiflags)"`
+     fi
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_var_python3_abiflags" >&5
+$as_echo "$vi_cv_var_python3_abiflags" >&6; }
+
         { $as_echo "$as_me:${as_lineno-$LINENO}: checking Python's install prefix" >&5
 $as_echo_n "checking Python's install prefix... " >&6; }
 if test "${vi_cv_path_python3_pfx+set}" = set; then :
@@ -5514,9 +5572,13 @@ if test "${vi_cv_path_python3_conf+set}" = set; then :
 else
 
      vi_cv_path_python3_conf=
+     config_dir="config"
+     if test "${vi_cv_var_python3_abiflags}" != ""; then
+       config_dir="${config_dir}-${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags}"
+     fi
      for path in "${vi_cv_path_python3_pfx}" "${vi_cv_path_python3_epfx}"; do
        for subdir in lib64 lib share; do
-         d="${path}/${subdir}/python${vi_cv_var_python3_version}/config"
+         d="${path}/${subdir}/python${vi_cv_var_python3_version}/${config_dir}"
          if test -d "$d" && test -f "$d/config.c"; then
            vi_cv_path_python3_conf="$d"
          fi
@@ -5545,13 +5607,12 @@ __:
 	@echo "python3_BASEMODLIBS='$(BASEMODLIBS)'"
 	@echo "python3_LIBS='$(LIBS)'"
 	@echo "python3_SYSLIBS='$(SYSLIBS)'"
-	@echo "python3_LINKFORSHARED='$(LINKFORSHARED)'"
 	@echo "python3_INSTSONAME='$(INSTSONAME)'"
 eof
                     eval "`cd ${PYTHON3_CONFDIR} && make -f "${tmp_mkf}" __ | sed '/ directory /d'`"
           rm -f -- "${tmp_mkf}"
           vi_cv_path_python3_plibs="-L${PYTHON3_CONFDIR} -lpython${vi_cv_var_python3_version}"
-          vi_cv_path_python3_plibs="${vi_cv_path_python3_plibs} ${python3_BASEMODLIBS} ${python3_LIBS} ${python3_SYSLIBS} ${python3_LINKFORSHARED}"
+          vi_cv_path_python3_plibs="${vi_cv_path_python3_plibs} ${python3_BASEMODLIBS} ${python3_LIBS} ${python3_SYSLIBS}"
                     vi_cv_path_python3_plibs=`echo $vi_cv_path_python3_plibs | sed s/-ltermcap//`
           vi_cv_path_python3_plibs=`echo $vi_cv_path_python3_plibs | sed s/-lffi//`
 
@@ -5560,9 +5621,9 @@ fi
 
       PYTHON3_LIBS="${vi_cv_path_python3_plibs}"
       if test "${vi_cv_path_python3_pfx}" = "${vi_cv_path_python3_epfx}"; then
-        PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}"
+        PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME=L\\\"${vi_cv_path_python3_pfx}\\\""
       else
-        PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version} -I${vi_cv_path_python3_epfx}/include/python${vi_cv_var_python3_version}"
+        PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -I${vi_cv_path_python3_epfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME=L\\\"${vi_cv_path_python3_pfx}\\\""
       fi
       PYTHON3_SRC="if_python3.c"
             if test "x$MACOSX" = "xyes"; then
@@ -5667,10 +5728,10 @@ if test "$python_ok" = yes && test "$python3_ok" = yes; then
 
   $as_echo "#define DYNAMIC_PYTHON3 1" >>confdefs.h
 
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we can do without RTLD_GLOBAL" >&5
-$as_echo_n "checking whether we can do without RTLD_GLOBAL... " >&6; }
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we can do without RTLD_GLOBAL for Python" >&5
+$as_echo_n "checking whether we can do without RTLD_GLOBAL for Python... " >&6; }
   cflags_save=$CFLAGS
-  CFLAGS="$CFLAGS $PYTHON3_CFLAGS"
+  CFLAGS="$CFLAGS $PYTHON_CFLAGS"
   ldflags_save=$LDFLAGS
   LDFLAGS="$LDFLAGS -ldl"
   if test "$cross_compiling" = yes; then :
@@ -5689,15 +5750,17 @@ else
      * Only the first pyhton version used will be switched on.
      */
 
-    int no_rtl_global_needed_for(char *python_instsoname)
+    int no_rtl_global_needed_for(char *python_instsoname, char *prefix)
     {
       int needed = 0;
       void* pylib = dlopen(python_instsoname, RTLD_LAZY);
       if (pylib != 0)
       {
+          void (*pfx)(char *home) = dlsym(pylib, "Py_SetPythonHome");
           void (*init)(void) = dlsym(pylib, "Py_Initialize");
           int (*simple)(char*) = dlsym(pylib, "PyRun_SimpleString");
           void (*final)(void) = dlsym(pylib, "Py_Finalize");
+          (*pfx)(prefix);
           (*init)();
           needed = (*simple)("import termios") == -1;
           (*final)();
@@ -5709,7 +5772,7 @@ else
     int main(int argc, char** argv)
     {
       int not_needed = 0;
-      if (no_rtl_global_needed_for("libpython2.7.so.1.0") && no_rtl_global_needed_for("libpython3.1.so.1.0"))
+      if (no_rtl_global_needed_for("${python_INSTSONAME}", "${vi_cv_path_python_pfx}"))
             not_needed = 1;
       return !not_needed;
     }
@@ -5726,8 +5789,76 @@ rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
   conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
+
   CFLAGS=$cflags_save
   LDFLAGS=$ldflags_save
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we can do without RTLD_GLOBAL for Python3" >&5
+$as_echo_n "checking whether we can do without RTLD_GLOBAL for Python3... " >&6; }
+  cflags_save=$CFLAGS
+  CFLAGS="$CFLAGS $PYTHON3_CFLAGS"
+  ldflags_save=$LDFLAGS
+  LDFLAGS="$LDFLAGS -ldl"
+  if test "$cross_compiling" = yes; then :
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error "cannot run test program while cross compiling
+See \`config.log' for more details." "$LINENO" 5; }
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <dlfcn.h>
+    #include <wchar.h>
+    /* If this program fails, then RTLD_GLOBAL is needed.
+     * RTLD_GLOBAL will be used and then it is not possible to
+     * have both python versions enabled in the same vim instance.
+     * Only the first pyhton version used will be switched on.
+     */
+
+    int no_rtl_global_needed_for(char *python_instsoname, wchar_t *prefix)
+    {
+      int needed = 0;
+      void* pylib = dlopen(python_instsoname, RTLD_LAZY);
+      if (pylib != 0)
+      {
+          void (*pfx)(wchar_t *home) = dlsym(pylib, "Py_SetPythonHome");
+          void (*init)(void) = dlsym(pylib, "Py_Initialize");
+          int (*simple)(char*) = dlsym(pylib, "PyRun_SimpleString");
+          void (*final)(void) = dlsym(pylib, "Py_Finalize");
+          (*pfx)(prefix);
+          (*init)();
+          needed = (*simple)("import termios") == -1;
+          (*final)();
+          dlclose(pylib);
+      }
+      return !needed;
+    }
+
+    int main(int argc, char** argv)
+    {
+      int not_needed = 0;
+      if (no_rtl_global_needed_for("${python3_INSTSONAME}", L"${vi_cv_path_python3_pfx}"))
+            not_needed = 1;
+      return !not_needed;
+    }
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; };$as_echo "#define PY3_NO_RTLD_GLOBAL 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
+  CFLAGS=$cflags_save
+  LDFLAGS=$ldflags_save
+
   PYTHON_SRC="if_python.c"
   PYTHON_OBJ="objects/if_python.o"
   PYTHON_CFLAGS="$PYTHON_CFLAGS -DDYNAMIC_PYTHON_DLL=\\\"${python_INSTSONAME}\\\""
@@ -6103,19 +6234,19 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_rubyinterp" >&5
 $as_echo "$enable_rubyinterp" >&6; }
-if test "$enable_rubyinterp" = "yes"; then
+if test "$enable_rubyinterp" = "yes" -o "$enable_rubyinterp" = "dynamic"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking --with-ruby-command argument" >&5
 $as_echo_n "checking --with-ruby-command argument... " >&6; }
 
+
 # Check whether --with-ruby-command was given.
 if test "${with_ruby_command+set}" = set; then :
-  withval=$with_ruby_command; RUBY_CMD="$withval"; { $as_echo "$as_me:${as_lineno-$LINENO}: result: $RUBY_CMD" >&5
+  withval=$with_ruby_command; RUBY_CMD="$withval"; vi_cv_path_ruby="$withval"; { $as_echo "$as_me:${as_lineno-$LINENO}: result: $RUBY_CMD" >&5
 $as_echo "$RUBY_CMD" >&6; }
 else
   RUBY_CMD="ruby"; { $as_echo "$as_me:${as_lineno-$LINENO}: result: defaulting to $RUBY_CMD" >&5
 $as_echo "defaulting to $RUBY_CMD" >&6; }
 fi
-
 
   # Extract the first word of "$RUBY_CMD", so it can be a program name with args.
 set dummy $RUBY_CMD; ac_word=$2
@@ -6181,17 +6312,14 @@ $as_echo "$rubyhdrdir" >&6; }
 	  RUBY_LIBS="$rubylibs"
 	fi
 	librubyarg=`$vi_cv_path_ruby -r rbconfig -e 'print Config.expand(Config::CONFIG["LIBRUBYARG"])'`
-	if test -f "$rubyhdrdir/$librubyarg"; then
-	  librubyarg="$rubyhdrdir/$librubyarg"
-	else
-	  rubylibdir=`$vi_cv_path_ruby -r rbconfig -e 'print Config.expand(Config::CONFIG["libdir"])'`
-	  if test -f "$rubylibdir/$librubyarg"; then
-	    librubyarg="$rubylibdir/$librubyarg"
-	  elif test "$librubyarg" = "libruby.a"; then
-	    	    librubyarg="-lruby"
-	  else
-	    librubyarg=`$vi_cv_path_ruby -r rbconfig -e "print '$librubyarg'.gsub(/-L\./, %'-L#{Config.expand(Config::CONFIG[\"libdir\"])}')"`
-	  fi
+	librubya=`$vi_cv_path_ruby -r rbconfig -e 'print Config.expand(Config::CONFIG["LIBRUBY_A"])'`
+  rubylibdir=`$vi_cv_path_ruby -r rbconfig -e 'print Config.expand(Config::CONFIG["libdir"])'`
+	if test -f "$rubylibdir/$librubya"; then
+	  librubyarg="$librubyarg"
+    RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+  elif test "$librubyarg" = "libruby.a"; then
+        librubyarg="-lruby"
+    RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
 	fi
 
 	if test "X$librubyarg" != "X"; then
@@ -6209,6 +6337,13 @@ $as_echo "$rubyhdrdir" >&6; }
 	RUBY_PRO="if_ruby.pro"
 	$as_echo "#define FEAT_RUBY 1" >>confdefs.h
 
+	if test "$enable_rubyinterp" = "dynamic"; then
+	  libruby=`$vi_cv_path_ruby -r rbconfig -e 'printf "lib%s.%s\n", Config::CONFIG["RUBY_SO_NAME"], Config::CONFIG["DLEXT"]'`
+	  $as_echo "#define DYNAMIC_RUBY 1" >>confdefs.h
+
+	  RUBY_CFLAGS="-DDYNAMIC_RUBY_DLL=\\\"$libruby\\\" -DDYNAMIC_RUBY_VER=$rubyversion $RUBY_CFLAGS"
+	  RUBY_LIBS=
+	fi
       else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: not found; disabling Ruby" >&5
 $as_echo "not found; disabling Ruby" >&6; }
@@ -9768,9 +9903,9 @@ rm -f core conftest.err conftest.$ac_objext \
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: empty: automatic terminal library selection" >&5
 $as_echo "empty: automatic terminal library selection" >&6; }
-              case "`uname -s 2>/dev/null`" in
-	OSF1|SCO_SV)	tlibs="ncurses curses termlib termcap";;
-	*)	tlibs="ncurses termlib termcap curses";;
+                case "`uname -s 2>/dev/null`" in
+	OSF1|SCO_SV)	tlibs="tinfo ncurses curses termlib termcap";;
+	*)	tlibs="tinfo ncurses termlib termcap curses";;
   esac
   for libname in $tlibs; do
     as_ac_Lib=`$as_echo "ac_cv_lib_${libname}''_tgetent" | $as_tr_sh`
@@ -11915,6 +12050,10 @@ $as_echo_n "checking how to create tags... " >&6; }
 test -f tags && mv tags tags.save
 if (eval ctags --version /dev/null | grep Exuberant) < /dev/null 1>&5 2>&1; then
   TAGPRG="ctags -I INIT+ --fields=+S"
+elif (eval exctags --version /dev/null | grep Exuberant) < /dev/null 1>&5 2>&1; then
+  TAGPRG="exctags -I INIT+ --fields=+S"
+elif (eval exuberant-ctags --version /dev/null | grep Exuberant) < /dev/null 1>&5 2>&1; then
+  TAGPRG="exuberant-ctags -I INIT+ --fields=+S"
 else
   TAGPRG="ctags"
   (eval etags	   /dev/null) < /dev/null 1>&5 2>&1 && TAGPRG="etags"
@@ -12354,6 +12493,23 @@ $as_echo "yes" >&6; }
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
   fi
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking linker --as-needed support" >&5
+$as_echo_n "checking linker --as-needed support... " >&6; }
+LINK_AS_NEEDED=
+# Check if linker supports --as-needed and --no-as-needed options
+if $CC -Wl,--help 2>/dev/null | grep as-needed > /dev/null; then
+  LDFLAGS="$LDFLAGS -Wl,--as-needed"
+  LINK_AS_NEEDED=yes
+fi
+if test "$LINK_AS_NEEDED" = yes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 fi
 
 

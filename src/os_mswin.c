@@ -22,7 +22,6 @@
 # endif
 #endif
 
-#include "vimio.h"
 #include "vim.h"
 
 #ifdef WIN16
@@ -31,7 +30,6 @@
 # include <string.h>
 #endif
 #include <sys/types.h>
-#include <errno.h>
 #include <signal.h>
 #include <limits.h>
 #include <process.h>
@@ -595,7 +593,7 @@ display_errors()
 				     gui.starting ? (char_u *)_("Message") :
 #endif
 					     (char_u *)_("Error"),
-				     p, (char_u *)_("&Ok"), 1, NULL);
+				     p, (char_u *)_("&Ok"), 1, NULL, FALSE);
 		break;
 	    }
 	ga_clear(&error_ga);
@@ -817,7 +815,11 @@ mch_libcall(
     BOOL fRunTimeLinkSuccess = FALSE;
 
     // Get a handle to the DLL module.
+# ifdef WIN16
     hinstLib = LoadLibrary(libname);
+# else
+    hinstLib = vimLoadLib(libname);
+# endif
 
     // If the handle is valid, try to get the function address.
     if (hinstLib != NULL)

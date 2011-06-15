@@ -1161,12 +1161,20 @@ do_search(oap, dirc, pat, count, options, tm)
 	{
 	    if (spats[RE_SEARCH].pat == NULL)	    /* no previous pattern */
 	    {
-		EMSG(_(e_noprevre));
-		retval = 0;
-		goto end_do_search;
+		pat = spats[RE_SUBST].pat;
+		if (pat == NULL)
+		{
+		    EMSG(_(e_noprevre));
+		    retval = 0;
+		    goto end_do_search;
+		}
+		searchstr = pat;
 	    }
-	    /* make search_regcomp() use spats[RE_SEARCH].pat */
-	    searchstr = (char_u *)"";
+	    else
+	    {
+		/* make search_regcomp() use spats[RE_SEARCH].pat */
+		searchstr = (char_u *)"";
+	    }
 	}
 
 	if (pat != NULL && *pat != NUL)	/* look for (new) offset */
@@ -4527,7 +4535,7 @@ linewhite(lnum)
 #if defined(FEAT_FIND_ID) || defined(PROTO)
 /*
  * Find identifiers or defines in included files.
- * if p_ic && (compl_cont_status & CONT_SOL) then ptr must be in lowercase.
+ * If p_ic && (compl_cont_status & CONT_SOL) then ptr must be in lowercase.
  */
     void
 find_pattern_in_path(ptr, dir, len, whole, skip_comments,
@@ -4573,9 +4581,6 @@ find_pattern_in_path(ptr, dir, len, whole, skip_comments,
     char_u	*already = NULL;
     char_u	*startp = NULL;
     char_u	*inc_opt = NULL;
-#ifdef RISCOS
-    int		previous_munging = __riscosify_control;
-#endif
 #if defined(FEAT_WINDOWS) && defined(FEAT_QUICKFIX)
     win_T	*curwin_save = NULL;
 #endif
@@ -4587,11 +4592,6 @@ find_pattern_in_path(ptr, dir, len, whole, skip_comments,
     file_line = alloc(LSIZE);
     if (file_line == NULL)
 	return;
-
-#ifdef RISCOS
-    /* UnixLib knows best how to munge c file names - turn munging back on. */
-    int __riscosify_control = 0;
-#endif
 
     if (type != CHECK_PATH && type != FIND_DEFINE
 #ifdef FEAT_INS_EXPAND
@@ -5075,9 +5075,7 @@ search_line:
 			if (win_split(0, 0) == FAIL)
 #endif
 			    break;
-#ifdef FEAT_SCROLLBIND
-			curwin->w_p_scb = FALSE;
-#endif
+			RESET_BINDING(curwin);
 		    }
 		    if (depth == -1)
 		    {
@@ -5222,11 +5220,6 @@ fpip_end:
     vim_free(regmatch.regprog);
     vim_free(incl_regmatch.regprog);
     vim_free(def_regmatch.regprog);
-
-#ifdef RISCOS
-   /* Restore previous file munging state. */
-    __riscosify_control = previous_munging;
-#endif
 }
 
     static void

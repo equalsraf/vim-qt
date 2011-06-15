@@ -1,4 +1,4 @@
-*syntax.txt*	For Vim version 7.3.  Last change: 2010 Aug 10
+*syntax.txt*	For Vim version 7.3.  Last change: 2011 May 06
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -390,10 +390,10 @@ Or use the ":TOhtml" user command.  It is defined in a standard plugin.
 
 	:10,40TOhtml
 
-Warning: This is slow! The script must process every character of every line.
-Because it is so slow, by default a progress bar is displayed in the
-statusline for each step that usually takes a long time. If you don't like
-seeing this progress bar, you can disable it and get a very minor speed
+Warning: This can be slow! The script must process every character of every
+line. Because it can take a long time, by default a progress bar is displayed
+in the statusline for each major step in the conversion process. If you don't
+like seeing this progress bar, you can disable it and get a very minor speed
 improvement with: >
 
 	let g:html_no_progress = 1
@@ -468,47 +468,107 @@ disabled javascript to view closed folds. To use this option, use: >
 Setting html_no_foldcolumn with html_dynamic_folds will automatically set
 html_hover_unfold, because otherwise the folds wouldn't be dynamic.
 
-By default "<pre>" and "</pre>" is used around the text.  This makes it show
-up as you see it in Vim, but without wrapping.	If you prefer wrapping, at the
-risk of making some things look a bit different, use: >
+By default "<pre>" and "</pre>" are used around the text. When 'wrap' is set
+in the window being converted, the CSS 2.0 "white-space:pre-wrap" value is
+used to wrap the text. You can explicitly enable the wrapping with: >
+   :let g:html_pre_wrap = 1
+or disable with >
+   :let g:html_pre_wrap = 0
+This generates HTML that looks very close to the Vim window, but unfortunately
+there can be minor differences such as the lack of a 'showbreak' option in in
+the HTML, or where line breaks can occur.
+
+Another way to obtain text wrapping in the HTML, at the risk of making some
+things look even more different, is to use: >
    :let g:html_no_pre = 1
 This will use <br> at the end of each line and use "&nbsp;" for repeated
-spaces.
+spaces. Doing it this way is more compatible with old browsers, but modern
+browsers support the "white-space" method.
 
-The current value of 'encoding' is used to specify the charset of the HTML
-file.  This only works for those values of 'encoding' that have an equivalent
-HTML charset name.  To overrule this set g:html_use_encoding to the name of
-the charset to be used: >
-   :let g:html_use_encoding = "foobar"
-To omit the line that specifies the charset, set g:html_use_encoding to an
-empty string: >
+If you do stick with the default "<pre>" tags, <Tab> characters in the text
+are included in the generated output if they will have no effect on the
+appearance of the text and it looks like they are in the document
+intentionally. This allows for the HTML output to be copied and pasted from a
+browser without losing the actual whitespace used in the document.
+
+Specifically, <Tab> characters will be included if the 'tabstop' option is set
+to the default of 8, 'expandtab' is not set, and if neither the foldcolumn nor
+the line numbers are included in the HTML output (see options above). When any
+of these conditions are not met, any <Tab> characters in the text are expanded
+to the appropriate number of spaces in the HTML output.
+
+When "<pre>" is included, you can force |:TOhtml| to keep the tabs even if the
+other conditions are not met with: >
+   :let g:html_expand_tabs = 0
+Note that this can easily break text alignment and indentation in the HTML.
+
+Force tabs to be expanded even when they would be kept using: >
+   :let g:html_expand_tabs = 1
+
+For diff mode on a single file (with g:html_diff_one_file) a sequence of more
+than 3 filler lines is displayed as three lines with the middle line
+mentioning the total number of inserted lines.  If you prefer to see all the
+inserted lines as with the side-by-side diff, use: >
+    :let g:html_whole_filler = 1
+And to go back to displaying up to three lines again: >
+    :unlet g:html_whole_filler
+
+For most buffers, TOhtml uses the current value of 'fileencoding' if set, or
+'encoding' if not, to determine the charset and 'fileencoding' of the HTML
+file. 'encoding' is always used for certain 'buftype' values. In general, this
+works for the encodings mentioned specifically by name in |encoding-names|,
+but TOhtml will only automatically use those encodings which are widely
+supported. However, you can override this to support specific encodings that
+may not be automatically detected by default.
+
+To overrule all automatic charset detection, set g:html_use_encoding to the
+name of the charset to be used. TOhtml will try to determine the appropriate
+'fileencoding' setting from the charset, but you may need to set it manually
+if TOhtml cannot determine the encoding. It is recommended to set this
+variable to something widely supported, like UTF-8, for anything you will be
+hosting on a webserver: >
+   :let g:html_use_encoding = "UTF-8"
+You can also use this option to omit the line that specifies the charset
+entirely, by setting g:html_use_encoding to an empty string: >
    :let g:html_use_encoding = ""
 To go back to the automatic mechanism, delete the g:html_use_encoding
 variable: >
    :unlet g:html_use_encoding
+
+If you specify a charset with g:html_use_encoding for which TOhtml cannot
+automatically detect the corresponding 'fileencoding' setting, you can use
+g:html_encoding_override to allow TOhtml to detect the correct encoding.
+This is a dictionary of charset-encoding pairs that will replace existing
+pairs automatically detected by TOhtml, or supplement with new pairs. For
+example, to allow TOhtml to detect the HTML charset "windows-1252" properly as
+the encoding "8bit-cp1252", use: >
+   :let g:html_encoding_override = {'windows-1252': '8bit-cp1252'}
 <
-For diff mode a sequence of more than 3 filler lines is displayed as three
-lines with the middle line mentioning the total number of inserted lines.  If
-you prefer to see all the inserted lines use: >
-    :let g:html_whole_filler = 1
-And to go back to displaying up to three lines again: >
-    :unlet g:html_whole_filler
-<
+The g:html_charset_override is similar, it allows TOhtml to detect the HTML
+charset for any 'fileencoding' or 'encoding' which is not detected
+automatically. You can also use it to override specific existing
+encoding-charset pairs. For example, TOhtml will by default use UTF-8 for all
+Unicode/UCS encodings. To use UTF-16 and UTF-32 instead, use: >
+   :let g:html_charset_override = {'ucs-4': 'UTF-32', 'utf-16': 'UTF-16'}
+
+Note that documents encoded in either UTF-32 or UTF-16 have known
+compatibility problems with at least one major browser.
+
 					    *convert-to-XML* *convert-to-XHTML*
-An alternative is to have the script generate XHTML (XML compliant HTML).  To
-do this set the "html_use_xhtml" variable: >
+If you do not like plain HTML, an alternative is to have the script generate
+XHTML (XML compliant HTML). To do this set the "html_use_xhtml" variable: >
     :let g:html_use_xhtml = 1
 
-Any of these options can be enabled or disabled by setting them explicitly to
-the desired value, or restored to their default by removing the variable using
-|:unlet|.
+Any of the on/off options listed above can be enabled or disabled by setting
+them explicitly to the desired value, or restored to their default by removing
+the variable using |:unlet|.
 
 Remarks:
-- This only works in a version with GUI support.  If the GUI is not actually
-  running (possible for X11) it still works, but not very well (the colors
-  may be wrong).
 - Some truly ancient browsers may not show the background colors.
 - From most browsers you can also print the file (in color)!
+- This version of TOhtml may work with older versions of Vim, but some
+  features such as conceal support will not function, and the colors may be
+  incorrect for an old Vim without GUI support compiled in.
 
 Here is an example how to run the script over all .c and .h files from a
 Unix shell: >
@@ -872,8 +932,8 @@ line to your startup file: >
 
 
 DOCBOOK					*docbk.vim* *ft-docbk-syntax* *docbook*
-DOCBOOK	XML				*docbkxml.vim* *ft-docbkxml-syntax*
-DOCBOOK	SGML				*docbksgml.vim* *ft-docbksgml-syntax*
+DOCBOOK XML				*docbkxml.vim* *ft-docbkxml-syntax*
+DOCBOOK SGML				*docbksgml.vim* *ft-docbksgml-syntax*
 
 There are two types of DocBook files: SGML and XML.  To specify what type you
 are using the "b:docbk_type" variable should be set.  Vim does this for you
@@ -1042,6 +1102,8 @@ your .vimrc: >
 FLEXWIKI				*flexwiki.vim* *ft-flexwiki-syntax*
 
 FlexWiki is an ASP.NET-based wiki package available at http://www.flexwiki.com
+NOTE: this site currently doesn't work, on Wikipedia is mentioned that
+development stopped in 2009.
 
 Syntax highlighting is available for the most common elements of FlexWiki
 syntax. The associated ftplugin script sets some buffer-local options to make
@@ -2258,7 +2320,7 @@ For highlighted builtin functions: >
 For highlighted standard exceptions: >
 	:let python_highlight_exceptions = 1
 
-For highlighted trailing whitespace and mix of spaces and tabs:
+For highlighted trailing whitespace and mix of spaces and tabs: >
 	:let python_highlight_space_errors = 1
 
 If you want all possible Python highlighting (the same as setting the
@@ -3174,6 +3236,9 @@ DEFINING REGIONS	*:syn-region* *:syn-start* *:syn-skip* *:syn-end*
    :hi par1 ctermfg=red guifg=red
    :hi par2 ctermfg=blue guifg=blue
    :hi par3 ctermfg=darkgreen guifg=darkgreen
+<
+						*E849*
+The maximum number of syntax groups is 19999.
 
 ==============================================================================
 6. :syntax arguments					*:syn-arguments*
@@ -3218,11 +3283,12 @@ Whether or not they are actually concealed depends on the setting on the
 in this way when they have their own highlighting via "matchgroup"
 
 cchar							*:syn-cchar*
-
+							*E844*
 The "cchar" argument defines the character shown in place of the item
 when it is concealed (setting "cchar" only makes sense when the conceal
 argument is given.) If "cchar" is not set then the default conceal
-character defined in the 'listchars' option is used. Example: >
+character defined in the 'listchars' option is used.  The character cannot be
+a control character such as Tab.  Example: >
    :syntax match Entity "&amp;" conceal cchar=&
 See |hl-Conceal| for highlighting.
 
@@ -3711,6 +3777,9 @@ This also has implications for nested clusters: >
    :syntax match Stuff "( aaa bbb )" contains=@BigGroup
    :syntax cluster BigGroup remove=B	" no effect, since B isn't in BigGroup
    :syntax cluster SmallGroup remove=B	" now bbb isn't matched within Stuff
+<
+						*E848*
+The maximum number of clusters is 9767.
 
 ==============================================================================
 9. Including syntax files				*:syn-include* *E397*
@@ -3749,6 +3818,9 @@ two different ways:
 	  recommended, because it allows a user to replace the included file
 	  with his own version, without replacing the file that does the ":syn
 	  include".
+
+						*E847*
+The maximum number of includes is 999.
 
 ==============================================================================
 10. Synchronizing				*:syn-sync* *E403* *E404*
@@ -3953,7 +4025,7 @@ To show the syntax items for one syntax group: >
 
     :sy[ntax] list {group-name}
 
-To list the syntax groups in one cluster:			*E392*	>
+To list the syntax groups in one cluster:			*E392*	 >
 
     :sy[ntax] list @{cluster-name}
 
@@ -4612,7 +4684,7 @@ is loaded into that window or the file is reloaded.
 When splitting the window, the new window will use the original syntax.
 
 ==============================================================================
-16. Color xterms				*xterm-color* *color-xterm*
+17. Color xterms				*xterm-color* *color-xterm*
 
 Most color xterms have only eight colors.  If you don't get colors with the
 default setup, it should work with these lines in your .vimrc: >

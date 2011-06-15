@@ -13,16 +13,10 @@
 
 #if defined(FEAT_CSCOPE) || defined(PROTO)
 
-#include <string.h>
-#include <errno.h>
-#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #if defined(UNIX)
 # include <sys/wait.h>
-#else
-    /* not UNIX, must be WIN32 */
-# include "vimio.h"
 #endif
 #include "if_cscope.h"
 
@@ -1274,9 +1268,7 @@ cs_find_common(opt, pat, forceit, verbose, use_ll, cmdline)
 		{
 		    win_split(postponed_split > 0 ? postponed_split : 0,
 						       postponed_split_flags);
-#  ifdef FEAT_SCROLLBIND
-		    curwin->w_p_scb = FALSE;
-#  endif
+		    RESET_BINDING(curwin);
 		    postponed_split = 0;
 		}
 # endif
@@ -1353,7 +1345,7 @@ cs_help(eap)
 		       "       g: Find this definition\n"
 		       "       i: Find files #including this file\n"
 		       "       s: Find this C symbol\n"
-		       "       t: Find assignments to\n"));
+		       "       t: Find this text string\n"));
 
 	cmdp++;
     }
@@ -1420,17 +1412,15 @@ cs_insert_filelist(fname, ppath, flags, sb)
 {
     short	i, j;
 #ifndef UNIX
-    HANDLE	hFile;
     BY_HANDLE_FILE_INFORMATION bhfi;
 
-    vim_memset(&bhfi, 0, sizeof(bhfi));
     /* On windows 9x GetFileInformationByHandle doesn't work, so skip it */
     if (!mch_windows95())
     {
-	hFile = CreateFile(fname, FILE_READ_ATTRIBUTES, 0, NULL, OPEN_EXISTING,
-						 FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
+	switch (win32_fileinfo(fname, &bhfi))
 	{
+	case FILEINFO_ENC_FAIL:		/* enc_to_utf16() failed */
+	case FILEINFO_READ_FAIL:	/* CreateFile() failed */
 	    if (p_csverbose)
 	    {
 		char *cant_msg = _("E625: cannot open cscope database: %s");
@@ -1446,15 +1436,12 @@ cs_insert_filelist(fname, ppath, flags, sb)
 		    (void)EMSG2(cant_msg, fname);
 	    }
 	    return -1;
-	}
-	if (!GetFileInformationByHandle(hFile, &bhfi))
-	{
-	    CloseHandle(hFile);
+
+	case FILEINFO_INFO_FAIL:    /* GetFileInformationByHandle() failed */
 	    if (p_csverbose)
 		(void)EMSG(_("E626: cannot get cscope database information"));
 	    return -1;
 	}
-	CloseHandle(hFile);
     }
 #endif
 
@@ -1664,7 +1651,7 @@ cs_kill_execute(i, cname)
 /*
  * PRIVATE: cs_make_vim_style_matches
  *
- * convert the cscope output into into a ctags style entry (as might be found
+ * convert the cscope output into a ctags style entry (as might be found
  * in a ctags tags file).  there's one catch though: cscope doesn't tell you
  * the type of the tag you are looking for.  for example, in Darren Hiebert's
  * ctags (the one that comes with vim), #define's use a line number to find the
@@ -2484,42 +2471,61 @@ cs_reset(eap)
  */
     static char *
 cs_resolve_file(i, name)
-    int i;
+    int  i;
     char *name;
 {
-    char *fullname;
-    int len;
+    char	*fullname;
+    int		len;
+    char_u	*csdir = NULL;
 
     /*
-     * ppath is freed when we destroy the cscope connection.
-     * fullname is freed after cs_make_vim_style_matches, after it's been
-     * copied into the tag buffer used by vim
+     * Ppath is freed when we destroy the cscope connection.
+     * Fullname is freed after cs_make_vim_style_matches, after it's been
+     * copied into the tag buffer used by Vim.
      */
     len = (int)(strlen(name) + 2);
     if (csinfo[i].ppath != NULL)
 	len += (int)strlen(csinfo[i].ppath);
+    else if (p_csre && csinfo[i].fname != NULL)
+    {
+	/* If 'cscoperelative' is set and ppath is not set, use cscope.out
+	 * path in path resolution. */
+	csdir = alloc(MAXPATHL);
+	if (csdir != NULL)
+	{
+	    vim_strncpy(csdir, (char_u *)csinfo[i].fname,
+		    gettail((char_u *)csinfo[i].fname) - 1 - (char_u *)csinfo[i].fname);
+	    len += (int)STRLEN(csdir);
+	}
+    }
 
     if ((fullname = (char *)alloc(len)) == NULL)
 	return NULL;
 
-    /*
-     * note/example: this won't work if the cscope output already starts
+    /* Note/example: this won't work if the cscope output already starts
      * "../.." and the prefix path is also "../..".  if something like this
-     * happens, you are screwed up and need to fix how you're using cscope.
-     */
-    if (csinfo[i].ppath != NULL &&
-	(strncmp(name, csinfo[i].ppath, strlen(csinfo[i].ppath)) != 0) &&
-	(name[0] != '/')
+     * happens, you are screwed up and need to fix how you're using cscope. */
+    if (csinfo[i].ppath != NULL
+	    && (strncmp(name, csinfo[i].ppath, strlen(csinfo[i].ppath)) != 0)
+	    && (name[0] != '/')
 #ifdef WIN32
-	&& name[0] != '\\' && name[1] != ':'
+	    && name[0] != '\\' && name[1] != ':'
 #endif
-	)
+       )
 	(void)sprintf(fullname, "%s/%s", csinfo[i].ppath, name);
+    else if (csdir != NULL && csinfo[i].fname != NULL && STRLEN(csdir) > 0)
+    {
+	/* Check for csdir to be non empty to avoid empty path concatenated to
+	 * cscope output. TODO: avoid the unnecessary alloc/free of fullname. */
+	vim_free(fullname);
+	fullname = (char *)concat_fnames(csdir, (char_u *)name, TRUE);
+    }
     else
 	(void)sprintf(fullname, "%s", name);
 
+    vim_free(csdir);
     return fullname;
-} /* cs_resolve_file */
+}
 
 
 /*

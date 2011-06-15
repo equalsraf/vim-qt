@@ -20,7 +20,6 @@
  * Roger Knobbe <rogerk@wonderware.com> did the initial port of Vim 3.0.
  */
 
-#include "vimio.h"
 #include "vim.h"
 
 #ifdef FEAT_MZSCHEME
@@ -28,7 +27,6 @@
 #endif
 
 #include <sys/types.h>
-#include <errno.h>
 #include <signal.h>
 #include <limits.h>
 #include <process.h>
@@ -206,42 +204,73 @@ static char *vimrun_path = "vimrun ";
 static int suppress_winsize = 1;	/* don't fiddle with console */
 #endif
 
+static char_u *exe_path = NULL;
+
     static void
 get_exe_name(void)
 {
-    char	temp[256];
-    static int	did_set_PATH = FALSE;
+    /* Maximum length of $PATH is more than MAXPATHL.  8191 is often mentioned
+     * as the maximum length that works (plus a NUL byte). */
+#define MAX_ENV_PATH_LEN 8192
+    char	temp[MAX_ENV_PATH_LEN];
+    char_u	*p;
 
     if (exe_name == NULL)
     {
 	/* store the name of the executable, may be used for $VIM */
-	GetModuleFileName(NULL, temp, 255);
+	GetModuleFileName(NULL, temp, MAX_ENV_PATH_LEN - 1);
 	if (*temp != NUL)
 	    exe_name = FullName_save((char_u *)temp, FALSE);
     }
 
-    if (!did_set_PATH && exe_name != NULL)
+    if (exe_path == NULL && exe_name != NULL)
     {
-	char_u	    *p;
-	char_u	    *newpath;
-
-	/* Append our starting directory to $PATH, so that when doing "!xxd"
-	 * it's found in our starting directory.  Needed because SearchPath()
-	 * also looks there. */
-	p = mch_getenv("PATH");
-	newpath = alloc((unsigned)(STRLEN(p) + STRLEN(exe_name) + 2));
-	if (newpath != NULL)
+	exe_path = vim_strnsave(exe_name,
+				     (int)(gettail_sep(exe_name) - exe_name));
+	if (exe_path != NULL)
 	{
-	    STRCPY(newpath, p);
-	    STRCAT(newpath, ";");
-	    vim_strncpy(newpath + STRLEN(newpath), exe_name,
-					    gettail_sep(exe_name) - exe_name);
-	    vim_setenv((char_u *)"PATH", newpath);
-	    vim_free(newpath);
+	    /* Append our starting directory to $PATH, so that when doing
+	     * "!xxd" it's found in our starting directory.  Needed because
+	     * SearchPath() also looks there. */
+	    p = mch_getenv("PATH");
+	    if (p == NULL
+		       || STRLEN(p) + STRLEN(exe_path) + 2 < MAX_ENV_PATH_LEN)
+	    {
+		if (p == NULL || *p == NUL)
+		    temp[0] = NUL;
+		else
+		{
+		    STRCPY(temp, p);
+		    STRCAT(temp, ";");
+		}
+		STRCAT(temp, exe_path);
+		vim_setenv((char_u *)"PATH", temp);
+	    }
 	}
-
-	did_set_PATH = TRUE;
     }
+}
+
+/*
+ * Load library "name".
+ */
+    HINSTANCE
+vimLoadLib(char *name)
+{
+    HINSTANCE dll = NULL;
+    char old_dir[MAXPATHL];
+
+    if (exe_path == NULL)
+	get_exe_name();
+    if (exe_path != NULL && mch_dirname(old_dir, MAXPATHL) == OK)
+    {
+	/* Change directory to where the executable is, both to make sure we
+	 * find a .dll there and to avoid looking for a .dll in the current
+	 * directory. */
+	mch_chdir(exe_path);
+	dll = LoadLibrary(name);
+	mch_chdir(old_dir);
+    }
+    return dll;
 }
 
 #if defined(DYNAMIC_GETTEXT) || defined(PROTO)
@@ -254,7 +283,7 @@ static char *null_libintl_textdomain(const char *);
 static char *null_libintl_bindtextdomain(const char *, const char *);
 static char *null_libintl_bind_textdomain_codeset(const char *, const char *);
 
-static HINSTANCE hLibintlDLL = 0;
+static HINSTANCE hLibintlDLL = NULL;
 char *(*dyn_libintl_gettext)(const char *) = null_libintl_gettext;
 char *(*dyn_libintl_textdomain)(const char *) = null_libintl_textdomain;
 char *(*dyn_libintl_bindtextdomain)(const char *, const char *)
@@ -282,26 +311,16 @@ dyn_libintl_init(char *libname)
     if (hLibintlDLL)
 	return 1;
     /* Load gettext library (libintl.dll) */
-    hLibintlDLL = LoadLibrary(libname != NULL ? libname : GETTEXT_DLL);
+    hLibintlDLL = vimLoadLib(libname != NULL ? libname : GETTEXT_DLL);
     if (!hLibintlDLL)
     {
-	char_u	    dirname[_MAX_PATH];
-
-	/* Try using the path from gvim.exe to find the .dll there. */
-	get_exe_name();
-	STRCPY(dirname, exe_name);
-	STRCPY(gettail(dirname), GETTEXT_DLL);
-	hLibintlDLL = LoadLibrary((char *)dirname);
-	if (!hLibintlDLL)
+	if (p_verbose > 0)
 	{
-	    if (p_verbose > 0)
-	    {
-		verbose_enter();
-		EMSG2(_(e_loadlib), GETTEXT_DLL);
-		verbose_leave();
-	    }
-	    return 0;
+	    verbose_enter();
+	    EMSG2(_(e_loadlib), GETTEXT_DLL);
+	    verbose_leave();
 	}
+	return 0;
     }
     for (i = 0; libintl_entry[i].name != NULL
 					 && libintl_entry[i].ptr != NULL; ++i)
@@ -430,7 +449,7 @@ PlatformId(void)
 	     * Seems like a lot of overhead to load/unload ADVAPI32.DLL each
 	     * time we verify security...
 	     */
-	    advapi_lib = LoadLibrary("ADVAPI32.DLL");
+	    advapi_lib = vimLoadLib("ADVAPI32.DLL");
 	    if (advapi_lib != NULL)
 	    {
 		pSetNamedSecurityInfo = (PSNSECINFO)GetProcAddress(advapi_lib,
@@ -1615,6 +1634,35 @@ executable_exists(char *name)
     return TRUE;
 }
 
+#if ((defined(__MINGW32__) || defined (__CYGWIN32__)) && \
+        __MSVCRT_VERSION__ >= 0x800) || (defined(_MSC_VER) && _MSC_VER >= 1400)
+/*
+ * Bad parameter handler.
+ *
+ * Certain MS CRT functions will intentionally crash when passed invalid
+ * parameters to highlight possible security holes.  Setting this function as
+ * the bad parameter handler will prevent the crash.
+ *
+ * In debug builds the parameters contain CRT information that might help track
+ * down the source of a problem, but in non-debug builds the arguments are all
+ * NULL/0.  Debug builds will also produce assert dialogs from the CRT, it is
+ * worth allowing these to make debugging of issues easier.
+ */
+    static void
+bad_param_handler(const wchar_t *expression,
+    const wchar_t *function,
+    const wchar_t *file,
+    unsigned int line,
+    uintptr_t pReserved)
+{
+}
+
+# define SET_INVALID_PARAM_HANDLER \
+	((void)_set_invalid_parameter_handler(bad_param_handler))
+#else
+# define SET_INVALID_PARAM_HANDLER
+#endif
+
 #ifdef FEAT_GUI_W32
 
 /*
@@ -1626,6 +1674,9 @@ mch_init(void)
 #ifndef __MINGW32__
     extern int _fmode;
 #endif
+
+    /* Silently handle invalid parameters to CRT functions */
+    SET_INVALID_PARAM_HANDLER;
 
     /* Let critical errors result in a failure, not in a dialog box.  Required
      * for the timestamp test to work on removed floppies. */
@@ -1835,8 +1886,7 @@ SaveConsoleBuffer(
 	cb->BufferSize.X = cb->Info.dwSize.X;
 	cb->BufferSize.Y = cb->Info.dwSize.Y;
 	NumCells = cb->BufferSize.X * cb->BufferSize.Y;
-	if (cb->Buffer != NULL)
-	    vim_free(cb->Buffer);
+	vim_free(cb->Buffer);
 	cb->Buffer = (PCHAR_INFO)alloc(NumCells * sizeof(CHAR_INFO));
 	if (cb->Buffer == NULL)
 	    return FALSE;
@@ -2103,6 +2153,9 @@ mch_init(void)
     extern int _fmode;
 #endif
 
+    /* Silently handle invalid parameters to CRT functions */
+    SET_INVALID_PARAM_HANDLER;
+
     /* Let critical errors result in a failure, not in a dialog box.  Required
      * for the timestamp test to work on removed floppies. */
     SetErrorMode(SEM_FAILCRITICALERRORS);
@@ -2273,12 +2326,14 @@ fname_case(
     int		len)
 {
     char		szTrueName[_MAX_PATH + 2];
+    char		szTrueNameTemp[_MAX_PATH + 2];
     char		*ptrue, *ptruePrev;
     char		*porig, *porigPrev;
     int			flen;
     WIN32_FIND_DATA	fb;
     HANDLE		hFind;
     int			c;
+    int			slen;
 
     flen = (int)STRLEN(name);
     if (flen == 0 || flen > _MAX_PATH)
@@ -2323,12 +2378,19 @@ fname_case(
 	}
 	*ptrue = NUL;
 
+	/* To avoid a slow failure append "\*" when searching a directory,
+	 * server or network share. */
+	STRCPY(szTrueNameTemp, szTrueName);
+	slen = (int)strlen(szTrueNameTemp);
+	if (*porig == psepc && slen + 2 < _MAX_PATH)
+	    STRCPY(szTrueNameTemp + slen, "\\*");
+
 	/* Skip "", "." and "..". */
 	if (ptrue > ptruePrev
 		&& (ptruePrev[0] != '.'
 		    || (ptruePrev[1] != NUL
 			&& (ptruePrev[1] != '.' || ptruePrev[2] != NUL)))
-		&& (hFind = FindFirstFile(szTrueName, &fb))
+		&& (hFind = FindFirstFile(szTrueNameTemp, &fb))
 						      != INVALID_HANDLE_VALUE)
 	{
 	    c = *porig;
@@ -2578,30 +2640,73 @@ mch_isdir(char_u *name)
 }
 
 /*
+ * Create directory "name".
+ * Return 0 on success, -1 on error.
+ */
+    int
+mch_mkdir(char_u *name)
+{
+#ifdef FEAT_MBYTE
+    if (enc_codepage >= 0 && (int)GetACP() != enc_codepage)
+    {
+	WCHAR	*p;
+	int	retval;
+
+	p = enc_to_utf16(name, NULL);
+	if (p == NULL)
+	    return -1;
+	retval = _wmkdir(p);
+	vim_free(p);
+	return retval;
+    }
+#endif
+    return _mkdir(name);
+}
+
+/*
  * Return TRUE if file "fname" has more than one link.
  */
     int
 mch_is_linked(char_u *fname)
 {
+    BY_HANDLE_FILE_INFORMATION info;
+
+    return win32_fileinfo(fname, &info) == FILEINFO_OK
+						   && info.nNumberOfLinks > 1;
+}
+
+/*
+ * Get the by-handle-file-information for "fname".
+ * Returns FILEINFO_OK when OK.
+ * returns FILEINFO_ENC_FAIL when enc_to_utf16() failed.
+ * Returns FILEINFO_READ_FAIL when CreateFile() failed.
+ * Returns FILEINFO_INFO_FAIL when GetFileInformationByHandle() failed.
+ */
+    int
+win32_fileinfo(char_u *fname, BY_HANDLE_FILE_INFORMATION *info)
+{
     HANDLE	hFile;
-    int		res = 0;
-    BY_HANDLE_FILE_INFORMATION inf;
+    int		res = FILEINFO_READ_FAIL;
 #ifdef FEAT_MBYTE
     WCHAR	*wn = NULL;
 
     if (enc_codepage >= 0 && (int)GetACP() != enc_codepage)
+    {
 	wn = enc_to_utf16(fname, NULL);
+	if (wn == NULL)
+	    res = FILEINFO_ENC_FAIL;
+    }
     if (wn != NULL)
     {
 	hFile = CreateFileW(wn,		/* file name */
 		    GENERIC_READ,	/* access mode */
-		    0,			/* share mode */
+		    FILE_SHARE_READ | FILE_SHARE_WRITE,	/* share mode */
 		    NULL,		/* security descriptor */
 		    OPEN_EXISTING,	/* creation disposition */
-		    0,			/* file attributes */
+		    FILE_FLAG_BACKUP_SEMANTICS,	/* file attributes */
 		    NULL);		/* handle to template file */
 	if (hFile == INVALID_HANDLE_VALUE
-		&& GetLastError() == ERROR_CALL_NOT_IMPLEMENTED)
+			      && GetLastError() == ERROR_CALL_NOT_IMPLEMENTED)
 	{
 	    /* Retry with non-wide function (for Windows 98). */
 	    vim_free(wn);
@@ -2612,17 +2717,18 @@ mch_is_linked(char_u *fname)
 #endif
 	hFile = CreateFile(fname,	/* file name */
 		    GENERIC_READ,	/* access mode */
-		    0,			/* share mode */
+		    FILE_SHARE_READ | FILE_SHARE_WRITE,	/* share mode */
 		    NULL,		/* security descriptor */
 		    OPEN_EXISTING,	/* creation disposition */
-		    0,			/* file attributes */
+		    FILE_FLAG_BACKUP_SEMANTICS,	/* file attributes */
 		    NULL);		/* handle to template file */
 
     if (hFile != INVALID_HANDLE_VALUE)
     {
-	if (GetFileInformationByHandle(hFile, &inf) != 0
-		&& inf.nNumberOfLinks > 1)
-	    res = 1;
+	if (GetFileInformationByHandle(hFile, info) != 0)
+	    res = FILEINFO_OK;
+	else
+	    res = FILEINFO_INFO_FAIL;
 	CloseHandle(hFile);
     }
 
@@ -3120,9 +3226,10 @@ mch_system(char *cmd, int options)
      * It's nicer to run a filter command in a minimized window, but in
      * Windows 95 this makes the command MUCH slower.  We can't do it under
      * Win32s either as it stops the synchronous spawn workaround working.
+     * Don't activate the window to keep focus on Vim.
      */
     if ((options & SHELL_DOOUT) && !mch_windows95() && !gui_is_win32s())
-	si.wShowWindow = SW_SHOWMINIMIZED;
+	si.wShowWindow = SW_SHOWMINNOACTIVE;
     else
 	si.wShowWindow = SW_SHOWNORMAL;
     si.cbReserved2 = 0;
@@ -3294,6 +3401,7 @@ mch_call_shell(
 	    {
 		STARTUPINFO		si;
 		PROCESS_INFORMATION	pi;
+		DWORD			flags = CREATE_NEW_CONSOLE;
 
 		si.cb = sizeof(si);
 		si.lpReserved = NULL;
@@ -3310,6 +3418,22 @@ mch_call_shell(
 		    cmdbase = skipwhite(cmdbase + 4);
 		    si.dwFlags = STARTF_USESHOWWINDOW;
 		    si.wShowWindow = SW_SHOWMINNOACTIVE;
+		}
+		else if ((STRNICMP(cmdbase, "/b", 2) == 0)
+			&& vim_iswhite(cmdbase[2]))
+		{
+		    cmdbase = skipwhite(cmdbase + 2);
+		    flags = CREATE_NO_WINDOW;
+		    si.dwFlags = STARTF_USESTDHANDLES;
+		    si.hStdInput = CreateFile("\\\\.\\NUL",	// File name
+			GENERIC_READ,				// Access flags
+			0,					// Share flags
+			NULL,					// Security att.
+			OPEN_EXISTING,				// Open flags
+			FILE_ATTRIBUTE_NORMAL,			// File att.
+			NULL);					// Temp file
+		    si.hStdOutput = si.hStdInput;
+		    si.hStdError = si.hStdInput;
 		}
 
 		/* When the command is in double quotes, but 'shellxquote' is
@@ -3338,7 +3462,7 @@ mch_call_shell(
 			NULL,			// Process security attributes
 			NULL,			// Thread security attributes
 			FALSE,			// Inherit handles
-			CREATE_NEW_CONSOLE,	// Creation flags
+			flags,			// Creation flags
 			NULL,			// Environment
 			NULL,			// Current directory
 			&si,			// Startup information
@@ -3350,6 +3474,11 @@ mch_call_shell(
 #ifdef FEAT_GUI_W32
 		    EMSG(_("E371: Command not found"));
 #endif
+		}
+		if (si.hStdInput != NULL)
+		{
+		    /* Close the handle to \\.\NUL */
+		    CloseHandle(si.hStdInput);
 		}
 		/* Close the handles to the subprocess, so that it goes away */
 		CloseHandle(pi.hThread);

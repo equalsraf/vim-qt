@@ -635,11 +635,14 @@ stuffReadbuffLen(s, len)
 /*
  * Stuff "s" into the stuff buffer, leaving special key codes unmodified and
  * escaping other K_SPECIAL and CSI bytes.
+ * Change CR, LF and ESC into a space.
  */
     void
 stuffReadbuffSpec(s)
     char_u	*s;
 {
+    int c;
+
     while (*s != NUL)
     {
 	if (*s == K_SPECIAL && s[1] != NUL && s[2] != NUL)
@@ -649,11 +652,16 @@ stuffReadbuffSpec(s)
 	    s += 3;
 	}
 	else
+	{
 #ifdef FEAT_MBYTE
-	    stuffcharReadbuff(mb_ptr2char_adv(&s));
+	    c = mb_ptr2char_adv(&s);
 #else
-	    stuffcharReadbuff(*s++);
+	    c = *s++;
 #endif
+	    if (c == CAR || c == NL || c == ESC)
+		c = ' ';
+	    stuffcharReadbuff(c);
+	}
     }
 }
 #endif
@@ -1506,9 +1514,6 @@ updatescript(c)
     }
 }
 
-#define KL_PART_KEY -1		/* keylen value for incomplete key-code */
-#define KL_PART_MAP -2		/* keylen value for incomplete mapping */
-
 /*
  * Get the next input character.
  * Can return a special key or a multi-byte character.
@@ -2171,7 +2176,7 @@ vgetorpeek(advance)
 					if (!timedout)
 					{
 					    /* break at a partly match */
-					    keylen = KL_PART_MAP;
+					    keylen = KEYLEN_PART_MAP;
 					    break;
 					}
 				    }
@@ -2192,7 +2197,7 @@ vgetorpeek(advance)
 
 			/* If no partly match found, use the longest full
 			 * match. */
-			if (keylen != KL_PART_MAP)
+			if (keylen != KEYLEN_PART_MAP)
 			{
 			    mp = mp_match;
 			    keylen = mp_match_len;
@@ -2230,7 +2235,7 @@ vgetorpeek(advance)
 			}
 			/* Need more chars for partly match. */
 			if (mlen == typebuf.tb_len)
-			    keylen = KL_PART_KEY;
+			    keylen = KEYLEN_PART_KEY;
 			else if (max_mlen < mlen)
 			    /* no match, may have to check for termcode at
 			     * next character */
@@ -2238,7 +2243,7 @@ vgetorpeek(advance)
 		    }
 
 		    if ((mp == NULL || max_mlen >= mp_match_len)
-						     && keylen != KL_PART_MAP)
+						 && keylen != KEYLEN_PART_MAP)
 		    {
 			int	save_keylen = keylen;
 
@@ -2264,8 +2269,8 @@ vgetorpeek(advance)
 			    /* If no termcode matched but 'pastetoggle'
 			     * matched partially it's like an incomplete key
 			     * sequence. */
-			    if (keylen == 0 && save_keylen == KL_PART_KEY)
-				keylen = KL_PART_KEY;
+			    if (keylen == 0 && save_keylen == KEYLEN_PART_KEY)
+				keylen = KEYLEN_PART_KEY;
 
 			    /*
 			     * When getting a partial match, but the last
@@ -2302,7 +2307,7 @@ vgetorpeek(advance)
 				    continue;
 				}
 				if (*s == NUL)	    /* need more characters */
-				    keylen = KL_PART_KEY;
+				    keylen = KEYLEN_PART_KEY;
 			    }
 			    if (keylen >= 0)
 #endif
@@ -2339,7 +2344,8 @@ vgetorpeek(advance)
 			if (keylen > 0)	    /* full matching terminal code */
 			{
 #if defined(FEAT_GUI) && defined(FEAT_MENU)
-			    if (typebuf.tb_buf[typebuf.tb_off] == K_SPECIAL
+			    if (typebuf.tb_len >= 2
+				&& typebuf.tb_buf[typebuf.tb_off] == K_SPECIAL
 					 && typebuf.tb_buf[typebuf.tb_off + 1]
 								   == KS_MENU)
 			    {
@@ -2381,7 +2387,7 @@ vgetorpeek(advance)
 			/* Partial match: get some more characters.  When a
 			 * matching mapping was found use that one. */
 			if (mp == NULL || keylen < 0)
-			    keylen = KL_PART_KEY;
+			    keylen = KEYLEN_PART_KEY;
 			else
 			    keylen = mp_match_len;
 		    }
@@ -2553,7 +2559,8 @@ vgetorpeek(advance)
 #endif
 			&& typebuf.tb_maplen == 0
 			&& (State & INSERT)
-			&& (p_timeout || (keylen == KL_PART_KEY && p_ttimeout))
+			&& (p_timeout
+			    || (keylen == KEYLEN_PART_KEY && p_ttimeout))
 			&& (c = inchar(typebuf.tb_buf + typebuf.tb_off
 						     + typebuf.tb_len, 3, 25L,
 						 typebuf.tb_change_cnt)) == 0)
@@ -2711,8 +2718,11 @@ vgetorpeek(advance)
 		 * are still available.  But when those available characters
 		 * are part of a mapping, and we are going to do a blocking
 		 * wait here.  Need to update the screen to display the
-		 * changed text so far. */
-		if ((State & INSERT) && advance && must_redraw != 0)
+		 * changed text so far. Also for when 'lazyredraw' is set and
+		 * redrawing was postponed because there was something in the
+		 * input buffer (e.g., termresponse). */
+		if (((State & INSERT) != 0 || p_lz) && (State & CMDLINE) == 0
+			  && advance && must_redraw != 0 && !need_wait_return)
 		{
 		    update_screen(0);
 		    setcursor(); /* put cursor back where it belongs */
@@ -2783,9 +2793,9 @@ vgetorpeek(advance)
 			    ? 0
 			    : ((typebuf.tb_len == 0
 				    || !(p_timeout || (p_ttimeout
-						   && keylen == KL_PART_KEY)))
+					       && keylen == KEYLEN_PART_KEY)))
 				    ? -1L
-				    : ((keylen == KL_PART_KEY && p_ttm >= 0)
+				    : ((keylen == KEYLEN_PART_KEY && p_ttm >= 0)
 					    ? p_ttm
 					    : p_tm)), typebuf.tb_change_cnt);
 
@@ -3168,6 +3178,7 @@ do_map(maptype, arg, mode, abbrev)
     int		expr = FALSE;
 #endif
     int		noremap;
+    char_u      *orig_rhs;
 
     keys = arg;
     map_table = maphash;
@@ -3266,6 +3277,7 @@ do_map(maptype, arg, mode, abbrev)
     }
     if (*p != NUL)
 	*p++ = NUL;
+
     p = skipwhite(p);
     rhs = p;
     hasarg = (*rhs != NUL);
@@ -3288,6 +3300,7 @@ do_map(maptype, arg, mode, abbrev)
      */
     if (haskey)
 	keys = replace_termcodes(keys, &keys_buf, TRUE, TRUE, special);
+    orig_rhs = rhs;
     if (hasarg)
     {
 	if (STRICMP(rhs, "<nop>") == 0)	    /* "<Nop>" means nothing */
@@ -3298,7 +3311,7 @@ do_map(maptype, arg, mode, abbrev)
 
 #ifdef FEAT_FKMAP
     /*
-     * when in right-to-left mode and alternate keymap option set,
+     * When in right-to-left mode and alternate keymap option set,
      * reverse the character flow in the rhs in Farsi.
      */
     if (p_altkeymap && curwin->w_p_rl)
@@ -3556,6 +3569,8 @@ do_map(maptype, arg, mode, abbrev)
 				}
 				vim_free(mp->m_str);
 				mp->m_str = newstr;
+				vim_free(mp->m_orig_str);
+				mp->m_orig_str = vim_strsave(orig_rhs);
 				mp->m_noremap = noremap;
 				mp->m_silent = silent;
 				mp->m_mode = mode;
@@ -3633,10 +3648,12 @@ do_map(maptype, arg, mode, abbrev)
 
     mp->m_keys = vim_strsave(keys);
     mp->m_str = vim_strsave(rhs);
+    mp->m_orig_str = vim_strsave(orig_rhs);
     if (mp->m_keys == NULL || mp->m_str == NULL)
     {
 	vim_free(mp->m_keys);
 	vim_free(mp->m_str);
+	vim_free(mp->m_orig_str);
 	vim_free(mp);
 	retval = 4;	/* no mem */
 	goto theend;
@@ -3682,6 +3699,7 @@ map_free(mpp)
     mp = *mpp;
     vim_free(mp->m_keys);
     vim_free(mp->m_str);
+    vim_free(mp->m_orig_str);
     *mpp = mp->m_next;
     vim_free(mp);
 }
@@ -3851,12 +3869,57 @@ map_clear_int(buf, mode, local, abbr)
     }
 }
 
+/*
+ * Return characters to represent the map mode in an allocated string.
+ * Returns NULL when out of memory.
+ */
+    char_u *
+map_mode_to_chars(mode)
+    int mode;
+{
+    garray_T    mapmode;
+
+    ga_init2(&mapmode, 1, 7);
+
+    if ((mode & (INSERT + CMDLINE)) == INSERT + CMDLINE)
+	ga_append(&mapmode, '!');			/* :map! */
+    else if (mode & INSERT)
+	ga_append(&mapmode, 'i');			/* :imap */
+    else if (mode & LANGMAP)
+	ga_append(&mapmode, 'l');			/* :lmap */
+    else if (mode & CMDLINE)
+	ga_append(&mapmode, 'c');			/* :cmap */
+    else if ((mode & (NORMAL + VISUAL + SELECTMODE + OP_PENDING))
+				 == NORMAL + VISUAL + SELECTMODE + OP_PENDING)
+	ga_append(&mapmode, ' ');			/* :map */
+    else
+    {
+	if (mode & NORMAL)
+	    ga_append(&mapmode, 'n');			/* :nmap */
+	if (mode & OP_PENDING)
+	    ga_append(&mapmode, 'o');			/* :omap */
+	if ((mode & (VISUAL + SELECTMODE)) == VISUAL + SELECTMODE)
+	    ga_append(&mapmode, 'v');			/* :vmap */
+	else
+	{
+	    if (mode & VISUAL)
+		ga_append(&mapmode, 'x');		/* :xmap */
+	    if (mode & SELECTMODE)
+		ga_append(&mapmode, 's');		/* :smap */
+	}
+    }
+
+    ga_append(&mapmode, NUL);
+    return (char_u *)mapmode.ga_data;
+}
+
     static void
 showmap(mp, local)
     mapblock_T	*mp;
     int		local;	    /* TRUE for buffer-local map */
 {
-    int len = 1;
+    int		len = 1;
+    char_u	*mapchars;
 
     if (msg_didout || msg_silent != 0)
     {
@@ -3864,49 +3927,15 @@ showmap(mp, local)
 	if (got_int)	    /* 'q' typed at MORE prompt */
 	    return;
     }
-    if ((mp->m_mode & (INSERT + CMDLINE)) == INSERT + CMDLINE)
-	msg_putchar('!');			/* :map! */
-    else if (mp->m_mode & INSERT)
-	msg_putchar('i');			/* :imap */
-    else if (mp->m_mode & LANGMAP)
-	msg_putchar('l');			/* :lmap */
-    else if (mp->m_mode & CMDLINE)
-	msg_putchar('c');			/* :cmap */
-    else if ((mp->m_mode & (NORMAL + VISUAL + SELECTMODE + OP_PENDING))
-				 == NORMAL + VISUAL + SELECTMODE + OP_PENDING)
-	msg_putchar(' ');			/* :map */
-    else
+
+    mapchars = map_mode_to_chars(mp->m_mode);
+    if (mapchars != NULL)
     {
-	len = 0;
-	if (mp->m_mode & NORMAL)
-	{
-	    msg_putchar('n');		/* :nmap */
-	    ++len;
-	}
-	if (mp->m_mode & OP_PENDING)
-	{
-	    msg_putchar('o');		/* :omap */
-	    ++len;
-	}
-	if ((mp->m_mode & (VISUAL + SELECTMODE)) == VISUAL + SELECTMODE)
-	{
-	    msg_putchar('v');		/* :vmap */
-	    ++len;
-	}
-	else
-	{
-	    if (mp->m_mode & VISUAL)
-	    {
-		msg_putchar('x');		/* :xmap */
-		++len;
-	    }
-	    if (mp->m_mode & SELECTMODE)
-	    {
-		msg_putchar('s');		/* :smap */
-		++len;
-	    }
-	}
+	msg_puts(mapchars);
+	len = (int)STRLEN(mapchars);
+	vim_free(mapchars);
     }
+
     while (++len <= 3)
 	msg_putchar(' ');
 
@@ -3931,8 +3960,7 @@ showmap(mp, local)
 	msg_putchar(' ');
 
     /* Use FALSE below if we only want things like <Up> to show up as such on
-     * the rhs, and not M-x etc, TRUE gets both -- webb
-     */
+     * the rhs, and not M-x etc, TRUE gets both -- webb */
     if (*mp->m_str == NUL)
 	msg_puts_attr((char_u *)"<Nop>", hl_attr(HLF_8));
     else
@@ -4995,19 +5023,21 @@ check_map_keycodes()
     sourcing_name = save_name;
 }
 
-#ifdef FEAT_EVAL
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
- * Check the string "keys" against the lhs of all mappings
- * Return pointer to rhs of mapping (mapblock->m_str)
- * NULL otherwise
+ * Check the string "keys" against the lhs of all mappings.
+ * Return pointer to rhs of mapping (mapblock->m_str).
+ * NULL when no mapping found.
  */
     char_u *
-check_map(keys, mode, exact, ign_mod, abbr)
+check_map(keys, mode, exact, ign_mod, abbr, mp_ptr, local_ptr)
     char_u	*keys;
     int		mode;
     int		exact;		/* require exact match */
     int		ign_mod;	/* ignore preceding modifier */
     int		abbr;		/* do abbreviations */
+    mapblock_T	**mp_ptr;	/* return: pointer to mapblock or NULL */
+    int		*local_ptr;	/* return: buffer-local mapping or NULL */
 {
     int		hash;
     int		len, minlen;
@@ -5062,7 +5092,17 @@ check_map(keys, mode, exact, ign_mod, abbr)
 			    minlen = mp->m_keylen - 3;
 		    }
 		    if (STRNCMP(s, keys, minlen) == 0)
+		    {
+			if (mp_ptr != NULL)
+			    *mp_ptr = mp;
+			if (local_ptr != NULL)
+#ifdef FEAT_LOCALMAP
+			    *local_ptr = local;
+#else
+			    *local_ptr = 0;
+#endif
 			return mp->m_str;
+		    }
 		}
 	    }
 	}

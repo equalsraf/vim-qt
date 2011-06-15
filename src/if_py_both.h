@@ -33,7 +33,9 @@ Python_Release_Vim(void)
 
 static PyObject *OutputWrite(PyObject *, PyObject *);
 static PyObject *OutputWritelines(PyObject *, PyObject *);
+static PyObject *OutputFlush(PyObject *, PyObject *);
 
+/* Function to write a line, points to either msg() or emsg(). */
 typedef void (*writefn)(char_u *);
 static void writer(writefn fn, char_u *str, PyInt n);
 
@@ -46,9 +48,10 @@ typedef struct
 
 static struct PyMethodDef OutputMethods[] = {
     /* name,	    function,		calling,    documentation */
-    {"write",	    OutputWrite,	1,	    "" },
-    {"writelines",  OutputWritelines,	1,	    "" },
-    { NULL,	    NULL,		0,	    NULL }
+    {"write",	    OutputWrite,	1,	    ""},
+    {"writelines",  OutputWritelines,	1,	    ""},
+    {"flush",       OutputFlush,        1,          ""},
+    { NULL,	    NULL,		0,	    NULL}
 };
 
 #define PyErr_SetVim(str) PyErr_SetString(VimError, str)
@@ -122,52 +125,28 @@ OutputWritelines(PyObject *self, PyObject *args)
     return Py_None;
 }
 
-static char_u *buffer = NULL;
-static PyInt buffer_len = 0;
-static PyInt buffer_size = 0;
-
-static writefn old_fn = NULL;
-
-    static void
-buffer_ensure(PyInt n)
+    static PyObject *
+OutputFlush(PyObject *self UNUSED, PyObject *args UNUSED)
 {
-    PyInt new_size;
-    char_u *new_buffer;
-
-    if (n < buffer_size)
-	return;
-
-    new_size = buffer_size;
-    while (new_size < n)
-	new_size += 80;
-
-    if (new_size != buffer_size)
-    {
-	new_buffer = alloc((unsigned)new_size);
-	if (new_buffer == NULL)
-	    return;
-
-	if (buffer)
-	{
-	    memcpy(new_buffer, buffer, buffer_len);
-	    vim_free(buffer);
-	}
-
-	buffer = new_buffer;
-	buffer_size = new_size;
-    }
+    /* do nothing */
+    Py_INCREF(Py_None);
+    return Py_None;
 }
+
+
+/* Buffer IO, we write one whole line at a time. */
+static garray_T io_ga = {0, 0, 1, 80, NULL};
+static writefn old_fn = NULL;
 
     static void
 PythonIO_Flush(void)
 {
-    if (old_fn && buffer_len)
+    if (old_fn != NULL && io_ga.ga_len > 0)
     {
-	buffer[buffer_len] = 0;
-	old_fn(buffer);
+	((char_u *)io_ga.ga_data)[io_ga.ga_len] = NUL;
+	old_fn((char_u *)io_ga.ga_data);
     }
-
-    buffer_len = 0;
+    io_ga.ga_len = 0;
 }
 
     static void
@@ -175,30 +154,34 @@ writer(writefn fn, char_u *str, PyInt n)
 {
     char_u *ptr;
 
-    if (fn != old_fn && old_fn != NULL)
+    /* Flush when switching output function. */
+    if (fn != old_fn)
 	PythonIO_Flush();
-
     old_fn = fn;
 
+    /* Write each NL separated line.  Text after the last NL is kept for
+     * writing later. */
     while (n > 0 && (ptr = memchr(str, '\n', n)) != NULL)
     {
 	PyInt len = ptr - str;
 
-	buffer_ensure(buffer_len + len + 1);
+	if (ga_grow(&io_ga, (int)(len + 1)) == FAIL)
+	    break;
 
-	memcpy(buffer + buffer_len, str, len);
-	buffer_len += len;
-	buffer[buffer_len] = 0;
-	fn(buffer);
+	mch_memmove(((char *)io_ga.ga_data) + io_ga.ga_len, str, (size_t)len);
+	((char *)io_ga.ga_data)[io_ga.ga_len + len] = NUL;
+	fn((char_u *)io_ga.ga_data);
 	str = ptr + 1;
 	n -= len + 1;
-	buffer_len = 0;
+	io_ga.ga_len = 0;
     }
 
-    /* Put the remaining text into the buffer for later printing */
-    buffer_ensure(buffer_len + n + 1);
-    memcpy(buffer + buffer_len, str, n);
-    buffer_len += n;
+    /* Put the remaining text into io_ga for later printing. */
+    if (n > 0 && ga_grow(&io_ga, (int)(n + 1)) == OK)
+    {
+	mch_memmove(((char *)io_ga.ga_data) + io_ga.ga_len, str, (size_t)n);
+	io_ga.ga_len += (int)n;
+    }
 }
 
 /***************/

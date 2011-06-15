@@ -510,8 +510,13 @@ EXTERN VimClipboard clip_star;	/* PRIMARY selection in X11 */
 EXTERN VimClipboard clip_plus;	/* CLIPBOARD selection in X11 */
 # else
 #  define clip_plus clip_star	/* there is only one clipboard */
+#  define ONE_CLIPBOARD
 # endif
-EXTERN int	clip_unnamed INIT(= FALSE);
+
+#define CLIP_UNNAMED      1
+#define CLIP_UNNAMED_PLUS 2
+EXTERN int	clip_unnamed INIT(= 0); /* above two values or'ed */
+
 EXTERN int	clip_autoselect INIT(= FALSE);
 EXTERN int	clip_autoselectml INIT(= FALSE);
 EXTERN int	clip_html INIT(= FALSE);
@@ -1052,10 +1057,6 @@ EXTERN pos_T	last_cursormoved	    /* for CursorMoved event */
 			;
 #endif
 
-EXTERN linenr_T	write_no_eol_lnum INIT(= 0); /* non-zero lnum when last line
-						of next binary write should
-						not have an end-of-line */
-
 #ifdef FEAT_WINDOWS
 EXTERN int	postponed_split INIT(= 0);  /* for CTRL-W CTRL-] command */
 EXTERN int	postponed_split_flags INIT(= 0);  /* args for win_split() */
@@ -1512,7 +1513,7 @@ EXTERN char_u e_readerrf[]	INIT(= N_("E47: Error while reading errorfile"));
 EXTERN char_u e_sandbox[]	INIT(= N_("E48: Not allowed in sandbox"));
 #endif
 EXTERN char_u e_secure[]	INIT(= N_("E523: Not allowed here"));
-#if defined(AMIGA) || defined(MACOS) || defined(MSWIN) || defined(RISCOS) \
+#if defined(AMIGA) || defined(MACOS) || defined(MSWIN)  \
 	|| defined(UNIX) || defined(VMS) || defined(OS2)
 EXTERN char_u e_screenmode[]	INIT(= N_("E359: Screen mode setting not supported"));
 #endif
@@ -1559,6 +1560,9 @@ EXTERN char_u e_bufloaded[]	INIT(= N_("E139: File is loaded in another buffer"))
 #if defined(FEAT_SYN_HL) || \
 	(defined(FEAT_INS_EXPAND) && defined(FEAT_COMPL_FUNC))
 EXTERN char_u e_notset[]	INIT(= N_("E764: Option '%s' is not set"));
+#endif
+#ifndef FEAT_CLIPBOARD
+EXTERN char_u e_invalidreg[]    INIT(= N_("E850: Invalid register name"));
 #endif
 
 #ifdef MACOS_X_UNIX

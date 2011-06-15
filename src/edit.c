@@ -58,6 +58,10 @@ static char *ctrl_x_msgs[] =
 };
 
 static char e_hitend[] = N_("Hit end of paragraph");
+#ifdef FEAT_COMPL_FUNC
+static char e_complwin[] = N_("E839: Completion function changed window");
+static char e_compldel[] = N_("E840: Completion function deleted text");
+#endif
 
 /*
  * Structure used to store one match for insert completion.
@@ -1377,10 +1381,45 @@ docomplete:
 		goto do_intr;
 #endif
 
+normalchar:
 	    /*
 	     * Insert a nomal character.
 	     */
-normalchar:
+#ifdef FEAT_AUTOCMD
+	    if (!p_paste)
+	    {
+		/* Trigger the InsertCharPre event.  Lock the text to avoid
+		 * weird things from happening. */
+		set_vim_var_char(c);
+		++textlock;
+		if (apply_autocmds(EVENT_INSERTCHARPRE, NULL, NULL,
+							       FALSE, curbuf))
+		{
+		    /* Get the new value of v:char.  If it is more than one
+		     * character insert it literally. */
+		    char_u *s = get_vim_var_str(VV_CHAR);
+		    if (MB_CHARLEN(s) > 1)
+		    {
+			if (stop_arrow() != FAIL)
+			{
+			    ins_str(s);
+			    AppendToRedobuffLit(s, -1);
+			}
+			c = NUL;
+		    }
+		    else
+			c = PTR2CHAR(s);
+		}
+
+		set_vim_var_string(VV_CHAR, NULL, -1);
+		--textlock;
+
+		/* If the new value is an empty string then don't insert a
+		 * char. */
+		if (c == NUL)
+		    break;
+	    }
+#endif
 #ifdef FEAT_SMARTINDENT
 	    /* Try to perform smart-indenting. */
 	    ins_try_si(c);
@@ -1549,12 +1588,16 @@ ins_redraw(ready)
 ins_ctrl_v()
 {
     int		c;
+    int		did_putchar = FALSE;
 
     /* may need to redraw when no more chars available now */
     ins_redraw(FALSE);
 
     if (redrawing() && !char_avail())
+    {
 	edit_putchar('^', TRUE);
+	did_putchar = TRUE;
+    }
     AppendToRedobuff((char_u *)CTRL_V_STR);	/* CTRL-V */
 
 #ifdef FEAT_CMDL_INFO
@@ -1562,8 +1605,10 @@ ins_ctrl_v()
 #endif
 
     c = get_literal();
-    edit_unputchar();  /* when line fits in 'columns' the '^' is at the start
-			  of the next line and will not be redrawn */
+    if (did_putchar)
+	/* when the line fits in 'columns' the '^' is at the start of the next
+	 * line and will not removed by the redraw */
+	edit_unputchar();
 #ifdef FEAT_CMDL_INFO
     clear_showcmd();
 #endif
@@ -2658,6 +2703,7 @@ set_completion(startcol, list)
     if (stop_arrow() == FAIL)
 	return;
 
+    compl_direction = FORWARD;
     if (startcol > curwin->w_cursor.col)
 	startcol = curwin->w_cursor.col;
     compl_col = startcol;
@@ -3480,11 +3526,7 @@ ins_compl_addfrommatch()
 	    return;
     }
     p += len;
-#ifdef FEAT_MBYTE
-    c = mb_ptr2char(p);
-#else
-    c = *p;
-#endif
+    c = PTR2CHAR(p);
     ins_compl_addleader(c);
 }
 
@@ -3833,6 +3875,8 @@ expand_by_function(type, base)
     char_u	*args[2];
     char_u	*funcname;
     pos_T	pos;
+    win_T	*curwin_save;
+    buf_T	*curbuf_save;
 
     funcname = (type == CTRL_X_FUNCTION) ? curbuf->b_p_cfu : curbuf->b_p_ofu;
     if (*funcname == NUL)
@@ -3843,13 +3887,27 @@ expand_by_function(type, base)
     args[1] = base;
 
     pos = curwin->w_cursor;
+    curwin_save = curwin;
+    curbuf_save = curbuf;
     matchlist = call_func_retlist(funcname, 2, args, FALSE);
+    if (curwin_save != curwin || curbuf_save != curbuf)
+    {
+	EMSG(_(e_complwin));
+	goto theend;
+    }
     curwin->w_cursor = pos;	/* restore the cursor position */
-    if (matchlist == NULL)
-	return;
+    check_cursor();
+    if (!equalpos(curwin->w_cursor, pos))
+    {
+	EMSG(_(e_compldel));
+	goto theend;
+    }
+    if (matchlist != NULL)
+	ins_compl_add_list(matchlist);
 
-    ins_compl_add_list(matchlist);
-    list_unref(matchlist);
+theend:
+    if (matchlist != NULL)
+	list_unref(matchlist);
 }
 #endif /* FEAT_COMPL_FUNC */
 
@@ -3889,6 +3947,7 @@ ins_compl_add_tv(tv, dir)
     char_u	*word;
     int		icase = FALSE;
     int		adup = FALSE;
+    int		aempty = FALSE;
     char_u	*(cptext[CPT_COUNT]);
 
     if (tv->v_type == VAR_DICT && tv->vval.v_dict != NULL)
@@ -3906,13 +3965,15 @@ ins_compl_add_tv(tv, dir)
 	    icase = get_dict_number(tv->vval.v_dict, (char_u *)"icase");
 	if (get_dict_string(tv->vval.v_dict, (char_u *)"dup", FALSE) != NULL)
 	    adup = get_dict_number(tv->vval.v_dict, (char_u *)"dup");
+	if (get_dict_string(tv->vval.v_dict, (char_u *)"empty", FALSE) != NULL)
+	    aempty = get_dict_number(tv->vval.v_dict, (char_u *)"empty");
     }
     else
     {
 	word = get_tv_string_chk(tv);
 	vim_memset(cptext, 0, sizeof(cptext));
     }
-    if (word == NULL || *word == NUL)
+    if (word == NULL || (!aempty && *word == NUL))
 	return FAIL;
     return ins_compl_add(word, -1, icase, NULL, cptext, dir, 0, adup);
 }
@@ -4994,6 +5055,8 @@ ins_complete(c)
 	    int		col;
 	    char_u	*funcname;
 	    pos_T	pos;
+	    win_T	*curwin_save;
+	    buf_T	*curbuf_save;
 
 	    /* Call 'completefunc' or 'omnifunc' and get pattern length as a
 	     * string */
@@ -5009,8 +5072,21 @@ ins_complete(c)
 	    args[0] = (char_u *)"1";
 	    args[1] = NULL;
 	    pos = curwin->w_cursor;
+	    curwin_save = curwin;
+	    curbuf_save = curbuf;
 	    col = call_func_retnr(funcname, 2, args, FALSE);
+	    if (curwin_save != curwin || curbuf_save != curbuf)
+	    {
+		EMSG(_(e_complwin));
+		return FAIL;
+	    }
 	    curwin->w_cursor = pos;	/* restore the cursor position */
+	    check_cursor();
+	    if (!equalpos(curwin->w_cursor, pos))
+	    {
+		EMSG(_(e_compldel));
+		return FAIL;
+	    }
 
 	    if (col < 0)
 		col = curs_col;
@@ -9598,6 +9674,7 @@ ins_digraph()
 {
     int	    c;
     int	    cc;
+    int	    did_putchar = FALSE;
 
     pc_status = PC_STATUS_UNSET;
     if (redrawing() && !char_avail())
@@ -9606,6 +9683,7 @@ ins_digraph()
 	ins_redraw(FALSE);
 
 	edit_putchar('?', TRUE);
+	did_putchar = TRUE;
 #ifdef FEAT_CMDL_INFO
 	add_to_showcmd_c(Ctrl_K);
 #endif
@@ -9622,8 +9700,10 @@ ins_digraph()
     c = plain_vgetc();
     --no_mapping;
     --allow_keys;
-    edit_unputchar();  /* when line fits in 'columns' the '?' is at the start
-			  of the next line and will not be redrawn */
+    if (did_putchar)
+	/* when the line fits in 'columns' the '?' is at the start of the next
+	 * line and will not be removed by the redraw */
+	edit_unputchar();
 
     if (IS_SPECIAL(c) || mod_mask)	    /* special key */
     {
@@ -9635,6 +9715,7 @@ ins_digraph()
     }
     if (c != ESC)
     {
+	did_putchar = FALSE;
 	if (redrawing() && !char_avail())
 	{
 	    /* may need to redraw when no more chars available now */
@@ -9642,11 +9723,9 @@ ins_digraph()
 
 	    if (char2cells(c) == 1)
 	    {
-		/* first remove the '?', otherwise it's restored when typing
-		 * an ESC next */
-		edit_unputchar();
 		ins_redraw(FALSE);
 		edit_putchar(c, TRUE);
+		did_putchar = TRUE;
 	    }
 #ifdef FEAT_CMDL_INFO
 	    add_to_showcmd_c(c);
@@ -9657,8 +9736,10 @@ ins_digraph()
 	cc = plain_vgetc();
 	--no_mapping;
 	--allow_keys;
-	edit_unputchar();  /* when line fits in 'columns' the '?' is at the
-			      start of the next line and will not be redrawn */
+	if (did_putchar)
+	    /* when the line fits in 'columns' the '?' is at the start of the
+	     * next line and will not be removed by a redraw */
+	    edit_unputchar();
 	if (cc != ESC)
 	{
 	    AppendToRedobuff((char_u *)CTRL_V_STR);

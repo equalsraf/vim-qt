@@ -1,7 +1,7 @@
 " Vim filetype plugin file
 " Language:         generic Changelog file
 " Maintainer:       Nikolai Weibull <now@bitwi.se>
-" Latest Revision:  2009-05-25
+" Latest Revision:  2011-05-02
 " Variables:
 "   g:changelog_timeformat (deprecated: use g:changelog_dateformat instead) -
 "       description: the timeformat used in ChangeLog entries.
@@ -99,8 +99,9 @@ if &filetype == 'changelog'
   function! s:try_reading_file(path)
     try
       return readfile(a:path)
+    catch
+      return []
     endtry
-    return []
   endfunction
 
   function! s:passwd_field(line, field)
@@ -178,7 +179,7 @@ if &filetype == 'changelog'
     " Look for an entry for today by our user.
     let date = strftime(g:changelog_dateformat)
     let search = s:substitute_items(g:changelog_date_entry_search, date,
-                                  \ g:changelog_username)
+                                  \ s:username())
     if search(search) > 0
       " Ok, now we look for the end of the date entry, and add an entry.
       call cursor(nextnonblank(line('.') + 1), 1)
@@ -197,7 +198,7 @@ if &filetype == 'changelog'
 
       " No entry today, so create a date-user header and insert an entry.
       let todays_entry = s:substitute_items(g:changelog_new_date_format,
-                                          \ date, g:changelog_username)
+                                          \ date, s:username())
       " Make sure we have a cursor positioning.
       if stridx(todays_entry, '{cursor}') == -1
         let todays_entry = todays_entry . '{cursor}'

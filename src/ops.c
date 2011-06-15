@@ -1584,9 +1584,11 @@ cmdline_paste_reg(regname, literally, remcr)
 adjust_clip_reg(rp)
     int		*rp;
 {
-    /* If no reg. specified, and "unnamed" is in 'clipboard', use '*' reg. */
-    if (*rp == 0 && clip_unnamed)
-	*rp = '*';
+    /* If no reg. specified, and "unnamed" or "unnamedplus" is in 'clipboard',
+     * use '*' or '+' reg, respectively. "unnamedplus" prevails. */
+    if (*rp == 0 && clip_unnamed != 0)
+	*rp = ((clip_unnamed & CLIP_UNNAMED_PLUS) && clip_plus.available)
+								  ? '+' : '*';
     if (!clip_star.available && *rp == '*')
 	*rp = 0;
     if (!clip_plus.available && *rp == '+')
@@ -2842,6 +2844,9 @@ op_yank(oap, deleting, mess)
     char_u		*p;
     char_u		*pnew;
     struct block_def	bd;
+#if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+    int			did_star = FALSE;
+#endif
 
 				    /* check for read-only register */
     if (oap->regname != 0 && !valid_yank_reg(oap->regname, TRUE))
@@ -3115,7 +3120,8 @@ op_yank(oap, deleting, mess)
      */
     if (clip_star.available
 	    && (curr == &(y_regs[STAR_REGISTER])
-		|| (!deleting && oap->regname == 0 && clip_unnamed)))
+		|| (!deleting && oap->regname == 0
+					   && (clip_unnamed & CLIP_UNNAMED))))
     {
 	if (curr != &(y_regs[STAR_REGISTER]))
 	    /* Copy the text from register 0 to the clipboard register. */
@@ -3123,6 +3129,9 @@ op_yank(oap, deleting, mess)
 
 	clip_own_selection(&clip_star);
 	clip_gen_set_selection(&clip_star);
+# ifdef FEAT_X11
+	did_star = TRUE;
+# endif
     }
 
 # ifdef FEAT_X11
@@ -3130,12 +3139,18 @@ op_yank(oap, deleting, mess)
      * If we were yanking to the '+' register, send result to selection.
      * Also copy to the '*' register, in case auto-select is off.
      */
-    else if (clip_plus.available && curr == &(y_regs[PLUS_REGISTER]))
+    if (clip_plus.available
+	    && (curr == &(y_regs[PLUS_REGISTER])
+		|| (!deleting && oap->regname == 0
+				      && (clip_unnamed & CLIP_UNNAMED_PLUS))))
     {
-	/* No need to copy to * register upon 'unnamed' now - see below */
+	if (curr != &(y_regs[PLUS_REGISTER]))
+	    /* Copy the text from register 0 to the clipboard register. */
+	    copy_yank_reg(&(y_regs[PLUS_REGISTER]));
+
 	clip_own_selection(&clip_plus);
 	clip_gen_set_selection(&clip_plus);
-	if (!clip_isautosel())
+	if (!clip_isautosel() && !did_star && curr == &(y_regs[PLUS_REGISTER]))
 	{
 	    copy_yank_reg(&(y_regs[STAR_REGISTER]));
 	    clip_own_selection(&clip_star);
@@ -3979,7 +3994,12 @@ ex_display(eap)
     for (i = -1; i < NUM_REGISTERS && !got_int; ++i)
     {
 	name = get_register_name(i);
-	if (arg != NULL && vim_strchr(arg, name) == NULL)
+	if (arg != NULL && vim_strchr(arg, name) == NULL
+#ifdef ONE_CLIPBOARD
+	    /* Star register and plus register contain the same thing. */
+		&& (name != '*' || vim_strchr(arg, '+') == NULL)
+#endif
+		)
 	    continue;	    /* did not ask for this register */
 
 #ifdef FEAT_CLIPBOARD
@@ -4153,9 +4173,10 @@ do_join(count, insert_space, save_undo)
     int	    save_undo;
 {
     char_u	*curr = NULL;
+    char_u      *curr_start = NULL;
     char_u	*cend;
     char_u	*newp;
-    char_u	*spaces;	/* number of spaces inserte before a line */
+    char_u	*spaces;	/* number of spaces inserted before a line */
     int		endcurr1 = NUL;
     int		endcurr2 = NUL;
     int		currsize = 0;	/* size of the current line */
@@ -4181,7 +4202,7 @@ do_join(count, insert_space, save_undo)
      */
     for (t = 0; t < count; ++t)
     {
-	curr = ml_get((linenr_T)(curwin->w_cursor.lnum + t));
+	curr = curr_start = ml_get((linenr_T)(curwin->w_cursor.lnum + t));
 	if (insert_space && t > 0)
 	{
 	    curr = skipwhite(curr);
@@ -4265,10 +4286,10 @@ do_join(count, insert_space, save_undo)
 	    copy_spaces(cend, (size_t)(spaces[t]));
 	}
 	mark_col_adjust(curwin->w_cursor.lnum + t, (colnr_T)0, (linenr_T)-t,
-				 (long)(cend - newp + spaces[t]));
+			 (long)(cend - newp + spaces[t] - (curr - curr_start)));
 	if (t == 0)
 	    break;
-	curr = ml_get((linenr_T)(curwin->w_cursor.lnum + t - 1));
+	curr = curr_start = ml_get((linenr_T)(curwin->w_cursor.lnum + t - 1));
 	if (insert_space && t > 1)
 	    curr = skipwhite(curr);
 	currsize = (int)STRLEN(curr);

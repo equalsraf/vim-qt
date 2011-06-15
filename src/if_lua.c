@@ -9,12 +9,11 @@
  * See README.txt for an overview of the Vim source code.
  */
 
-#include <stdio.h>
-#include <string.h>
+#include "vim.h"
+
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-#include "vim.h"
 
 /* Only do the following when the feature is enabled.  Needed for "make
  * depend". */
@@ -49,7 +48,7 @@ static const char LUAVIM_FREE[] = "luaV_free";
 # define symbol_from_dll dlsym
 # define close_dll dlclose
 #else
-# define load_dll LoadLibrary
+# define load_dll vimLoadLib
 # define symbol_from_dll GetProcAddress
 # define close_dll FreeLibrary
 #endif

@@ -688,28 +688,35 @@ getcmdline(firstc, count, indent)
 		    p = get_expr_line();
 		    --textlock;
 		    restore_cmdline(&save_ccline);
-		    len = (int)STRLEN(p);
 
-		    if (p != NULL && realloc_cmdbuff(len + 1) == OK)
+		    if (p != NULL)
 		    {
-			ccline.cmdlen = len;
-			STRCPY(ccline.cmdbuff, p);
-			vim_free(p);
+			len = (int)STRLEN(p);
+			if (realloc_cmdbuff(len + 1) == OK)
+			{
+			    ccline.cmdlen = len;
+			    STRCPY(ccline.cmdbuff, p);
+			    vim_free(p);
 
-			/* Restore the cursor or use the position set with
-			 * set_cmdline_pos(). */
-			if (new_cmdpos > ccline.cmdlen)
-			    ccline.cmdpos = ccline.cmdlen;
-			else
-			    ccline.cmdpos = new_cmdpos;
+			    /* Restore the cursor or use the position set with
+			     * set_cmdline_pos(). */
+			    if (new_cmdpos > ccline.cmdlen)
+				ccline.cmdpos = ccline.cmdlen;
+			    else
+				ccline.cmdpos = new_cmdpos;
 
-			KeyTyped = FALSE;	/* Don't do p_wc completion. */
-			redrawcmd();
-			goto cmdline_changed;
+			    KeyTyped = FALSE;	/* Don't do p_wc completion. */
+			    redrawcmd();
+			    goto cmdline_changed;
+			}
 		    }
 		}
 		beep_flush();
-		c = ESC;
+		got_int = FALSE;	/* don't abandon the command line */
+		did_emsg = FALSE;
+		emsg_on_display = FALSE;
+		redrawcmd();
+		goto cmdline_not_changed;
 	    }
 #endif
 	    else
@@ -2342,15 +2349,31 @@ redraw:
 	windgoto(msg_row, msg_col);
 	pend = (char_u *)(line_ga.ga_data) + line_ga.ga_len;
 
-	/* we are done when a NL is entered, but not when it comes after a
-	 * backslash */
-	if (line_ga.ga_len > 0 && pend[-1] == '\n'
-		&& (line_ga.ga_len <= 1 || pend[-2] != '\\'))
+	/* We are done when a NL is entered, but not when it comes after an
+	 * odd number of backslashes, that results in a NUL. */
+	if (line_ga.ga_len > 0 && pend[-1] == '\n')
 	{
-	    --line_ga.ga_len;
-	    --pend;
-	    *pend = NUL;
-	    break;
+	    int bcount = 0;
+
+	    while (line_ga.ga_len - 2 >= bcount && pend[-2 - bcount] == '\\')
+		++bcount;
+
+	    if (bcount > 0)
+	    {
+		/* Halve the number of backslashes: "\NL" -> "NUL", "\\NL" ->
+		 * "\NL", etc. */
+		line_ga.ga_len -= (bcount + 1) / 2;
+		pend -= (bcount + 1) / 2;
+		pend[-1] = '\n';
+	    }
+
+	    if ((bcount & 1) == 0)
+	    {
+		--line_ga.ga_len;
+		--pend;
+		*pend = NUL;
+		break;
+	    }
 	}
     }
 
@@ -3316,10 +3339,14 @@ nextwild(xp, type, options)
 	    p2 = NULL;
 	else
 	{
+	    int use_options = options |
+		    WILD_HOME_REPLACE|WILD_ADD_SLASH|WILD_SILENT|WILD_ESCAPE;
+
+	    if (p_wic)
+		use_options += WILD_ICASE;
 	    p2 = ExpandOne(xp, p1,
 			 vim_strnsave(&ccline.cmdbuff[i], xp->xp_pattern_len),
-		    WILD_HOME_REPLACE|WILD_ADD_SLASH|WILD_SILENT|WILD_ESCAPE
-							      |options, type);
+							   use_options, type);
 	    vim_free(p1);
 	    /* longest match: make sure it is not shorter, happens with :help */
 	    if (p2 != NULL && type == WILD_LONGEST)
@@ -3405,6 +3432,7 @@ nextwild(xp, type, options)
  * options = WILD_KEEP_ALL:	    don't remove 'wildignore' entries
  * options = WILD_SILENT:	    don't print warning messages
  * options = WILD_ESCAPE:	    put backslash before special chars
+ * options = WILD_ICASE:	    ignore case for files
  *
  * The variables xp->xp_context and xp->xp_backslash must have been set!
  */
@@ -3674,6 +3702,7 @@ ExpandEscape(xp, str, numfiles, files, options)
     if (options & WILD_ESCAPE)
     {
 	if (xp->xp_context == EXPAND_FILES
+		|| xp->xp_context == EXPAND_FILES_IN_PATH
 		|| xp->xp_context == EXPAND_SHELLCMD
 		|| xp->xp_context == EXPAND_BUFFERS
 		|| xp->xp_context == EXPAND_DIRECTORIES)
@@ -4338,6 +4367,7 @@ expand_cmdline(xp, str, col, matchcount, matches)
     char_u	***matches;	/* return: array of pointers to matches */
 {
     char_u	*file_str = NULL;
+    int		options = WILD_ADD_SLASH|WILD_SILENT;
 
     if (xp->xp_context == EXPAND_UNSUCCESSFUL)
     {
@@ -4356,9 +4386,11 @@ expand_cmdline(xp, str, col, matchcount, matches)
     if (file_str == NULL)
 	return EXPAND_UNSUCCESSFUL;
 
+    if (p_wic)
+	options += WILD_ICASE;
+
     /* find all files that match the description */
-    if (ExpandFromContext(xp, file_str, matchcount, matches,
-					  WILD_ADD_SLASH|WILD_SILENT) == FAIL)
+    if (ExpandFromContext(xp, file_str, matchcount, matches, options) == FAIL)
     {
 	*matchcount = 0;
 	*matches = NULL;
@@ -4410,7 +4442,7 @@ ExpandFromContext(xp, pat, num_file, file, options)
     char_u	*pat;
     int		*num_file;
     char_u	***file;
-    int		options;
+    int		options;  /* EW_ flags */
 {
 #ifdef FEAT_CMDL_COMPL
     regmatch_T	regmatch;
@@ -4464,6 +4496,9 @@ ExpandFromContext(xp, pat, num_file, file, options)
 	    flags |= (EW_FILE | EW_PATH);
 	else
 	    flags = (flags | EW_DIR) & ~EW_FILE;
+	if (options & WILD_ICASE)
+	    flags |= EW_ICASE;
+
 	/* Expand wildcards, supporting %:h and the like. */
 	ret = expand_wildcards_eval(&pat, num_file, file, flags);
 	if (free_pat)
@@ -4536,48 +4571,50 @@ ExpandFromContext(xp, pat, num_file, file, options)
 	    int		context;
 	    char_u	*((*func)__ARGS((expand_T *, int)));
 	    int		ic;
+	    int		escaped;
 	} tab[] =
 	{
-	    {EXPAND_COMMANDS, get_command_name, FALSE},
-	    {EXPAND_BEHAVE, get_behave_arg, TRUE},
+	    {EXPAND_COMMANDS, get_command_name, FALSE, TRUE},
+	    {EXPAND_BEHAVE, get_behave_arg, TRUE, TRUE},
 #ifdef FEAT_USR_CMDS
-	    {EXPAND_USER_COMMANDS, get_user_commands, FALSE},
-	    {EXPAND_USER_CMD_FLAGS, get_user_cmd_flags, FALSE},
-	    {EXPAND_USER_NARGS, get_user_cmd_nargs, FALSE},
-	    {EXPAND_USER_COMPLETE, get_user_cmd_complete, FALSE},
+	    {EXPAND_USER_COMMANDS, get_user_commands, FALSE, TRUE},
+	    {EXPAND_USER_CMD_FLAGS, get_user_cmd_flags, FALSE, TRUE},
+	    {EXPAND_USER_NARGS, get_user_cmd_nargs, FALSE, TRUE},
+	    {EXPAND_USER_COMPLETE, get_user_cmd_complete, FALSE, TRUE},
 #endif
 #ifdef FEAT_EVAL
-	    {EXPAND_USER_VARS, get_user_var_name, FALSE},
-	    {EXPAND_FUNCTIONS, get_function_name, FALSE},
-	    {EXPAND_USER_FUNC, get_user_func_name, FALSE},
-	    {EXPAND_EXPRESSION, get_expr_name, FALSE},
+	    {EXPAND_USER_VARS, get_user_var_name, FALSE, TRUE},
+	    {EXPAND_FUNCTIONS, get_function_name, FALSE, TRUE},
+	    {EXPAND_USER_FUNC, get_user_func_name, FALSE, TRUE},
+	    {EXPAND_EXPRESSION, get_expr_name, FALSE, TRUE},
 #endif
 #ifdef FEAT_MENU
-	    {EXPAND_MENUS, get_menu_name, FALSE},
-	    {EXPAND_MENUNAMES, get_menu_names, FALSE},
+	    {EXPAND_MENUS, get_menu_name, FALSE, TRUE},
+	    {EXPAND_MENUNAMES, get_menu_names, FALSE, TRUE},
 #endif
 #ifdef FEAT_SYN_HL
-	    {EXPAND_SYNTAX, get_syntax_name, TRUE},
+	    {EXPAND_SYNTAX, get_syntax_name, TRUE, TRUE},
 #endif
-	    {EXPAND_HIGHLIGHT, get_highlight_name, TRUE},
+	    {EXPAND_HIGHLIGHT, get_highlight_name, TRUE, TRUE},
 #ifdef FEAT_AUTOCMD
-	    {EXPAND_EVENTS, get_event_name, TRUE},
-	    {EXPAND_AUGROUP, get_augroup_name, TRUE},
+	    {EXPAND_EVENTS, get_event_name, TRUE, TRUE},
+	    {EXPAND_AUGROUP, get_augroup_name, TRUE, TRUE},
 #endif
 #ifdef FEAT_CSCOPE
-	    {EXPAND_CSCOPE, get_cscope_name, TRUE},
+	    {EXPAND_CSCOPE, get_cscope_name, TRUE, TRUE},
 #endif
 #ifdef FEAT_SIGNS
-	    {EXPAND_SIGN, get_sign_name, TRUE},
+	    {EXPAND_SIGN, get_sign_name, TRUE, TRUE},
 #endif
 #ifdef FEAT_PROFILE
-	    {EXPAND_PROFILE, get_profile_name, TRUE},
+	    {EXPAND_PROFILE, get_profile_name, TRUE, TRUE},
 #endif
 #if (defined(HAVE_LOCALE_H) || defined(X_LOCALE)) \
 	&& (defined(FEAT_GETTEXT) || defined(FEAT_MBYTE))
-	    {EXPAND_LANGUAGE, get_lang_arg, TRUE},
+	    {EXPAND_LANGUAGE, get_lang_arg, TRUE, FALSE},
+	    {EXPAND_LOCALES, get_locales, TRUE, FALSE},
 #endif
-	    {EXPAND_ENV_VARS, get_env_name, TRUE},
+	    {EXPAND_ENV_VARS, get_env_name, TRUE, TRUE},
 	};
 	int	i;
 
@@ -4591,7 +4628,8 @@ ExpandFromContext(xp, pat, num_file, file, options)
 	    {
 		if (tab[i].ic)
 		    regmatch.rm_ic = TRUE;
-		ret = ExpandGeneric(xp, &regmatch, num_file, file, tab[i].func);
+		ret = ExpandGeneric(xp, &regmatch, num_file, file,
+                                                tab[i].func, tab[i].escaped);
 		break;
 	    }
     }
@@ -4613,13 +4651,14 @@ ExpandFromContext(xp, pat, num_file, file, options)
  * Returns OK when no problems encountered, FAIL for error (out of memory).
  */
     int
-ExpandGeneric(xp, regmatch, num_file, file, func)
+ExpandGeneric(xp, regmatch, num_file, file, func, escaped)
     expand_T	*xp;
     regmatch_T	*regmatch;
     int		*num_file;
     char_u	***file;
     char_u	*((*func)__ARGS((expand_T *, int)));
 					  /* returns a string from the list */
+    int		escaped;
 {
     int		i;
     int		count = 0;
@@ -4644,7 +4683,10 @@ ExpandGeneric(xp, regmatch, num_file, file, func)
 	    {
 		if (round)
 		{
-		    str = vim_strsave_escaped(str, (char_u *)" \t\\.");
+		    if (escaped)
+			str = vim_strsave_escaped(str, (char_u *)" \t\\.");
+		    else
+			str = vim_strsave(str);
 		    (*file)[count] = str;
 #ifdef FEAT_MENU
 		    if (func == get_menu_names && str != NULL)
@@ -4728,7 +4770,11 @@ expand_shellcmd(filepat, num_file, file, flagsarg)
 			    || (pat[1] == '.' && vim_ispathsep(pat[2])))))
 	path = (char_u *)".";
     else
+    {
 	path = vim_getenv((char_u *)"PATH", &mustfree);
+	if (path == NULL)
+	    path = (char_u *)"";
+    }
 
     /*
      * Go over all directories in $PATH.  Expand matches in that directory and
@@ -6147,9 +6193,7 @@ ex_window()
     curwin->w_p_rl = cmdmsg_rl;
     cmdmsg_rl = FALSE;
 # endif
-# ifdef FEAT_SCROLLBIND
-    curwin->w_p_scb = FALSE;
-# endif
+    RESET_BINDING(curwin);
 
 # ifdef FEAT_AUTOCMD
     /* Do execute autocommands for setting the filetype (load syntax). */
@@ -6286,6 +6330,12 @@ ex_window()
 	{
 	    ccline.cmdbuff = vim_strsave((char_u *)"qa");
 	    cmdwin_result = CAR;
+	}
+	else if (cmdwin_result == Ctrl_C)
+	{
+	    /* :q or :close, don't execute any command
+	     * and don't modify the cmd window. */
+	    ccline.cmdbuff = NULL;
 	}
 	else
 	    ccline.cmdbuff = vim_strsave(ml_get_curline());

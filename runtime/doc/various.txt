@@ -1,4 +1,4 @@
-*various.txt*   For Vim version 7.3.  Last change: 2010 Aug 10
+*various.txt*   For Vim version 7.3.  Last change: 2011 Mar 03
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -101,13 +101,14 @@ g8			Print the hex values of the bytes used in the
 :[range]P[rint] [count] [flags]
 			Just as ":print".  Was apparently added to Vi for
 			people that keep the shift key pressed too long...
+			Note: A user command can overrule this command.
 			See |ex-flags| for [flags].
 
 							*:l* *:list*
 :[range]l[ist] [count] [flags]
 			Same as :print, but display unprintable characters
 			with '^' and put $ after the line.  This can be
-			changed with the 'listchars' option.
+			further changed with the 'listchars' option.
 			See |ex-flags| for [flags].
 
 							*:nu* *:number*
@@ -132,14 +133,14 @@ g8			Print the hex values of the bytes used in the
 			specified with {range}, or around the current line
 			if there is no {range}.  If there is a {count}, that's
 			how many lines you'll see; if there is only one window
-			then the 'window' option is used, otherwise the
-			current window size is used.
+			then twice the value of the 'scroll' option is used,
+			otherwise the current window height minus 3 is used.
 
 			:z can be used either alone or followed by any of
 			several punctuation marks.  These have the following
 			effect:
 
-			mark   first line    last line      new location   ~
+			mark   first line    last line      new cursor line ~
 			----   ----------    ---------      ------------
 			+      current line  1 scr forward  1 scr forward
 			-      1 scr back    current line   current line
@@ -167,8 +168,8 @@ g8			Print the hex values of the bytes used in the
 :norm[al][!] {commands}					*:norm* *:normal*
 			Execute Normal mode commands {commands}.  This makes
 			it possible to execute Normal mode commands typed on
-			the command-line.  {commands} is executed like it is
-			typed.  For undo all commands are undone together.
+			the command-line.  {commands} are executed like they
+			are typed.  For undo all commands are undone together.
 			Execution stops when an error is encountered.
 			If the [!] is given, mappings will not be used.
 			{commands} should be a complete command.  If
@@ -610,7 +611,7 @@ g CTRL-A		Only when Vim was compiled with MEM_PROFILING defined
 			Only useful for debugging Vim.
 
 ==============================================================================
-3. Using Vim like less or more					*less*
+2. Using Vim like less or more					*less*
 
 If you use the less or more program to view a file, you don't get syntax
 highlighting.  Thus you would like to use Vim instead.  You can do this by

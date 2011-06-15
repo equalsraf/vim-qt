@@ -3124,6 +3124,9 @@ mb_strnicmp(s1, s2, nn)
 		/* If one of the two characters is incomplete return -1. */
 		if (incomplete || i + utf_byte2len(s2[i]) > n)
 		    return -1;
+		/* Don't case-fold illegal bytes or truncated characters. */
+		if (utf_ptr2len(s1 + i) < l || utf_ptr2len(s2 + i) < l)
+		    return -1;
 		cdiff = utf_fold(utf_ptr2char(s1 + i))
 					     - utf_fold(utf_ptr2char(s2 + i));
 		if (cdiff != 0)
@@ -4126,7 +4129,7 @@ iconv_string(vcp, str, slen, unconvlenp, resultlenp)
 	done = to - (char *)result;
     }
 
-    if (resultlenp != NULL)
+    if (resultlenp != NULL && result != NULL)
 	*resultlenp = (int)(to - (char *)result);
     return result;
 }
@@ -4159,11 +4162,11 @@ iconv_enabled(verbose)
 {
     if (hIconvDLL != 0 && hMsvcrtDLL != 0)
 	return TRUE;
-    hIconvDLL = LoadLibrary(DYNAMIC_ICONV_DLL);
+    hIconvDLL = vimLoadLib(DYNAMIC_ICONV_DLL);
     if (hIconvDLL == 0)		/* sometimes it's called libiconv.dll */
-	hIconvDLL = LoadLibrary(DYNAMIC_ICONV_DLL_ALT);
+	hIconvDLL = vimLoadLib(DYNAMIC_ICONV_DLL_ALT);
     if (hIconvDLL != 0)
-	hMsvcrtDLL = LoadLibrary(DYNAMIC_MSVCRT_DLL);
+	hMsvcrtDLL = vimLoadLib(DYNAMIC_MSVCRT_DLL);
     if (hIconvDLL == 0 || hMsvcrtDLL == 0)
     {
 	/* Only give the message when 'verbose' is set, otherwise it might be
@@ -5167,15 +5170,15 @@ im_set_position(row, col)
     void
 xim_set_preedit()
 {
-    if (xic == NULL)
-	return;
-
-    xim_set_focus(TRUE);
-
     XVaNestedList attr_list;
     XRectangle spot_area;
     XPoint over_spot;
     int line_space;
+
+    if (xic == NULL)
+	return;
+
+    xim_set_focus(TRUE);
 
     if (!xim_has_focus)
     {
@@ -5554,11 +5557,11 @@ im_get_status()
     void
 xim_set_status_area()
 {
-    if (xic == NULL)
-	return;
-
     XVaNestedList preedit_list = 0, status_list = 0, list = 0;
     XRectangle pre_area, status_area;
+
+    if (xic == NULL)
+	return;
 
     if (input_style & XIMStatusArea)
     {
