@@ -83,7 +83,7 @@ protected:
 	void dropEvent(QDropEvent *);
 
 	void tooltip(const QString& );
-
+	bool isFakeMonospace(const QFont &);
 private:
 	QColor m_background;
 	int m_charWidth;

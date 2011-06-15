@@ -197,7 +197,15 @@ void QVimShell::closeEvent(QCloseEvent *event)
 	event->ignore();
 }
 
+bool QVimShell::isFakeMonospace(const QFont& f)
+{
+	QFontMetrics fm(f);
+	return ( fm.averageCharWidth() != charWidth() );
+}
+
 /*
+ * @Deprecated
+ *
  * Either by sheer absurdity or font substitution magic, some
  * monospace fonts end up having different widths for each
  * style (regular, bold, etc). This causes text painting to
@@ -214,20 +222,30 @@ QFont QVimShell::fixPainterFont( const QFont& pfont )
 	QFontMetrics fm(pfont);
 
 	if ( fm.averageCharWidth() != charWidth() ) {
+		qDebug() << __func__ << "Font size mismatch a.k.a. this is not a proper monospace font";
 
 		int V = (fm.averageCharWidth() > charWidth() ) ? -1 :1;
+		int newsize;
 
 		QFont f1 = pfont;
-		f1.setPointSize(f1.pointSize()-V);
+		newsize = f1.pointSize()-V;
+
+		if ( newsize < 0 ) {
+			return pfont;
+		}
+		f1.setPointSize(newsize);
 		QFontMetrics fm1(f1);
 
 		float wdiff = ((float)fm1.averageCharWidth() - fm.averageCharWidth())*V;
 		int pt = (fm.averageCharWidth() - charWidth())/wdiff;
 
 		QFont f = pfont;
-		f.setPointSize(f.pointSize()+pt);
+		newsize = f.pointSize()+pt;
+		if ( newsize < 0 ) {
+			return pfont;
+		}
+		f.setPointSize(newsize);
 
-		qDebug() << __func__ << "Font size mismatch" << pt << pfont;
 		return f;
 	}
 
@@ -282,7 +300,7 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 	opt.setAlignment(Qt::AlignJustify);
 
 	l.setTextOption(opt);
-	l.setFont(fixPainterFont(op.font));
+	l.setFont(op.font);
 
 	if (op.undercurl) {
 		QTextCharFormat charFormat;
@@ -325,6 +343,9 @@ void QVimShell::flushPaintOps()
 			break;
 		case DRAWSTRING:
 			if ( op.str.length() != VimGui::stringCellWidth(op.str) ) {
+				drawStringSlow(op, painter);
+			} else if ( isFakeMonospace(op.font) ) {
+				qDebug() << __func__ << "Font size mismatch a.k.a. this is not a proper monospace font";
 				drawStringSlow(op, painter);
 			} else {
 				drawString(op, painter);
