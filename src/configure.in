@@ -1733,6 +1733,7 @@ SKIP_ATHENA=YES
 SKIP_NEXTAW=YES
 SKIP_PHOTON=YES
 SKIP_CARBON=YES
+SKIP_QT=YES
 GUITYPE=NONE
 
 if test "x$QNX" = "xyes" -a "x$with_x" = "xno" ; then
@@ -1770,7 +1771,8 @@ else
 		SKIP_MOTIF=
 		SKIP_ATHENA=
 		SKIP_NEXTAW=
-		SKIP_CARBON=;;
+		SKIP_CARBON=
+		SKIP_QT=;;
     gtk2)	AC_MSG_RESULT(GTK+ 2.x GUI support)
 		SKIP_GTK2=;;
     gnome2)	AC_MSG_RESULT(GNOME 2.x GUI support)
@@ -1782,6 +1784,8 @@ else
 		SKIP_ATHENA=;;
     nextaw)	AC_MSG_RESULT(neXtaw GUI support)
 		SKIP_NEXTAW=;;
+    qt)		AC_MSG_RESULT(Qt GUI support)
+    		SKIP_QT=;;
     *)		AC_MSG_RESULT([Sorry, $enable_gui GUI is not supported]) ;;
   esac
 
@@ -1855,6 +1859,17 @@ if test "x$SKIP_CARBON" != "xYES" -a "$enable_gui_canon" != "carbon"; then
   fi
 fi
 
+if test "x$SKIP_QT" != "xYES" -a "$enable_gui_canon" != "qt"; then
+  AC_MSG_CHECKING(whether or not to look for Qt)
+  AC_ARG_ENABLE(qt-check,
+	[  --enable-qt-check   If auto-select GUI, check for Qt [default=yes]],
+	, enable_qt_check="yes")
+  AC_MSG_RESULT($enable_qt_check)
+  if test "x$enable_qt_check" = "xno"; then
+    SKIP_QT=YES
+  fi
+fi
+
 
 if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   AC_MSG_CHECKING(for Carbon GUI)
@@ -1886,7 +1901,8 @@ if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   SKIP_ATHENA=YES;
   SKIP_NEXTAW=YES;
   SKIP_PHOTON=YES;
-  SKIP_CARBON=YES
+  SKIP_CARBON=YES;
+  SKIP_QT=YES;
 fi
 
 dnl define an autoconf function to check for a specified version of GTK, and
@@ -2096,6 +2112,7 @@ if test -z "$SKIP_GTK2"; then
       SKIP_ATHENA=YES
       SKIP_NEXTAW=YES
       SKIP_MOTIF=YES
+      SKIP_QT=YES
       GUITYPE=GTK
       AC_SUBST(GTK_LIBNAME)
     fi
@@ -2204,6 +2221,7 @@ fi
 if test -z "$SKIP_MOTIF"; then
   SKIP_ATHENA=YES
   SKIP_NEXTAW=YES
+  SKIP_QT=YES
   GUITYPE=MOTIF
   AC_SUBST(MOTIF_LIBNAME)
 fi
@@ -2305,6 +2323,33 @@ if test "$enable_xsmp" = "yes"; then
   CPPFLAGS=$cppflags_save
 fi
 
+dnl Check if the Qt files can be found
+
+if test -z "$SKIP_QT"; then
+    AC_LANG_PUSH(C++)
+    AC_CHECK_HEADER(Qt/QtGui, [], [AC_MSG_ERROR(Cannot find Qt include headers)] )
+    AC_CHECK_PROG( QT_MOC, moc-qt4, moc-qt4, moc)
+    AC_SUBST(QT_MOC)
+#    cppflags_save=$CPPFLAGS
+#    CPPFLAGS="$CPPFLAGS -lQtGui"
+#    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+#		    [[
+#		     #include <Qt/QtGui>
+#		     ]],
+#		    [[
+#		     qVersion();
+#		     ]]
+#		    )],
+#		   [],
+#		   [AC_MSG_ERROR(Cannot find Qt libraries)])
+#    CPPFLAGS=$cppflags_save
+    AC_LANG_POP(C++)
+fi
+
+if test -z "$SKIP_QT"; then
+  GUITYPE=QT
+  GUI_X_LIBS=
+fi
 
 if test -z "$SKIP_ATHENA" -o -z "$SKIP_NEXTAW" -o -z "$SKIP_MOTIF" -o -z "$SKIP_GTK2"; then
   dnl Check for X11/xpm.h and X11/Sunkeysym.h with the GUI include path

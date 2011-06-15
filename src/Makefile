@@ -1232,6 +1232,25 @@ NEXTAW_MAN_TARGETS = yes
 NEXTAW_TESTTARGET = gui
 NEXTAW_BUNDLE	=
 
+### Qt
+#
+MOC		= $(QT_MOC)
+QT_LIBS1	= -lQtGui -lQtCore -lstdc++
+QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
+			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp \
+			qt/vimgui.cpp qt/fontdialog.cpp
+QT_OBJ	= objects/gui.o objects/gui_qt.o \
+			objects/pty.o objects/gui_beval.o \
+			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
+			objects/vimscrollbar.o objects/vimgui.o objects/fontdialog.o
+QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I.
+QT_IPATH	= $(GUI_INC_LOC)
+QT_LIBS_DIR = $(GUI_LIB_LOC)
+
+QT_INSTALL  = install_normal install_gui_extra
+
+
+
 ### (J)  Sun OpenWindows 3.2 (SunOS 4.1.x) or earlier that produce these ld
 #	 errors:  ld: Undefined symbol
 #		      _get_wmShellWidgetClass
@@ -1276,7 +1295,7 @@ APPDIR = $(VIMNAME).app
 CARBONGUI_TESTARG = VIMPROG=../$(APPDIR)/Contents/MacOS/$(VIMTARGET)
 
 # All GUI files
-ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c
+ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qt/qvimshell.cpp qt/mainwindow.cpp qt/vimgui.cpp qt/fontdialog.cpp
 ALL_GUI_PRO  = gui.pro gui_gtk.pro gui_motif.pro gui_xmdlg.pro gui_athena.pro gui_gtk_x11.pro gui_x11.pro gui_w16.pro gui_w32.pro gui_photon.pro
 
 # }}}
@@ -2494,6 +2513,38 @@ objects/gui_at_sb.o: gui_at_sb.c
 
 objects/gui_athena.o: gui_athena.c
 	$(CCC) -o $@ gui_athena.c
+
+## Qt objects
+objects/gui_qt.o: gui_qt.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c gui_qt.cpp
+
+objects/mainwindow.o: qt/mainwindow.cpp
+	$(MOC) qt/mainwindow.h > mainwindow.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/mainwindow.cpp
+
+objects/qvimshell.o: qt/qvimshell.cpp
+	$(MOC) qt/qvimshell.h > qvimshell.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/qvimshell.cpp
+
+objects/vimaction.o: qt/vimaction.cpp
+	$(MOC) qt/vimaction.h > vimaction.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimaction.cpp
+
+objects/qtresources.o: qt/icons.qrc
+	rcc -no-compress qt/icons.qrc -o qtresources.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qtresources.cpp
+
+objects/vimscrollbar.o: qt/vimscrollbar.cpp
+	$(MOC) qt/vimscrollbar.h > vimscrollbar.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimscrollbar.cpp
+
+objects/vimgui.o: qt/vimgui.cpp
+	$(MOC) qt/vimgui.h > vimgui.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimgui.cpp
+
+objects/fontdialog.o: qt/fontdialog.cpp
+	$(MOC) qt/fontdialog.h > fontdialog.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/fontdialog.cpp
 
 objects/gui_beval.o: gui_beval.c
 	$(CCC) -o $@ gui_beval.c
