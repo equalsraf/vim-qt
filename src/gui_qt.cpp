@@ -1282,7 +1282,7 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
  * Open a dialog window
  */
 int
-gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield)
+gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield, int ex_cmd)
 {
 	QMessageBox msgBox;
 	msgBox.setText( (char*)message );

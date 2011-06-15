@@ -106,7 +106,7 @@ gui_start()
 #if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_QT)
     if (gui.in_use)
     {
-# ifdef FEAT_EVAL
+# if defined(FEAT_EVAL) && !defined(FEAT_GUI_QT)
 	Window	x11_window;
 	Display	*x11_display;
 

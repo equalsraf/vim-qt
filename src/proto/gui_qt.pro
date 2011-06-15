@@ -16,7 +16,7 @@ void gui_mch_add_menu __ARGS((vimmenu_T *menu, int pos));
 void gui_mch_destroy_menu __ARGS((vimmenu_T *menu));
 void gui_mch_draw_menubar __ARGS((void));
 void gui_mch_show_popupmenu __ARGS((vimmenu_T *menu));
-int gui_mch_dialog __ARGS((int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield));
+int gui_mch_dialog __ARGS((int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield, int ex_cmd));
 char_u *gui_mch_browse __ARGS((int saving, char_u *title, char_u *dflt, char_u *ext, char_u *initdir, char_u *filter));
 void gui_mch_menu_hidden __ARGS((vimmenu_T *menu, int hidden));
 void gui_mch_menu_grey __ARGS((vimmenu_T *menu, int grey));
