@@ -281,7 +281,7 @@ void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 			continue;
 		}
 		painter.drawText(rect, 
-				Qt::TextSingleLine | Qt::AlignLeft | Qt::AlignTop, 
+				Qt::TextSingleLine | Qt::AlignCenter | Qt::AlignTop, 
 				c);
 		rect.moveTo( rect.x() + rect.width(), rect.y() );
 	}

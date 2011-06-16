@@ -276,7 +276,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	}
 
 	gui.norm_font = qf;
-	gui.char_width = metric.width(" ");
+	gui.char_width = metric.width("M");
 	gui.char_height = metric.height();
 	gui.char_ascent = metric.ascent();
 	vimshell->setCharWidth(gui.char_width);
