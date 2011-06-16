@@ -21,6 +21,7 @@ QVimShell::QVimShell(QWidget *parent)
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
+	setAttribute(Qt::WA_PaintOnScreen, true);
 	setAcceptDrops(true);
 }
 
@@ -375,8 +376,11 @@ void QVimShell::flushPaintOps()
 void QVimShell::paintEvent ( QPaintEvent *ev )
 {
 	flushPaintOps();
+
 	QPainter realpainter(this);
-	realpainter.drawPixmap( ev->rect(), canvas, ev->rect());
+	foreach(const QRect r, ev->region().rects()) {
+		realpainter.drawPixmap( r, canvas, r);
+	}
 }
 
 //
