@@ -42,40 +42,40 @@ GuiFont
 gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
 	QString family = (char*)name;
-	QFont *font = new QFont();
-	font->setStyleHint(QFont::TypeWriter);
+	QFont font;
+	font.setStyleHint(QFont::TypeWriter);
 
 	if ( name == NULL ) { // Fallback font
-		font->setFamily("Monospace");
-		font->setPointSize(10);
-		font->setKerning(false);
-		return font;
+		font.setFamily("Monospace");
+		font.setPointSize(10);
+		font.setKerning(false);
+		return new QFont(font);
 	}
 
 	bool ok;
 	int size = family.section(' ', -1).trimmed().toInt(&ok);
 	if ( ok ) {
 		QString realname = family.section(' ', 0, -2).trimmed();
-		font->setFamily(realname);
-		font->setPointSize(size);
-	} else if ( !font->fromString((char*)name) ) {
-		font->setRawName((char*)name);
+		font.setFamily(realname);
+		font.setPointSize(size);
+	} else if ( !font.fromString((char*)name) ) {
+		font.setRawName((char*)name);
 	}
 
 	// I expected QFont::exactMatch to do this - but I was wrong
 	// FIXME: this needs further testing
-	if ( QFontInfo(*font).family() != font->family() ) {
+	if ( QFontInfo(font).family() != font.family() ) {
 		if ( giveErrorIfMissing ) {
 			EMSG2(e_font, name);
 		}
 		return NOFONT;
 	}
 
-	font->setFixedPitch(true);
-	font->setBold(false);
-	font->setItalic(false);
+	font.setFixedPitch(true);
+	font.setBold(false);
+	font.setItalic(false);
 
-	return font;
+	return new QFont(font);
 }
 
 /**
