@@ -109,8 +109,8 @@ private:
 struct special_key
 {
 	int key_sym;
-	char code0;
-	char code1;
+	char_u code0;
+	char_u code1;
 };
 
 static const struct special_key special_keys[] =
