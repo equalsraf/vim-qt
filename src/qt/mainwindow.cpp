@@ -26,10 +26,11 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	// TabLine
 	tabtoolbar = addToolBar("tabline");
 	tabtoolbar->setObjectName("tabline");
-	tabtoolbar->setAllowedAreas(Qt::LeftToolBarArea | Qt::TopToolBarArea);
 
 	connect( tabtoolbar, SIGNAL(orientationChanged(Qt::Orientation)),
-			this, SLOT(updateTabOrientation(Qt::Orientation)) );
+			this, SLOT(updateTabOrientation()) );
+	connect( tabtoolbar, SIGNAL(topLevelChanged(bool)),
+			this, SLOT(updateTabOrientation()));
 
 	tabbar = new QTabBar(tabtoolbar);
 	tabbar->setTabsClosable(true);
@@ -47,12 +48,25 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 
 }
 
-void MainWindow::updateTabOrientation(Qt::Orientation orientation)
+void MainWindow::updateTabOrientation()
 {
-	if ( orientation == Qt::Horizontal ) {
-		tabbar->setShape( QTabBar::RoundedNorth );
+
+	if ( tabtoolbar->orientation() == Qt::Horizontal ) {
+		if ( toolBarArea(tabtoolbar) == Qt::BottomToolBarArea ) {
+			tabbar->setShape( QTabBar::RoundedSouth );
+		} else {
+			tabbar->setShape( QTabBar::RoundedNorth );
+		}
 	} else {
-		tabbar->setShape( QTabBar::RoundedWest );
+		if ( toolBarArea(tabtoolbar) == Qt::LeftToolBarArea ) {
+			tabbar->setShape( QTabBar::RoundedWest );
+		} else {
+			tabbar->setShape( QTabBar::RoundedEast );
+		}
+	}
+
+	if ( tabtoolbar->isFloating() ) {
+		tabtoolbar->resize(tabtoolbar->minimumWidth(), tabtoolbar->sizeHint().height());
 	}
 }
 
