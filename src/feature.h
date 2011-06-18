@@ -1012,8 +1012,10 @@
  * +X11			Unix only.  Include code for xterm title saving and X
  *			clipboard.  Only works if HAVE_X11 is also defined.
  */
+#if !defined(FEAT_GUI_QT)
 #if (defined(FEAT_NORMAL) || defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA))
-//# define WANT_X11
+# define WANT_X11
+#endif
 #endif
 
 /*
