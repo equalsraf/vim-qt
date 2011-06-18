@@ -472,6 +472,10 @@ gui_mch_init()
 	clip_plus.clipboardMode = QClipboard::Selection;
 	clip_star.clipboardMode = QClipboard::Clipboard;
 
+	QObject::connect(QApplication::clipboard(), SIGNAL(changed(QClipboard::Mode)),
+			vimshell, SLOT(clipboardChanged(QClipboard::Mode)));
+
+
 	display_errors();
 
 	/* Colors */

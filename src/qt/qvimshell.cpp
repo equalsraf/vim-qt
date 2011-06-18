@@ -638,6 +638,21 @@ void QVimShell::tooltip(const QString& text)
 	m_tooltip->update();
 }
 
+/*
+ * Mark the given clipboard has not owned by Vim
+ *
+ */
+void QVimShell::clipboardChanged(QClipboard::Mode mode)
+{
+	switch(mode) {
+	case QClipboard::Clipboard:
+		clip_star.owned = FALSE;
+		break;
+	case QClipboard::Selection:
+		clip_plus.owned = FALSE;
+		break;
+	}
+}
 
 /*
  * Fill color table with Vim colors
