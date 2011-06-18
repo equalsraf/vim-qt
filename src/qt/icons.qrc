@@ -20,6 +20,6 @@
      <file>icons/go-jump.png</file>
      <file>icons/help-contents.png</file>
      <file>icons/help-contextual.png</file>
-
+     <file>icons/vim-qt.png</file>
  </qresource>
  </RCC>

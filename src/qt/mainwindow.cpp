@@ -5,7 +5,7 @@
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 :QMainWindow(parent), m_keepTabbar(false)
 {
-	setWindowIcon(QPixmap(vim32x32));
+	setWindowIcon(QIcon(":/icons/vim-qt.png"));
 
 	// Menu
 	menutoolbar = addToolBar("Menu");
