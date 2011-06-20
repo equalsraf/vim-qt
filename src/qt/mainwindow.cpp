@@ -6,6 +6,7 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 :QMainWindow(parent), m_keepTabbar(false)
 {
 	setWindowIcon(QIcon(":/icons/vim-qt.png"));
+	setContextMenuPolicy(Qt::PreventContextMenu);
 
 	// Menu
 	menutoolbar = addToolBar("Menu");
