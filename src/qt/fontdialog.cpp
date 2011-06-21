@@ -83,7 +83,12 @@ void FontDialog::updateFonts()
 		return;
 	}
 
-	foreach ( int points, fontDatabase.smoothSizes(current->text(), "Normal") ) {
+	QList<int> fsizes = fontDatabase.smoothSizes(current->text(), "Normal");
+	if ( fsizes.isEmpty() ) {
+		fsizes = fontDatabase.pointSizes(current->text(), "Normal");
+	}
+
+	foreach ( int points, fsizes ) {
 		QListWidgetItem *item = new QListWidgetItem(sizeList);
 		item->setText(QString::number(points));
 	}
