@@ -2327,22 +2327,28 @@ dnl Check if the Qt files can be found
 
 if test -z "$SKIP_QT"; then
     AC_LANG_PUSH(C++)
-    AC_CHECK_HEADER(Qt/QtGui, [], [AC_MSG_ERROR(Cannot find Qt include headers)] )
-    AC_CHECK_PROG( QT_MOC, moc-qt4, moc-qt4, moc)
-    AC_SUBST(QT_MOC)
-#    cppflags_save=$CPPFLAGS
-#    CPPFLAGS="$CPPFLAGS -lQtGui"
-#    AC_LINK_IFELSE([AC_LANG_PROGRAM(
-#		    [[
-#		     #include <Qt/QtGui>
-#		     ]],
-#		    [[
-#		     qVersion();
-#		     ]]
-#		    )],
-#		   [],
-#		   [AC_MSG_ERROR(Cannot find Qt libraries)])
-#    CPPFLAGS=$cppflags_save
+
+    AC_MSG_CHECKING(Qt4)
+    QT_DIR=xxx
+    AC_ARG_WITH([qtdir], AC_HELP_STRING([--with-qt-dir=/usr/lib/qt4],
+					[to specify the Qt4 path]),
+				[QTPATHS="$withval"],
+				[QTPATHS=/usr/lib64/qt4],
+				[QTPATHS=/usr/local/lib64/qt4],
+				[QTPATHS=/usr/lib/qt4],
+				[QTPATHS=/usr/local/lib/qt4]
+				)
+    for x in $QTPATHS; do
+        if test -d $x ; then
+            QT_DIR="$x"
+        fi
+    done
+    if test $QT_DIR = xxx ; then
+        AC_MSG_ERROR(Could not locate Qt4)
+    fi
+    AC_MSG_RESULT($QT_DIR)
+
+    AC_SUBST(QT_DIR)
     AC_LANG_POP(C++)
 fi
 

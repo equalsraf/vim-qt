@@ -1233,9 +1233,9 @@ NEXTAW_TESTTARGET = gui
 NEXTAW_BUNDLE	=
 
 ### Qt
-#
-MOC		= $(QT_MOC)
-QT_LIBS1	= -lQtGui -lQtCore -lstdc++
+# QT_DIR is base Qt directory
+MOC		= $(QT_DIR)/bin/moc
+QT_LIBS1	= -L$(QT_DIR)/lib -lQtGui -lQtCore -lstdc++
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp \
 			qt/vimgui.cpp qt/fontdialog.cpp
@@ -1243,7 +1243,7 @@ QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
 			objects/vimscrollbar.o objects/vimgui.o objects/fontdialog.o
-QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I.
+QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I. -I$(QT_DIR)/include
 QT_IPATH	= $(GUI_INC_LOC)
 QT_LIBS_DIR = $(GUI_LIB_LOC)
 
