@@ -263,8 +263,6 @@ QFont QVimShell::fixPainterFont( const QFont& pfont )
  */
 void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 {
-	painter.save();
-
 	QFont f = op.font;
 	f.setUnderline(op.undercurl);
 	painter.setFont(f);
@@ -285,7 +283,6 @@ void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 				c);
 		rect.moveTo( rect.x() + rect.width(), rect.y() );
 	}
-	painter.restore();
 }
 
 /**
@@ -298,7 +295,7 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 
 	QTextLayout l(op.str);
 	QTextOption opt;
-	opt.setAlignment(Qt::AlignJustify);
+	opt.setWrapMode(QTextOption::WrapAnywhere);
 
 	l.setTextOption(opt);
 	l.setFont(op.font);
@@ -320,16 +317,19 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 
 	l.beginLayout();
 	QTextLine line = l.createLine();
-	line.setLineWidth(op.rect.width());
+	line.setNumColumns(op.str.size());
 	l.endLayout();
-
 	l.draw(&painter, op.rect.topLeft());
+	if( l.maximumWidth() != QFontMetrics(op.font).width(op.str) ) {
+		qDebug() << __func__ << "Painting rect mismatch, this is serious, please poke a developer about this";
+	}
 }
 
 void QVimShell::flushPaintOps()
 {
 	QPainter painter(&canvas);
 	while ( !paintOps.isEmpty() ) {
+		painter.save();
 
 		PaintOperation op = paintOps.dequeue();
 		switch( op.type ) {
@@ -359,6 +359,7 @@ void QVimShell::flushPaintOps()
 			painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
 			break;
 		case SCROLLRECT:
+			painter.restore();
 			painter.end();
 
 			QRegion exposed;
@@ -367,8 +368,10 @@ void QVimShell::flushPaintOps()
 
 			painter.begin(&canvas);
 			painter.fillRect(exposed.boundingRect(), op.color);
-			break;
+			continue; // exception, skip painter restore
 		}
+
+		painter.restore();
 	}
 }
 
