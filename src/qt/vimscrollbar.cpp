@@ -1,7 +1,7 @@
 #include "vimscrollbar.moc"
 
 VimScrollBar::VimScrollBar(scrollbar_T *sbar, Qt::Orientation o, QWidget *parent)
-:QScrollBar(o, parent), sb(sbar)
+:QScrollBar(o, parent), sb(sbar), index(-1)
 {
 	setAutoFillBackground(true);
 
@@ -26,4 +26,9 @@ void VimScrollBar::draggingFinished()
 	}
 
 	gui_drag_scrollbar(sb, this->value(), 0);
+}
+
+void VimScrollBar::setIndex(int idx)
+{
+	index = idx;
 }

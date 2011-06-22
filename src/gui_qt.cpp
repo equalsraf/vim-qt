@@ -1190,17 +1190,16 @@ gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
 void
 gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int width, int height)
 {
-	//
-	// Override scrollbar position to take margin 
-	// into consideration
-	//
-	if ( sb->type == SBAR_RIGHT ) {
-		x = vimshell->width() - width;
-	} else if ( sb->type == SBAR_BOTTOM ) {
-		y = vimshell->height() - height;
+	switch(sb->type) {
+	case SBAR_RIGHT:
+	case SBAR_LEFT:
+		sb->wid->resize(sb->wid->width(), height);
+		sb->wid->setIndex(x);
+		break;
+	default:
+		sb->wid->resize( width, sb->wid->height() );
+		sb->wid->setIndex(y);
 	}
-
-	sb->wid->setGeometry(x, y, width, height);
 }
 
 /**
@@ -1227,10 +1226,20 @@ gui_mch_create_scrollbar( scrollbar_T *sb, int orient)
 		dir = Qt::Vertical;
 	}
 
-	VimScrollBar *widget = new VimScrollBar( sb, dir, vimshell);
-	widget->setMinimumWidth(gui.scrollbar_width);
-
+	VimScrollBar *widget = new VimScrollBar( sb, dir, window);
 	sb->wid = widget;
+
+	switch(sb->type) {
+	case SBAR_RIGHT:
+		window->addScrollbarRight(widget);
+		break;
+	case SBAR_LEFT:
+		window->addScrollbarLeft(widget);
+		break;
+	case SBAR_BOTTOM:
+		window->addScrollbarBottom(widget);
+		break;
+	}
 }
 
 /**

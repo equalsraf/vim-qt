@@ -1,7 +1,7 @@
 #include "mainwindow.moc"
 
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
-:QMainWindow(parent), m_keepTabbar(false)
+:QMainWindow(parent), m_keepTabbar(false), scrollArea(0)
 {
 	setWindowIcon(QIcon(":/icons/vim-qt.png"));
 	setContextMenuPolicy(Qt::PreventContextMenu);
@@ -17,10 +17,13 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	toolbar = addToolBar("ToolBar");
 	toolbar->setObjectName("toolbar");
 
+	scrollArea = new ScrollArea(this);
+	setCentralWidget( scrollArea );
+
 	// Vim shell
-	vimshell = new QVimShell( this );
-	setCentralWidget(vimshell);
+	vimshell = new QVimShell( scrollArea );
 	vimshell->setFocus();
+	scrollArea->setWidget(vimshell);
 
 	// TabLine
 	tabtoolbar = addToolBar("tabline");

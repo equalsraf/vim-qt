@@ -3,6 +3,7 @@
 
 #include <Qt/QtGui>
 #include "qvimshell.h"
+#include "scrollarea.h"
 
 class MainWindow: public QMainWindow
 {
@@ -19,6 +20,10 @@ public:
 	bool keepTabbar();
 
 	bool restoreState(const QByteArray& state, int version=0);
+
+	void addScrollbarRight(VimScrollBar *b) { scrollArea->addScrollbarRight(b); }
+	void addScrollbarBottom(VimScrollBar *b) { scrollArea->addScrollbarBottom(b); }
+	void addScrollbarLeft(VimScrollBar *b) { scrollArea->addScrollbarLeft(b); }
 
 public slots:
 	void showTabline(bool show);
@@ -49,6 +54,7 @@ private:
 	QMenuBar *menu;
 
 	bool m_keepTabbar;
+	ScrollArea *scrollArea;
 };
 
 #endif

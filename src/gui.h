@@ -179,7 +179,7 @@
 #endif
 
 #ifdef FEAT_GUI_QT
-struct QScrollBar;
+struct VimScrollBar;
 #endif
 
 typedef struct GuiScrollbar
@@ -223,7 +223,7 @@ typedef struct GuiScrollbar
     PtWidget_t	*id;
 #endif
 #ifdef FEAT_GUI_QT
-    struct QScrollBar* wid;
+    struct VimScrollBar* wid;
 #endif
 } scrollbar_T;
 
