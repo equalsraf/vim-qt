@@ -490,9 +490,12 @@ gui_mch_init()
 	gui.def_norm_pixel = VimGui::toColor(QColor(Qt::black));
 	gui.def_back_pixel = VimGui::toColor(QColor(Qt::white));
 
+	// The Scrollbar manages the scrollbars
+	gui.scrollbar_width = 0;
+	gui.scrollbar_height = 0;
+
 	// Background color hint
 	vimshell->setBackground(VimGui::backgroundColor() );
-
 
 	return OK;
 }
@@ -1227,6 +1230,7 @@ gui_mch_create_scrollbar( scrollbar_T *sb, int orient)
 	}
 
 	VimScrollBar *widget = new VimScrollBar( sb, dir, window);
+	widget->setVisible(false);
 	sb->wid = widget;
 
 	switch(sb->type) {

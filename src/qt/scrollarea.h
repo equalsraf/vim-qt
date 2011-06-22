@@ -20,6 +20,9 @@ protected slots:
 	void layoutWest();
 	void layoutSouth();
 
+protected:
+	void layoutEdge(QBoxLayout *);
+
 private:
 	QWidget *m_widget;
 	QGridLayout *m_layout;

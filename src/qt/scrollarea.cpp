@@ -48,32 +48,67 @@ void ScrollArea::setWidget(QWidget *w)
 	m_layout->addWidget(m_widget, 1, 1);
 }
 
+void ScrollArea::layoutEdge(QBoxLayout *edge)
+{
+	QLayoutItem *item;
+	QLayoutItem *w;
+	QList<VimScrollBar*> bars;
+	int i;
+
+	while ( (item = edge->takeAt(0)) ) {
+		bars.append( static_cast<VimScrollBar*>(item->widget()) );
+		delete item;
+	}
+
+	qSort(bars);
+	foreach( VimScrollBar *b, bars ) {
+		edge->addWidget(b);
+	}
+}
+
 void ScrollArea::layoutEast()
 {
-
+	layoutEdge(east);
 }
 
 void ScrollArea::layoutWest()
 {
-
+	layoutEdge(west);
 }
 
 void ScrollArea::layoutSouth()
 {
-
+	layoutEdge(south);
 }
 
 void ScrollArea::addScrollbarRight(VimScrollBar *b)
 {
+	qDebug() << __func__ << b;
+	connect(b, SIGNAL(indexChanged(int)),
+			this, SLOT(layoutEast()));
+	connect(b, SIGNAL(visibilityChanged(bool)),
+			this, SLOT(layoutEast()));
 	east->addWidget(b);
+	layoutEdge(east);
 }
 
 void ScrollArea::addScrollbarBottom(VimScrollBar *b)
 {
+	connect(b, SIGNAL(indexChanged(int)),
+			this, SLOT(layoutSouth()));
+	connect(b, SIGNAL(visibilityChanged(bool)),
+			this, SLOT(layoutSout()));
 	south->addWidget(b);
+	layoutEdge(south);
 }
 
 void ScrollArea::addScrollbarLeft(VimScrollBar *b)
 {
+	connect(b, SIGNAL(indexChanged(int)),
+			this, SLOT(layoutWest()));
+	connect(b, SIGNAL(visibilityChanged(bool)),
+			this, SLOT(layoutWest()));
 	west->addWidget(b);
+	layoutEdge(west);
 }
+
