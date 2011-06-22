@@ -184,4 +184,9 @@ VimGui::toColor(const QColor& c)
 	return ((long)c.red() << 16) + ((long)c.green() << 8) + ((long)c.blue());
 }
 
+void
+VimGui::newTab(int idx)
+{
+	send_tabline_menu_event(idx, TABLINE_MENU_NEW);
+}
 

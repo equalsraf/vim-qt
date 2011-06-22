@@ -55,6 +55,11 @@ public:
 
 	static QColor fromColor(long);
 	static long toColor(const QColor&);
+
+	/**
+	 * New tab
+	 */
+	static void newTab(int idx=1);
 };
 
 #endif

@@ -30,6 +30,7 @@ public slots:
 	void switchTab(int idx);
 	void closeTab(int idx);
 	void setKeepTabbar(bool);
+	void openNewTab();
 
 protected:
 	virtual void closeEvent( QCloseEvent *);

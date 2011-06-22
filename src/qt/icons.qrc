@@ -21,5 +21,6 @@
      <file>icons/help-contents.png</file>
      <file>icons/help-contextual.png</file>
      <file>icons/vim-qt.png</file>
+     <file>icons/tab-new.png</file>
  </qresource>
  </RCC>
