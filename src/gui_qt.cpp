@@ -1425,16 +1425,13 @@ char_u *
 gui_mch_font_dialog(char_u *oldval)
 {
 	QFont *oldfont = gui_mch_get_font(oldval, 0);
-	QFont old;
-	if ( oldfont ) {
-		old = *oldfont;
-	}
-
 
 	bool ok;
-	QFont f = FontDialog::getFont(&ok, old, window);
+	static FontDialog *dialog = new FontDialog();
+	dialog->selectCurrentFont(*oldfont);
 
-	if ( ok ) {
+	if ( dialog->exec() == QDialog::Accepted ) {
+		QFont f =  dialog->selectedFont();
 		QByteArray text = vimshell->convertTo( QString("%1 %2").arg(f.family()).arg(f.pointSize()) );
 
 		char_u *buffer;
