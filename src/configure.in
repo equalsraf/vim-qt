@@ -2330,7 +2330,7 @@ if test -z "$SKIP_QT"; then
 
     AC_MSG_CHECKING(Qt4)
     QT_DIR=xxx
-    AC_ARG_WITH([qtdir], AC_HELP_STRING([--with-qt-dir=/usr/lib/qt4],
+    AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=/usr/lib/qt4],
 					[to specify the Qt4 path]),
 				[QTPATHS="$withval"],
 				[QTPATHS=/usr/lib64/qt4],
