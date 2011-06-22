@@ -201,7 +201,7 @@ void QVimShell::closeEvent(QCloseEvent *event)
 bool QVimShell::isFakeMonospace(const QFont& f)
 {
 	QFontMetrics fm(f);
-	return ( fm.averageCharWidth() != charWidth() );
+	return ( fm.averageCharWidth() != VimGui::charWidth() );
 }
 
 /*
@@ -321,7 +321,8 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 	l.endLayout();
 	l.draw(&painter, op.rect.topLeft());
 	if( l.maximumWidth() != QFontMetrics(op.font).width(op.str) ) {
-		qDebug() << __func__ << "Painting rect mismatch, this is serious, please poke a developer about this";
+		qDebug() << __func__ << "rect mismatch, this is serious, please poke a developer about this" 
+			<< l.maximumWidth() << QFontMetrics(op.font).width(op.str) << op.str << op.str.size() << op.font;
 	}
 }
 
@@ -343,7 +344,7 @@ void QVimShell::flushPaintOps()
 			painter.drawRect(op.rect); // FIXME: need color
 			break;
 		case DRAWSTRING:
-			if ( op.str.length() != VimGui::stringCellWidth(op.str) ) {
+			if ( getenv("QVIM_DRAW_STRING_SLOW") || op.str.length() != VimGui::stringCellWidth(op.str) ) {
 				drawStringSlow(op, painter);
 			} else if ( isFakeMonospace(op.font) ) {
 				qDebug() << __func__ << "Font size mismatch a.k.a. this is not a proper monospace font";
