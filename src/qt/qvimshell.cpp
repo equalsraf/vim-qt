@@ -341,7 +341,8 @@ void QVimShell::flushPaintOps()
 			painter.fillRect(op.rect, op.color);
 			break;
 		case DRAWRECT:
-			painter.drawRect(op.rect); // FIXME: need color
+			painter.setPen(op.color);
+			painter.drawRect(op.rect);
 			break;
 		case DRAWSTRING:
 			if ( getenv("QVIM_DRAW_STRING_SLOW") || op.str.length() != VimGui::stringCellWidth(op.str) ) {
