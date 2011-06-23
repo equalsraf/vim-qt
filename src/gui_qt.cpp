@@ -74,6 +74,7 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 	font.setFixedPitch(true);
 	font.setBold(false);
 	font.setItalic(false);
+	font.setKerning(false);
 
 	return new QFont(font);
 }
