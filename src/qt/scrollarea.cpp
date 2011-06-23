@@ -97,7 +97,7 @@ void ScrollArea::addScrollbarBottom(VimScrollBar *b)
 	connect(b, SIGNAL(indexChanged(int)),
 			this, SLOT(layoutSouth()));
 	connect(b, SIGNAL(visibilityChanged(bool)),
-			this, SLOT(layoutSout()));
+			this, SLOT(layoutSouth()));
 	south->addWidget(b);
 	layoutEdge(south);
 }
