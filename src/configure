@@ -614,7 +614,9 @@ GUI_X_LIBS
 GUITYPE
 GUI_LIB_LOC
 GUI_INC_LOC
-QT_DIR
+QT_INCDIR
+QT_LIBDIR
+QT_MOC
 ac_ct_CXX
 CXXFLAGS
 CXX
@@ -802,6 +804,7 @@ with_gnome_includes
 with_gnome_libs
 with_gnome
 with_motif_lib
+enable_qt_detection
 with_qt_dir
 with_tlib
 enable_largefile
@@ -1464,6 +1467,7 @@ Optional Features:
   --enable-carbon-check   If auto-select GUI, check for Carbon default=yes
   --enable-qt-check   If auto-select GUI, check for Qt default=yes
   --disable-gtktest       Do not try to compile and run a test GTK program
+  --disable-qt-detection  Do not try to find Qt4
   --disable-largefile     omit support for large files
   --disable-acl           Don't check for ACL support.
   --disable-gpm           Don't use gpm (Linux mouse daemon).
@@ -1495,8 +1499,7 @@ Optional Packages:
   --with-gnome-libs=DIR   Specify location of GNOME libs
   --with-gnome            Specify prefix for GNOME files
   --with-motif-lib=STRING   Library for Motif
-  --with-qt-dir=/usr/lib/qt4
-                          to specify the Qt4 path
+  --with-qt-dir=PATH      to specify the Qt4 base prefix
   --with-tlib=library     terminal library to be used
 
 Some influential environment variables:
@@ -8667,7 +8670,23 @@ done
 fi
 
 
-if test -z "$SKIP_QT"; then
+# Check whether --enable-qt-detection was given.
+if test "${enable_qt_detection+set}" = set; then :
+  enableval=$enable_qt_detection; DONT_FIND_QT=yes
+fi
+
+
+if test "$DONT_FIND_QT" = "yes"; then
+    QT_MOC="moc"
+    QT_LIBDIR="."
+    QT_INCDIR="."
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking Qt4" >&5
+$as_echo_n "checking Qt4... " >&6; }
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: skipping" >&5
+$as_echo "skipping" >&6; }
+fi
+
+if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -8933,7 +8952,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking Qt4" >&5
 $as_echo_n "checking Qt4... " >&6; }
-    QT_DIR=xxx
+    QT_FOUND=xxx
 
     # Candidate paths for Qt4
     QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4 $prefix"
@@ -8991,20 +9010,54 @@ EOF
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }
             if test x"$ac_status" != x0; then
-		    echo "$x sucks $qt_try"
 		    continue;
             fi
 
             QT_DIR="$x"
+	    QT_MOC="$x/bin/moc"
+	    QT_LIBDIR="$x/lib/"
+	    QT_INCDIR="$x/include/"
 	    break;
         fi
     done
+
+    # One last desperate attempt
+    if test $QT_DIR = xxx ; then
+        # Test moc
+        moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
+        { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$moc_try\""; } >&5
+  (eval $moc_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }
+        if test x"$ac_status" != x0; then
+    	    continue;
+        fi
+
+        # test Compile
+        qt_try="$CXX -L$x/lib -I$x/include -lQtGui qttest.cpp -o qttest"
+        { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$qt_try\""; } >&5
+  (eval $qt_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }
+        if test x"$ac_status" != x0; then
+    	    continue;
+        fi
+
+	QT_MOC="moc"
+	QT_LIBDIR="$prefix/lib"
+	QT_INCDIR="$prefix/include"
+        QT_DIR="system"
+    fi
 
     if test $QT_DIR = xxx ; then
         as_fn_error $? "Could not locate Qt4" "$LINENO" 5
     fi
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: using Qt4 from $QT_DIR" >&5
 $as_echo "using Qt4 from $QT_DIR" >&6; }
+
+
 
 
     ac_ext=c

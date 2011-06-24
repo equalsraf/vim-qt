@@ -2325,18 +2325,31 @@ fi
 
 dnl Check if the Qt files can be found
 
-if test -z "$SKIP_QT"; then
+AC_ARG_ENABLE([qt-detection], AC_HELP_STRING([--disable-qt-detection],
+				[Do not try to find Qt4]),
+				[DONT_FIND_QT=yes],
+				)
+
+if test "$DONT_FIND_QT" = "yes"; then
+    QT_MOC="moc"
+    QT_LIBDIR="."
+    QT_INCDIR="."
+    AC_MSG_CHECKING(Qt4)
+    AC_MSG_RESULT(skipping)
+fi
+
+if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     AC_LANG_PUSH(C++)
     AC_PROG_CXX
     AC_MSG_CHECKING(Qt4)
-    QT_DIR=xxx
+    QT_FOUND=xxx
 
     # Candidate paths for Qt4
     QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4 $prefix"
 
     # --with-qt-dir overrides everythin
-    AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=/usr/lib/qt4],
-					[to specify the Qt4 path]),
+    AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=PATH],
+					[to specify the Qt4 base prefix]),
 				[QTPATHS=("$withval")],
 				)
 
@@ -2377,21 +2390,47 @@ EOF
 	    qt_try="$CXX -L$x/lib -I$x/include -lQtGui qttest.cpp -o qttest"
             AC_TRY_EVAL(qt_try)
             if test x"$ac_status" != x0; then
-		    echo "$x sucks $qt_try"
 		    continue;
             fi
 
             QT_DIR="$x"
+	    QT_MOC="$x/bin/moc"
+	    QT_LIBDIR="$x/lib/"
+	    QT_INCDIR="$x/include/"
 	    break;
         fi
     done
+
+    # One last desperate attempt
+    if test $QT_DIR = xxx ; then
+        # Test moc
+        moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
+        AC_TRY_EVAL(moc_try)
+        if test x"$ac_status" != x0; then
+    	    continue;
+        fi
+    
+        # test Compile
+        qt_try="$CXX -L$x/lib -I$x/include -lQtGui qttest.cpp -o qttest"
+        AC_TRY_EVAL(qt_try)
+        if test x"$ac_status" != x0; then
+    	    continue;
+        fi
+    
+	QT_MOC="moc"
+	QT_LIBDIR="$prefix/lib"
+	QT_INCDIR="$prefix/include"
+        QT_DIR="system"   
+    fi
 
     if test $QT_DIR = xxx ; then
         AC_MSG_ERROR(Could not locate Qt4)
     fi
     AC_MSG_RESULT(using Qt4 from $QT_DIR)
 
-    AC_SUBST(QT_DIR)
+    AC_SUBST(QT_MOC)
+    AC_SUBST(QT_LIBDIR)
+    AC_SUBST(QT_INCDIR)
     AC_LANG_POP(C++)
 fi
 
