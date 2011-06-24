@@ -9024,7 +9024,7 @@ EOF
     # One last desperate attempt
     if test $QT_DIR = xxx ; then
         # Test moc
-        moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
+        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
         { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$moc_try\""; } >&5
   (eval $moc_try) 2>&5
   ac_status=$?
@@ -9035,7 +9035,7 @@ EOF
         fi
 
         # test Compile
-        qt_try="$CXX -L$x/lib -I$x/include -lQtGui qttest.cpp -o qttest"
+        qt_try="$CXX -lQtGui qttest.cpp -o qttest"
         { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$qt_try\""; } >&5
   (eval $qt_try) 2>&5
   ac_status=$?

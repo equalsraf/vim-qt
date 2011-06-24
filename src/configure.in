@@ -2404,14 +2404,14 @@ EOF
     # One last desperate attempt
     if test $QT_DIR = xxx ; then
         # Test moc
-        moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
+        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
         AC_TRY_EVAL(moc_try)
         if test x"$ac_status" != x0; then
     	    continue;
         fi
     
         # test Compile
-        qt_try="$CXX -L$x/lib -I$x/include -lQtGui qttest.cpp -o qttest"
+        qt_try="$CXX -lQtGui qttest.cpp -o qttest"
         AC_TRY_EVAL(qt_try)
         if test x"$ac_status" != x0; then
     	    continue;
