@@ -9013,7 +9013,7 @@ EOF
 		    continue;
             fi
 
-            QT_DIR="$x"
+            QT_FOUND="$x"
 	    QT_MOC="$x/bin/moc"
 	    QT_LIBDIR="$x/lib/"
 	    QT_INCDIR="$x/include/"
@@ -9022,7 +9022,9 @@ EOF
     done
 
     # One last desperate attempt
-    if test $QT_DIR = xxx ; then
+    if test $QT_FOUND = xxx ; then
+        QT_FOUND="system"
+
         # Test moc
         moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
         { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$moc_try\""; } >&5
@@ -9031,7 +9033,7 @@ EOF
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }
         if test x"$ac_status" != x0; then
-    	    continue;
+            QT_FOUND=xxx
         fi
 
         # test Compile
@@ -9042,20 +9044,52 @@ EOF
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }
         if test x"$ac_status" != x0; then
-    	    continue;
+            QT_FOUND=xxx
         fi
 
 	QT_MOC="moc"
 	QT_LIBDIR="$prefix/lib"
 	QT_INCDIR="$prefix/include"
-        QT_DIR="system"
     fi
 
-    if test $QT_DIR = xxx ; then
+    # One last desperate attempt - for Gentoo
+    if test $QT_FOUND = xxx ; then
+        QT_FOUND="system"
+       QT_LIBDIR="/usr/lib/qt4"
+       QT_INCDIR="/usr/include/qt4"
+
+        # Test moc
+        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
+        { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$moc_try\""; } >&5
+  (eval $moc_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }
+        if test x"$ac_status" != x0; then
+               # unset QT_FOUND
+               QT_FOUND=xxx
+        fi
+
+        # test Compile
+        qt_try="$CXX -I$QT_INCDIR -L$QT_LIBDIR -lQtGui qttest.cpp -o qttest"
+        { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$qt_try\""; } >&5
+  (eval $qt_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }
+        if test x"$ac_status" != x0; then
+               # unset QT_FOUND
+               QT_FOUND=xxx
+        fi
+
+       QT_MOC="moc"
+    fi
+
+    if test $QT_FOUND = xxx ; then
         as_fn_error $? "Could not locate Qt4" "$LINENO" 5
     fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using Qt4 from $QT_DIR" >&5
-$as_echo "using Qt4 from $QT_DIR" >&6; }
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using Qt4 from $QT_FOUND" >&5
+$as_echo "using Qt4 from $QT_FOUND" >&6; }
 
 
 
