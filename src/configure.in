@@ -2325,33 +2325,15 @@ fi
 
 dnl Check if the Qt files can be found
 
-AC_ARG_ENABLE([qt-detection], AC_HELP_STRING([--disable-qt-detection],
-				[Do not try to find Qt4]),
-				[DONT_FIND_QT=yes],
-				)
-
-if test "$DONT_FIND_QT" = "yes"; then
-    QT_MOC="moc"
-    QT_LIBDIR="."
-    QT_INCDIR="."
-    AC_MSG_CHECKING(Qt4)
-    AC_MSG_RESULT(skipping)
-fi
-
 if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     AC_LANG_PUSH(C++)
     AC_PROG_CXX
-    AC_MSG_CHECKING(Qt4)
-    QT_FOUND=xxx
+    QT_FOUND="no"
 
-    # Candidate paths for Qt4
-    QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4 $prefix"
+#    # Candidate paths for Qt4
+#    QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4 $prefix"
+#
 
-    # --with-qt-dir overrides everythin
-    AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=PATH],
-					[to specify the Qt4 base prefix]),
-				[QTPATHS=("$withval")],
-				)
 
 cat > qttest_c.h << EOF
 #include <Qt/QtGui>
@@ -2376,83 +2358,129 @@ int main(int ac, char **av) {
 }
 EOF
 
-    # Test all paths
-    for x in $QTPATHS; do
-        if test -d $x ; then
-	    # Test moc
-	    moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
-            AC_TRY_EVAL(moc_try)
-            if test x"$ac_status" != x0; then
-		    continue;
-            fi
+    #
+    # Here are the rules for finding Qt
+    # 1. If --with-qt-dir is used, use that or fail immediatly
+    # 2. Try building with no special flags, just system defaults
+    # 3. Try to guess, use some hardcoded paths
+    #
 
-	    # test Compile
-	    qt_try="$CXX -L$x/lib -I$x/include -lQtGui qttest.cpp -o qttest"
-            AC_TRY_EVAL(qt_try)
-            if test x"$ac_status" != x0; then
-		    continue;
-            fi
+    # --with-qt-dir overrides everything else
+    AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=PATH],
+					[to specify the Qt4 base prefix]),
+				[QT_DIR=("$withval")],
+				)
 
-            QT_FOUND="$x"
-	    QT_MOC="$x/bin/moc"
-	    QT_LIBDIR="$x/lib/"
-	    QT_INCDIR="$x/include/"
-	    break;
-        fi
-    done
-
-    # One last desperate attempt
-    if test $QT_FOUND = xxx ; then
-        QT_FOUND="system"
+    if test -n "$QT_DIR" ; then
+        AC_MSG_CHECKING(Qt4 in $QT_DIR)
+        QT_FOUND="yes"
+	QT_MOC="$QT_DIR/bin/moc"
+	QT_LIBDIR="$QT_DIR/lib"
+	QT_INCDIR="$QT_DIR/include"
 
         # Test moc
         moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
         AC_TRY_EVAL(moc_try)
         if test x"$ac_status" != x0; then
-            QT_FOUND=xxx
+            AC_MSG_ERROR(no moc available)
         fi
     
         # test Compile
-        qt_try="$CXX -lQtGui qttest.cpp -o qttest"
+        qt_try="$CXX $CXXFLAGS  -I$QT_INCDIR qttest.cpp -o qttest -L$QT_LIBDIR -lQtGui"
         AC_TRY_EVAL(qt_try)
         if test x"$ac_status" != x0; then
-            QT_FOUND=xxx
+            AC_MSG_ERROR(unable to build)
+        fi
+    
+	AC_MSG_RESULT($QT_FOUND)
+    fi
+
+    # Cross your fingers - hope for the best
+    if test "$QT_FOUND" = "no" ; then
+        AC_MSG_CHECKING(system wide Qt4)
+        QT_FOUND="yes"
+
+        # Test moc
+        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
+        AC_TRY_EVAL(moc_try)
+        if test x"$ac_status" != x0; then
+            QT_FOUND="no"
+        fi
+    
+        # test Compile
+        qt_try="$CXX $CXXFLAGS qttest.cpp -o qttest -lQtGui"
+        AC_TRY_EVAL(qt_try)
+        if test x"$ac_status" != x0; then
+            QT_FOUND="no"
         fi
     
 	QT_MOC="moc"
-	QT_LIBDIR="$prefix/lib"
-	QT_INCDIR="$prefix/include"
+	QT_LIBDIR="."
+	QT_INCDIR="."
+	AC_MSG_RESULT($QT_FOUND)
     fi
 
+    # Hardcoded paths
+    if test "$QT_FOUND" = "no" ; then
+	QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4"
+        for x in $QTPATHS; do
+            AC_MSG_CHECKING(Qt4 in $x)
+
+            if test -d $x ; then
+                AC_MSG_RESULT($QT_FOUND)
+	        continue;
+            fi
+    	    # Test moc
+    	    moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
+            AC_TRY_EVAL(moc_try)
+            if test x"$ac_status" != x0; then
+                AC_MSG_RESULT($QT_FOUND)
+    	        continue;
+            fi
+    
+    	    # test Compile
+    	    qt_try="$CXX $CXXFLAGS -I$x/include qttest.cpp -o qttest -L$x/lib -lQtGui"
+            AC_TRY_EVAL(qt_try)
+            if test x"$ac_status" != x0; then
+                AC_MSG_RESULT($QT_FOUND)
+    	        continue;
+            fi
+    
+            QT_FOUND="yes"
+    	    QT_MOC="$x/bin/moc"
+    	    QT_LIBDIR="$x/lib/"
+    	    QT_INCDIR="$x/include/"
+    	    break;
+        done
+    fi
+
+
     # One last desperate attempt - for Gentoo
-    if test $QT_FOUND = xxx ; then
-        QT_FOUND="system"
-       QT_LIBDIR="/usr/lib/qt4"
-       QT_INCDIR="/usr/include/qt4"
+    if test "$QT_FOUND" = "no" ; then
+        QT_FOUND="yes"
+        QT_LIBDIR="/usr/lib/qt4"
+        QT_INCDIR="/usr/include/qt4"
+        QT_MOC="moc"
 
         # Test moc
-        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
+        moc_try="$QT_MOC qttest_c.h -o moc_qttest_c.cpp"
         AC_TRY_EVAL(moc_try)
         if test x"$ac_status" != x0; then
-               # unset QT_FOUND
-               QT_FOUND=xxx
+               QT_FOUND="no"
         fi
     
         # test Compile
-        qt_try="$CXX -I$QT_INCDIR -L$QT_LIBDIR -lQtGui qttest.cpp -o qttest"
+        qt_try="$CXX $CXXFLAGS -I$QT_INCDIR -L$QT_LIBDIR -lQtGui qttest.cpp -o qttest"
         AC_TRY_EVAL(qt_try)
         if test x"$ac_status" != x0; then
-               # unset QT_FOUND
-               QT_FOUND=xxx
+               QT_FOUND="no"
         fi
     
-       QT_MOC="moc"
     fi
 
-    if test $QT_FOUND = xxx ; then
+    if test "$QT_FOUND" = "no" ; then
         AC_MSG_ERROR(Could not locate Qt4)
     fi
-    AC_MSG_RESULT(using Qt4 from $QT_FOUND)
 
     AC_SUBST(QT_MOC)
     AC_SUBST(QT_LIBDIR)

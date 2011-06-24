@@ -1,7 +1,5 @@
 #include "mainwindow.moc"
 
-#include "../runtime/vim32x32.xpm"
-
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 :QMainWindow(parent), m_keepTabbar(false)
 {
