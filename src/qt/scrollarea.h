@@ -15,6 +15,8 @@ public:
 	void addScrollbarBottom(VimScrollBar *);
 	void addScrollbarLeft(VimScrollBar *);
 
+	static bool scrollBarLessThan(const VimScrollBar *, const VimScrollBar *);
+
 protected slots:
 	void layoutEast();
 	void layoutWest();

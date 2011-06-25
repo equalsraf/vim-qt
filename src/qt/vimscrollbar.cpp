@@ -1,7 +1,7 @@
 #include "vimscrollbar.moc"
 
 VimScrollBar::VimScrollBar(scrollbar_T *sbar, Qt::Orientation o, QWidget *parent)
-:QScrollBar(o, parent), sb(sbar), m_index(-1)
+:QScrollBar(o, parent), sb(sbar), m_index(-1), m_length(0)
 {
 	connect(this, SIGNAL(valueChanged(int)),
 			this, SLOT(draggingFinished()));
@@ -27,11 +27,26 @@ void VimScrollBar::draggingFinished()
 
 void VimScrollBar::setIndex(int idx)
 {
-	m_index = idx;
-	emit indexChanged(m_index);
+	if ( idx != m_index ) {
+		m_index = idx;
+		emit indexChanged(m_index);
+	}
 }
 
-int VimScrollBar::index()
+void VimScrollBar::setLength(int len)
+{
+	if ( len != m_length ) {
+		m_length = len;
+		emit indexChanged(m_index); // FIXME
+	}
+}
+
+int VimScrollBar::length()
+{
+	return m_length;
+}
+
+int VimScrollBar::index() const
 {
 	return m_index;
 }

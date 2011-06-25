@@ -1196,12 +1196,12 @@ gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int width, int height)
 	switch(sb->type) {
 	case SBAR_RIGHT:
 	case SBAR_LEFT:
-		sb->wid->resize(sb->wid->width(), height);
-		sb->wid->setIndex(x);
+		sb->wid->setLength(height);
+		sb->wid->setIndex(y);
 		break;
 	default:
-		sb->wid->resize( width, sb->wid->height() );
-		sb->wid->setIndex(y);
+		sb->wid->setLength(width);
+		sb->wid->setIndex(x);
 	}
 }
 

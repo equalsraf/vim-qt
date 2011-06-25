@@ -1,5 +1,7 @@
 #include "scrollarea.moc"
 
+#include "vimgui.h"
+
 /**
  * The scroll area is a 3x3 grid to place
  * multipla scrollbars around a central widget
@@ -60,9 +62,14 @@ void ScrollArea::layoutEdge(QBoxLayout *edge)
 		delete item;
 	}
 
-	qSort(bars);
+	qSort(bars.begin(), bars.end(), scrollBarLessThan);
 	foreach( VimScrollBar *b, bars ) {
-		edge->addWidget(b);
+		edge->addWidget(b, b->length());
+	}
+
+	// Fix stretch for last item
+	if ( edge->expandingDirections() == Qt::Vertical ) {
+		edge->setStretch(-1, edge->stretch(-1) + (height() % gui.char_height ));
 	}
 }
 
@@ -83,7 +90,6 @@ void ScrollArea::layoutSouth()
 
 void ScrollArea::addScrollbarRight(VimScrollBar *b)
 {
-	qDebug() << __func__ << b;
 	connect(b, SIGNAL(indexChanged(int)),
 			this, SLOT(layoutEast()));
 	connect(b, SIGNAL(visibilityChanged(bool)),
@@ -110,5 +116,10 @@ void ScrollArea::addScrollbarLeft(VimScrollBar *b)
 			this, SLOT(layoutWest()));
 	west->addWidget(b);
 	layoutEdge(west);
+}
+
+bool ScrollArea::scrollBarLessThan(const VimScrollBar *b1, const VimScrollBar *b2)
+{
+	return (b1->index() < b2->index());
 }
 
