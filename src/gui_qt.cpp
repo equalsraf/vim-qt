@@ -1185,6 +1185,8 @@ gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
 	sb->wid->setValue(val);
 	sb->wid->setMaximum(max);
 	sb->wid->setPageStep(size);
+
+	sb->wid->setEnabled( !(size > max) );
 }
 
 /**
