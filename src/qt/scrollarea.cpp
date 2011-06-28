@@ -47,6 +47,8 @@ ScrollArea::ScrollArea(QWidget *parent)
 void ScrollArea::setWidget(QWidget *w)
 {
 	m_widget = w;
+
+	m_widget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 	m_layout->addWidget(m_widget, 1, 1);
 }
 
