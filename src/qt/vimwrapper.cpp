@@ -94,7 +94,7 @@ void VimWrapper::sendTablineMenuEvent(int idx, int ev)
 {
 	QMetaObject::invokeMethod(this, 
 				"slot_sendTablineMenuEvent", 
-				Qt::QueuedConnection, Q_ARG(int, ev),
+				Qt::QueuedConnection, Q_ARG(int, idx),
 							Q_ARG(int, ev));
 }
 void VimWrapper::slot_sendTablineMenuEvent(int idx, int ev)
