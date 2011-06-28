@@ -32,13 +32,13 @@ void QVimShell::setBackground(const QColor color)
 
 void QVimShell::switchTab(int idx)
 {
-	send_tabline_event(idx);
+	vim.sendTablineEvent(idx);
 	m_input = true;
 }
 
 void QVimShell::closeTab(int idx)
 {
-	send_tabline_menu_event(idx, TABLINE_MENU_CLOSE);
+	vim.sendTablineMenuEvent(idx, TABLINE_MENU_CLOSE);
 	m_input = true;
 }
 
@@ -67,7 +67,7 @@ void QVimShell::resizeEvent(QResizeEvent *ev)
 	}
 
 	update();
-	gui_resize_shell(ev->size().width(), ev->size().height());
+	vim.guiResizeShell(ev->size().width(), ev->size().height());
 }
 
 /**
@@ -103,25 +103,6 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 	}
 	return false;
 }
-
-QByteArray QVimShell::convertTo(const QString& s)
-{
-	if ( m_encoding_utf8 ) {
-		return s.toUtf8();
-	} else {
-		return s.toAscii();
-	}
-}
-
-QString QVimShell::convertFrom(const char *s, int size)
-{
-	if ( m_encoding_utf8 ) {
-		return QString::fromUtf8(s, size);
-	} else {
-		return QString::fromAscii(s, size);
-	}
-}
-
 
 bool QVimShell::hasInput()
 {
@@ -182,14 +163,14 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 		add_to_input_buf((char_u *) str, len);
 		return;
 	} else if ( !ev->text().isEmpty() ) {
-		add_to_input_buf( (char_u *) convertTo(ev->text()).data(), ev->count() );
+		add_to_input_buf( (char_u *) VimWrapper::convertTo(ev->text()).data(), ev->count() );
 		return;
 	}
 }
 
 void QVimShell::close()
 {
-	gui_shell_closed();
+	vim.guiShellClosed();
 }
 
 void QVimShell::closeEvent(QCloseEvent *event)
@@ -201,7 +182,7 @@ void QVimShell::closeEvent(QCloseEvent *event)
 bool QVimShell::isFakeMonospace(const QFont& f)
 {
 	QFontMetrics fm(f);
-	return ( fm.averageCharWidth() != VimGui::charWidth() );
+	return ( fm.averageCharWidth() != VimWrapper::charWidth() );
 }
 
 /*
@@ -270,12 +251,12 @@ void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 
 	QRect rect = op.rect;
 	foreach(QChar c, op.str) {
-		if ( VimGui::charCellWidth(c) == 1 ) {
-			rect.setWidth(VimGui::charWidth());
-		} else if (VimGui::charCellWidth(c) == 2) {
-			rect.setWidth(2*VimGui::charWidth());
+		if ( VimWrapper::charCellWidth(c) == 1 ) {
+			rect.setWidth(VimWrapper::charWidth());
+		} else if (VimWrapper::charCellWidth(c) == 2) {
+			rect.setWidth(2*VimWrapper::charWidth());
 		} else {
-			qDebug() << __func__ << "invalid lenght" << c << VimGui::charCellWidth(c);
+			qDebug() << __func__ << "invalid lenght" << c << VimWrapper::charCellWidth(c);
 			continue;
 		}
 		painter.drawText(rect, 
@@ -345,7 +326,7 @@ void QVimShell::flushPaintOps()
 			painter.drawRect(op.rect);
 			break;
 		case DRAWSTRING:
-			if ( getenv("QVIM_DRAW_STRING_SLOW") || op.str.length() != VimGui::stringCellWidth(op.str) ) {
+			if ( getenv("QVIM_DRAW_STRING_SLOW") || op.str.length() != VimWrapper::stringCellWidth(op.str) ) {
 				drawStringSlow(op, painter);
 			} else if ( isFakeMonospace(op.font) ) {
 				qDebug() << __func__ << "Font size mismatch a.k.a. this is not a proper monospace font";
@@ -395,10 +376,10 @@ void QVimShell::paintEvent ( QPaintEvent *ev )
 void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 {	
 	if ( ev->buttons() ) {
-		gui_send_mouse_event(MOUSE_DRAG, ev->pos().x(),
+		vim.guiSendMouseEvent(MOUSE_DRAG, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
 	} else {
-		gui_mouse_moved(ev->pos().x(), ev->pos().y());
+		vim.guiMouseMoved(ev->pos().x(), ev->pos().y());
 	}
 	m_input = true;
 }
@@ -435,14 +416,14 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 	int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
 
-	gui_send_mouse_event(but, ev->pos().x(),
+	vim.guiSendMouseEvent(but, ev->pos().x(),
 					  ev->pos().y(), repeat, vmod);
 	m_input = true;
 }
 
 void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {
-	gui_send_mouse_event(MOUSE_RELEASE, ev->pos().x(),
+	vim.guiSendMouseEvent(MOUSE_RELEASE, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
 	m_input = true;
 	setMouseTracking(false);
@@ -450,7 +431,7 @@ void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 
 void QVimShell::wheelEvent(QWheelEvent *ev)
 {
-	gui_send_mouse_event((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
+	vim.guiSendMouseEvent((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
 					    ev->pos().x(), ev->pos().y(), FALSE, 0);
 	m_input = true;
 }
@@ -467,7 +448,7 @@ void QVimShell::loadColors(const QString& name)
 	}
 
 	while (!f.atEnd()) {
-		QString line = convertFrom( f.readLine() );
+		QString line = VimWrapper::convertFrom( f.readLine() );
 		if ( line.startsWith("!") ) {
 			continue;
 		}
@@ -545,24 +526,10 @@ void QVimShell::dropEvent(QDropEvent *ev)
 		if ( urls.size() == 0 ) {
 			return;
 		}
+		vim.guiHandleDrop(ev->pos().x(), ev->pos().y(), 0, urls);
 
-		char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
-		int i;
-		for (i=0; i<urls.size(); i++) {
-			QByteArray encoded = convertTo(urls.at(i).toString());
-			char *s = (char*)alloc(encoded.size()*sizeof(char)+1);
-			int j;
-			for (j=0; j<encoded.size(); j++) {
-				s[j] = encoded.at(j);
-			}
-			s[j]='\0';
-
-			fnames[i] = (char_u *) s;
-		}
-		
-		gui_handle_drop(ev->pos().x(), ev->pos().y(), 0, fnames, urls.size());
 	} else {
-		QByteArray text = convertTo(ev->mimeData()->text());
+		QByteArray text = VimWrapper::convertTo(ev->mimeData()->text());
 		dnd_yank_drag_data( (char_u*)text.data(), text.size());
 
 		char_u buf[3] = {CSI, KS_EXTRA, (char_u)KE_DROP};
@@ -573,14 +540,14 @@ void QVimShell::dropEvent(QDropEvent *ev)
 
 void QVimShell::focusInEvent(QFocusEvent *ev)
 {
-	gui_focus_change(TRUE);
+	vim.guiFocusChanged(TRUE);
 	QWidget::focusInEvent(ev);
 	update();
 }
 
 void QVimShell::focusOutEvent(QFocusEvent *ev)
 {
-	gui_focus_change(FALSE);
+	vim.guiFocusChanged(FALSE);
 	QWidget::focusOutEvent(ev);
 	update();
 }
@@ -598,7 +565,7 @@ int QVimShell::charWidth()
 void QVimShell::inputMethodEvent(QInputMethodEvent *ev)
 {
 	if ( !ev->commitString().isEmpty() ) {
-		QByteArray s = convertTo(ev->commitString());
+		QByteArray s = VimWrapper::convertTo(ev->commitString());
 		add_to_input_buf( (char_u *) s.data(), s.size() );
 		tooltip("");
 	} else {
@@ -633,8 +600,8 @@ void QVimShell::tooltip(const QString& text)
 	}
 
 	if ( !m_tooltip->isVisible() ) {
-		m_tooltip->setMinimumHeight(VimGui::charHeight());
-		m_tooltip->move( VimGui::cursorPosition() );
+		m_tooltip->setMinimumHeight(VimWrapper::charHeight());
+		m_tooltip->move( VimWrapper::cursorPosition() );
 		m_tooltip->show();
 	}
 

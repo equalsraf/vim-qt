@@ -41,7 +41,7 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	tabbar->setDrawBase(false);
 	tabbar->addTab("VIM"); // One tab must always exist
 
-	QAction *newTab = tabtoolbar->addAction( VimGui::icon("tab-new"), "New Tab");
+	QAction *newTab = tabtoolbar->addAction( VimWrapper::icon("tab-new"), "New Tab");
 	tabtoolbar->addWidget(tabbar);
 
 	connect( tabbar, SIGNAL(tabCloseRequested(int)),
@@ -175,7 +175,7 @@ void MainWindow::openNewTab()
 {
 	// The amusing +1 trick opens the
 	// tab at the right of other tabs
-	VimGui::newTab(tabbar->count()+1);
+	VimWrapper::newTab(tabbar->count()+1);
 	vimshell->forceInput();
 }
 

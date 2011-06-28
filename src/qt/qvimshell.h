@@ -3,7 +3,7 @@
 
 #include <Qt/QtGui>
 #include "vimgui.h"
-
+#include "vimwrapper.h"
 
 
 
@@ -36,9 +36,6 @@ public:
 
 	QColor background();
 	int charWidth();
-
-	QByteArray convertTo(const QString& s);
-	QString convertFrom(const char *, int size=-1);
 
 	void setEncodingUtf8(bool);
 	static void setupColorMap();
@@ -105,6 +102,7 @@ private:
 	QLabel *m_tooltip;
 
 	static QHash<QString, QColor> m_colorMap;
+	VimWrapper vim;
 };
 
 struct special_key
