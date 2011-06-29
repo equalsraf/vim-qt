@@ -81,27 +81,13 @@ void VimWrapper::slot_guiFocusChanged(int focus)
 
 void VimWrapper::sendTablineEvent(int ev)
 {
-	QMetaObject::invokeMethod(this, 
-				"slot_sendTablineEvent", 
-				Qt::QueuedConnection, Q_ARG(int, ev));
-}
-void VimWrapper::slot_sendTablineEvent(int ev)
-{
 	send_tabline_event(ev);
 }
 
 void VimWrapper::sendTablineMenuEvent(int idx, int ev)
 {
-	QMetaObject::invokeMethod(this, 
-				"slot_sendTablineMenuEvent", 
-				Qt::QueuedConnection, Q_ARG(int, idx),
-							Q_ARG(int, ev));
-}
-void VimWrapper::slot_sendTablineMenuEvent(int idx, int ev)
-{
 	send_tabline_menu_event(idx, ev);
 }
-
 
 void VimWrapper::guiHandleDrop(int x, int y, unsigned int mod, const QList<QUrl> urls)
 {

@@ -90,9 +90,6 @@ private slots:
 	void slot_guiFocusChanged(int);
 	void slot_guiHandleDrop(int, int, unsigned int, const QList<QUrl>);
 
-	void slot_sendTablineEvent(int);
-	void slot_sendTablineMenuEvent(int, int);
-
 //	void guiMenuCb(long);
 
 };
