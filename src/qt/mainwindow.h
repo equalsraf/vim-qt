@@ -4,6 +4,7 @@
 #include <Qt/QtGui>
 #include "qvimshell.h"
 #include "scrollarea.h"
+#include "tabbar.h"
 
 class MainWindow: public QMainWindow
 {
@@ -48,7 +49,7 @@ private:
 
 	QVimShell *vimshell;
 	QToolBar *tabtoolbar;
-	QTabBar *tabbar;
+	TabBar *tabbar;
 	
 	QToolBar *menutoolbar;
 	QMenuBar *menu;

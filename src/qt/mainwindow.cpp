@@ -34,7 +34,7 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	connect( tabtoolbar, SIGNAL(topLevelChanged(bool)),
 			this, SLOT(updateTabOrientation()));
 
-	tabbar = new QTabBar(tabtoolbar);
+	tabbar = new TabBar(tabtoolbar);
 	tabbar->setTabsClosable(true);
 	tabbar->setExpanding(false);
 	tabbar->setFocusPolicy(Qt::NoFocus);
