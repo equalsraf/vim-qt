@@ -1,6 +1,5 @@
 #include "scrollarea.moc"
 
-#include "vimgui.h"
 
 /**
  * The scroll area is a 3x3 grid to place

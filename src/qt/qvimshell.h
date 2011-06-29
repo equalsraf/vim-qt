@@ -2,7 +2,6 @@
 #define __QVIMSHELL__
 
 #include <Qt/QtGui>
-#include "vimgui.h"
 #include "vimwrapper.h"
 
 

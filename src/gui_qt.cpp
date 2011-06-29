@@ -3,7 +3,6 @@
 #include "mainwindow.h"
 #include "vimaction.h"
 #include "vimscrollbar.h"
-#include "vimgui.h"
 #include "fontdialog.h"
 
 extern "C" {

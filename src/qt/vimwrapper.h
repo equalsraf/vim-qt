@@ -3,6 +3,10 @@
 
 #include <Qt/QtGui>
 
+extern "C" {
+#include "vim.h"
+}
+
 class VimWrapper: public QObject
 {
 	Q_OBJECT
