@@ -485,7 +485,7 @@ QColor QVimShell::color(const QString& name)
 {
 	QString cname = name.toLower().remove(' ');
 	QColor c =m_colorMap.value(cname, QColor());
-	if ( !c.isValid() ) {
+	if ( !c.isValid() && cname != "transparent" ) {
 		c.setNamedColor(cname);
 	}
 
