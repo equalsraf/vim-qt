@@ -301,7 +301,12 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 	line.setNumColumns(op.str.size());
 	l.endLayout();
 	l.draw(&painter, op.rect.topLeft());
-	if( l.maximumWidth() != QFontMetrics(op.font).width(op.str) ) {
+
+	//
+	// An error of one pixel seems to be insignificant. We tolerate this here
+	// but the painter is clipped anyway.
+	int miss = l.maximumWidth() - QFontMetrics(op.font).width(op.str);
+	if( miss  > 1 || miss < -1 ) {
 		qDebug() << __func__ << "rect mismatch, this is serious, please poke a developer about this" 
 			<< l.maximumWidth() << QFontMetrics(op.font).width(op.str) << op.str << op.str.size() << op.font;
 	}
@@ -326,6 +331,7 @@ void QVimShell::flushPaintOps()
 			painter.drawRect(op.rect);
 			break;
 		case DRAWSTRING:
+			painter.setClipRect(op.rect);
 			if ( getenv("QVIM_DRAW_STRING_SLOW") || op.str.length() != VimWrapper::stringCellWidth(op.str) ) {
 				drawStringSlow(op, painter);
 			} else if ( isFakeMonospace(op.font) ) {
