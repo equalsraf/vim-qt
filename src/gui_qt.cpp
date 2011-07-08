@@ -1422,7 +1422,9 @@ gui_mch_font_dialog(char_u *oldval)
 
 	bool ok;
 	static FontDialog *dialog = new FontDialog();
-	dialog->selectCurrentFont(*oldfont);
+	if ( oldfont != NULL ) {
+		dialog->selectCurrentFont(*oldfont);
+	}
 
 	if ( dialog->exec() == QDialog::Accepted ) {
 		QFont f =  dialog->selectedFont();
