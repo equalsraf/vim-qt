@@ -41,8 +41,8 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	tabbar->setDrawBase(false);
 	tabbar->addTab("VIM"); // One tab must always exist
 
-	QAction *newTab = tabtoolbar->addAction( VimWrapper::icon("tab-new"), "New Tab");
 	tabtoolbar->addWidget(tabbar);
+	QAction *newTab = tabtoolbar->addAction( VimWrapper::icon("tab-new"), "New Tab");
 
 	connect( tabbar, SIGNAL(tabCloseRequested(int)),
 			this, SLOT(closeTab(int)));
