@@ -82,10 +82,20 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 	for ( i=0; special_keys[i].key_sym != 0; i++ ) {
 		if ( special_keys[i].key_sym == ev->key() ) {
 
-			int key_char = TO_SPECIAL(special_keys[i].code0, special_keys[i].code1);
+			// Modifiers
 			int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
 
+			int key_char;
+			if (special_keys[i].code1 == NUL) {
+				key_char = special_keys[i].code0;
+			} else {
+				key_char = TO_SPECIAL(special_keys[i].code0, special_keys[i].code1);
+			}
+
 			key_char = simplify_key(key_char, (int *)&vmod);
+			if (key_char == CSI) {
+				key_char = K_CSI;
+			}
 
 			if ( vmod ) {
 				str[start++] = (char)CSI;
@@ -93,9 +103,17 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 				str[start++] = (char)vmod;
 			}
 
-			str[start++] = (char)CSI;
-			str[start++] = K_SECOND(key_char);
-			str[start++] = K_THIRD(key_char);
+			if (IS_SPECIAL(key_char)) {
+				str[start++] = (char)CSI;
+				str[start++] = K_SECOND(key_char);
+				str[start++] = K_THIRD(key_char);
+			} else {
+				QByteArray key = VimWrapper::convertTo(ev->text());
+				int j;
+				for (j=0; j<key.size(); j++) {
+					str[start++] = key[j];
+				}
+			}
 
 			*len = start;
 			return true;
@@ -156,10 +174,9 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
 	char str[20];
 	int len=0;
-
 	m_input = true;
-	if ( specialKey( ev, str, &len)) {
 
+	if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
 		return;
 	} else if ( !ev->text().isEmpty() ) {
