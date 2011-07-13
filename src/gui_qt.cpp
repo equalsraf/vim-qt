@@ -1038,6 +1038,7 @@ void
 gui_mch_add_menu(vimmenu_T *menu, int idx)
 {
 	menu->qmenu = NULL;
+	QAction *before=NULL;
 
 	if ( menu_is_popup(menu->name) ) {
 		menu->qmenu = new QMenu(VimWrapper::convertFrom((char*)menu->name), vimshell);
@@ -1045,10 +1046,24 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	} else if ( menu_is_toolbar(menu->name) ) {
 		menu->qmenu = window->toolBar();
 	} else if ( menu->parent == NULL ) {
-		menu->qmenu = window->menuBar()->addMenu( VimWrapper::convertFrom((char*)menu->name) );
+		QList<QAction*> actions = window->menuBar()->actions();
+		if ( idx < actions.size() ) {
+			before = actions.at(idx);
+		}
+
+		QMenu *m = new QMenu(VimWrapper::convertFrom((char*)menu->name), window);
+		window->menuBar()->insertMenu( before, m);
+		menu->qmenu = m;
 	} else if ( menu->parent && menu->parent->qmenu ) {
-		QMenu *m = (QMenu*)menu->parent->qmenu;
-		menu->qmenu = m->addMenu( VimWrapper::convertFrom((char*)menu->name) );
+		QMenu *parent = (QMenu*)menu->parent->qmenu;
+		QList<QAction*> actions = parent->actions();
+		if ( idx < actions.size() ) {
+			before = actions.at(idx);
+		}
+
+		QMenu *m = new QMenu(VimWrapper::convertFrom((char*)menu->name), window);
+		parent->insertMenu( before, m);
+		menu->qmenu = m;
 	}
 }
 
@@ -1063,6 +1078,12 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 		return;
 	}
 
+	QList<QAction*> actions = menu->parent->qmenu->actions();
+	QAction *before=NULL;
+	if ( idx < actions.size() ) {
+		before = actions.at(idx);
+	}
+
 	if ( menu_is_toolbar(menu->parent->name) ) {
 		// Toolbar
 		QToolBar *b = (QToolBar*)menu->parent->qmenu;
@@ -1070,7 +1091,7 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 			b->addSeparator();
 		} else {
 			QAction *action = new VimAction( menu, window );
-			b->addAction( action );
+			b->insertAction(before, action);
 			menu->qaction = action;
 
 			QObject::connect( action, SIGNAL(triggered()),
@@ -1083,7 +1104,7 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 			m->addSeparator();
 		} else {
 			QAction *action = new VimAction( menu, window );
-			m->addAction( action );
+			m->insertAction(before, action);
 			menu->qaction = action;
 			
 			QObject::connect( action, SIGNAL(triggered()),
