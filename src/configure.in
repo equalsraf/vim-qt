@@ -2461,19 +2461,22 @@ EOF
         QT_LIBDIR="/usr/lib/qt4"
         QT_INCDIR="/usr/include/qt4"
         QT_MOC="moc"
+	AC_MSG_CHECKING(Qt4 in Gentoo locations)
 
         # Test moc
         moc_try="$QT_MOC qttest_c.h -o moc_qttest_c.cpp"
         AC_TRY_EVAL(moc_try)
         if test x"$ac_status" != x0; then
-               QT_FOUND="no"
+		AC_MSG_RESULT($QT_FOUND)
+		QT_FOUND="no"
         fi
     
         # test Compile
         qt_try="$CXX $CXXFLAGS -I$QT_INCDIR -L$QT_LIBDIR -lQtGui qttest.cpp -o qttest"
         AC_TRY_EVAL(qt_try)
         if test x"$ac_status" != x0; then
-               QT_FOUND="no"
+                AC_MSG_RESULT($QT_FOUND)
+		QT_FOUND="no"
         fi
     
     fi

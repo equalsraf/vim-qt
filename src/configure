@@ -9099,6 +9099,8 @@ $as_echo "$QT_FOUND" >&6; }
         QT_LIBDIR="/usr/lib/qt4"
         QT_INCDIR="/usr/include/qt4"
         QT_MOC="moc"
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking Qt4 in Gentoo locations" >&5
+$as_echo_n "checking Qt4 in Gentoo locations... " >&6; }
 
         # Test moc
         moc_try="$QT_MOC qttest_c.h -o moc_qttest_c.cpp"
@@ -9108,7 +9110,9 @@ $as_echo "$QT_FOUND" >&6; }
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }
         if test x"$ac_status" != x0; then
-               QT_FOUND="no"
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_FOUND" >&5
+$as_echo "$QT_FOUND" >&6; }
+		QT_FOUND="no"
         fi
 
         # test Compile
@@ -9119,7 +9123,9 @@ $as_echo "$QT_FOUND" >&6; }
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }
         if test x"$ac_status" != x0; then
-               QT_FOUND="no"
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_FOUND" >&5
+$as_echo "$QT_FOUND" >&6; }
+		QT_FOUND="no"
         fi
 
     fi
