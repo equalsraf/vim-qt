@@ -276,9 +276,12 @@ void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 			qDebug() << __func__ << "invalid lenght" << c << VimWrapper::charCellWidth(c);
 			continue;
 		}
-		painter.drawText(rect, 
+
+		if ( c != ' ' ) {
+			painter.drawText(rect, 
 				Qt::TextSingleLine | Qt::AlignCenter | Qt::AlignTop, 
 				c);
+		}
 		rect.moveTo( rect.x() + rect.width(), rect.y() );
 	}
 }
