@@ -561,6 +561,7 @@ void QVimShell::dropEvent(QDropEvent *ev)
 		char_u buf[3] = {CSI, KS_EXTRA, (char_u)KE_DROP};
 		add_to_input_buf(buf, 3);
 	}
+	m_input = true;
 	ev->acceptProposedAction();
 }
 
