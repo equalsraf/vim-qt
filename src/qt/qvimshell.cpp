@@ -592,7 +592,7 @@ void QVimShell::inputMethodEvent(QInputMethodEvent *ev)
 {
 	if ( !ev->commitString().isEmpty() ) {
 		QByteArray s = VimWrapper::convertTo(ev->commitString());
-		add_to_input_buf( (char_u *) s.data(), s.size() );
+		add_to_input_buf_csi( (char_u *) s.data(), s.size() );
 		tooltip("");
 	} else {
 		tooltip( ev->preeditString());
