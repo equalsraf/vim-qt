@@ -135,7 +135,7 @@ static const struct special_key special_keys[] =
     {Qt::Key_Backspace,	'k', 'b'},
 
     {Qt::Key_Delete,	'k', 'D'},
-    {Qt::Key_Insert,	'k', 'i'},
+    {Qt::Key_Insert,	'k', 'I'},
     {Qt::Key_Home,	'k', 'h'},
     {Qt::Key_End,	'@', '7'},
     {Qt::Key_PageUp,	'k', 'P'},
