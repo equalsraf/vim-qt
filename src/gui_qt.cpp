@@ -58,12 +58,15 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 	// I expected QFont::exactMatch to do this - but I was wrong
 	// FIXME: this needs further testing
     // This makes it impossible to set the font to "Monospace".
-	//if ( QFontInfo(font).family() != font.family() ) {
-	//	if ( giveErrorIfMissing ) {
-	//		EMSG2(e_font, name);
-	//	}
-	//	return NOFONT;
-	//}
+	if ( QFontInfo(font).family() != font.family() && giveErrorIfMissing ) {
+        QString errmsg;
+        QTextStream(&errmsg) << "Font called "
+            << font.family() << " is actually called "
+            << QFontInfo(font).family();
+        
+        EMSG2(e_font, errmsg.toUtf8().data());
+		return NOFONT;
+	}
 
 	font.setFixedPitch(true);
 	font.setBold(false);
@@ -242,7 +245,7 @@ gui_mch_clear_all()
 int
 gui_mch_init_font(char_u *font_name, int do_fontset)
 {
-	QFont *qf = gui_mch_get_font(font_name, 0);
+	QFont *qf = gui_mch_get_font(font_name, TRUE);
 	if ( qf == NULL ) {
 		return FAIL;
 	}
