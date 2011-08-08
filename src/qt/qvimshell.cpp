@@ -175,6 +175,30 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	char str[20];
 	int len=0;
 	m_input = true;
+    
+    int keyCode = ev->key();
+    
+    if (
+               keyCode == Qt::Key_Shift
+            || keyCode == Qt::Key_Alt
+            || keyCode == Qt::Key_Control
+            || keyCode == Qt::Key_CapsLock
+            || keyCode == Qt::Key_NumLock
+            || keyCode == Qt::Key_Meta
+            || keyCode == Qt::Key_AltGr
+            || keyCode == Qt::Key_ScrollLock)
+    {
+        return;
+    }
+    
+    // Special ALT hack
+    if (QApplication::keyboardModifiers() & Qt::AltModifier) {
+        char_u data[2];
+        data[0] = 195;
+        data[1] = (char_u)ev->text().data()[0].toAscii() + (char_u)64;
+        add_to_input_buf(data, 2);
+        return;
+    }
 
 	if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
