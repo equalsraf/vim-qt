@@ -57,12 +57,13 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 
 	// I expected QFont::exactMatch to do this - but I was wrong
 	// FIXME: this needs further testing
-	if ( QFontInfo(font).family() != font.family() ) {
-		if ( giveErrorIfMissing ) {
-			EMSG2(e_font, name);
-		}
-		return NOFONT;
-	}
+    // This makes it impossible to set the font to "Monospace".
+	//if ( QFontInfo(font).family() != font.family() ) {
+	//	if ( giveErrorIfMissing ) {
+	//		EMSG2(e_font, name);
+	//	}
+	//	return NOFONT;
+	//}
 
 	font.setFixedPitch(true);
 	font.setBold(false);
