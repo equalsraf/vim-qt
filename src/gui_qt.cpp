@@ -1128,7 +1128,7 @@ gui_mch_new_menu_font()
 void
 gui_mch_destroy_menu(vimmenu_T *menu)
 {
-	QMenu *parent;
+	QMenu *parent = NULL;
 	if ( menu->parent ) {
 		parent = (QMenu*)menu->parent->qmenu;
 	}
