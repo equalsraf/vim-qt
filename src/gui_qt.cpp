@@ -57,10 +57,14 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 
 	// I expected QFont::exactMatch to do this - but I was wrong
 	// FIXME: this needs further testing
-	if ( QFontInfo(font).family() != font.family() ) {
-		if ( giveErrorIfMissing ) {
-			EMSG2(e_font, name);
-		}
+    // This makes it impossible to set the font to "Monospace".
+	if ( QFontInfo(font).family() != font.family() && giveErrorIfMissing ) {
+        QString errmsg;
+        QTextStream(&errmsg) << "Font called "
+            << font.family() << " is actually called "
+            << QFontInfo(font).family();
+        
+        EMSG2(e_font, errmsg.toUtf8().data());
 		return NOFONT;
 	}
 
@@ -116,24 +120,19 @@ gui_mch_flash(int msec)
 int
 gui_mch_wait_for_chars(long wtime)
 {
+    if (!vim_is_input_buf_empty())
+        return OK;
+    
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents);
 		return OK;
 	} else {
-		//
-		// FIXME
-		// This is, evidently, broken. We should block until we get an event or the given
-		// time expires. Since we have no practical way to block Qt for a certain time step
-		// instead we wait indefinitely. In practice this works because vim likes pass in
-		// large time slots(4s).
-		//
 		// @see gui_mch_update
-
 		QTime t;
 		t.start();
 		do {
-			QApplication::processEvents( QEventLoop::WaitForMoreEvents );
-			if ( vimshell->hasInput() ) {
+			QApplication::processEvents( QEventLoop::WaitForMoreEvents, wtime );
+			if (!vim_is_input_buf_empty()) {
 				return OK;
 			}
 		} while( t.elapsed() < wtime );
@@ -246,7 +245,7 @@ gui_mch_clear_all()
 int
 gui_mch_init_font(char_u *font_name, int do_fontset)
 {
-	QFont *qf = gui_mch_get_font(font_name, 0);
+	QFont *qf = gui_mch_get_font(font_name, TRUE);
 	if ( qf == NULL ) {
 		return FAIL;
 	}

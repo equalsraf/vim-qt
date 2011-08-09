@@ -175,13 +175,41 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	char str[20];
 	int len=0;
 	m_input = true;
-
-	if ( specialKey( ev, str, &len)) {
+    int keyCode;
+    int_u mods;
+   
+    keyCode = ev->key();
+    if (
+               keyCode == Qt::Key_Shift
+            || keyCode == Qt::Key_Alt
+            || keyCode == Qt::Key_Control
+            || keyCode == Qt::Key_CapsLock
+            || keyCode == Qt::Key_NumLock
+            || keyCode == Qt::Key_Meta
+            || keyCode == Qt::Key_AltGr
+            || keyCode == Qt::Key_ScrollLock)
+    {
+        return;
+    }
+    
+    // Special ALT hack
+    // See gui_gtk_11.c, which this approximates.
+    mods = vimKeyboardModifiers(QApplication::keyboardModifiers());
+    if (ev->count() == 1
+            && (mods & MOD_MASK_ALT)
+            && !(keyCode == Qt::Key_Backspace || keyCode == Qt::Key_Delete)
+            && (ev->text().data()[0].toAscii() & 0x80) == 0
+            && !(keyCode == Qt::Key_Tab && (mods & MOD_MASK_SHIFT))
+       )
+    {
+        str[0] = 195;
+        str[1] = ev->text().data()[0].toAscii() + 64;
+        add_to_input_buf((char_u*) str, 2);
+    }
+    else if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
-		return;
 	} else if ( !ev->text().isEmpty() ) {
 		add_to_input_buf( (char_u *) VimWrapper::convertTo(ev->text()).data(), ev->count() );
-		return;
 	}
 }
 
