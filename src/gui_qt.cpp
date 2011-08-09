@@ -55,12 +55,18 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 		font.setRawName((char*)name);
 	}
 
-	// I expected QFont::exactMatch to do this - but I was wrong
-	// FIXME: this needs further testing
-	if ( QFontInfo(font).family() != font.family() ) {
-		if ( giveErrorIfMissing ) {
-			EMSG2(e_font, name);
-		}
+	//
+	// When you ask for a font you may get a different font. This happens
+	// when the font system does some form of substitution (such as as virtual fonts).
+	// This bit of code checks if the font that is requested is the font that is returned.
+	//
+	// In a nutshell this is what is done:
+	// - If giveErrorIfMissing is FALSE and the font does not match ignore the error and proceed
+	// - If giveErrorIfMissing is TRUE fail with an error message
+	// * I expected QFont::exactMatch to do all this - but I was wrong
+	//
+	if ( QFontInfo(font).family() != font.family() && giveErrorIfMissing ) {
+		EMSG2(e_font, name);
 		return NOFONT;
 	}
 
@@ -241,7 +247,7 @@ gui_mch_clear_all()
 int
 gui_mch_init_font(char_u *font_name, int do_fontset)
 {
-	QFont *qf = gui_mch_get_font(font_name, 0);
+	QFont *qf = gui_mch_get_font(font_name, FALSE);
 	if ( qf == NULL ) {
 		return FAIL;
 	}
