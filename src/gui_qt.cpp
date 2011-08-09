@@ -116,24 +116,20 @@ gui_mch_flash(int msec)
 int
 gui_mch_wait_for_chars(long wtime)
 {
+	if (!vim_is_input_buf_empty()) {
+		return OK;
+	}
+    
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents);
 		return OK;
 	} else {
-		//
-		// FIXME
-		// This is, evidently, broken. We should block until we get an event or the given
-		// time expires. Since we have no practical way to block Qt for a certain time step
-		// instead we wait indefinitely. In practice this works because vim likes pass in
-		// large time slots(4s).
-		//
 		// @see gui_mch_update
-
 		QTime t;
 		t.start();
 		do {
-			QApplication::processEvents( QEventLoop::WaitForMoreEvents );
-			if ( vimshell->hasInput() ) {
+			QApplication::processEvents( QEventLoop::WaitForMoreEvents);
+			if (!vim_is_input_buf_empty()) {
 				return OK;
 			}
 		} while( t.elapsed() < wtime );
