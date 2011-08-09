@@ -8,7 +8,7 @@ QHash<QString, QColor> QVimShell::m_colorMap;
 
 QVimShell::QVimShell(QWidget *parent)
 :QWidget(parent), m_encoding_utf8(true),
-	m_input(false), m_lastClickEvent(-1), m_tooltip(0)
+	m_lastClickEvent(-1), m_tooltip(0)
 {
 	// IM Tooltip
 	m_tooltip = new QLabel(this);
@@ -33,13 +33,11 @@ void QVimShell::setBackground(const QColor color)
 void QVimShell::switchTab(int idx)
 {
 	vim.sendTablineEvent(idx);
-	m_input = true;
 }
 
 void QVimShell::closeTab(int idx)
 {
 	vim.sendTablineMenuEvent(idx, TABLINE_MENU_CLOSE);
-	m_input = true;
 }
 
 
@@ -122,20 +120,6 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 	return false;
 }
 
-bool QVimShell::hasInput()
-{
-	if (m_input) {
-		m_input = false;
-		return true;
-	}
-	return false;
-}
-
-void QVimShell::forceInput()
-{
-	m_input = true;
-}
-
 int_u QVimShell::vimKeyboardModifiers(Qt::KeyboardModifiers mod)
 {
 	int_u vim = 0x00;
@@ -174,7 +158,6 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
 	char str[20];
 	int len=0;
-	m_input = true;
 
 	if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
@@ -407,7 +390,6 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 	} else {
 		vim.guiMouseMoved(ev->pos().x(), ev->pos().y());
 	}
-	m_input = true;
 }
 
 void QVimShell::mousePressEvent(QMouseEvent *ev)
@@ -444,14 +426,12 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 	vim.guiSendMouseEvent(but, ev->pos().x(),
 					  ev->pos().y(), repeat, vmod);
-	m_input = true;
 }
 
 void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {
 	vim.guiSendMouseEvent(MOUSE_RELEASE, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
-	m_input = true;
 	setMouseTracking(false);
 }
 
@@ -459,7 +439,6 @@ void QVimShell::wheelEvent(QWheelEvent *ev)
 {
 	vim.guiSendMouseEvent((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
 					    ev->pos().x(), ev->pos().y(), FALSE, 0);
-	m_input = true;
 }
 
 /**
@@ -561,7 +540,6 @@ void QVimShell::dropEvent(QDropEvent *ev)
 		char_u buf[3] = {CSI, KS_EXTRA, (char_u)KE_DROP};
 		add_to_input_buf(buf, 3);
 	}
-	m_input = true;
 	ev->acceptProposedAction();
 }
 
@@ -598,7 +576,6 @@ void QVimShell::inputMethodEvent(QInputMethodEvent *ev)
 	} else {
 		tooltip( ev->preeditString());
 	}
-	m_input = true;
 }
 
 QVariant QVimShell::inputMethodQuery(Qt::InputMethodQuery query)

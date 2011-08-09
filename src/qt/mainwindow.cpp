@@ -176,7 +176,6 @@ void MainWindow::openNewTab()
 	// The amusing +1 trick opens the
 	// tab at the right of other tabs
 	VimWrapper::newTab(tabbar->count()+1);
-	vimshell->forceInput();
 }
 
 void MainWindow::setKeepTabbar(bool keep)

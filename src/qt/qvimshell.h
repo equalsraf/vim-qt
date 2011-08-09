@@ -46,7 +46,6 @@ public slots:
 
 	void close();
 	virtual void closeEvent(QCloseEvent *event);
-	void forceInput();
 
 	void switchTab(int idx);
 	void closeTab(int idx);
@@ -92,7 +91,6 @@ private:
 	blink_state blinkState;
 	bool m_encoding_utf8;
 
-	volatile bool m_input;
 	QQueue<PaintOperation> paintOps;
 	QPixmap canvas;
 

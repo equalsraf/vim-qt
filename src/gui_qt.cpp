@@ -119,12 +119,11 @@ gui_mch_wait_for_chars(long wtime)
 	if (!vim_is_input_buf_empty()) {
 		return OK;
 	}
-    
+
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents);
 		return OK;
 	} else {
-		// @see gui_mch_update
 		QTime t;
 		t.start();
 		do {
@@ -1089,9 +1088,6 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 			QAction *action = new VimAction( menu, window );
 			b->insertAction(before, action);
 			menu->qaction = action;
-
-			QObject::connect( action, SIGNAL(triggered()),
-					vimshell, SLOT(forceInput()));
 		}
 	} else {
 		// Menu entries
@@ -1102,10 +1098,6 @@ gui_mch_add_menu_item(vimmenu_T *menu, int idx)
 			QAction *action = new VimAction( menu, window );
 			m->insertAction(before, action);
 			menu->qaction = action;
-			
-			QObject::connect( action, SIGNAL(triggered()),
-					vimshell, SLOT(forceInput()));
-
 		}
 	}
 }
