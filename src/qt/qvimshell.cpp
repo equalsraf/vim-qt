@@ -161,10 +161,13 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 
 	if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
-		return;
 	} else if ( !ev->text().isEmpty() ) {
-		add_to_input_buf( (char_u *) VimWrapper::convertTo(ev->text()).data(), ev->count() );
-		return;
+		if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
+			char str[2] = {(char)195, ev->text().data()[0].toAscii() + 64};
+			add_to_input_buf( (char_u *) str, 2 );
+		} else {
+			add_to_input_buf( (char_u *) VimWrapper::convertTo(ev->text()).data(), ev->count() );
+		}
 	}
 }
 
