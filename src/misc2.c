@@ -333,7 +333,7 @@ coladvance2(pos, addspaces, finetune, wcol)
 #ifdef FEAT_MBYTE
     /* prevent from moving onto a trail byte */
     if (has_mbyte)
-	mb_adjustpos(pos);
+	mb_adjustpos(curbuf, pos);
 #endif
 
     if (col < wcol)
@@ -544,16 +544,26 @@ check_cursor_lnum()
     void
 check_cursor_col()
 {
+    check_cursor_col_win(curwin);
+}
+
+/*
+ * Make sure win->w_cursor.col is valid.
+ */
+    void
+check_cursor_col_win(win)
+    win_T *win;
+{
     colnr_T len;
 #ifdef FEAT_VIRTUALEDIT
-    colnr_T oldcol = curwin->w_cursor.col;
-    colnr_T oldcoladd = curwin->w_cursor.col + curwin->w_cursor.coladd;
+    colnr_T oldcol = win->w_cursor.col;
+    colnr_T oldcoladd = win->w_cursor.col + win->w_cursor.coladd;
 #endif
 
-    len = (colnr_T)STRLEN(ml_get_curline());
+    len = (colnr_T)STRLEN(ml_get_buf(win->w_buffer, win->w_cursor.lnum, FALSE));
     if (len == 0)
-	curwin->w_cursor.col = 0;
-    else if (curwin->w_cursor.col >= len)
+	win->w_cursor.col = 0;
+    else if (win->w_cursor.col >= len)
     {
 	/* Allow cursor past end-of-line when:
 	 * - in Insert mode or restarting Insert mode
@@ -567,33 +577,33 @@ check_cursor_col()
 		|| (ve_flags & VE_ONEMORE)
 #endif
 		|| virtual_active())
-	    curwin->w_cursor.col = len;
+	    win->w_cursor.col = len;
 	else
 	{
-	    curwin->w_cursor.col = len - 1;
+	    win->w_cursor.col = len - 1;
 #ifdef FEAT_MBYTE
-	    /* prevent cursor from moving on the trail byte */
+	    /* Move the cursor to the head byte. */
 	    if (has_mbyte)
-		mb_adjust_cursor();
+		mb_adjustpos(win->w_buffer, &win->w_cursor);
 #endif
 	}
     }
-    else if (curwin->w_cursor.col < 0)
-	curwin->w_cursor.col = 0;
+    else if (win->w_cursor.col < 0)
+	win->w_cursor.col = 0;
 
 #ifdef FEAT_VIRTUALEDIT
     /* If virtual editing is on, we can leave the cursor on the old position,
      * only we must set it to virtual.  But don't do it when at the end of the
      * line. */
     if (oldcol == MAXCOL)
-	curwin->w_cursor.coladd = 0;
+	win->w_cursor.coladd = 0;
     else if (ve_flags == VE_ALL)
     {
-	if (oldcoladd > curwin->w_cursor.col)
-	    curwin->w_cursor.coladd = oldcoladd - curwin->w_cursor.col;
+	if (oldcoladd > win->w_cursor.col)
+	    win->w_cursor.coladd = oldcoladd - win->w_cursor.col;
 	else
 	    /* avoid weird number when there is a miscalculation or overflow */
-	    curwin->w_cursor.coladd = 0;
+	    win->w_cursor.coladd = 0;
     }
 #endif
 }
@@ -2136,6 +2146,25 @@ ga_append(gap, c)
     }
 }
 
+#if (defined(UNIX) && !defined(USE_SYSTEM)) || defined(WIN3264)
+/*
+ * Append the text in "gap" below the cursor line and clear "gap".
+ */
+    void
+append_ga_line(gap)
+    garray_T	*gap;
+{
+    /* Remove trailing CR. */
+    if (gap->ga_len > 0
+	    && !curbuf->b_p_bin
+	    && ((char_u *)gap->ga_data)[gap->ga_len - 1] == CAR)
+	--gap->ga_len;
+    ga_append(gap, NUL);
+    ml_append(curwin->w_cursor.lnum++, gap->ga_data, 0, FALSE);
+    gap->ga_len = 0;
+}
+#endif
+
 /************************************************************************
  * functions that use lookup tables for various things, generally to do with
  * special key codes.
@@ -3218,7 +3247,7 @@ get_real_state()
 #if defined(FEAT_MBYTE) || defined(PROTO)
 /*
  * Return TRUE if "p" points to just after a path separator.
- * Take care of multi-byte characters.
+ * Takes care of multi-byte characters.
  * "b" must point to the start of the file name
  */
     int
@@ -3226,7 +3255,7 @@ after_pathsep(b, p)
     char_u	*b;
     char_u	*p;
 {
-    return vim_ispathsep(p[-1])
+    return p > b && vim_ispathsep(p[-1])
 			     && (!has_mbyte || (*mb_head_off)(b, p - 1) == 0);
 }
 #endif
@@ -4624,9 +4653,8 @@ vim_findfile_stopdir(buf)
     {
 	if (r_ptr[0] == '\\' && r_ptr[1] == ';')
 	{
-	    /* overwrite the escape char,
-	     * use STRLEN(r_ptr) to move the trailing '\0'
-	     */
+	    /* Overwrite the escape char,
+	     * use STRLEN(r_ptr) to move the trailing '\0'. */
 	    STRMOVE(r_ptr, r_ptr + 1);
 	    r_ptr++;
 	}
@@ -4885,10 +4913,13 @@ vim_findfile(search_ctx_arg)
 			stackp->ffs_filearray_size = 0;
 		}
 		else
+		    /* Add EW_NOTWILD because the expanded path may contain
+		     * wildcard characters that are to be taken literally.
+		     * This is a bit of a hack. */
 		    expand_wildcards((dirptrs[1] == NULL) ? 1 : 2, dirptrs,
 			    &stackp->ffs_filearray_size,
 			    &stackp->ffs_filearray,
-			    EW_DIR|EW_ADDSLASH|EW_SILENT);
+			    EW_DIR|EW_ADDSLASH|EW_SILENT|EW_NOTWILD);
 
 		stackp->ffs_filearray_cur = 0;
 		stackp->ffs_stage = 0;

@@ -1,4 +1,4 @@
-*pattern.txt*   For Vim version 7.3.  Last change: 2011 Apr 28
+*pattern.txt*   For Vim version 7.3.  Last change: 2011 May 25
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -635,7 +635,8 @@ overview.
 	Like '(?!pattern)" in Perl.
 	Example			matches ~
 	foo\(bar\)\@!		any "foo" not followed by "bar"
-	a.\{-}p\@!		"a", "ap", "app", etc. not followed by a "p"
+	a.\{-}p\@!		"a", "ap", "aap", "app", etc. not immediately
+				followed by a "p"
 	if \(\(then\)\@!.\)*$	"if " not followed by "then"
 
 	Using "\@!" is tricky, because there are many places where a pattern
@@ -1035,11 +1036,9 @@ x	A single character, with no special meaning, matches itself
 	  These items only work for 8-bit characters.
 							*/[[=* *[==]*
 	- An equivalence class.  This means that characters are matched that
-	  have almost the same meaning, e.g., when ignoring accents.  The form
-	  is:
+	  have almost the same meaning, e.g., when ignoring accents.  This
+	  only works for Unicode, latin1 and latin9.  The form is:
 		[=a=]
-	  Currently this is only implemented for latin1.  Also works for the
-	  latin1 characters in utf-8 and latin9.
 							*/[[.* *[..]*
 	- A collation element.  This currently simply accepts a single
 	  character in the form:

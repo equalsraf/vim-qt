@@ -59,7 +59,8 @@ static int can_update_cursor = TRUE; /* can display the cursor */
 gui_start()
 {
     char_u	*old_term;
-#if defined(UNIX) && !defined(__BEOS__) && !defined(MACOS_X)
+#if defined(UNIX) && !defined(__BEOS__) && !defined(MACOS_X) \
+	&& !defined(__APPLE__)
 # define MAY_FORK
     int		dofork = TRUE;
 #endif
@@ -82,6 +83,10 @@ gui_start()
 	cursor_on();			/* needed for ":gui" in .vimrc */
     gui.starting = TRUE;
     full_screen = FALSE;
+
+#ifdef FEAT_GUI_GTK
+    gui.event_time = GDK_CURRENT_TIME;
+#endif
 
 #ifdef MAY_FORK
     if (!gui.dofork || vim_strchr(p_go, GO_FORG) || recursive)
@@ -1402,7 +1407,7 @@ gui_set_shellsize(mustset, fit_to_display, direction)
     if (!gui.shell_created)
 	return;
 
-#ifdef MSWIN
+#if defined(MSWIN) || defined(FEAT_GUI_GTK)
     /* If not setting to a user specified size and maximized, calculate the
      * number of characters that fit in the maximized window. */
     if (!mustset && gui_mch_maximized())

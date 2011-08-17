@@ -67,7 +67,7 @@ static int	hislen = 0;		/* actual length of history tables */
 
 static int	hist_char2type __ARGS((int c));
 
-static int	in_history __ARGS((int, char_u *, int));
+static int	in_history __ARGS((int, char_u *, int, int));
 # ifdef FEAT_EVAL
 static int	calc_hist_idx __ARGS((int histype, int num));
 # endif
@@ -110,7 +110,7 @@ static int	ExpandFromContext __ARGS((expand_T *xp, char_u *, int *, char_u ***, 
 static int	expand_showtail __ARGS((expand_T *xp));
 #ifdef FEAT_CMDL_COMPL
 static int	expand_shellcmd __ARGS((char_u *filepat, int *num_file, char_u ***file, int flagsarg));
-static int	ExpandRTDir __ARGS((char_u *pat, int *num_file, char_u ***file, char *dirname));
+static int	ExpandRTDir __ARGS((char_u *pat, int *num_file, char_u ***file, char *dirname[]));
 # if defined(FEAT_USR_CMDS) && defined(FEAT_EVAL)
 static int	ExpandUserDefined __ARGS((expand_T *xp, regmatch_T *regmatch, int *num_file, char_u ***file));
 static int	ExpandUserList __ARGS((expand_T *xp, int *num_file, char_u ***file));
@@ -3046,7 +3046,7 @@ cmdline_paste(regname, literally, remcr)
 	    int	    len;
 
 	    /* Locate start of last word in the cmd buffer. */
-	    for (w = ccline.cmdbuff + ccline.cmdlen; w > ccline.cmdbuff; )
+	    for (w = ccline.cmdbuff + ccline.cmdpos; w > ccline.cmdbuff; )
 	    {
 #ifdef FEAT_MBYTE
 		if (has_mbyte)
@@ -3064,7 +3064,7 @@ cmdline_paste(regname, literally, remcr)
 		    --w;
 		}
 	    }
-	    len = (int)((ccline.cmdbuff + ccline.cmdlen) - w);
+	    len = (int)((ccline.cmdbuff + ccline.cmdpos) - w);
 	    if (p_ic ? STRNICMP(w, arg, len) == 0 : STRNCMP(w, arg, len) == 0)
 		p += len;
 	}
@@ -4536,13 +4536,25 @@ ExpandFromContext(xp, pat, num_file, file, options)
 	    || xp->xp_context == EXPAND_TAGS_LISTFILES)
 	return expand_tags(xp->xp_context == EXPAND_TAGS, pat, num_file, file);
     if (xp->xp_context == EXPAND_COLORS)
-	return ExpandRTDir(pat, num_file, file, "colors");
+    {
+	char *directories[] = {"colors", NULL};
+	return ExpandRTDir(pat, num_file, file, directories);
+    }
     if (xp->xp_context == EXPAND_COMPILER)
-	return ExpandRTDir(pat, num_file, file, "compiler");
+    {
+	char *directories[] = {"colors", NULL};
+	return ExpandRTDir(pat, num_file, file, directories);
+    }
     if (xp->xp_context == EXPAND_OWNSYNTAX)
-	return ExpandRTDir(pat, num_file, file, "syntax");
+    {
+	char *directories[] = {"syntax", NULL};
+	return ExpandRTDir(pat, num_file, file, directories);
+    }
     if (xp->xp_context == EXPAND_FILETYPE)
-	return ExpandRTDir(pat, num_file, file, "{syntax,indent,ftplugin}");
+    {
+	char *directories[] = {"syntax", "indent", "ftplugin", NULL};
+	return ExpandRTDir(pat, num_file, file, directories);
+    }
 # if defined(FEAT_USR_CMDS) && defined(FEAT_EVAL)
     if (xp->xp_context == EXPAND_USER_LIST)
 	return ExpandUserList(xp, num_file, file);
@@ -4995,57 +5007,68 @@ ExpandUserList(xp, num_file, file)
 /*
  * Expand color scheme, compiler or filetype names:
  * 'runtimepath'/{dirnames}/{pat}.vim
- * dirnames may contain one directory (ex: "colorscheme") or can be a glob
- * expression matching multiple directories (ex: "{syntax,ftplugin,indent}").
+ * "dirnames" is an array with one or more directory names.
  */
     static int
 ExpandRTDir(pat, num_file, file, dirnames)
     char_u	*pat;
     int		*num_file;
     char_u	***file;
-    char	*dirnames;
+    char	*dirnames[];
 {
-    char_u	*all;
+    char_u	*matches;
     char_u	*s;
     char_u	*e;
     garray_T	ga;
+    int		i;
+    int		pat_len;
 
     *num_file = 0;
     *file = NULL;
-    s = alloc((unsigned)(STRLEN(pat) + STRLEN(dirnames) + 7));
-    if (s == NULL)
-	return FAIL;
-    sprintf((char *)s, "%s/%s*.vim", dirnames, pat);
-    all = globpath(p_rtp, s, 0);
-    vim_free(s);
-    if (all == NULL)
-	return FAIL;
+    pat_len = (int)STRLEN(pat);
+    ga_init2(&ga, (int)sizeof(char *), 10);
 
-    ga_init2(&ga, (int)sizeof(char *), 3);
-    for (s = all; *s != NUL; s = e)
+    for (i = 0; dirnames[i] != NULL; ++i)
     {
-	e = vim_strchr(s, '\n');
-	if (e == NULL)
-	    e = s + STRLEN(s);
-	if (ga_grow(&ga, 1) == FAIL)
-	    break;
-	if (e - 4 > s && STRNICMP(e - 4, ".vim", 4) == 0)
+	s = alloc((unsigned)(STRLEN(dirnames[i]) + pat_len + 7));
+	if (s == NULL)
 	{
-	    for (s = e - 4; s > all; mb_ptr_back(all, s))
-		if (*s == '\n' || vim_ispathsep(*s))
-		    break;
-	    ++s;
-	    ((char_u **)ga.ga_data)[ga.ga_len] =
-					    vim_strnsave(s, (int)(e - s - 4));
-	    ++ga.ga_len;
+	    ga_clear_strings(&ga);
+	    return FAIL;
 	}
-	if (*e != NUL)
-	    ++e;
+	sprintf((char *)s, "%s/%s*.vim", dirnames[i], pat);
+	matches = globpath(p_rtp, s, 0);
+	vim_free(s);
+	if (matches == NULL)
+	    continue;
+
+	for (s = matches; *s != NUL; s = e)
+	{
+	    e = vim_strchr(s, '\n');
+	    if (e == NULL)
+		e = s + STRLEN(s);
+	    if (ga_grow(&ga, 1) == FAIL)
+		break;
+	    if (e - 4 > s && STRNICMP(e - 4, ".vim", 4) == 0)
+	    {
+		for (s = e - 4; s > matches; mb_ptr_back(matches, s))
+		    if (*s == '\n' || vim_ispathsep(*s))
+			break;
+		++s;
+		((char_u **)ga.ga_data)[ga.ga_len] =
+					    vim_strnsave(s, (int)(e - s - 4));
+		++ga.ga_len;
+	    }
+	    if (*e != NUL)
+		++e;
+	}
+	vim_free(matches);
     }
-    vim_free(all);
+    if (ga.ga_len == 0)
+        return FAIL;
 
     /* Sort and remove duplicates which can happen when specifying multiple
-     * directories in dirnames such as "{syntax,ftplugin,indent}". */
+     * directories in dirnames. */
     remove_duplicates(&ga);
 
     *file = ga.ga_data;
@@ -5266,13 +5289,15 @@ init_history()
  * If 'move_to_front' is TRUE, matching entry is moved to end of history.
  */
     static int
-in_history(type, str, move_to_front)
+in_history(type, str, move_to_front, sep)
     int	    type;
     char_u  *str;
     int	    move_to_front;	/* Move the entry to the front if it exists */
+    int	    sep;
 {
     int	    i;
     int	    last_i = -1;
+    char_u  *p;
 
     if (hisidx[type] < 0)
 	return FALSE;
@@ -5281,7 +5306,12 @@ in_history(type, str, move_to_front)
     {
 	if (history[type][i].hisstr == NULL)
 	    return FALSE;
-	if (STRCMP(str, history[type][i].hisstr) == 0)
+
+	/* For search history, check that the separator character matches as
+	 * well. */
+	p = history[type][i].hisstr;
+	if (STRCMP(str, p) == 0
+		&& (type != HIST_SEARCH || sep == p[STRLEN(p) + 1]))
 	{
 	    if (!move_to_front)
 		return TRUE;
@@ -5375,7 +5405,7 @@ add_to_history(histype, new_entry, in_map, sep)
 	}
 	last_maptick = -1;
     }
-    if (!in_history(histype, new_entry, TRUE))
+    if (!in_history(histype, new_entry, TRUE, sep))
     {
 	if (++hisidx[histype] == hislen)
 	    hisidx[histype] = 0;
@@ -5954,7 +5984,7 @@ read_viminfo_history(virp)
 	if (val != NULL && *val != NUL)
 	{
 	    if (!in_history(type, val + (type == HIST_SEARCH),
-							viminfo_add_at_front))
+						  viminfo_add_at_front, *val))
 	    {
 		/* Need to re-allocate to append the separator byte. */
 		len = STRLEN(val);
