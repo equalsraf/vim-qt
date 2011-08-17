@@ -1,0 +1,10 @@
+*.o
+.*.sw[oplnmk]
+*.moc
+*.mo
+.swp
+*.log
+*.status
+vim
+qvim
+autom4te.cache
