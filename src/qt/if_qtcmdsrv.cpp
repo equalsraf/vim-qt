@@ -63,7 +63,7 @@ serverGetVimNames(void)
 int
 serverSendReply(char_u *name, char_u *reply) 
 {
-	qDebug() <<__func__ << name << reply;
+	qDebug() <<__func__ << (char*)name << (char*)reply;
 	return -1;
 }
 
@@ -94,7 +94,7 @@ serverGetReply(HWND server, int *expr_res, int remove, int wait)
 int
 serverSendToVim(char_u *name, char_u *cmd, char **result, void *ptarget, int asExpr, int silent)
 {
-	qDebug() << name << cmd;
+	qDebug() << (char*)name << (char*)cmd;
 
 	return -1;
 }
@@ -102,7 +102,7 @@ serverSendToVim(char_u *name, char_u *cmd, char **result, void *ptarget, int asE
 void
 serverSetName(char_u *name)
 {
-	qDebug() << __func__ << name;
+	qDebug() << __func__ << (char*)name;
 
 }
 
