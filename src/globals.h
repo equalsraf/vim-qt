@@ -1324,7 +1324,7 @@ EXTERN Window	clientWindow INIT(= None);
 EXTERN Atom	commProperty INIT(= None);
 EXTERN char_u	*serverDelayedStartName INIT(= NULL);
 # else
-#  ifdef PROTO
+# if defined(PROTO) || defined(FEAT_GUI_QT)
 typedef int HWND;
 #  endif
 EXTERN HWND	clientWindow INIT(= 0);
