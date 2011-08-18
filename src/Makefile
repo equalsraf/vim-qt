@@ -1257,6 +1257,7 @@ NEXTAW_BUNDLE	=
 # - QT_INCPATH
 MOC		= $(QT_MOC)
 QT_LIBS1	= $(QT_LIBS)
+QT_LIBS1	= -L$(QT_LIBDIR) -lQtGui -lQtCore -lQtNetwork -lstdc++
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/scrollarea.cpp \
 			qt/fontdialog.cpp \
@@ -1264,16 +1265,18 @@ QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/if_qtcmdsrv.cpp \
 			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp \
 			qt/vimevents.cpp
+			qt/if_commandserver.cpp \
+			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp
 
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
 			objects/colortable.o \
 			objects/if_qtcmdsrv.o \
+			objects/commandserver.o \
 			objects/scrollarea.o objects/fontdialog.o objects/vimwrapper.o \
 			objects/vimevents.o \
 			objects/tabbar.o objects/vimscrollbar.o
-
 
 QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I. $(QT_INCPATH)
 QT_IPATH	= $(GUI_INC_LOC)
@@ -2678,6 +2681,10 @@ objects/tabbar.o: qt/tabbar.cpp
 
 objects/if_qtcmdsrv.o: qt/if_qtcmdsrv.cpp
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/if_qtcmdsrv.cpp
+
+objects/commandserver.o: qt/commandserver.cpp
+	$(MOC) qt/commandserver.h > commandserver.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/commandserver.cpp
 
 objects/gui_beval.o: gui_beval.c
 	$(CCC) -o $@ gui_beval.c
