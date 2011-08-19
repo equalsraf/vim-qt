@@ -4,10 +4,11 @@
  * This serializes Qt types over a set of local sockets 
  *
  * The API we use here is mostly compatible with the WIN32 API however the
- * protocol is not the same.
- * @see os_mswin.c
+ * protocol is not the same, @see os_mswin.c.
  *
- *
+ * The stream protocol is as follows:
+ * ClientQuery:		| cmd(QString | expr(bool)) |
+ * ServerResponse:	| response(QString) |
  *
  */
 #include <Qt/QtCore>
@@ -20,6 +21,11 @@ extern "C" {
 #include "vim.h"
 
 static CommandServer serverSocket;
+static QMap<int, QLocalSocket*> serverConnections;
+
+
+// A quick hack to map servernames into HWND
+static QStringList vimServers;
 
 static QString socketFolder() 
 {
@@ -46,8 +52,6 @@ static QString socketFolder()
 char_u *
 serverGetVimNames(void)
 {
-	qDebug() <<__func__;
-
 	QDir dir(socketFolder());
 	dir.setFilter(QDir::Files | QDir::NoDotAndDotDot );
 
@@ -72,10 +76,68 @@ serverGetVimNames(void)
 }
 
 
+/*
+ * Initialise the message handling process.
+ *
+ */
+void
+serverInitMessaging(void)
+{
+	// Nothing to do	
+}
+
+//
+// Server functions
+//
+
+
+/**
+ *
+ * Set server name
+ *
+ * In practice this initialises the server. In practice
+ * the server implementation does not live here @see commandserver.h
+ *
+ * @param Server name
+ */
+void
+serverSetName(char_u *name)
+{
+	QDir dir(socketFolder());
+	QFileInfo fi(dir.filePath((char*)name));
+	QString socketName = fi.absoluteFilePath();
+
+	if ( !serverSocket.listen(socketName) ) {
+		QString trySocketName;
+		int idx = 1;
+		do {
+			// FIXME: Fallback strategy using QUuid
+			trySocketName = socketName + QString::number(idx++);
+			if ( QFileInfo(trySocketName).exists() ) {
+				continue;
+			}
+		} while ( !serverSocket.listen(trySocketName) );
+
+		socketName = trySocketName;
+	}
+
+	QByteArray data = socketName.toAscii();
+	char_u *buffer = alloc(data.length());
+	for (int i=0; i< data.length(); i++) {
+		buffer[i] = data.constData()[i];
+	}
+	serverName = buffer;
+
+#ifdef FEAT_EVAL
+	/* Set the servername variable */
+	set_vim_var_string(VV_SEND_SERVER, serverName, -1);
+#endif
+}
 
 /**
  * Send a reply string (notification) to client with id "name".
- * Return -1 if the window is invalid.
+ *
+ * @eturn -1 if the window is invalid.
  *
  * @param name Where to send
  * @param reply What to send
@@ -83,22 +145,58 @@ serverGetVimNames(void)
 int
 serverSendReply(char_u *name, char_u *reply) 
 {
-	qDebug() <<__func__ << (char*)name << (char*)reply;
+	qDebug() << __func__ << (char*) name << (char*) reply;
 	return -1;
 }
 
+
+//
+// Client commands
+//
+
 /*
- * Get a reply from server "server".
- * When "expr_res" is non NULL, get the result of an expression, otherwise a
- * server2client() message.
- * When non NULL, point to return code. 0 => OK, -1 => ERROR
- * If "remove" is TRUE, consume the message, the caller must free it then.
- * if "wait" is TRUE block until a message arrives (or the server exits).
+ * Get a reply from server
+ *
+ * @param remove Consume the message, the caller must free it then. //FIXME: Not-implemented
+ * @param server The id of a server connection, @see serverSendToVim
+ * @param wait Block until a message arrives (or the server exits).
+ * @param expr_res Return code, 0 on success and -1 on error
  */
 char_u *
 serverGetReply(HWND server, int *expr_res, int remove, int wait)
 {
-	qDebug() <<__func__ << server;
+	if ( expr_res ) {
+		*expr_res = -1;
+	}
+
+	QString reply;
+	QLocalSocket *sock = serverConnections.value(server);
+	if ( sock == NULL ) {
+		return NULL;
+	}
+
+	QDataStream stream(sock);
+	stream.setVersion(QDataStream::Qt_4_0);
+
+	// Get reply - wait if necessary
+	if ( wait && !sock->waitForReadyRead() ) {
+		sock->close();
+		return NULL;
+	}
+	if ( sock->bytesAvailable() ) {
+		stream >> reply;
+	} else {
+		sock->close();
+		return NULL;
+	}
+
+	if ( expr_res ) {
+		*expr_res = 0;
+	}
+
+	if ( !reply.isEmpty() ) {
+		return VimWrapper::copy(VimWrapper::convertTo(reply));
+	}
 	return NULL;
 }
 
@@ -121,84 +219,46 @@ serverSendToVim(char_u *name, char_u *cmd, char **result, void *ptarget, int asE
 	QDir dir( socketFolder() );
 	QString remotecmd = VimWrapper::convertFrom((char *)cmd);
 
-	QLocalSocket sock;
-	sock.connectToServer(dir.filePath((char*)name));
-	if ( !sock.waitForConnected(3) ) {
+	QLocalSocket *sock = new QLocalSocket();
+	QObject::connect(sock, SIGNAL(disconnected()), sock, SLOT(deleteLater()));
+	sock->connectToServer(dir.filePath((char*)name));
+	if ( !sock->waitForConnected(3) ) {
 		return -1;
 	}
 
-	QDataStream stream(&sock);
+	QDataStream stream(sock);
 	stream.setVersion(QDataStream::Qt_4_0);
 
 	//
 	// Be carefull, the (bool) cast is absolutely necessary
-	// otherwise the stream alway read as false.
+	// otherwise the stream will always read as false.
 	stream << remotecmd << (bool)asExpr;
-	if ( !sock.waitForBytesWritten() ) {
-		sock.close();
-		qDebug() << "write";
+	if ( !sock->waitForBytesWritten() ) {
+		sock->close();
 		return -1;
 	}
 
-	if ( asExpr != TRUE ) {
-		return 0;
+	quintptr fd = sock->socketDescriptor();
+	serverConnections.insert(fd, sock);
+	if (ptarget) {
+		*(HWND*)ptarget = fd;
 	}
 
 	// Get reply
-	if ( !sock.waitForReadyRead() ) {
-		qDebug() << "read" << sock.error();
-
-		sock.close();
+	if ( !sock->waitForReadyRead() ) {
+		sock->close();
 		return -1;
 	}
 
 	QString exp_result;
 	stream >> exp_result;
-	qDebug() << exp_result;
-	*result = (char*)VimWrapper::copy(VimWrapper::convertTo(exp_result));
 
-	sock.close();
+	if ( asExpr != TRUE ) {
+		return 0;
+	}
+
+	*result = (char*)VimWrapper::copy(VimWrapper::convertTo(exp_result));
 	return 0;
 }
-
-void
-serverSetName(char_u *name)
-{
-	qDebug() << __func__ << (char*)name;
-
-	QDir dir(socketFolder());
-	QFileInfo fi(dir.filePath((char*)name));
-	QString socketName = fi.absoluteFilePath();
-
-	if ( fi.exists() ) {
-		QUuid uuid = QUuid::createUuid();
-		socketName = QString((char*)name) + uuid.toString();
-	}
-	QByteArray data = socketName.toAscii();
-
-	char_u *buffer = alloc(data.length());
-	for (int i=0; i< data.length(); i++) {
-		buffer[i] = data.constData()[i];
-	}
-	serverName = buffer;
-
-	serverSocket.listen(socketName);
-
-#ifdef FEAT_EVAL
-	/* Set the servername variable */
-	set_vim_var_string(VV_SEND_SERVER, serverName, -1);
-#endif
-}
-
-/*
- * Initialise the message handling process.
- *
- */
-void
-serverInitMessaging(void)
-{
-	// Nothing to do	
-}
-
 
 } // extern "C"

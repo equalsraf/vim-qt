@@ -23,22 +23,21 @@ void CommandClient::readRequest()
 	bool asExpr;
 	QString cmd;
 
-	*stream >> cmd >> asExpr;
-	qDebug() << __func__ << cmd << asExpr;
+	while ( m_socket->bytesAvailable() ) {
+		*stream >> cmd >> asExpr;
+		if ( cmd.isEmpty() ) {
+			continue;
+		}
 
-	if ( cmd.isEmpty() ) {
-		return;
+		if ( asExpr ) {
+			char_u *res = eval_client_expr_to_string( (char_u *)VimWrapper::convertTo(cmd).constData() );
+			*stream << VimWrapper::convertFrom((char*)res);
+		} else {
+			// Do we need to poke the loop ?
+			server_to_input_buf((char_u *)VimWrapper::convertTo(cmd).constData());
+			*stream << "";
+		}
 	}
-
-	if ( asExpr ) {
-		char_u *res = eval_client_expr_to_string( (char_u *)VimWrapper::convertTo(cmd).constData() );
-		*stream << VimWrapper::convertFrom((char*)res);
-	} else {
-		// Dow we need to poke the loop ?
-		server_to_input_buf((char_u *)VimWrapper::convertTo(cmd).constData());
-	}
-
-	m_socket->disconnectFromServer();
 }
 
 CommandServer::CommandServer(QObject *parent)
