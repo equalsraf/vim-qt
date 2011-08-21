@@ -1714,11 +1714,12 @@ else
   fi
 fi
 
-test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" && enable_gui=no
+echo "$enable_gui"
+test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" -a "x$enable_gui" != "xqt" && enable_gui=no
 
 AC_MSG_CHECKING(--enable-gui argument)
 AC_ARG_ENABLE(gui,
- [  --enable-gui[=OPTS]     X11 GUI [default=auto] [OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon]], , enable_gui="auto")
+ [  --enable-gui[=OPTS]     X11 GUI [default=auto] [OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon/qt]], , enable_gui="auto")
 
 dnl Canonicalize the --enable-gui= argument so that it can be easily compared.
 dnl Do not use character classes for portability with old tools.
@@ -2368,7 +2369,7 @@ EOF
     # --with-qt-dir overrides everything else
     AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=PATH],
 					[to specify the Qt4 base prefix]),
-				[QT_DIR=("$withval")],
+				[QT_DIR="$withval"],
 				)
 
     if test -n "$QT_DIR" ; then
@@ -2455,7 +2456,7 @@ EOF
     fi
 
 
-    # One last desperate attempt - for Gentoo
+    # One last desperate attempt - for Gentoo/Ubuntu
     if test "$QT_FOUND" = "no" ; then
         QT_FOUND="yes"
         QT_LIBDIR="/usr/lib/qt4"
@@ -2467,23 +2468,25 @@ EOF
         moc_try="$QT_MOC qttest_c.h -o moc_qttest_c.cpp"
         AC_TRY_EVAL(moc_try)
         if test x"$ac_status" != x0; then
-		AC_MSG_RESULT($QT_FOUND)
 		QT_FOUND="no"
+		AC_MSG_RESULT($QT_FOUND)
         fi
     
         # test Compile
         qt_try="$CXX $CXXFLAGS -I$QT_INCDIR -L$QT_LIBDIR -lQtGui qttest.cpp -o qttest"
         AC_TRY_EVAL(qt_try)
         if test x"$ac_status" != x0; then
-                AC_MSG_RESULT($QT_FOUND)
 		QT_FOUND="no"
+                AC_MSG_RESULT($QT_FOUND)
         fi
-    
+
+	AC_MSG_RESULT($QT_FOUND)
     fi
 
     if test "$QT_FOUND" = "no" ; then
         AC_MSG_ERROR(Could not locate Qt4)
     fi
+
 
     AC_SUBST(QT_MOC)
     AC_SUBST(QT_LIBDIR)

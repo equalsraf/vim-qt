@@ -1457,7 +1457,7 @@ Optional Features:
   --enable-hangulinput    Include Hangul input support.
   --enable-xim            Include XIM input support.
   --enable-fontset        Include X fontset output support.
-  --enable-gui=OPTS     X11 GUI default=auto OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon
+  --enable-gui=OPTS     X11 GUI default=auto OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon/qt
   --enable-gtk2-check     If auto-select GUI, check for GTK+ 2 default=yes
   --enable-gnome-check    If GTK GUI, check for GNOME default=no
   --enable-motif-check    If auto-select GUI, check for Motif default=yes
@@ -5671,7 +5671,7 @@ __:
 eof
                     eval "`cd ${PYTHON3_CONFDIR} && make -f "${tmp_mkf}" __ | sed '/ directory /d'`"
           rm -f -- "${tmp_mkf}"
-          vi_cv_path_python3_plibs="-L${PYTHON3_CONFDIR} -lpython${vi_cv_var_python3_version}"
+	  vi_cv_path_python3_plibs="-L${PYTHON3_CONFDIR} -lpython${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags}"
           vi_cv_path_python3_plibs="${vi_cv_path_python3_plibs} ${python3_BASEMODLIBS} ${python3_LIBS} ${python3_SYSLIBS}"
                     vi_cv_path_python3_plibs=`echo $vi_cv_path_python3_plibs | sed s/-ltermcap//`
           vi_cv_path_python3_plibs=`echo $vi_cv_path_python3_plibs | sed s/-lffi//`
@@ -7705,7 +7705,8 @@ $as_echo "$ac_cv_small_wchar_t" >&6; }
   fi
 fi
 
-test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" && enable_gui=no
+echo "$enable_gui"
+test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" -a "x$enable_gui" != "xqt" && enable_gui=no
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking --enable-gui argument" >&5
 $as_echo_n "checking --enable-gui argument... " >&6; }
@@ -8973,7 +8974,7 @@ EOF
 
 # Check whether --with-qt-dir was given.
 if test "${with_qt_dir+set}" = set; then :
-  withval=$with_qt_dir; QT_DIR=("$withval")
+  withval=$with_qt_dir; QT_DIR="$withval"
 fi
 
 
@@ -9093,7 +9094,7 @@ $as_echo "$QT_FOUND" >&6; }
     fi
 
 
-    # One last desperate attempt - for Gentoo
+    # One last desperate attempt - for Gentoo/Ubuntu
     if test "$QT_FOUND" = "no" ; then
         QT_FOUND="yes"
         QT_LIBDIR="/usr/lib/qt4"
@@ -9110,9 +9111,9 @@ $as_echo_n "checking Qt4 in Gentoo locations... " >&6; }
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }
         if test x"$ac_status" != x0; then
+		QT_FOUND="no"
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_FOUND" >&5
 $as_echo "$QT_FOUND" >&6; }
-		QT_FOUND="no"
         fi
 
         # test Compile
@@ -9123,16 +9124,19 @@ $as_echo "$QT_FOUND" >&6; }
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }
         if test x"$ac_status" != x0; then
+		QT_FOUND="no"
                 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_FOUND" >&5
 $as_echo "$QT_FOUND" >&6; }
-		QT_FOUND="no"
         fi
 
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_FOUND" >&5
+$as_echo "$QT_FOUND" >&6; }
     fi
 
     if test "$QT_FOUND" = "no" ; then
         as_fn_error $? "Could not locate Qt4" "$LINENO" 5
     fi
+
 
 
 
