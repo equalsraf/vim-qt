@@ -50,7 +50,6 @@ public slots:
 
 	void switchTab(int idx);
 	void closeTab(int idx);
-	void clipboardChanged(QClipboard::Mode);
 
 protected:
 	void flushPaintOps();

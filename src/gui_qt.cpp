@@ -491,13 +491,9 @@ gui_mch_init()
 		styleFile.close();
 	}
 
-	// Clipboard - the order matters, for safety
-	clip_plus.clipboardMode = QClipboard::Selection;
-	clip_star.clipboardMode = QClipboard::Clipboard;
-
-	QObject::connect(QApplication::clipboard(), SIGNAL(changed(QClipboard::Mode)),
-			vimshell, SLOT(clipboardChanged(QClipboard::Mode)));
-
+	// Clipboard - order matters, for safety
+	clip_star.clipboardMode = QClipboard::Selection;
+	clip_plus.clipboardMode = QClipboard::Clipboard;
 
 	display_errors();
 
@@ -724,7 +720,6 @@ clip_mch_own_selection(VimClipboard *cbd)
 void
 clip_mch_lose_selection(VimClipboard *cbd)
 {
-	qDebug() << __func__;
 }
 
 /**
@@ -733,13 +728,19 @@ clip_mch_lose_selection(VimClipboard *cbd)
 void
 clip_mch_set_selection(VimClipboard *cbd)
 {
-
 	int type;
 	long size;
 	char_u *str = NULL;
 
-	type = clip_convert_selection(&str, (long_u *)&size, cbd);
+	if (!cbd->owned) {
+		return;
+	}
 
+	cbd->owned = TRUE;
+	clip_get_selection(cbd);
+	cbd->owned = FALSE;
+
+	type = clip_convert_selection(&str, (long_u *)&size, cbd);
 	if (type >= 0) {
 		QClipboard *clip = QApplication::clipboard();
 		clip->setText( VimWrapper::convertFrom((char *)str, size), (QClipboard::Mode)cbd->clipboardMode);
@@ -755,7 +756,6 @@ clip_mch_set_selection(VimClipboard *cbd)
 void
 clip_mch_request_selection(VimClipboard *cbd)
 {
-
 	QClipboard *clip = QApplication::clipboard();
 	if ( clip->text((QClipboard::Mode)cbd->clipboardMode).size() == 0 ) {
 		return;

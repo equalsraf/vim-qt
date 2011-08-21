@@ -506,7 +506,7 @@ EXTERN int	gui_win_y INIT(= -1);
 
 #ifdef FEAT_CLIPBOARD
 EXTERN VimClipboard clip_star;	/* PRIMARY selection in X11 */
-# ifdef FEAT_X11
+# if defined(FEAT_X11) || defined(FEAT_GUI_QT)
 EXTERN VimClipboard clip_plus;	/* CLIPBOARD selection in X11 */
 # else
 #  define clip_plus clip_star	/* there is only one clipboard */
