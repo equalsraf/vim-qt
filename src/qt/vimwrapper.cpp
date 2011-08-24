@@ -192,6 +192,42 @@ int VimWrapper::stringCellWidth(const QString& s)
 	return len;
 }
 
+bool VimWrapper::isFakeMonospace(QFont f)
+{
+	QFontMetrics fm_normal(f);
+	f.setItalic(true);
+	QFontMetrics fm_italic(f);
+	f.setBold(true);
+	QFontMetrics fm_boldit(f);
+	f.setItalic(false);
+	QFontMetrics fm_bold(f);
+
+	if ( fm_normal.averageCharWidth() != fm_normal.maxWidth() ) {
+		return true;
+	}
+
+	if ( fm_italic.averageCharWidth() != fm_italic.maxWidth() ) {
+		return true;
+	}
+
+	if ( fm_boldit.averageCharWidth() != fm_boldit.maxWidth() ) {
+		return true;
+	}
+
+	if ( fm_bold.averageCharWidth() != fm_bold.maxWidth() ) {
+		return true;
+	}
+
+	if ( fm_normal.maxWidth() != fm_italic.maxWidth() || 
+		fm_normal.maxWidth() != fm_boldit.maxWidth() || 
+		fm_normal.maxWidth() != fm_bold.maxWidth()) {
+		return true;
+	}
+
+	return false;
+}
+
+
 QIcon VimWrapper::iconFromTheme(const QString& name)
 {
 	QIcon icon;

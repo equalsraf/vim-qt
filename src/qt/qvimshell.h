@@ -39,6 +39,7 @@ public:
 	void setEncodingUtf8(bool);
 	static void setupColorMap();
 	virtual QVariant inputMethodQuery(Qt::InputMethodQuery);
+	void setSlowStringDrawing(bool slow) {m_slowStringDrawing = slow;}
 
 public slots:
 	void setBackground(const QColor);
@@ -79,7 +80,6 @@ protected:
 	void dropEvent(QDropEvent *);
 
 	void tooltip(const QString& );
-	bool isFakeMonospace(const QFont &);
 private:
 	QColor m_background;
 	int m_charWidth;
@@ -100,6 +100,7 @@ private:
 
 	static QHash<QString, QColor> m_colorMap;
 	VimWrapper vim;
+	bool m_slowStringDrawing;
 };
 
 struct special_key

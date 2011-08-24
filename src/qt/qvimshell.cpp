@@ -8,7 +8,7 @@ QHash<QString, QColor> QVimShell::m_colorMap;
 
 QVimShell::QVimShell(QWidget *parent)
 :QWidget(parent), m_encoding_utf8(true),
-	m_lastClickEvent(-1), m_tooltip(0)
+	m_lastClickEvent(-1), m_tooltip(0), m_slowStringDrawing(false)
 {
 	// IM Tooltip
 	m_tooltip = new QLabel(this);
@@ -182,12 +182,6 @@ void QVimShell::closeEvent(QCloseEvent *event)
 	event->ignore();
 }
 
-bool QVimShell::isFakeMonospace(const QFont& f)
-{
-	QFontMetrics fm(f);
-	return ( fm.averageCharWidth() != VimWrapper::charWidth() );
-}
-
 /*
  * @Deprecated
  *
@@ -338,10 +332,9 @@ void QVimShell::flushPaintOps()
 			break;
 		case DRAWSTRING:
 			painter.setClipRect(op.rect);
-			if ( getenv("QVIM_DRAW_STRING_SLOW") || op.str.length() != VimWrapper::stringCellWidth(op.str) ) {
+			if ( m_slowStringDrawing ) {
 				drawStringSlow(op, painter);
-			} else if ( isFakeMonospace(op.font) ) {
-				qDebug() << __func__ << "Font size mismatch a.k.a. this is not a proper monospace font";
+			} else if ( op.str.length() != VimWrapper::stringCellWidth(op.str) ) {
 				drawStringSlow(op, painter);
 			} else {
 				drawString(op, painter);
