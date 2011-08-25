@@ -732,7 +732,7 @@ clip_mch_request_selection(VimClipboard *cbd)
 		buffer[i] = text[i];
 	}
 
-	clip_yank_selection(MCHAR, buffer, text.size(), cbd);
+	clip_yank_selection(MAUTO, buffer, text.size(), cbd);
 	vim_free(buffer);
 }
 
