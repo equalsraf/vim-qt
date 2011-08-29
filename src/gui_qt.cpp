@@ -17,6 +17,15 @@ static QColor foregroundColor;
 static QColor backgroundColor;
 static QColor specialColor;
 
+
+/*
+ * We delay Qt initialization and pass
+ * QApplication a pair of fake arguments
+ */
+int __argc = 1;
+char *__argv[] = {"qvim", NULL};
+
+
 /**
  * Raise application window
  */
@@ -434,6 +443,14 @@ int
 gui_mch_init()
 {
 
+#ifdef Q_WS_X11
+	bool useGUI = getenv("DISPLAY") != 0;
+#else
+	bool useGUI = true;
+#endif
+	QApplication *app = new QApplication(__argc, __argv, useGUI);
+
+
 	window = new MainWindow(&gui);
 
 	// Load qVim settings
@@ -500,13 +517,6 @@ gui_mch_set_blinking(long waittime, long on, long off)
 void
 gui_mch_prepare(int *argc, char **argv)
 {
-#ifdef Q_WS_X11
-	bool useGUI = getenv("DISPLAY") != 0;
-#else
-	bool useGUI = true;
-#endif
-	QApplication *app = new QApplication(*argc, argv, useGUI);
-
 
 #ifdef Q_WS_X11
 	QColor::setAllowX11ColorNames(true);
