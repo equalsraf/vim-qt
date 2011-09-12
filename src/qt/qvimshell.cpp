@@ -10,6 +10,7 @@ QVimShell::QVimShell(QWidget *parent)
 :QWidget(parent), m_encoding_utf8(true),
 	m_lastClickEvent(-1), m_tooltip(0), m_slowStringDrawing(false)
 {
+
 	// IM Tooltip
 	m_tooltip = new QLabel(this);
 	m_tooltip->setVisible(false);
@@ -23,6 +24,7 @@ QVimShell::QVimShell(QWidget *parent)
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 	setAttribute(Qt::WA_PaintOnScreen, true);
 	setAcceptDrops(true);
+	setMouseTracking(true);
 }
 
 void QVimShell::setBackground(const QColor color)
@@ -391,7 +393,6 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 void QVimShell::mousePressEvent(QMouseEvent *ev)
 {
 	int but;
-	setMouseTracking(true);
 
 	switch( ev->button() ) {
 	case Qt::LeftButton:
@@ -428,7 +429,6 @@ void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {
 	vim.guiSendMouseEvent(MOUSE_RELEASE, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
-	setMouseTracking(false);
 }
 
 void QVimShell::wheelEvent(QWheelEvent *ev)
