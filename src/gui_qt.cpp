@@ -22,8 +22,8 @@ static QColor specialColor;
  * We delay Qt initialization and pass
  * QApplication a pair of fake arguments
  */
-int __argc = 1;
-char *__argv[] = {"qvim", NULL};
+static int __argc = 1;
+static char *__argv[] = {"qvim", NULL};
 
 
 /**
