@@ -96,7 +96,7 @@ void ScrollArea::addScrollbarRight(VimScrollBar *b)
 	connect(b, SIGNAL(visibilityChanged(bool)),
 			this, SLOT(layoutEast()));
 	east->addWidget(b);
-	layoutEdge(east);
+	//layoutEdge(east);
 }
 
 void ScrollArea::addScrollbarBottom(VimScrollBar *b)
@@ -106,7 +106,7 @@ void ScrollArea::addScrollbarBottom(VimScrollBar *b)
 	connect(b, SIGNAL(visibilityChanged(bool)),
 			this, SLOT(layoutSouth()));
 	south->addWidget(b);
-	layoutEdge(south);
+	//layoutEdge(south);
 }
 
 void ScrollArea::addScrollbarLeft(VimScrollBar *b)
@@ -116,7 +116,7 @@ void ScrollArea::addScrollbarLeft(VimScrollBar *b)
 	connect(b, SIGNAL(visibilityChanged(bool)),
 			this, SLOT(layoutWest()));
 	west->addWidget(b);
-	layoutEdge(west);
+	//layoutEdge(west);
 }
 
 bool ScrollArea::scrollBarLessThan(const VimScrollBar *b1, const VimScrollBar *b2)

@@ -56,7 +56,8 @@ void VimScrollBar::setVisible(bool show)
 	bool visible = isVisible();
 	QScrollBar::setVisible(show);
 
-	if ( visible != show )
+	if ( visible != show ) {
 		emit visibilityChanged(show);
+	}
 }
 
