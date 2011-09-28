@@ -115,7 +115,9 @@ gui_mch_free_font(GuiFont font)
 void
 gui_mch_flash(int msec)
 {
-	qDebug() << __func__ << msec;
+	if ( !QApplication::instance() )
+		return;
+
 	QApplication::alert(window, msec);
 }
 
@@ -231,6 +233,9 @@ gui_mch_stop_blink()
 void
 gui_mch_beep() 
 {
+	if ( !QApplication::instance() )
+		return;
+
 	QApplication::beep();
 }
 
@@ -574,6 +579,9 @@ gui_mch_settitle(char_u *title, char_u *icon)
 void
 gui_mch_mousehide(int hide)
 {
+	if ( !QApplication::instance() )
+		return;
+
 	if ( hide ) {
 		QApplication::setOverrideCursor(Qt::BlankCursor);
 	} else {
@@ -657,6 +665,9 @@ gui_mch_set_font(GuiFont font)
 void
 gui_mch_exit(int rc)
 {
+	if ( !QApplication::instance() )
+		return;
+
 	QSettings settings("Vim", "qVim");
 	settings.beginGroup("mainwindow");
 	settings.setValue("state", window->saveState());
