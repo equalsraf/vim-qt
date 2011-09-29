@@ -1222,7 +1222,9 @@ gui_mch_set_scrollbar_pos(scrollbar_T *sb, int x, int y, int width, int height)
 void
 gui_mch_enable_scrollbar(scrollbar_T *sb, int flag)
 {
+	/*
 	sb->wid->setVisible(flag);
+	*/
 }
 
 /**
