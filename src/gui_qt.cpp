@@ -93,11 +93,12 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 char_u *
 gui_mch_get_fontname(GuiFont font, char_u  *name)
 {
-	if (font == NULL) {
+	if (font == NULL || name == NULL) {
 		return NULL;
 	}
 
-	return (char_u *)font->family().constData();
+	char_u *s = vim_strsave( name );
+	return s;
 }
 
 /**
