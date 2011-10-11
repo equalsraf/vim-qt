@@ -49,6 +49,7 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 
 	if ( name == NULL ) { // Fallback font
 		font.setFamily("Monospace");
+		font.setFixedPitch(true);
 		font.setPointSize(10);
 		font.setKerning(false);
 		return new QFont(font);
@@ -64,25 +65,38 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 		font.setRawName((char*)name);
 	}
 
+	font.setBold(false);
+	font.setItalic(false);
+	font.setKerning(false);
+
 	//
 	// When you ask for a font you may get a different font. This happens
 	// when the font system does some form of substitution (such as as virtual fonts).
 	// This bit of code checks if the font that is requested is the font that is returned.
 	//
 	// In a nutshell this is what is done:
-	// - If giveErrorIfMissing is FALSE and the font does not match ignore the error and proceed
-	// - If giveErrorIfMissing is TRUE fail with an error message
-	// * I expected QFont::exactMatch to do all this - but I was wrong
+	// - If the font exists and has fixed width, load it
+	// - If the font does not exist or is not monospace, don't load the font
+	// + If giveErrorIfMissing is true, throw an error message, otherwise fail silently
+	// * We open an exception for the Monospace font, we ALWAYS load the monospace font
 	//
-	if ( QFontInfo(font).family() != font.family() && giveErrorIfMissing ) {
-		EMSG2(e_font, name);
+	QFontInfo fi(font);
+
+	if ( fi.family().compare(font.family(), Qt::CaseInsensitive) != 0 && 
+		font.family().compare("Monospace", Qt::CaseInsensitive) != 0) {
+
+		if ( giveErrorIfMissing ) {
+			EMSG2(e_font, name);
+		}
 		return NOFONT;
 	}
 
-	font.setFixedPitch(true);
-	font.setBold(false);
-	font.setItalic(false);
-	font.setKerning(false);
+	if ( !fi.fixedPitch() ) {
+		if ( giveErrorIfMissing ) {
+			EMSG2(e_font, name);
+		}
+		return NOFONT;
+	}
 
 	return new QFont(font);
 }
