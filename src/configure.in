@@ -1716,11 +1716,12 @@ else
   fi
 fi
 
-test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" && enable_gui=no
+echo "$enable_gui"
+test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" -a "x$enable_gui" != "xqt" && enable_gui=no
 
 AC_MSG_CHECKING(--enable-gui argument)
 AC_ARG_ENABLE(gui,
- [  --enable-gui[=OPTS]     X11 GUI [default=auto] [OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon]], , enable_gui="auto")
+ [  --enable-gui[=OPTS]     X11 GUI [default=auto] [OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon/qt]], , enable_gui="auto")
 
 dnl Canonicalize the --enable-gui= argument so that it can be easily compared.
 dnl Do not use character classes for portability with old tools.
@@ -1735,6 +1736,7 @@ SKIP_ATHENA=YES
 SKIP_NEXTAW=YES
 SKIP_PHOTON=YES
 SKIP_CARBON=YES
+SKIP_QT=YES
 GUITYPE=NONE
 
 if test "x$QNX" = "xyes" -a "x$with_x" = "xno" ; then
@@ -1772,7 +1774,8 @@ else
 		SKIP_MOTIF=
 		SKIP_ATHENA=
 		SKIP_NEXTAW=
-		SKIP_CARBON=;;
+		SKIP_CARBON=
+		SKIP_QT=;;
     gtk2)	AC_MSG_RESULT(GTK+ 2.x GUI support)
 		SKIP_GTK2=;;
     gnome2)	AC_MSG_RESULT(GNOME 2.x GUI support)
@@ -1784,6 +1787,8 @@ else
 		SKIP_ATHENA=;;
     nextaw)	AC_MSG_RESULT(neXtaw GUI support)
 		SKIP_NEXTAW=;;
+    qt)		AC_MSG_RESULT(Qt GUI support)
+    		SKIP_QT=;;
     *)		AC_MSG_RESULT([Sorry, $enable_gui GUI is not supported]) ;;
   esac
 
@@ -1857,6 +1862,17 @@ if test "x$SKIP_CARBON" != "xYES" -a "$enable_gui_canon" != "carbon"; then
   fi
 fi
 
+if test "x$SKIP_QT" != "xYES" -a "$enable_gui_canon" != "qt"; then
+  AC_MSG_CHECKING(whether or not to look for Qt)
+  AC_ARG_ENABLE(qt-check,
+	[  --enable-qt-check   If auto-select GUI, check for Qt [default=yes]],
+	, enable_qt_check="yes")
+  AC_MSG_RESULT($enable_qt_check)
+  if test "x$enable_qt_check" = "xno"; then
+    SKIP_QT=YES
+  fi
+fi
+
 
 if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   AC_MSG_CHECKING(for Carbon GUI)
@@ -1888,7 +1904,8 @@ if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   SKIP_ATHENA=YES;
   SKIP_NEXTAW=YES;
   SKIP_PHOTON=YES;
-  SKIP_CARBON=YES
+  SKIP_CARBON=YES;
+  SKIP_QT=YES;
 fi
 
 dnl define an autoconf function to check for a specified version of GTK, and
@@ -2098,6 +2115,7 @@ if test -z "$SKIP_GTK2"; then
       SKIP_ATHENA=YES
       SKIP_NEXTAW=YES
       SKIP_MOTIF=YES
+      SKIP_QT=YES
       GUITYPE=GTK
       AC_SUBST(GTK_LIBNAME)
     fi
@@ -2206,6 +2224,7 @@ fi
 if test -z "$SKIP_MOTIF"; then
   SKIP_ATHENA=YES
   SKIP_NEXTAW=YES
+  SKIP_QT=YES
   GUITYPE=MOTIF
   AC_SUBST(MOTIF_LIBNAME)
 fi
@@ -2307,6 +2326,180 @@ if test "$enable_xsmp" = "yes"; then
   CPPFLAGS=$cppflags_save
 fi
 
+dnl Check if the Qt files can be found
+
+if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
+    AC_LANG_PUSH(C++)
+    AC_PROG_CXX
+    QT_FOUND="no"
+
+#    # Candidate paths for Qt4
+#    QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4 $prefix"
+#
+
+
+cat > qttest_c.h << EOF
+#include <Qt/QtGui>
+class QtTest: public QWidget {
+    Q_OBJECT
+public:
+    QtTest(QWidget *p=0 );
+};
+EOF
+
+cat > qttest_c.cpp << EOF
+#include "qttest_c.h"
+QtTest::QtTest(QWidget* p)
+:QWidget(p) {}
+EOF
+
+cat > qttest.cpp << EOF
+#include <Qt/QtGui>
+int main(int ac, char **av) {
+    QApplication app(ac, av);
+    return app.exec();
+}
+EOF
+
+    #
+    # Here are the rules for finding Qt
+    # 1. If --with-qt-dir is used, use that or fail immediatly
+    # 2. Try building with no special flags, just system defaults
+    # 3. Try to guess, use some hardcoded paths
+    #
+
+    # --with-qt-dir overrides everything else
+    AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=PATH],
+					[to specify the Qt4 base prefix]),
+				[QT_DIR="$withval"],
+				)
+
+    if test -n "$QT_DIR" ; then
+        AC_MSG_CHECKING(Qt4 in $QT_DIR)
+        QT_FOUND="yes"
+	QT_MOC="$QT_DIR/bin/moc"
+	QT_LIBDIR="$QT_DIR/lib"
+	QT_INCDIR="$QT_DIR/include"
+
+        # Test moc
+        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
+        AC_TRY_EVAL(moc_try)
+        if test x"$ac_status" != x0; then
+            AC_MSG_ERROR(no moc available)
+        fi
+    
+        # test Compile
+        qt_try="$CXX $CXXFLAGS  -I$QT_INCDIR qttest.cpp -o qttest -L$QT_LIBDIR -lQtGui"
+        AC_TRY_EVAL(qt_try)
+        if test x"$ac_status" != x0; then
+            AC_MSG_ERROR(unable to build)
+        fi
+    
+	AC_MSG_RESULT($QT_FOUND)
+    fi
+
+    # Cross your fingers - hope for the best
+    if test "$QT_FOUND" = "no" ; then
+        AC_MSG_CHECKING(system wide Qt4)
+        QT_FOUND="yes"
+
+        # Test moc
+        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
+        AC_TRY_EVAL(moc_try)
+        if test x"$ac_status" != x0; then
+            QT_FOUND="no"
+        fi
+    
+        # test Compile
+        qt_try="$CXX $CXXFLAGS qttest.cpp -o qttest -lQtGui"
+        AC_TRY_EVAL(qt_try)
+        if test x"$ac_status" != x0; then
+            QT_FOUND="no"
+        fi
+    
+	QT_MOC="moc"
+	QT_LIBDIR="."
+	QT_INCDIR="."
+	AC_MSG_RESULT($QT_FOUND)
+    fi
+
+    # Hardcoded paths
+    if test "$QT_FOUND" = "no" ; then
+	QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4"
+        for x in $QTPATHS; do
+            AC_MSG_CHECKING(Qt4 in $x)
+
+            if test -d $x ; then
+                AC_MSG_RESULT($QT_FOUND)
+	        continue;
+            fi
+    	    # Test moc
+    	    moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
+            AC_TRY_EVAL(moc_try)
+            if test x"$ac_status" != x0; then
+                AC_MSG_RESULT($QT_FOUND)
+    	        continue;
+            fi
+    
+    	    # test Compile
+    	    qt_try="$CXX $CXXFLAGS -I$x/include qttest.cpp -o qttest -L$x/lib -lQtGui"
+            AC_TRY_EVAL(qt_try)
+            if test x"$ac_status" != x0; then
+                AC_MSG_RESULT($QT_FOUND)
+    	        continue;
+            fi
+    
+            QT_FOUND="yes"
+    	    QT_MOC="$x/bin/moc"
+    	    QT_LIBDIR="$x/lib/"
+    	    QT_INCDIR="$x/include/"
+    	    break;
+        done
+    fi
+
+
+    # One last desperate attempt - for Gentoo/Ubuntu
+    if test "$QT_FOUND" = "no" ; then
+        QT_FOUND="yes"
+        QT_LIBDIR="/usr/lib/qt4"
+        QT_INCDIR="/usr/include/qt4"
+        QT_MOC="moc"
+	AC_MSG_CHECKING(Qt4 in Gentoo locations)
+
+        # Test moc
+        moc_try="$QT_MOC qttest_c.h -o moc_qttest_c.cpp"
+        AC_TRY_EVAL(moc_try)
+        if test x"$ac_status" != x0; then
+		QT_FOUND="no"
+		AC_MSG_RESULT($QT_FOUND)
+        fi
+    
+        # test Compile
+        qt_try="$CXX $CXXFLAGS -I$QT_INCDIR -L$QT_LIBDIR -lQtGui qttest.cpp -o qttest"
+        AC_TRY_EVAL(qt_try)
+        if test x"$ac_status" != x0; then
+		QT_FOUND="no"
+                AC_MSG_RESULT($QT_FOUND)
+        fi
+
+	AC_MSG_RESULT($QT_FOUND)
+    fi
+
+    if test "$QT_FOUND" = "no" ; then
+        AC_MSG_ERROR(Could not locate Qt4)
+    fi
+
+
+    AC_SUBST(QT_MOC)
+    AC_SUBST(QT_LIBDIR)
+    AC_SUBST(QT_INCDIR)
+    AC_LANG_POP(C++)
+fi
+
+if test -z "$SKIP_QT"; then
+  GUITYPE=QT
+  GUI_X_LIBS=
+fi
 
 if test -z "$SKIP_ATHENA" -o -z "$SKIP_NEXTAW" -o -z "$SKIP_MOTIF" -o -z "$SKIP_GTK2"; then
   dnl Check for X11/xpm.h and X11/Sunkeysym.h with the GUI include path
