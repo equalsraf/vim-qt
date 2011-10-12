@@ -2754,6 +2754,7 @@ find_special_key(srcp, modp, keycode, keep_x_key)
     int		bit;
     int		key;
     unsigned long n;
+    int		l;
 
     src = *srcp;
     if (src[0] != '<')
@@ -2766,25 +2767,31 @@ find_special_key(srcp, modp, keycode, keep_x_key)
 	if (*bp == '-')
 	{
 	    last_dash = bp;
-	    if (bp[1] != NUL && bp[2] == '>')
-		++bp;	/* anything accepted, like <C-?> */
+	    if (bp[1] != NUL)
+	    {
+#ifdef FEAT_MBYTE
+		if (has_mbyte)
+		    l = mb_ptr2len(bp + 1);
+		else
+#endif
+		    l = 1;
+		if (bp[l + 1] == '>')
+		    bp += l;	/* anything accepted, like <C-?> */
+	    }
 	}
 	if (bp[0] == 't' && bp[1] == '_' && bp[2] && bp[3])
 	    bp += 3;	/* skip t_xx, xx may be '-' or '>' */
+	else if (STRNICMP(bp, "char-", 5) == 0)
+	{
+	    vim_str2nr(bp + 5, NULL, &l, TRUE, TRUE, NULL, NULL);
+	    bp += l + 5;
+	    break;
+	}
     }
 
     if (*bp == '>')	/* found matching '>' */
     {
 	end_of_name = bp + 1;
-
-	if (STRNICMP(src + 1, "char-", 5) == 0 && VIM_ISDIGIT(src[6]))
-	{
-	    /* <Char-123> or <Char-033> or <Char-0x33> */
-	    vim_str2nr(src + 6, NULL, NULL, TRUE, TRUE, NULL, &n);
-	    *modp = 0;
-	    *srcp = end_of_name;
-	    return (int)n;
-	}
 
 	/* Which modifiers are given? */
 	modifiers = 0x0;
@@ -2804,16 +2811,32 @@ find_special_key(srcp, modp, keycode, keep_x_key)
 	 */
 	if (bp >= last_dash)
 	{
-	    /*
-	     * Modifier with single letter, or special key name.
-	     */
-	    if (modifiers != 0 && last_dash[2] == '>')
-		key = last_dash[1];
+	    if (STRNICMP(last_dash + 1, "char-", 5) == 0
+						 && VIM_ISDIGIT(last_dash[6]))
+	    {
+		/* <Char-123> or <Char-033> or <Char-0x33> */
+		vim_str2nr(last_dash + 6, NULL, NULL, TRUE, TRUE, NULL, &n);
+		key = (int)n;
+	    }
 	    else
 	    {
-		key = get_special_key_code(last_dash + 1);
-		if (!keep_x_key)
-		    key = handle_x_keys(key);
+		/*
+		 * Modifier with single letter, or special key name.
+		 */
+#ifdef FEAT_MBYTE
+		if (has_mbyte)
+		    l = mb_ptr2len(last_dash + 1);
+		else
+#endif
+		    l = 1;
+		if (modifiers != 0 && last_dash[l + 1] == '>')
+		    key = PTR2CHAR(last_dash + 1);
+		else
+		{
+		    key = get_special_key_code(last_dash + 1);
+		    if (!keep_x_key)
+			key = handle_x_keys(key);
+		}
 	    }
 
 	    /*

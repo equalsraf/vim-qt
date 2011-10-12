@@ -108,6 +108,13 @@ endif
 # on NT, it's here:
 PERLLIB=$(PERL)/lib
 PERLLIBS=$(PERLLIB)/Core
+XSUBPP=$(PERLLIB)/ExtUtils/xsubpp
+XSUBPP_EXISTS=$(shell perl -e "print 1 unless -e '$(XSUBPP)'")
+ifeq "$(XSUBPP_EXISTS)" ""
+XSUBPP=perl $(XSUBPP)
+else
+XSUBPP=xsubpp
+endif
 endif
 
 # uncomment 'LUA' if you want a Lua-enabled version
@@ -634,7 +641,7 @@ upx: exes
 	upx vim.exe
 
 xxd/xxd.exe: xxd/xxd.c
-	$(MAKE) -C xxd -f Make_cyg.mak CC=$(CC)
+	$(MAKE) -C xxd -f Make_ming.mak CC=$(CC)
 
 GvimExt/gvimext.dll: GvimExt/gvimext.cpp GvimExt/gvimext.rc GvimExt/gvimext.h
 	$(MAKE) -C GvimExt -f Make_ming.mak CROSS=$(CROSS) CROSS_COMPILE=$(CROSS_COMPILE)
@@ -652,7 +659,7 @@ ifdef MZSCHEME
 	-$(DEL) mzscheme_base.c
 endif
 	$(MAKE) -C GvimExt -f Make_ming.mak clean
-	$(MAKE) -C xxd -f Make_cyg.mak clean
+	$(MAKE) -C xxd -f Make_ming.mak clean
 
 ###########################################################################
 INCL = vim.h feature.h os_win32.h os_dos.h ascii.h keymap.h term.h macros.h \
@@ -696,7 +703,7 @@ ifeq (16, $(RUBY))
 endif
 
 if_perl.c: if_perl.xs typemap
-	perl $(PERLLIB)/ExtUtils/xsubpp -prototypes -typemap \
+	$(XSUBPP) -prototypes -typemap \
 	     $(PERLLIB)/ExtUtils/typemap if_perl.xs > $@
 
 $(OUTDIR)/netbeans.o:	netbeans.c $(INCL) $(NBDEBUG_INCL) $(NBDEBUG_SRC)

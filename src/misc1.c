@@ -363,7 +363,7 @@ copy_indent(size, src)
 
 	/* Fill to next tabstop with a tab, if possible */
 	tab_pad = (int)curbuf->b_p_ts - (ind_done % (int)curbuf->b_p_ts);
-	if (todo >= tab_pad)
+	if (todo >= tab_pad && !curbuf->b_p_et)
 	{
 	    todo -= tab_pad;
 	    ++ind_len;
@@ -372,7 +372,7 @@ copy_indent(size, src)
 	}
 
 	/* Add tabs required for indent */
-	while (todo >= (int)curbuf->b_p_ts)
+	while (todo >= (int)curbuf->b_p_ts && !curbuf->b_p_et)
 	{
 	    todo -= (int)curbuf->b_p_ts;
 	    ++ind_len;
@@ -6389,6 +6389,7 @@ get_c_indent()
     int		lookfor_cpp_namespace = FALSE;
     int		cont_amount = 0;    /* amount for continuation line */
     int		original_line_islabel;
+    int		added_to_amount = 0;
 
     for (options = curbuf->b_p_cino; *options; )
     {
@@ -7216,52 +7217,59 @@ get_c_indent()
 			else
 			    amount += ind_continuation;
 		    }
-		    else if (lookfor_cpp_namespace)
+		    else
 		    {
-			if (curwin->w_cursor.lnum == ourscope)
-			    continue;
-
-			if (curwin->w_cursor.lnum == 0
-				|| curwin->w_cursor.lnum
-					      < ourscope - FIND_NAMESPACE_LIM)
-			    break;
-
-			l = ml_get_curline();
-
-			/*
-			 * If we're in a comment now, skip to the start of the
-			 * comment.
-			 */
-			trypos = find_start_comment(ind_maxcomment);
-			if (trypos != NULL)
-			{
-			    curwin->w_cursor.lnum = trypos->lnum + 1;
-			    curwin->w_cursor.col = 0;
-			    continue;
-			}
-
-			/*
-			 * Skip preprocessor directives and blank lines.
-			 */
-			if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum))
-			    continue;
-
-			if (cin_is_cpp_namespace(l))
-			{
-			    amount += ind_cpp_namespace;
-			    break;
-			}
-
-			if (cin_nocode(l))
-			    continue;
-
-		    }
-		    else if (lookfor != LOOKFOR_TERM
+			if (lookfor != LOOKFOR_TERM
 					  && lookfor != LOOKFOR_CPP_BASECLASS)
-		    {
-			amount = scope_amount;
-			if (theline[0] == '{')
-			    amount += ind_open_extra;
+			{
+			    amount = scope_amount;
+			    if (theline[0] == '{')
+			    {
+				amount += ind_open_extra;
+				added_to_amount = ind_open_extra;
+			    }
+			}
+
+			if (lookfor_cpp_namespace)
+			{
+			    /*
+			     * Looking for C++ namespace, need to look further
+			     * back.
+			     */
+			    if (curwin->w_cursor.lnum == ourscope)
+				continue;
+
+			    if (curwin->w_cursor.lnum == 0
+				    || curwin->w_cursor.lnum
+					      < ourscope - FIND_NAMESPACE_LIM)
+				break;
+
+			    l = ml_get_curline();
+
+			    /* If we're in a comment now, skip to the start of
+			     * the comment. */
+			    trypos = find_start_comment(ind_maxcomment);
+			    if (trypos != NULL)
+			    {
+				curwin->w_cursor.lnum = trypos->lnum + 1;
+				curwin->w_cursor.col = 0;
+				continue;
+			    }
+
+			    /* Skip preprocessor directives and blank lines. */
+			    if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum))
+				continue;
+
+			    /* Finally the actual check for "namespace". */
+			    if (cin_is_cpp_namespace(l))
+			    {
+				amount += ind_cpp_namespace - added_to_amount;
+				break;
+			    }
+
+			    if (cin_nocode(l))
+				continue;
+			}
 		    }
 		    break;
 		}
