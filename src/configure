@@ -8936,7 +8936,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
     #
     # Find qmake
-    # 1. First look for "qmake4" - some systems use qmake(Qt3) and qmake4(Qt4)
+    # 1. First look for "qmake4" - some systems use the name qmake(Qt3) and qmake4(Qt4)
     # 2. Look for "qmake" outside the path in the following locations
     QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
 
@@ -9023,7 +9023,7 @@ fi
 
     fi
 
-    if test "$QMAKE" = "no"; then
+    if test -z "$QMAKE"; then
         as_fn_error $? "\"Unable to find qmake\"" "$LINENO" 5
     fi
 
@@ -9113,7 +9113,7 @@ fi
 
     fi
 
-    if test "$QT_MOC" = "no"; then
+    if test -z "$QT_MOC"; then
         as_fn_error $? "\"Unable to find moc\"" "$LINENO" 5
     fi
 
@@ -9165,11 +9165,9 @@ EOF
     if test -z "$QT_LIBS"; then
         as_fn_error $? "Unable to find Qt libraries" "$LINENO" 5
     fi
-    echo $QT_INCPATH
 
 
 
-#    AC_SUBST(QT_LIBDIR)
 
     ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'

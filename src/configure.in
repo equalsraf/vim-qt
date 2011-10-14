@@ -2344,7 +2344,7 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
         AC_PATH_PROG(QMAKE, qmake, , $QT_BIN_PATH)
     fi
 
-    if test "$QMAKE" = "no"; then
+    if test -z "$QMAKE"; then
         AC_MSG_ERROR("Unable to find qmake")
     fi
 
@@ -2356,7 +2356,7 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
         AC_PATH_PROG(QT_MOC, moc, , $QT_BIN_PATH)
     fi
 
-    if test "$QT_MOC" = "no"; then
+    if test -z "$QT_MOC"; then
         AC_MSG_ERROR("Unable to find moc")
     fi
 
