@@ -1862,18 +1862,6 @@ if test "x$SKIP_CARBON" != "xYES" -a "$enable_gui_canon" != "carbon"; then
   fi
 fi
 
-if test "x$SKIP_QT" != "xYES" -a "$enable_gui_canon" != "qt"; then
-  AC_MSG_CHECKING(whether or not to look for Qt)
-  AC_ARG_ENABLE(qt-check,
-	[  --enable-qt-check   If auto-select GUI, check for Qt [default=yes]],
-	, enable_qt_check="yes")
-  AC_MSG_RESULT($enable_qt_check)
-  if test "x$enable_qt_check" = "xno"; then
-    SKIP_QT=YES
-  fi
-fi
-
-
 if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   AC_MSG_CHECKING(for Carbon GUI)
   dnl already did the check, just give the message
@@ -2333,44 +2321,70 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     AC_PROG_CXX
     QT_FOUND="no"
 
-    #
-    # Find qmake
-    # 1. First look for "qmake4" in the PATH - some systems use the name qmake(Qt3) and qmake4(Qt4)
-    # 2. If qmake4 is not found then look for qmake-qt4 in the PATH
-    # 3. If qmake-qt4 look for "qmake", outside the path, in the following locations
-    QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
+    AC_MSG_CHECKING(--with-qt-dir argument)
+    AC_ARG_WITH(qt-dir,
+    [  --with-qt-dir=PATH   Qt prefix path (ex: /usr/ or /usr/lib/qt4)],
+    [ QT_DIR="${withval}" ] )
 
-    AC_PATH_PROG(QMAKE, qmake4)
-    if test -z "$QMAKE"; then
-        AC_PATH_PROG(QMAKE, qmake, , $QT_BIN_PATH)
+    if test -n "$QT_DIR"; then
+        AC_MSG_RESULT($QT_DIR)
+
+        #
+	# Use the prefix given by --with-qt-dir
+	#
+	QMAKE="$QT_DIR/bin/qmake"
+	QT_MOC="$QT_DIR/bin/moc"
+
+    	AC_MSG_CHECKING(for $QMAKE)
+	if test ! -x "$QMAKE"; then
+            AC_MSG_ERROR("Unable to find qmake")
+	fi
+
+    	AC_MSG_CHECKING(for $QT_MOC)
+	if test ! -x "$QT_MOC"; then
+            AC_MSG_ERROR("Unable to find moc")
+	fi
+    else
+        AC_MSG_RESULT(no)
+
+        #
+        # Find qmake
+        # 1. First look for "qmake4" in the PATH - some systems use the name qmake(Qt3) and qmake4(Qt4)
+        # 2. If qmake4 is not found then look for qmake-qt4 in the PATH
+        # 3. If qmake-qt4 look for "qmake", outside the path, in the following locations
+        QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
+    
+        AC_PATH_PROG(QMAKE, qmake4)
+        if test -z "$QMAKE"; then
+            AC_PATH_PROG(QMAKE, qmake, , $QT_BIN_PATH)
+        fi
+    
+        if test -z "$QMAKE"; then
+            AC_PATH_PROG(QMAKE, qmake-qt4)
+        fi
+    
+        if test -z "$QMAKE"; then
+            AC_MSG_ERROR("Unable to find qmake")
+        fi
+    
+        #
+        # Find moc
+        # - Exactly the same as previous case with qmake
+        # 
+        AC_PATH_PROG(QT_MOC, moc4)
+        if test -z "$QT_MOC"; then
+            AC_PATH_PROG(QT_MOC, moc, , $QT_BIN_PATH)
+        fi
+    
+        if test -z "$QT_MOC"; then
+            AC_PATH_PROG(QT_MOC, moc-qt4)
+        fi
+    
+    
+        if test -z "$QT_MOC"; then
+            AC_MSG_ERROR("Unable to find moc")
+        fi
     fi
-
-    if test -z "$QMAKE"; then
-        AC_PATH_PROG(QMAKE, qmake-qt4)
-    fi
-
-    if test -z "$QMAKE"; then
-        AC_MSG_ERROR("Unable to find qmake")
-    fi
-
-    #
-    # Find moc
-    # - Exactly the same as previous case with qmake
-    # 
-    AC_PATH_PROG(QT_MOC, moc4)
-    if test -z "$QT_MOC"; then
-        AC_PATH_PROG(QT_MOC, moc, , $QT_BIN_PATH)
-    fi
-
-    if test -z "$QT_MOC"; then
-        AC_PATH_PROG(QT_MOC, moc-qt4)
-    fi
-
-
-    if test -z "$QT_MOC"; then
-        AC_MSG_ERROR("Unable to find moc")
-    fi
-
 
     #
     # Call qmake to generate bogus project

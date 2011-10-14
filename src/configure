@@ -799,12 +799,12 @@ enable_motif_check
 enable_athena_check
 enable_nextaw_check
 enable_carbon_check
-enable_qt_check
 enable_gtktest
 with_gnome_includes
 with_gnome_libs
 with_gnome
 with_motif_lib
+with_qt_dir
 with_tlib
 enable_largefile
 enable_acl
@@ -1464,7 +1464,6 @@ Optional Features:
   --enable-athena-check   If auto-select GUI, check for Athena default=yes
   --enable-nextaw-check   If auto-select GUI, check for neXtaw default=yes
   --enable-carbon-check   If auto-select GUI, check for Carbon default=yes
-  --enable-qt-check   If auto-select GUI, check for Qt default=yes
   --disable-gtktest       Do not try to compile and run a test GTK program
   --disable-largefile     omit support for large files
   --disable-acl           Don't check for ACL support.
@@ -1497,6 +1496,7 @@ Optional Packages:
   --with-gnome-libs=DIR   Specify location of GNOME libs
   --with-gnome            Specify prefix for GNOME files
   --with-motif-lib=STRING   Library for Motif
+  --with-qt-dir=PATH   Qt prefix path (ex: /usr/ or /usr/lib/qt4)
   --with-tlib=library     terminal library to be used
 
 Some influential environment variables:
@@ -7908,24 +7908,6 @@ $as_echo "$enable_carbon_check" >&6; };
   fi
 fi
 
-if test "x$SKIP_QT" != "xYES" -a "$enable_gui_canon" != "qt"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether or not to look for Qt" >&5
-$as_echo_n "checking whether or not to look for Qt... " >&6; }
-  # Check whether --enable-qt-check was given.
-if test "${enable_qt_check+set}" = set; then :
-  enableval=$enable_qt_check;
-else
-  enable_qt_check="yes"
-fi
-
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_qt_check" >&5
-$as_echo "$enable_qt_check" >&6; }
-  if test "x$enable_qt_check" = "xno"; then
-    SKIP_QT=YES
-  fi
-fi
-
-
 if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Carbon GUI" >&5
 $as_echo_n "checking for Carbon GUI... " >&6; }
@@ -8668,6 +8650,7 @@ done
 fi
 
 
+
 if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
@@ -8934,14 +8917,48 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
     QT_FOUND="no"
 
-    #
-    # Find qmake
-    # 1. First look for "qmake4" in the PATH - some systems use the name qmake(Qt3) and qmake4(Qt4)
-    # 2. If qmake4 is not found then look for qmake-qt4 in the PATH
-    # 3. If qmake-qt4 look for "qmake", outside the path, in the following locations
-    QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking --with-qt-dir argument" >&5
+$as_echo_n "checking --with-qt-dir argument... " >&6; }
 
-    # Extract the first word of "qmake4", so it can be a program name with args.
+# Check whether --with-qt-dir was given.
+if test "${with_qt_dir+set}" = set; then :
+  withval=$with_qt_dir;  QT_DIR="${withval}"
+fi
+
+
+    if test -n "$QT_DIR"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_DIR" >&5
+$as_echo "$QT_DIR" >&6; }
+
+        #
+	# Use the prefix given by --with-qt-dir
+	#
+	QMAKE="$QT_DIR/bin/qmake"
+	QT_MOC="$QT_DIR/bin/moc"
+
+    	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $QMAKE" >&5
+$as_echo_n "checking for $QMAKE... " >&6; }
+	if test ! -x "$QMAKE"; then
+            as_fn_error $? "\"Unable to find qmake\"" "$LINENO" 5
+	fi
+
+    	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $QT_MOC" >&5
+$as_echo_n "checking for $QT_MOC... " >&6; }
+	if test ! -x "$QT_MOC"; then
+            as_fn_error $? "\"Unable to find moc\"" "$LINENO" 5
+	fi
+    else
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+        #
+        # Find qmake
+        # 1. First look for "qmake4" in the PATH - some systems use the name qmake(Qt3) and qmake4(Qt4)
+        # 2. If qmake4 is not found then look for qmake-qt4 in the PATH
+        # 3. If qmake-qt4 look for "qmake", outside the path, in the following locations
+        QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
+
+        # Extract the first word of "qmake4", so it can be a program name with args.
 set dummy qmake4; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -8981,8 +8998,8 @@ $as_echo "no" >&6; }
 fi
 
 
-    if test -z "$QMAKE"; then
-        # Extract the first word of "qmake", so it can be a program name with args.
+        if test -z "$QMAKE"; then
+            # Extract the first word of "qmake", so it can be a program name with args.
 set dummy qmake; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -9022,10 +9039,10 @@ $as_echo "no" >&6; }
 fi
 
 
-    fi
+        fi
 
-    if test -z "$QMAKE"; then
-        # Extract the first word of "qmake-qt4", so it can be a program name with args.
+        if test -z "$QMAKE"; then
+            # Extract the first word of "qmake-qt4", so it can be a program name with args.
 set dummy qmake-qt4; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -9065,17 +9082,17 @@ $as_echo "no" >&6; }
 fi
 
 
-    fi
+        fi
 
-    if test -z "$QMAKE"; then
-        as_fn_error $? "\"Unable to find qmake\"" "$LINENO" 5
-    fi
+        if test -z "$QMAKE"; then
+            as_fn_error $? "\"Unable to find qmake\"" "$LINENO" 5
+        fi
 
-    #
-    # Find moc
-    # - Exactly the same as previous case with qmake
-    #
-    # Extract the first word of "moc4", so it can be a program name with args.
+        #
+        # Find moc
+        # - Exactly the same as previous case with qmake
+        #
+        # Extract the first word of "moc4", so it can be a program name with args.
 set dummy moc4; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -9115,8 +9132,8 @@ $as_echo "no" >&6; }
 fi
 
 
-    if test -z "$QT_MOC"; then
-        # Extract the first word of "moc", so it can be a program name with args.
+        if test -z "$QT_MOC"; then
+            # Extract the first word of "moc", so it can be a program name with args.
 set dummy moc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -9156,10 +9173,10 @@ $as_echo "no" >&6; }
 fi
 
 
-    fi
+        fi
 
-    if test -z "$QT_MOC"; then
-        # Extract the first word of "moc-qt4", so it can be a program name with args.
+        if test -z "$QT_MOC"; then
+            # Extract the first word of "moc-qt4", so it can be a program name with args.
 set dummy moc-qt4; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -9199,16 +9216,19 @@ $as_echo "no" >&6; }
 fi
 
 
+        fi
+
+
+        if test -z "$QT_MOC"; then
+            as_fn_error $? "\"Unable to find moc\"" "$LINENO" 5
+        fi
     fi
-
-
-    if test -z "$QT_MOC"; then
-        as_fn_error $? "\"Unable to find moc\"" "$LINENO" 5
-    fi
-
 
     #
-    # Call qmake
+    # Call qmake to generate bogus project
+    #
+    # What we do here is call qmake to generate a valid Makefile and
+    # then extract the Qt compiler flags from the generated Makefile
     #
     TMPDIR=/tmp
     tmp=`(umask 077 && mktemp -d -q "$TMPDIR/test-vim-qt-XXXXXXXX") 2>/dev/null`;
