@@ -2335,8 +2335,9 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
 
     #
     # Find qmake
-    # 1. First look for "qmake4" - some systems use the name qmake(Qt3) and qmake4(Qt4)
-    # 2. Look for "qmake" outside the path in the following locations
+    # 1. First look for "qmake4" in the PATH - some systems use the name qmake(Qt3) and qmake4(Qt4)
+    # 2. If qmake4 is not found then look for qmake-qt4 in the PATH
+    # 3. If qmake-qt4 look for "qmake", outside the path, in the following locations
     QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
 
     AC_PATH_PROG(QMAKE, qmake4)
@@ -2345,11 +2346,16 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     fi
 
     if test -z "$QMAKE"; then
+        AC_PATH_PROG(QMAKE, qmake-qt4)
+    fi
+
+    if test -z "$QMAKE"; then
         AC_MSG_ERROR("Unable to find qmake")
     fi
 
     #
     # Find moc
+    # - Exactly the same as previous case with qmake
     # 
     AC_PATH_PROG(QT_MOC, moc4)
     if test -z "$QT_MOC"; then
@@ -2357,12 +2363,20 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     fi
 
     if test -z "$QT_MOC"; then
+        AC_PATH_PROG(QT_MOC, moc-qt4)
+    fi
+
+
+    if test -z "$QT_MOC"; then
         AC_MSG_ERROR("Unable to find moc")
     fi
 
 
     #
-    # Call qmake 
+    # Call qmake to generate bogus project
+    #
+    # What we do here is call qmake to generate a valid Makefile and
+    # then extract the Qt compiler flags from the generated Makefile
     #
     TMPDIR=/tmp
     tmp=`(umask 077 && mktemp -d -q "$TMPDIR/test-vim-qt-XXXXXXXX") 2>/dev/null`;
