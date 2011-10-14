@@ -1235,10 +1235,10 @@ NEXTAW_BUNDLE	=
 ### Qt
 # We use the following to build
 # - QT_MOC
-# - QT_LIBDIR
-# - QT_INCDIR
+# - QT_LIBS
+# - QT_INCPATH
 MOC		= $(QT_MOC)
-QT_LIBS1	= -L$(QT_LIBDIR) -lQtGui -lQtCore -lstdc++
+QT_LIBS1	= $(QT_LIBS)
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp \
 			qt/fontdialog.cpp qt/scrollarea.cpp \
@@ -1249,7 +1249,7 @@ QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/vimscrollbar.o objects/fontdialog.o objects/scrollarea.o objects/vimwrapper.o \
 			objects/tabbar.o
 
-QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I. -I$(QT_INCDIR)
+QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I. $(QT_INCPATH)
 QT_IPATH	= $(GUI_INC_LOC)
 QT_LIBS_DIR = $(GUI_LIB_LOC)
 

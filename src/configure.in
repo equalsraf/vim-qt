@@ -2333,27 +2333,44 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     AC_PROG_CXX
     QT_FOUND="no"
 
-#    # Candidate paths for Qt4
-#    QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4 $prefix"
-#
+    #
+    # Find qmake
+    # 1. First look for "qmake4" - some systems use the name qmake(Qt3) and qmake4(Qt4)
+    # 2. Look for "qmake" outside the path in the following locations
+    QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
+
+    AC_PATH_PROG(QMAKE, qmake4)
+    if test -z "$QMAKE"; then
+        AC_PATH_PROG(QMAKE, qmake, , $QT_BIN_PATH)
+    fi
+
+    if test "$QMAKE" = "no"; then
+        AC_MSG_ERROR("Unable to find qmake")
+    fi
+
+    #
+    # Find moc
+    # 
+    AC_PATH_PROG(QT_MOC, moc4)
+    if test -z "$QT_MOC"; then
+        AC_PATH_PROG(QT_MOC, moc, , $QT_BIN_PATH)
+    fi
+
+    if test "$QT_MOC" = "no"; then
+        AC_MSG_ERROR("Unable to find moc")
+    fi
 
 
-cat > qttest_c.h << EOF
-#include <Qt/QtGui>
-class QtTest: public QWidget {
-    Q_OBJECT
-public:
-    QtTest(QWidget *p=0 );
-};
-EOF
+    #
+    # Call qmake 
+    #
+    TMPDIR=/tmp
+    tmp=`(umask 077 && mktemp -d -q "$TMPDIR/test-vim-qt-XXXXXXXX") 2>/dev/null`;
+    if test -z "$tmp" -a -d "$tmp"; then
+	AC_MSG_ERROR(Unable to create temporary directory)
+    fi
 
-cat > qttest_c.cpp << EOF
-#include "qttest_c.h"
-QtTest::QtTest(QWidget* p)
-:QWidget(p) {}
-EOF
-
-cat > qttest.cpp << EOF
+cat > $tmp/qttest.cpp << EOF
 #include <Qt/QtGui>
 int main(int ac, char **av) {
     QApplication app(ac, av);
@@ -2361,138 +2378,32 @@ int main(int ac, char **av) {
 }
 EOF
 
-    #
-    # Here are the rules for finding Qt
-    # 1. If --with-qt-dir is used, use that or fail immediatly
-    # 2. Try building with no special flags, just system defaults
-    # 3. Try to guess, use some hardcoded paths
-    #
-
-    # --with-qt-dir overrides everything else
-    AC_ARG_WITH([qt-dir], AC_HELP_STRING([--with-qt-dir=PATH],
-					[to specify the Qt4 base prefix]),
-				[QT_DIR="$withval"],
-				)
-
-    if test -n "$QT_DIR" ; then
-        AC_MSG_CHECKING(Qt4 in $QT_DIR)
-        QT_FOUND="yes"
-	QT_MOC="$QT_DIR/bin/moc"
-	QT_LIBDIR="$QT_DIR/lib"
-	QT_INCDIR="$QT_DIR/include"
-
-        # Test moc
-        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
-        AC_TRY_EVAL(moc_try)
-        if test x"$ac_status" != x0; then
-            AC_MSG_ERROR(no moc available)
-        fi
-    
-        # test Compile
-        qt_try="$CXX $CXXFLAGS  -I$QT_INCDIR qttest.cpp -o qttest -L$QT_LIBDIR -lQtGui"
-        AC_TRY_EVAL(qt_try)
-        if test x"$ac_status" != x0; then
-            AC_MSG_ERROR(unable to build)
-        fi
-    
-	AC_MSG_RESULT($QT_FOUND)
+    qmake_try=`cd $tmp; $QMAKE -project`
+    AC_TRY_EVAL(qt_try)
+    if test x"$ac_status" != x0; then
+        AC_MSG_ERROR(qmake failed)
+    fi
+    qmake_try=`cd $tmp; $QMAKE`
+    AC_TRY_EVAL(qt_try)
+    if test x"$ac_status" != x0; then
+        AC_MSG_ERROR(qmake failed)
     fi
 
-    # Cross your fingers - hope for the best
-    if test "$QT_FOUND" = "no" ; then
-        AC_MSG_CHECKING(system wide Qt4)
-        QT_FOUND="yes"
-
-        # Test moc
-        moc_try="moc qttest_c.h -o moc_qttest_c.cpp"
-        AC_TRY_EVAL(moc_try)
-        if test x"$ac_status" != x0; then
-            QT_FOUND="no"
-        fi
-    
-        # test Compile
-        qt_try="$CXX $CXXFLAGS qttest.cpp -o qttest -lQtGui"
-        AC_TRY_EVAL(qt_try)
-        if test x"$ac_status" != x0; then
-            QT_FOUND="no"
-        fi
-    
-	QT_MOC="moc"
-	QT_LIBDIR="."
-	QT_INCDIR="."
-	AC_MSG_RESULT($QT_FOUND)
+    # LIBS
+    QT_LIBS=`grep LIBS.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
+    if test -z "$QT_LIBS"; then
+        AC_MSG_ERROR(Unable to find Qt libraries)
     fi
 
-    # Hardcoded paths
-    if test "$QT_FOUND" = "no" ; then
-	QTPATHS="/usr/lib64/qt4 /usr/local/lib64/qt4 /usr/lib/qt4 /usr/local/lib/qt4"
-        for x in $QTPATHS; do
-            AC_MSG_CHECKING(Qt4 in $x)
-
-            if test -d $x ; then
-                AC_MSG_RESULT($QT_FOUND)
-	        continue;
-            fi
-    	    # Test moc
-    	    moc_try="$x/bin/moc qttest_c.h -o moc_qttest_c.cpp"
-            AC_TRY_EVAL(moc_try)
-            if test x"$ac_status" != x0; then
-                AC_MSG_RESULT($QT_FOUND)
-    	        continue;
-            fi
-    
-    	    # test Compile
-    	    qt_try="$CXX $CXXFLAGS -I$x/include qttest.cpp -o qttest -L$x/lib -lQtGui"
-            AC_TRY_EVAL(qt_try)
-            if test x"$ac_status" != x0; then
-                AC_MSG_RESULT($QT_FOUND)
-    	        continue;
-            fi
-    
-            QT_FOUND="yes"
-    	    QT_MOC="$x/bin/moc"
-    	    QT_LIBDIR="$x/lib/"
-    	    QT_INCDIR="$x/include/"
-    	    break;
-        done
+    # Include directives
+    QT_INCPATH=`grep INCPATH.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
+    if test -z "$QT_LIBS"; then
+        AC_MSG_ERROR(Unable to find Qt libraries)
     fi
 
-
-    # One last desperate attempt - for Gentoo/Ubuntu
-    if test "$QT_FOUND" = "no" ; then
-        QT_FOUND="yes"
-        QT_LIBDIR="/usr/lib/qt4"
-        QT_INCDIR="/usr/include/qt4"
-        QT_MOC="moc"
-	AC_MSG_CHECKING(Qt4 in Gentoo locations)
-
-        # Test moc
-        moc_try="$QT_MOC qttest_c.h -o moc_qttest_c.cpp"
-        AC_TRY_EVAL(moc_try)
-        if test x"$ac_status" != x0; then
-		QT_FOUND="no"
-		AC_MSG_RESULT($QT_FOUND)
-        fi
-    
-        # test Compile
-        qt_try="$CXX $CXXFLAGS -I$QT_INCDIR -L$QT_LIBDIR -lQtGui qttest.cpp -o qttest"
-        AC_TRY_EVAL(qt_try)
-        if test x"$ac_status" != x0; then
-		QT_FOUND="no"
-                AC_MSG_RESULT($QT_FOUND)
-        fi
-
-	AC_MSG_RESULT($QT_FOUND)
-    fi
-
-    if test "$QT_FOUND" = "no" ; then
-        AC_MSG_ERROR(Could not locate Qt4)
-    fi
-
-
+    AC_SUBST(QT_LIBS)
     AC_SUBST(QT_MOC)
-    AC_SUBST(QT_LIBDIR)
-    AC_SUBST(QT_INCDIR)
+    AC_SUBST(QT_INCPATH)
     AC_LANG_POP(C++)
 fi
 
