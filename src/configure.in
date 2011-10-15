@@ -1716,7 +1716,6 @@ else
   fi
 fi
 
-echo "$enable_gui"
 test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" -a "x$enable_gui" != "xqt" && enable_gui=no
 
 AC_MSG_CHECKING(--enable-gui argument)
@@ -2426,9 +2425,16 @@ EOF
     # Include directives
     QT_INCPATH=`grep INCPATH.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
     if test -z "$QT_LIBS"; then
-        AC_MSG_ERROR(Unable to find Qt libraries)
+        AC_MSG_ERROR(Unable to find Qt include path)
     fi
 
+    # LFLAGS
+    QT_LFLAGS=`grep LFLAGS.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
+    if test -z "$QT_LFLAGS"; then
+        AC_MSG_ERROR(Unable to find Qt link flags)
+    fi
+
+    LDFLAGS="$LDFLAGS $QT_LFLAGS"
     AC_SUBST(QT_LIBS)
     AC_SUBST(QT_MOC)
     AC_SUBST(QT_INCPATH)

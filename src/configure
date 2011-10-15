@@ -7704,7 +7704,6 @@ $as_echo "$ac_cv_small_wchar_t" >&6; }
   fi
 fi
 
-echo "$enable_gui"
 test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" -a "x$enable_gui" != "xqt" && enable_gui=no
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking --enable-gui argument" >&5
@@ -8650,7 +8649,6 @@ done
 fi
 
 
-
 if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
@@ -9272,9 +9270,16 @@ EOF
     # Include directives
     QT_INCPATH=`grep INCPATH.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
     if test -z "$QT_LIBS"; then
-        as_fn_error $? "Unable to find Qt libraries" "$LINENO" 5
+        as_fn_error $? "Unable to find Qt include path" "$LINENO" 5
     fi
 
+    # LFLAGS
+    QT_LFLAGS=`grep LFLAGS.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
+    if test -z "$QT_LFLAGS"; then
+        as_fn_error $? "Unable to find Qt link flags" "$LINENO" 5
+    fi
+
+    LDFLAGS="$LDFLAGS $QT_LFLAGS"
 
 
 
