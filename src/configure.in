@@ -2405,11 +2405,17 @@ int main(int ac, char **av) {
 }
 EOF
 
-    qmake_try=`cd $tmp; $QMAKE -project`
+    # Generate qmake project
+    qmake_try=`cd $tmp; $QMAKE -project -o test.pro`
     AC_TRY_EVAL(qt_try)
     if test x"$ac_status" != x0; then
         AC_MSG_ERROR(qmake failed)
     fi
+
+    # add options
+    echo "QT += network" >> $tmp/test.pro
+
+    # generate Makefile
     qmake_try=`cd $tmp; $QMAKE`
     AC_TRY_EVAL(qt_try)
     if test x"$ac_status" != x0; then
@@ -2443,7 +2449,7 @@ EOF
     # Remove temp directory
     rm $tmp/Makefile
     rm $tmp/qttest.cpp
-    rm $tmp/*.pro
+    rm $tmp/test.pro
     rmdir $tmp
 fi
 

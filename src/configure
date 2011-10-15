@@ -9242,7 +9242,8 @@ int main(int ac, char **av) {
 }
 EOF
 
-    qmake_try=`cd $tmp; $QMAKE -project`
+    # Generate qmake project
+    qmake_try=`cd $tmp; $QMAKE -project -o test.pro`
     { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$qt_try\""; } >&5
   (eval $qt_try) 2>&5
   ac_status=$?
@@ -9251,6 +9252,11 @@ EOF
     if test x"$ac_status" != x0; then
         as_fn_error $? "qmake failed" "$LINENO" 5
     fi
+
+    # add options
+    echo "QT += network" >> $tmp/test.pro
+
+    # generate Makefile
     qmake_try=`cd $tmp; $QMAKE`
     { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$qt_try\""; } >&5
   (eval $qt_try) 2>&5
@@ -9293,7 +9299,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
     # Remove temp directory
     rm $tmp/Makefile
     rm $tmp/qttest.cpp
-    rm $tmp/*.pro
+    rm $tmp/test.pro
     rmdir $tmp
 fi
 
