@@ -20,7 +20,7 @@ extern "C" {
 
 #include "vim.h"
 
-static CommandServer serverSocket;
+static CommandServer *serverSocket;
 static QMap<int, QLocalSocket*> serverConnections;
 
 
@@ -53,12 +53,12 @@ char_u *
 serverGetVimNames(void)
 {
 	QDir dir(socketFolder());
-	dir.setFilter(QDir::Files | QDir::NoDotAndDotDot );
+	dir.setFilter(QDir::System | QDir::NoDotAndDotDot );
 
 	if ( !dir.exists() ) {
 		return NULL;
 	}
-	
+	qDebug() << __func__;
 	QStringList files = dir.entryList();
 	QString socketList = files.join("\n");
 
@@ -83,7 +83,9 @@ serverGetVimNames(void)
 void
 serverInitMessaging(void)
 {
-	// Nothing to do	
+	// Nothing to do
+	qDebug() << __func__;
+	serverSocket = CommandServer::getInstance();
 }
 
 //
@@ -107,31 +109,20 @@ serverSetName(char_u *name)
 	QFileInfo fi(dir.filePath((char*)name));
 	QString socketName = fi.absoluteFilePath();
 
-	if ( !serverSocket.listen(socketName) ) {
-		QString trySocketName;
-		int idx = 1;
-		do {
-			// FIXME: Fallback strategy using QUuid
-			trySocketName = socketName + QString::number(idx++);
-			if ( QFileInfo(trySocketName).exists() ) {
-				continue;
-			}
-		} while ( !serverSocket.listen(trySocketName) );
+	serverSocket->setBaseName(socketName);
+	qDebug() << __func__;
 
-		socketName = trySocketName;
-	}
-
-	QByteArray data = socketName.toAscii();
-	char_u *buffer = alloc(data.length());
-	for (int i=0; i< data.length(); i++) {
-		buffer[i] = data.constData()[i];
-	}
-	serverName = buffer;
-
-#ifdef FEAT_EVAL
-	/* Set the servername variable */
-	set_vim_var_string(VV_SEND_SERVER, serverName, -1);
-#endif
+//	QByteArray data = socketName.toAscii();
+//	char_u *buffer = alloc(data.length());
+//	for (int i=0; i< data.length(); i++) {
+//		buffer[i] = data.constData()[i];
+//	}
+//	serverName = buffer;
+//
+//#ifdef FEAT_EVAL
+//	/* Set the servername variable */
+//	set_vim_var_string(VV_SEND_SERVER, serverName, -1);
+//#endif
 }
 
 /**

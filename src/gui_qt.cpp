@@ -18,6 +18,7 @@
 #include "vimaction.h"
 #include "vimscrollbar.h"
 #include "fontdialog.h"
+#include "commandserver.h"
 
 extern "C" {
 
@@ -518,7 +519,6 @@ gui_mch_init()
 #endif
 	QApplication *app = new QApplication(dummy_argc, dummy_argv, useGUI);
 
-
 	window = new MainWindow(&gui);
 
 	// Load qVim settings
@@ -573,6 +573,9 @@ gui_mch_init()
 	if ( start_fullscreen ) {
 		gui_mch_enter_fullscreen();
 	}
+
+	CommandServer *server = CommandServer::getInstance();
+	server->listen();
 
 	return OK;
 }
@@ -799,6 +802,9 @@ gui_mch_exit(int rc)
 	settings.beginGroup("mainwindow");
 	settings.setValue("state", window->saveState());
 	settings.endGroup();
+
+	CommandServer *server = CommandServer::getInstance();
+	server->close();
 
 	QApplication::quit();
 }

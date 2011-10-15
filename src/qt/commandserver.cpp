@@ -5,6 +5,8 @@ extern "C" {
 #include "vim.h"
 }
 
+CommandServer* CommandServer::instance = new CommandServer();
+
 CommandClient::CommandClient(QLocalSocket *sock, QObject *parent)
 :QObject(parent), m_socket(sock)
 {
@@ -45,9 +47,35 @@ CommandServer::CommandServer(QObject *parent)
 {
 	connect(this, SIGNAL(newConnection()),
 			this, SLOT(handleRequest()));
-
 }
 
+CommandServer* CommandServer::getInstance()
+{
+	return instance;
+}
+
+void CommandServer::setBaseName(const QString& name)
+{
+	m_name = name;
+}
+
+bool CommandServer::listen()
+{
+	if ( !QLocalServer::listen(m_name) ) {
+		QString trySocketName;
+		int idx = 1;
+		do {
+			// FIXME: Fallback strategy using QUuid
+			trySocketName = m_name + QString::number(idx++);
+			if ( QFileInfo(trySocketName).exists() ) {
+				continue;
+			}
+		} while ( !QLocalServer::listen(trySocketName) );
+		socketName =  trySocketName;
+	}
+	
+	return true;
+}
 
 void CommandServer::handleRequest()
 {

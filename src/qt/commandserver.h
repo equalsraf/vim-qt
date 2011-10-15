@@ -20,11 +20,19 @@ class CommandServer: public QLocalServer
 {
 	Q_OBJECT
 public:
+	static CommandServer* getInstance();
+	void setBaseName(const QString& name);
+	bool listen();
+
+private:
 	CommandServer(QObject *parent=0);
 
 protected slots:
 	void handleRequest();
-
+private:
+	static CommandServer* instance;
+	QString m_name;
+	QString socketName;
 };
 
 #endif
