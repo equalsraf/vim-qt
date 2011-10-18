@@ -574,8 +574,26 @@ gui_mch_init()
 		gui_mch_enter_fullscreen();
 	}
 
+	//
+	// Client-Server
+	// - Start the server
+	// - Set the server name
 	CommandServer *server = CommandServer::getInstance();
-	server->listen();
+	if ( !server->listen() ) {
+		qDebug() << "Unable to start Vim server";
+	} else {
+		QFileInfo fi(server->fullServerName());
+		QByteArray data = fi.baseName().toAscii();
+		char_u *buffer = alloc(data.length());
+		for (int i=0; i< data.length(); i++) {
+			buffer[i] = data.constData()[i];
+		}
+		serverName = buffer;
+#ifdef FEAT_EVAL
+		/* Set the servername variable */
+		set_vim_var_string(VV_SEND_SERVER, serverName, -1);
+#endif
+	}
 
 	return OK;
 }
@@ -803,9 +821,9 @@ gui_mch_exit(int rc)
 	settings.setValue("state", window->saveState());
 	settings.endGroup();
 
+	// Close the Vim server
 	CommandServer *server = CommandServer::getInstance();
 	server->close();
-
 	QApplication::quit();
 }
 

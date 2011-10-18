@@ -110,19 +110,6 @@ serverSetName(char_u *name)
 	QString socketName = fi.absoluteFilePath();
 
 	serverSocket->setBaseName(socketName);
-	qDebug() << __func__;
-
-//	QByteArray data = socketName.toAscii();
-//	char_u *buffer = alloc(data.length());
-//	for (int i=0; i< data.length(); i++) {
-//		buffer[i] = data.constData()[i];
-//	}
-//	serverName = buffer;
-//
-//#ifdef FEAT_EVAL
-//	/* Set the servername variable */
-//	set_vim_var_string(VV_SEND_SERVER, serverName, -1);
-//#endif
 }
 
 /**
