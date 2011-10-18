@@ -743,6 +743,10 @@ clip_mch_request_selection(VimClipboard *cbd)
 {
 
 	QClipboard *clip = QApplication::clipboard();
+	if ( clip->text((QClipboard::Mode)cbd->clipboardMode).size() == 0 ) {
+		return;
+	}
+
 	QByteArray text = VimWrapper::convertTo(clip->text( (QClipboard::Mode)cbd->clipboardMode));
 
 	char_u	*buffer;
