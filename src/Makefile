@@ -1257,7 +1257,6 @@ NEXTAW_BUNDLE	=
 # - QT_INCPATH
 MOC		= $(QT_MOC)
 QT_LIBS1	= $(QT_LIBS)
-QT_LIBS1	= -L$(QT_LIBDIR) -lQtGui -lQtCore -lQtNetwork -lstdc++
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/scrollarea.cpp \
 			qt/fontdialog.cpp \
