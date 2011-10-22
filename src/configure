@@ -9354,19 +9354,19 @@ EOF
     fi
 
     # LIBS
-    QT_LIBS=`grep LIBS.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
+    QT_LIBS=`grep LIBS.*= $tmp/Makefile | awk '{sub(/^LIBS +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         as_fn_error $? "Unable to find Qt libraries" "$LINENO" 5
     fi
 
     # Include directives
-    QT_INCPATH=`grep INCPATH.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
+    QT_INCPATH=`grep INCPATH.*= $tmp/Makefile | awk '{sub(/^INCPATH +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         as_fn_error $? "Unable to find Qt include path" "$LINENO" 5
     fi
 
     # LFLAGS
-    QT_LFLAGS=`grep LFLAGS.*= $tmp/Makefile | awk '{sub(/^.*=/, ""); print}'`
+    QT_LFLAGS=`grep LFLAGS.*= $tmp/Makefile | awk '{sub(/^LFLAGS +=/, ""); print}'`
     if test -z "$QT_LFLAGS"; then
         as_fn_error $? "Unable to find Qt link flags" "$LINENO" 5
     fi
