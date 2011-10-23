@@ -2448,7 +2448,7 @@ EOF
         AC_MSG_ERROR(Unable to find Qt link flags)
     fi
 
-    LDFLAGS="$LDFLAGS $QT_LFLAGS"
+    LDFLAGS="$LDFLAGS $QT_LFLAGS -lstdc++"
     AC_SUBST(QT_LIBS)
     AC_SUBST(QT_MOC)
     AC_SUBST(QT_INCPATH)

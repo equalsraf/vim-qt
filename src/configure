@@ -9371,7 +9371,7 @@ EOF
         as_fn_error $? "Unable to find Qt link flags" "$LINENO" 5
     fi
 
-    LDFLAGS="$LDFLAGS $QT_LFLAGS"
+    LDFLAGS="$LDFLAGS $QT_LFLAGS -lstdc++"
 
 
 
