@@ -394,6 +394,10 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 {
 	int but;
 
+	if ( !hasFocus() ) {
+		setFocus(Qt::MouseFocusReason);
+	}
+
 	switch( ev->button() ) {
 	case Qt::LeftButton:
 		but = MOUSE_LEFT;
