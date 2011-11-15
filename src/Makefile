@@ -1255,6 +1255,10 @@ QT_LIBS_DIR = $(GUI_LIB_LOC)
 
 QT_INSTALL  = install_normal install_gui_extra
 
+# Qt needs to be linked using the c++ compiler
+ifdef QT_LIBS
+	CClink=$(CXX)
+endif
 
 
 ### (J)  Sun OpenWindows 3.2 (SunOS 4.1.x) or earlier that produce these ld
