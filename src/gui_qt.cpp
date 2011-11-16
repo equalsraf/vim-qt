@@ -1086,7 +1086,6 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 
 	if ( menu_is_popup(menu->name) ) {
 		menu->qmenu = new QMenu(VimWrapper::convertFrom((char*)menu->name), vimshell);
-		return;
 	} else if ( menu_is_toolbar(menu->name) ) {
 		menu->qmenu = window->toolBar();
 	} else if ( menu->parent == NULL ) {
@@ -1173,14 +1172,18 @@ gui_mch_destroy_menu(vimmenu_T *menu)
 
 	if ( menu->qmenu != NULL ) {
 		QMenu *m = (QMenu*)menu->qmenu;
+
 		if ( parent ) {
 			parent->removeAction(m->menuAction());
+		} else {
+			window->menuBar()->removeAction(m->menuAction());
 		}
 		menu->qmenu->deleteLater();
 	}
 
 	if ( menu->qaction != NULL ) {
 		QAction *a = (QAction*)menu->qaction;
+
 		if ( parent ) {
 			parent->removeAction(a);
 		}
