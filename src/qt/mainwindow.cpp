@@ -39,6 +39,11 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	tabbar->setExpanding(false);
 	tabbar->setFocusPolicy(Qt::NoFocus);
 	tabbar->setDrawBase(false);
+	tabbar->setMovable(true);
+	connect(tabbar, SIGNAL(tabMoved(int, int)),
+			this, SLOT(tabMoved(int, int)));
+
+
 	tabbar->addTab("VIM"); // One tab must always exist
 
 	tabtoolbar->addWidget(tabbar);
@@ -50,6 +55,18 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 			this, SLOT(switchTab(int)));
 	connect( newTab, SIGNAL(triggered()),
 			this, SLOT(openNewTab()));
+}
+
+void MainWindow::tabMoved(int from, int to)
+{
+	//
+	// In some cases Qt will not drag the tab you expect
+	// for example if you have two tabs (1,2) and drag 
+	// tab 1 to place 2 -> Qt might trigger the reverse
+	// event -> move tab 2 to place 1
+	//
+	qDebug() << __func__ << from << to;
+	tabpage_move(to-1);
 }
 
 void MainWindow::updateTabOrientation()

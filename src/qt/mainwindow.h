@@ -43,6 +43,7 @@ protected:
 
 protected slots:
 	void updateTabOrientation();
+	void tabMoved(int from, int to);
 
 private:
 	QToolBar *toolbar;
