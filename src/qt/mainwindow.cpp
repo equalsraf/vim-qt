@@ -60,13 +60,21 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 void MainWindow::tabMoved(int from, int to)
 {
 	//
-	// In some cases Qt will not drag the tab you expect
+	// 1. In some cases Qt will not drag the tab you expect
 	// for example if you have two tabs (1,2) and drag 
 	// tab 1 to place 2 -> Qt might trigger the reverse
-	// event -> move tab 2 to place 1
+	// event i.e. move tab 2 to place 1
 	//
-	qDebug() << __func__ << from << to;
-	tabpage_move(to-1);
+	// 2. It also seems that QTabbar::currentIndex() always 
+	// returns the current tab, i.e. after the movement event
+	// it returns the destination position - which is exactly
+	// what we want.
+	//
+	// 3. Also, both tabpage_move and Qt use 0-indexed tab positions
+	//
+
+	qDebug() << __func__ << "(current: " << tabbar->currentIndex() << ") from: " << from << "to:" << to;
+	tabpage_move(tabbar->currentIndex());
 }
 
 void MainWindow::updateTabOrientation()
