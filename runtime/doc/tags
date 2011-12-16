@@ -1184,6 +1184,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 +mouse_netterm	various.txt	/*+mouse_netterm*
 +mouse_pterm	various.txt	/*+mouse_pterm*
 +mouse_sysmouse	various.txt	/*+mouse_sysmouse*
++mouse_urxvt	various.txt	/*+mouse_urxvt*
 +mouse_xterm	various.txt	/*+mouse_xterm*
 +mouseshape	various.txt	/*+mouseshape*
 +multi_byte	various.txt	/*+multi_byte*
@@ -2092,6 +2093,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 :display	change.txt	/*:display*
 :dj	tagsrch.txt	/*:dj*
 :djump	tagsrch.txt	/*:djump*
+:dl	change.txt	/*:dl*
 :dli	tagsrch.txt	/*:dli*
 :dlist	tagsrch.txt	/*:dlist*
 :do	autocmd.txt	/*:do*
@@ -4235,6 +4237,8 @@ E85	options.txt	/*E85*
 E850	change.txt	/*E850*
 E851	gui_x11.txt	/*E851*
 E852	gui_x11.txt	/*E852*
+E853	eval.txt	/*E853*
+E854	options.txt	/*E854*
 E86	windows.txt	/*E86*
 E87	windows.txt	/*E87*
 E88	windows.txt	/*E88*
@@ -4684,6 +4688,7 @@ alt	intro.txt	/*alt*
 alt-input	debugger.txt	/*alt-input*
 alternate-file	editing.txt	/*alternate-file*
 amiga-window	starting.txt	/*amiga-window*
+and()	eval.txt	/*and()*
 anonymous-function	eval.txt	/*anonymous-function*
 ant.vim	syntax.txt	/*ant.vim*
 ap	motion.txt	/*ap*
@@ -5759,6 +5764,7 @@ g-	undo.txt	/*g-*
 g0	motion.txt	/*g0*
 g8	various.txt	/*g8*
 g:NetrwTopLvlMenu	pi_netrw.txt	/*g:NetrwTopLvlMenu*
+g:Netrw_corehandler	pi_netrw.txt	/*g:Netrw_corehandler*
 g:Netrw_funcref	pi_netrw.txt	/*g:Netrw_funcref*
 g:ada#Comment	ft_ada.txt	/*g:ada#Comment*
 g:ada#Ctags_Kinds	ft_ada.txt	/*g:ada#Ctags_Kinds*
@@ -5846,9 +5852,11 @@ g:netrw_maxfilenamelen	pi_netrw.txt	/*g:netrw_maxfilenamelen*
 g:netrw_menu	pi_netrw.txt	/*g:netrw_menu*
 g:netrw_mkdir_cmd	pi_netrw.txt	/*g:netrw_mkdir_cmd*
 g:netrw_mousemaps	pi_netrw.txt	/*g:netrw_mousemaps*
+g:netrw_nobeval	pi_netrw.txt	/*g:netrw_nobeval*
 g:netrw_nogx	pi_netrw.txt	/*g:netrw_nogx*
 g:netrw_preview	pi_netrw.txt	/*g:netrw_preview*
 g:netrw_rcp_cmd	pi_netrw.txt	/*g:netrw_rcp_cmd*
+g:netrw_remote_mkdir	pi_netrw.txt	/*g:netrw_remote_mkdir*
 g:netrw_retmap	pi_netrw.txt	/*g:netrw_retmap*
 g:netrw_rm_cmd	pi_netrw.txt	/*g:netrw_rm_cmd*
 g:netrw_rmdir_cmd	pi_netrw.txt	/*g:netrw_rmdir_cmd*
@@ -5876,6 +5884,8 @@ g:netrw_use_nt_rcp	pi_netrw.txt	/*g:netrw_use_nt_rcp*
 g:netrw_win95ftp	pi_netrw.txt	/*g:netrw_win95ftp*
 g:netrw_winsize	pi_netrw.txt	/*g:netrw_winsize*
 g:netrw_xstrlen	pi_netrw.txt	/*g:netrw_xstrlen*
+g:sh_isk	syntax.txt	/*g:sh_isk*
+g:sh_noisk	syntax.txt	/*g:sh_noisk*
 g:syntax_on	syntax.txt	/*g:syntax_on*
 g:tar_browseoptions	pi_tar.txt	/*g:tar_browseoptions*
 g:tar_cmd	pi_tar.txt	/*g:tar_cmd*
@@ -6124,6 +6134,7 @@ helpfile_name.txt	helphelp.txt	/*helpfile_name.txt*
 helphelp	helphelp.txt	/*helphelp*
 helphelp.txt	helphelp.txt	/*helphelp.txt*
 hex-editing	tips.txt	/*hex-editing*
+hex-number	eval.txt	/*hex-number*
 hidden-buffer	windows.txt	/*hidden-buffer*
 hidden-changed	version5.txt	/*hidden-changed*
 hidden-menus	gui.txt	/*hidden-menus*
@@ -6430,6 +6441,7 @@ internet	intro.txt	/*internet*
 intro	intro.txt	/*intro*
 intro.txt	intro.txt	/*intro.txt*
 inverse	syntax.txt	/*inverse*
+invert()	eval.txt	/*invert()*
 ip	motion.txt	/*ip*
 iquote	motion.txt	/*iquote*
 is	motion.txt	/*is*
@@ -6767,6 +6779,7 @@ netrw-browse-cmds	pi_netrw.txt	/*netrw-browse-cmds*
 netrw-browse-maps	pi_netrw.txt	/*netrw-browse-maps*
 netrw-browser	pi_netrw.txt	/*netrw-browser*
 netrw-browser-options	pi_netrw.txt	/*netrw-browser-options*
+netrw-browser-settings	pi_netrw.txt	/*netrw-browser-settings*
 netrw-browser-var	pi_netrw.txt	/*netrw-browser-var*
 netrw-browsing	pi_netrw.txt	/*netrw-browsing*
 netrw-c	pi_netrw.txt	/*netrw-c*
@@ -6815,6 +6828,7 @@ netrw-history	pi_netrw.txt	/*netrw-history*
 netrw-horiz	pi_netrw.txt	/*netrw-horiz*
 netrw-i	pi_netrw.txt	/*netrw-i*
 netrw-incompatible	pi_netrw.txt	/*netrw-incompatible*
+netrw-internal-variables	pi_netrw.txt	/*netrw-internal-variables*
 netrw-intro-browse	pi_netrw.txt	/*netrw-intro-browse*
 netrw-leftmouse	pi_netrw.txt	/*netrw-leftmouse*
 netrw-list	pi_netrw.txt	/*netrw-list*
@@ -6892,8 +6906,10 @@ netrw-rexplore	pi_netrw.txt	/*netrw-rexplore*
 netrw-rightmouse	pi_netrw.txt	/*netrw-rightmouse*
 netrw-s	pi_netrw.txt	/*netrw-s*
 netrw-settings	pi_netrw.txt	/*netrw-settings*
+netrw-settings-window	pi_netrw.txt	/*netrw-settings-window*
 netrw-sexplore	pi_netrw.txt	/*netrw-sexplore*
 netrw-sort	pi_netrw.txt	/*netrw-sort*
+netrw-sort-sequence	pi_netrw.txt	/*netrw-sort-sequence*
 netrw-sortsequence	pi_netrw.txt	/*netrw-sortsequence*
 netrw-source	pi_netrw.txt	/*netrw-source*
 netrw-ssh-hack	pi_netrw.txt	/*netrw-ssh-hack*
@@ -6912,7 +6928,6 @@ netrw-updir	pi_netrw.txt	/*netrw-updir*
 netrw-urls	pi_netrw.txt	/*netrw-urls*
 netrw-userpass	pi_netrw.txt	/*netrw-userpass*
 netrw-v	pi_netrw.txt	/*netrw-v*
-netrw-var	pi_netrw.txt	/*netrw-var*
 netrw-variables	pi_netrw.txt	/*netrw-variables*
 netrw-vexplore	pi_netrw.txt	/*netrw-vexplore*
 netrw-write	pi_netrw.txt	/*netrw-write*
@@ -7026,6 +7041,7 @@ objects	index.txt	/*objects*
 obtaining-exted	netbeans.txt	/*obtaining-exted*
 ocaml.vim	syntax.txt	/*ocaml.vim*
 octal	eval.txt	/*octal*
+octal-number	eval.txt	/*octal-number*
 octal-number	options.txt	/*octal-number*
 oldfiles-variable	eval.txt	/*oldfiles-variable*
 ole-activation	if_ole.txt	/*ole-activation*
@@ -7051,6 +7067,7 @@ options	options.txt	/*options*
 options-changed	version5.txt	/*options-changed*
 options.txt	options.txt	/*options.txt*
 optwin	options.txt	/*optwin*
+or()	eval.txt	/*or()*
 oracle	ft_sql.txt	/*oracle*
 os2	os_os2.txt	/*os2*
 os2ansi	os_os2.txt	/*os2ansi*
@@ -7447,6 +7464,8 @@ setuid	change.txt	/*setuid*
 setwinvar()	eval.txt	/*setwinvar()*
 sftp	pi_netrw.txt	/*sftp*
 sgml.vim	syntax.txt	/*sgml.vim*
+sh-awk	syntax.txt	/*sh-awk*
+sh-embed	syntax.txt	/*sh-embed*
 sh.vim	syntax.txt	/*sh.vim*
 shell-window	tips.txt	/*shell-window*
 shell_error-variable	eval.txt	/*shell_error-variable*
@@ -8055,6 +8074,7 @@ unix	os_unix.txt	/*unix*
 unlisted-buffer	windows.txt	/*unlisted-buffer*
 up-down-motions	motion.txt	/*up-down-motions*
 uppercase	change.txt	/*uppercase*
+urxvt-mouse	options.txt	/*urxvt-mouse*
 use-cpo-save	usr_41.txt	/*use-cpo-save*
 use-visual-cmds	version4.txt	/*use-visual-cmds*
 useful-mappings	tips.txt	/*useful-mappings*
@@ -8493,6 +8513,7 @@ xiterm	syntax.txt	/*xiterm*
 xml-folding	syntax.txt	/*xml-folding*
 xml-omni-datafile	insert.txt	/*xml-omni-datafile*
 xml.vim	syntax.txt	/*xml.vim*
+xor()	eval.txt	/*xor()*
 xpm.vim	syntax.txt	/*xpm.vim*
 xterm-8-bit	term.txt	/*xterm-8-bit*
 xterm-8bit	term.txt	/*xterm-8bit*

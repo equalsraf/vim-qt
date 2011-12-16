@@ -1996,6 +1996,7 @@ set_termname(term)
 #  define HMT_DEC	4
 #  define HMT_JSBTERM	8
 #  define HMT_PTERM	16
+#  define HMT_URXVT	32
 static int has_mouse_termcode = 0;
 # endif
 
@@ -2029,6 +2030,11 @@ set_mouse_termcode(n, s)
 #   ifdef FEAT_MOUSE_PTERM
     if (n == KS_PTERM_MOUSE)
 	has_mouse_termcode |= HMT_PTERM;
+    else
+#   endif
+#   ifdef FEAT_MOUSE_URXVT
+    if (n == KS_URXVT_MOUSE)
+	has_mouse_termcode |= HMT_URXVT;
     else
 #   endif
 	has_mouse_termcode |= HMT_NORMAL;
@@ -2066,6 +2072,11 @@ del_mouse_termcode(n)
 #   ifdef FEAT_MOUSE_PTERM
     if (n == KS_PTERM_MOUSE)
 	has_mouse_termcode &= ~HMT_PTERM;
+    else
+#   endif
+#   ifdef FEAT_MOUSE_URXVT
+    if (n == KS_URXVT_MOUSE)
+	has_mouse_termcode &= ~HMT_URXVT;
     else
 #   endif
 	has_mouse_termcode &= ~HMT_NORMAL;
@@ -4008,7 +4019,9 @@ check_termcode(max_offset, buf, buflen)
 	}
 
 #ifdef FEAT_TERMRESPONSE
-	if (key_name[0] == NUL)
+	if (key_name[0] == NUL
+	    /* URXVT mouse uses <ESC>[#;#;#M, but we are matching <ESC>[ */
+	    || key_name[0] == KS_URXVT_MOUSE)
 	{
 	    /* Check for xterm version string: "<Esc>[>{x};{vers};{y}c".  Also
 	     * eat other possible responses to t_RV, rxvt returns
@@ -4047,7 +4060,11 @@ check_termcode(max_offset, buf, buflen)
 		    if (tp[1 + (tp[0] != CSI)] == '>' && j == 2)
 		    {
 			/* if xterm version >= 95 use mouse dragging */
-			if (extra >= 95)
+			if (extra >= 95
+# ifdef TTYM_URXVT
+				&& ttym_flags != TTYM_URXVT
+# endif
+				)
 			    set_option_value((char_u *)"ttym", 0L,
 						       (char_u *)"xterm2", 0);
 			/* if xterm version >= 141 try to get termcap codes */
@@ -4141,6 +4158,9 @@ check_termcode(max_offset, buf, buflen)
 # ifdef FEAT_MOUSE_PTERM
 		|| key_name[0] == (int)KS_PTERM_MOUSE
 # endif
+# ifdef FEAT_MOUSE_URXVT
+		|| key_name[0] == (int)KS_URXVT_MOUSE
+# endif
 		)
 	{
 	    is_click = is_drag = FALSE;
@@ -4219,7 +4239,69 @@ check_termcode(max_offset, buf, buflen)
 		    else
 			break;
 		}
+	    }
 
+# ifdef FEAT_MOUSE_URXVT
+	    if (key_name[0] == (int)KS_URXVT_MOUSE)
+	    {
+		for (;;)
+		{
+		    /* URXVT 1015 mouse reporting mode:
+		     * Almost identical to xterm mouse mode, except the values
+		     * are decimal instead of bytes.
+		     *
+		     * \033[%d;%d;%dM
+		     *		  ^-- row
+		     *	       ^----- column
+		     *	    ^-------- code
+		     */
+		    p = tp + slen;
+
+		    mouse_code = getdigits(&p);
+		    if (*p++ != ';')
+			return -1;
+
+		    mouse_col = getdigits(&p) - 1;
+		    if (*p++ != ';')
+			return -1;
+
+		    mouse_row = getdigits(&p) - 1;
+		    if (*p++ != 'M')
+			return -1;
+
+		    slen += (int)(p - (tp + slen));
+
+		    /* skip this one if next one has same code (like xterm
+		     * case) */
+		    j = termcodes[idx].len;
+		    if (STRNCMP(tp, tp + slen, (size_t)j) == 0) {
+			/* check if the command is complete by looking for the
+			 * M */
+			int slen2;
+			int cmd_complete = 0;
+			for (slen2 = slen; slen2 < len; slen2++) {
+			    if (tp[slen2] == 'M') {
+				cmd_complete = 1;
+				break;
+			    }
+			}
+			p += j;
+			if (cmd_complete && getdigits(&p) == mouse_code) {
+			    slen += j; /* skip the \033[ */
+			    continue;
+			}
+		    }
+		    break;
+		}
+	    }
+# endif
+
+	if (key_name[0] == (int)KS_MOUSE
+#ifdef FEAT_MOUSE_URXVT
+	    || key_name[0] == (int)KS_URXVT_MOUSE
+#endif
+	    )
+	{
 #  if !defined(MSWIN) && !defined(MSDOS)
 		/*
 		 * Handle mouse events.
