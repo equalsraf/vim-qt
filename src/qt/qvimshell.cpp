@@ -22,7 +22,6 @@ QVimShell::QVimShell(QWidget *parent)
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
-	setAttribute(Qt::WA_PaintOnScreen, true);
 	setAcceptDrops(true);
 	setMouseTracking(true);
 }
