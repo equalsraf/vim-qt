@@ -102,10 +102,15 @@ void VimWrapper::guiHandleDrop(int x, int y, unsigned int mod, const QList<QUrl>
 }
 void VimWrapper::slot_guiHandleDrop(int x, int y, unsigned int mod, const QList<QUrl> urls)
 {
+	if ( urls.size() == 0 ) {
+		return;
+	}
+
 	char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
 	int i;
 	for (i=0; i<urls.size(); i++) {
 		QByteArray encoded = convertTo(urls.at(i).toString());
+
 		char *s = (char*)alloc(encoded.size()*sizeof(char)+1);
 		int j;
 		for (j=0; j<encoded.size(); j++) {
