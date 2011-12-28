@@ -79,6 +79,7 @@ void FontDialog::updateFonts()
 	QStringList sizes;
 
 	QListWidgetItem *current = fontList->currentItem();
+
 	if ( current == NULL ) {
 		return;
 	}
@@ -86,6 +87,9 @@ void FontDialog::updateFonts()
 	QList<int> fsizes = fontDatabase.smoothSizes(current->text(), "Normal");
 	if ( fsizes.isEmpty() ) {
 		fsizes = fontDatabase.pointSizes(current->text(), "Normal");
+	}
+	if ( fsizes.isEmpty() ) {
+		fsizes = fontDatabase.standardSizes();
 	}
 
 	foreach ( int points, fsizes ) {
