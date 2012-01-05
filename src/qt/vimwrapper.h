@@ -54,7 +54,6 @@ public:
 	/**
 	 * Load icons
 	 */
-	static QIcon iconFromTheme(const QString&);
 	static QIcon icon(const QString&);
 
 	static QColor fromColor(long);

@@ -232,9 +232,18 @@ bool VimWrapper::isFakeMonospace(QFont f)
 	return false;
 }
 
-
-QIcon VimWrapper::iconFromTheme(const QString& name)
+/**
+ * Get an icon for a given name
+ *
+ * Icons are loaded in the following order:
+ * 1. If the name is a Vim icon name - map it into a theme name
+ * 2. If the system theme has the icon - use it
+ * 3. If not - load the icon from icons.qrc
+ * 4. As last resort - use a Qt standard icon
+ */
+QIcon VimWrapper::icon(const QString& name)
 {
+
 	QIcon icon;
 
 	// Theme icons
@@ -300,31 +309,14 @@ QIcon VimWrapper::iconFromTheme(const QString& name)
 	}
 
 	if ( icon.isNull() ) { // Load from system theme
-		icon = QIcon::fromTheme(name.toLower());
+		icon = QIcon::fromTheme(name.toLower(), QIcon(":/icons/" + name + ".png"));
 	}
-
-	if ( icon.isNull() ) { // Last resort
-		icon = QIcon(":/icons/" + name + ".png");
-	}
-
-	return icon;
-}
-
-/**
- * Get an icon for a given name
- *
- */
-QIcon VimWrapper::icon(const QString& name)
-{
-	QIcon icon = iconFromTheme(name);
-
 	if ( icon.isNull() ) {
 		return QApplication::style()->standardIcon(QStyle::SP_FileLinkIcon);
 	}
 
 	return icon;
 }
-
 
 QColor
 VimWrapper::fromColor(long color)
