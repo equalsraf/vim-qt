@@ -22,5 +22,6 @@
      <file>icons/help-contextual.png</file>
      <file>icons/vim-qt.png</file>
      <file>icons/tab-new.png</file>
+     <file>icons/system-run.png</file>
  </qresource>
  </RCC>
