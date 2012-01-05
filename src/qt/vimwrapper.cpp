@@ -299,8 +299,12 @@ QIcon VimWrapper::iconFromTheme(const QString& name)
 				QIcon(":/icons/help-contextual.png"));
 	}
 
-	if ( icon.isNull() ) { // last resort
+	if ( icon.isNull() ) { // Load from system theme
 		icon = QIcon::fromTheme(name.toLower());
+	}
+
+	if ( icon.isNull() ) { // Last resort
+		icon = QIcon(":/icons/" + name + ".png");
 	}
 
 	return icon;
