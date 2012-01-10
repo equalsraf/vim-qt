@@ -22,8 +22,8 @@ static QColor specialColor;
  * We delay Qt initialization and pass
  * QApplication a pair of fake arguments
  */
-static int __argc = 1;
-static char *__argv[] = {"qvim", NULL};
+static int _argc = 1;
+static char *_argv[] = {"qvim", NULL};
 
 
 /**
@@ -468,7 +468,7 @@ gui_mch_init()
 #else
 	bool useGUI = true;
 #endif
-	QApplication *app = new QApplication(__argc, __argv, useGUI);
+	QApplication *app = new QApplication(_argc, _argv, useGUI);
 
 
 	window = new MainWindow(&gui);
