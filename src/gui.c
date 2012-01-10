@@ -1531,7 +1531,7 @@ gui_set_shellsize(mustset, fit_to_display, direction)
     if (!gui.shell_created)
 	return;
 
-#if defined(MSWIN) || defined(FEAT_GUI_GTK)
+#if (defined(MSWIN) || defined(FEAT_GUI_GTK)) && !defined(FEAT_GUI_QT)
     /* If not setting to a user specified size and maximized, calculate the
      * number of characters that fit in the maximized window. */
     if (!mustset && gui_mch_maximized())

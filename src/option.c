@@ -7793,7 +7793,7 @@ set_bool_option(opt_idx, varp, value, opt_flags)
 	p_wiv = (*T_XS != NUL);
     }
 
-#ifdef FEAT_BEVAL
+#if defined(FEAT_BEVAL) && !defined(FEAT_GUI_QT) 
     else if ((int *)varp == &p_beval)
     {
 	if (p_beval && !old_value)
