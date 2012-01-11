@@ -1,4 +1,4 @@
-#include <Qt/QtGui>
+#include <QtGui>
 #include "qvimshell.h"
 #include "mainwindow.h"
 #include "vimaction.h"

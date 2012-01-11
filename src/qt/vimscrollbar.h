@@ -3,7 +3,7 @@
 
 #include "qvimshell.h"
 
-#include <QtGui/QScrollBar>
+#include <QScrollBar>
 
 class VimScrollBar: public QScrollBar
 {

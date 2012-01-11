@@ -1,7 +1,7 @@
 #ifndef __GUI_QT_MAINWINDOW__
 #define __GUI_QT_MAINWINDOW__
 
-#include <Qt/QtGui>
+#include <QtGui>
 #include "qvimshell.h"
 #include "scrollarea.h"
 #include "tabbar.h"

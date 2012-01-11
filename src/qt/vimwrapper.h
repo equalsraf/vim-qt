@@ -1,7 +1,7 @@
 #ifndef __VIM_QT_VIM__
 #define __VIM_QT_VIM__
 
-#include <Qt/QtGui>
+#include <QtGui>
 
 extern "C" {
 #include "vim.h"

@@ -1,7 +1,7 @@
 #ifndef __QVIMSHELL__
 #define __QVIMSHELL__
 
-#include <Qt/QtGui>
+#include <QtGui>
 #include "vimwrapper.h"
 
 

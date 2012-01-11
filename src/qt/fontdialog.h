@@ -1,7 +1,7 @@
 #ifndef __VIM_QT_FONTDIALOG__
 #define __VIM_QT_FONTDIALOG__
 
-#include <Qt/QtGui>
+#include <QtGui>
 
 class FontDialog: public QDialog
 {

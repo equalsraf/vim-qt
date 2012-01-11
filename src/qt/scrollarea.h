@@ -1,7 +1,7 @@
 #ifndef __GUI_QT_SCROLLAREA__
 #define __GUI_QT_SCROLLAREA__
 
-#include <Qt/QtGui>
+#include <QtGui>
 #include "vimscrollbar.h"
 
 class ScrollArea: public QWidget
