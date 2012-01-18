@@ -8,23 +8,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(proto auto . qt)
 
-#configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-
 # pathdef
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pathdef.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/auto/pathdef.c)
-
-# osdef
-# add_custom_command( OUTPUT auto/osdef.h 
-#	COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/osdef.sh 
-#	ARGS srcdir="${CMAKE_CURRENT_SOURCE_DIR}"  
-#	COMMENT "Generating osdef.h"
-#	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#	)
-
-#add_custom_target( osdef
-#	DEPENDS auto/osdef.h
-#	)
-
 
 #
 # Vim executable
@@ -97,7 +82,7 @@ QT4_ADD_RESOURCES( QVIM_RC_SRCS ${QVIM_RCS} )
 qt4_automoc(${MOC_SOURCES})
 
 
-if(MSVC)
+if(MSVC OR MINGW)
 	set(VIM_SOURCES ${VIM_SOURCES} 
 			os_win32.c 
 			os_mswin.c)
@@ -110,18 +95,18 @@ if(MSVC)
 			-DFEAT_MBYTE
 			-UFEAT_SIGN
 			-D__func__=__FUNCTION__
-			-D_CRT_SECURE_NO_WARNINGS
-			-wd4099)
+			-D_CRT_SECURE_NO_WARNINGS)
+
+	if (MSVC)
+		add_definitions(-wd4099)
+	endif (MSVC)
+
 	add_executable(qvim WIN32 ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES} ${QVIM_RC_SRCS})
 
 	target_link_libraries(qvim ${QT_QTMAIN_LIBRARY} # Link to qtmain.lib to avoid WinMain()
 				   ${QT_LIBRARIES} )	# Link to Qt
-else(MSVC)
-	set(VIM_SOURCES ${VIM_SOURCES} os_unix.c pty.c )
-	
-	add_definitions(-DHAVE_CONFIG_H -DNO_X11_INCLUDES -DFEAT_GUI_QT -UHAVE_X11 -DFEAT_HUGE -DFEAT_MBYTE -DFEAT_TITLE)
-	add_executable(qvim ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES} ${QVIM_RC_SRCS})
-	target_link_libraries(qvim -lm -lncurses -lacl -lgpm ${QT_LIBRARIES})
-endif(MSVC)
+else(MSVC OR MINGW)
+	message(FATAL_ERROR "Could not find Visual Studio or Mingw - are they on the path? This is Windows, right?")
+endif(MSVC OR MINGW)
 
 
