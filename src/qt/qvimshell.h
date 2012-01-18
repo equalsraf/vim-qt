@@ -81,6 +81,9 @@ protected:
 
 	void tooltip(const QString& );
 	void restoreCursor();
+
+	virtual void leaveEvent(QEvent *ev);
+	virtual void enterEvent(QEvent *ev);
 private:
 	QColor m_background;
 	int m_charWidth;

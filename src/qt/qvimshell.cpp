@@ -172,7 +172,7 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	}
 
 	// mousehide - conceal mouse pointer when typing
-	if (p_mh) {
+	if (p_mh && underMouse() ) {
 		QApplication::setOverrideCursor(Qt::BlankCursor);
 	}
 }
@@ -561,6 +561,18 @@ void QVimShell::focusInEvent(QFocusEvent *ev)
 	vim.guiFocusChanged(TRUE);
 	QWidget::focusInEvent(ev);
 	update();
+}
+
+void QVimShell::leaveEvent(QEvent *ev)
+{
+	restoreCursor();
+	QWidget::leaveEvent(ev);
+}
+
+void QVimShell::enterEvent(QEvent *ev)
+{
+	restoreCursor();
+	QWidget::leaveEvent(ev);
 }
 
 void QVimShell::focusOutEvent(QFocusEvent *ev)
