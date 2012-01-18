@@ -170,6 +170,11 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 			add_to_input_buf( (char_u *) VimWrapper::convertTo(ev->text()).data(), ev->count() );
 		}
 	}
+
+	// mousehide - conceal mouse pointer when typing
+	if (p_mh) {
+		QApplication::setOverrideCursor(Qt::BlankCursor);
+	}
 }
 
 void QVimShell::close()
@@ -380,7 +385,10 @@ void QVimShell::paintEvent ( QPaintEvent *ev )
 // FIXME: not handling modifiers
 
 void QVimShell::mouseMoveEvent(QMouseEvent *ev)
-{	
+{
+	// mousehide - show mouse pointer
+	restoreCursor();
+
 	if ( ev->buttons() ) {
 		vim.guiSendMouseEvent(MOUSE_DRAG, ev->pos().x(),
 					  ev->pos().y(), FALSE, 0);
@@ -392,6 +400,9 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 void QVimShell::mousePressEvent(QMouseEvent *ev)
 {
 	int but;
+
+	// mousehide - show mouse pointer
+	restoreCursor();
 
 	if ( !hasFocus() ) {
 		setFocus(Qt::MouseFocusReason);
@@ -544,6 +555,9 @@ void QVimShell::dropEvent(QDropEvent *ev)
 
 void QVimShell::focusInEvent(QFocusEvent *ev)
 {
+	// mousehide - show mouse pointer
+	restoreCursor();
+
 	vim.guiFocusChanged(TRUE);
 	QWidget::focusInEvent(ev);
 	update();
@@ -611,6 +625,18 @@ void QVimShell::tooltip(const QString& text)
 	m_tooltip->setMinimumWidth( QFontMetrics(m_tooltip->font()).width(text) );
 	m_tooltip->setMaximumWidth( QFontMetrics(m_tooltip->font()).width(text) );
 	m_tooltip->update();
+}
+
+/*
+ * If the cursor is invisible, make it visible again
+ *
+ */
+void QVimShell::restoreCursor()
+{
+	QCursor *cursor = QApplication::overrideCursor();
+	if ( cursor && cursor->shape() == Qt::BlankCursor ) {
+		QApplication::restoreOverrideCursor();
+	}
 }
 
 /*

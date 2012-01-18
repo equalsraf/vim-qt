@@ -80,6 +80,7 @@ protected:
 	void dropEvent(QDropEvent *);
 
 	void tooltip(const QString& );
+	void restoreCursor();
 private:
 	QColor m_background;
 	int m_charWidth;
