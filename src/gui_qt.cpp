@@ -1498,12 +1498,12 @@ gui_mch_font_dialog(char_u *oldval)
 	if ( dialog->exec() == QDialog::Accepted ) {
 		QFont f =  dialog->selectedFont();
 		QByteArray text = VimWrapper::convertTo( QString("%1 %2").arg(f.family()).arg(f.pointSize()) );
-
 		if ( text.isEmpty() ) {
 			// This should not happen, but if it does vim
 			// behaves badly so lets be extra carefull
 			return NULL;
 		}
+		text.append('\0');
 
 		char_u *buffer;
 		buffer = lalloc( text.size(), TRUE);
