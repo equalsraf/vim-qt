@@ -1337,7 +1337,7 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 		dir = (char*)initdir;
 	}
 
-	QString file = QFileDialog::getOpenFileName(window, (char*)title, dir, ".*");
+	QString file = QFileDialog::getOpenFileName(window, (char*)title, dir);
 	if ( file.isEmpty() ) {
 		return NULL;
 	}
