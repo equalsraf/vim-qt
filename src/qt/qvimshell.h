@@ -105,6 +105,7 @@ private:
 	static QHash<QString, QColor> m_colorMap;
 	VimWrapper vim;
 	bool m_slowStringDrawing;
+	bool m_mouseHidden;
 };
 
 struct special_key

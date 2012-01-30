@@ -8,7 +8,8 @@ QHash<QString, QColor> QVimShell::m_colorMap;
 
 QVimShell::QVimShell(QWidget *parent)
 :QWidget(parent), m_encoding_utf8(true),
-	m_lastClickEvent(-1), m_tooltip(0), m_slowStringDrawing(false)
+	m_lastClickEvent(-1), m_tooltip(0), m_slowStringDrawing(false),
+	m_mouseHidden(false)
 {
 
 	// IM Tooltip
@@ -172,8 +173,9 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	}
 
 	// mousehide - conceal mouse pointer when typing
-	if (p_mh && underMouse() ) {
+	if (p_mh && !m_mouseHidden ) {
 		QApplication::setOverrideCursor(Qt::BlankCursor);
+		m_mouseHidden = true;
 	}
 }
 
@@ -646,8 +648,10 @@ void QVimShell::tooltip(const QString& text)
 void QVimShell::restoreCursor()
 {
 	QCursor *cursor = QApplication::overrideCursor();
-	if ( cursor && cursor->shape() == Qt::BlankCursor ) {
+
+	if ( cursor && m_mouseHidden ) {
 		QApplication::restoreOverrideCursor();
+		m_mouseHidden = false;
 	}
 }
 
