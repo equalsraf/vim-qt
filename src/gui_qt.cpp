@@ -1337,7 +1337,11 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 		dir = (char*)initdir;
 	}
 
+	window->setEnabled(false);
 	QString file = QFileDialog::getOpenFileName(window, (char*)title, dir);
+	window->setEnabled(true);
+	vimshell->setFocus();
+
 	if ( file.isEmpty() ) {
 		return NULL;
 	}
@@ -1352,7 +1356,7 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 int
 gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield, int ex_cmd)
 {
-	QMessageBox msgBox;
+	QMessageBox msgBox(window);
 	msgBox.setText( (char*)message );
 	msgBox.setWindowTitle( (char*)title );
 	
@@ -1400,7 +1404,13 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 		}
 	}
 
+	window->setEnabled(false);
+	msgBox.setEnabled(true);
+
 	msgBox.exec();
+
+	window->setEnabled(true);
+	vimshell->setFocus();
 
 	if ( msgBox.clickedButton() == 0 ) {
 		return 0;
@@ -1489,19 +1499,22 @@ gui_mch_font_dialog(char_u *oldval)
 {
 	QFont *oldfont = gui_mch_get_font(oldval, 0);
 
+	char_u *rval = NULL;
 	bool ok;
-	static FontDialog *dialog = new FontDialog();
+	static FontDialog *dialog = new FontDialog(window);
 	if ( oldfont != NULL ) {
 		dialog->selectCurrentFont(*oldfont);
 	}
 
+	window->setEnabled(false);
+	dialog->setEnabled(true);
 	if ( dialog->exec() == QDialog::Accepted ) {
 		QFont f =  dialog->selectedFont();
 		QByteArray text = VimWrapper::convertTo( QString("%1 %2").arg(f.family()).arg(f.pointSize()) );
 		if ( text.isEmpty() ) {
 			// This should not happen, but if it does vim
 			// behaves badly so lets be extra carefull
-			return NULL;
+			goto out;
 		}
 		text.append('\0');
 
@@ -1510,10 +1523,14 @@ gui_mch_font_dialog(char_u *oldval)
 		for (int i = 0; i < text.size(); ++i) {
 			buffer[i] = text[i];
 		}
-		return buffer;
+		rval = buffer;
 	}
 
-	return NULL;
+out:
+	window->setEnabled(true);
+	vimshell->setFocus();
+
+	return rval;
 }
 
 } // extern "C"
