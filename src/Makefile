@@ -1504,7 +1504,7 @@ SRC =	$(BASIC_SRC) \
 	$(WORKSHOP_SRC) \
 	$(WSDEBUG_SRC)
 
-TAGS_SRC = *.c *.cpp if_perl.xs
+TAGS_SRC = *.c *.cpp if_perl.xs qt/*.cpp
 
 EXTRA_SRC = hangulin.c if_lua.c if_mzsch.c auto/if_perl.c if_perlsfio.c \
 	    if_python.c if_python3.c if_tcl.c if_ruby.c if_sniff.c \
