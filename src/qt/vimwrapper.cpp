@@ -109,15 +109,18 @@ void VimWrapper::slot_guiHandleDrop(int x, int y, unsigned int mod, const QList<
 	char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
 	int i;
 	for (i=0; i<urls.size(); i++) {
-		QByteArray encoded = convertTo(urls.at(i).toString());
+		if ( !urls.at(i).isLocalFile() ) {
+			fnames[i] = NULL;
+			continue;
+		}
 
+		QByteArray encoded = convertTo(urls.at(i).toLocalFile());
 		char *s = (char*)alloc(encoded.size()*sizeof(char)+1);
 		int j;
 		for (j=0; j<encoded.size(); j++) {
 			s[j] = encoded.at(j);
 		}
 		s[j]='\0';
-
 		fnames[i] = (char_u *) s;
 	}
 	gui_handle_drop(x, y, 0, fnames, urls.size());
