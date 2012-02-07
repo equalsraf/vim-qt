@@ -305,7 +305,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 void
 gui_mch_getmouse(int *x, int *y)
 {
-	QPoint pos = window->mapFromGlobal( QCursor::pos() );
+	QPoint pos = vimshell->mapFromGlobal( QCursor::pos() );
 	*x = pos.x();
 	*y = pos.y();
 }
@@ -316,7 +316,7 @@ gui_mch_getmouse(int *x, int *y)
 void
 gui_mch_setmouse(int x, int y)
 {
-	QPoint pos = window->mapToGlobal(QPoint(x, y));
+	QPoint pos = vimshell->mapToGlobal(QPoint(x, y));
 	QCursor::setPos(pos.x(), pos.y());
 }
 
