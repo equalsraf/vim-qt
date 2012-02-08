@@ -109,7 +109,7 @@ void VimWrapper::slot_guiHandleDrop(int x, int y, unsigned int mod, const QList<
 	char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
 	int i;
 	for (i=0; i<urls.size(); i++) {
-		if ( !urls.at(i).isLocalFile() ) {
+		if ( urls.at(i).scheme() != "file" ) {
 			fnames[i] = NULL;
 			continue;
 		}

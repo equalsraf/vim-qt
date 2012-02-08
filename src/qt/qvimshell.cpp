@@ -417,7 +417,7 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 	case Qt::RightButton:
 		but = MOUSE_RIGHT;
 		break;
-	case Qt::MiddleButton:
+	case Qt::MidButton:
 		but = MOUSE_MIDDLE;
 		break;
 	default:
