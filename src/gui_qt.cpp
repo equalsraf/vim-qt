@@ -491,6 +491,14 @@ gui_mch_init()
 		styleFile.close();
 	}
 
+	//
+	// Hide the tab/menu/tool-bars, if needed they will become visible later.
+	// Otherwise the use might see these items when Vim is loading
+	//
+	window->showMenu(false);
+	window->showToolbar(false);
+	window->showTabline(false);
+
 	// Clipboard - order matters, for safety
 	clip_star.clipboardMode = QClipboard::Selection;
 	clip_plus.clipboardMode = QClipboard::Clipboard;
@@ -789,6 +797,7 @@ int
 gui_mch_open()
 {
 	if ( window != NULL ) {
+
 		window->show();
 		return OK;
 	}
