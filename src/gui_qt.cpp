@@ -25,6 +25,33 @@ static QColor specialColor;
 static int dummy_argc = 1;
 static char *dummy_argv[] = {"qvim", NULL};
 
+/**
+ * If vim calls for a fullscreen window
+ * before the window is created we have to
+ * store this state.
+ *
+ * This is checked in gui_mch_init when creaating the GUI
+ */
+static bool start_fullscreen = false;
+
+void gui_mch_enter_fullscreen()
+{
+	if (!window) {
+		start_fullscreen = true;
+		return;
+	}
+
+	window->setWindowState( window->windowState() | Qt::WindowFullScreen );
+}
+
+void gui_mch_leave_fullscreen()
+{
+	if (!window) {
+		return;
+	}
+
+	window->setWindowState( window->windowState() & ~Qt::WindowFullScreen );
+}
 
 /**
  * Raise application window
@@ -522,6 +549,10 @@ gui_mch_init()
 
 	// Background color hint
 	vimshell->setBackground(VimWrapper::backgroundColor() );
+
+	if ( start_fullscreen ) {
+		gui_mch_enter_fullscreen();
+	}
 
 	return OK;
 }

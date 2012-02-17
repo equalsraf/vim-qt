@@ -1219,6 +1219,17 @@ static struct vimoption
 			    {(char_u *)FALSE, (char_u *)0L}
 #endif
 			    SCRIPTID_INIT},
+
+    {"fullscreen",    "fu", P_BOOL|P_NO_MKRC,
+#ifdef FEAT_FULLSCREEN
+			    (char_u *)&p_fullscreen, PV_NONE,
+			    {(char_u *)FALSE, (char_u *)0L}
+#else
+			    (char_u *)NULL, PV_NONE,
+			    {(char_u *)FALSE, (char_u *)0L}
+#endif
+			    SCRIPTID_INIT},
+
     {"gdefault",    "gd",   P_BOOL|P_VI_DEF|P_VIM,
 			    (char_u *)&p_gd, PV_NONE,
 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
@@ -7695,6 +7706,18 @@ set_bool_option(opt_idx, varp, value, opt_flags)
     {
 	set_fileformat(curbuf->b_p_tx ? EOL_DOS : EOL_UNIX, opt_flags);
     }
+
+#ifdef FEAT_FULLSCREEN
+    else if ((int *)varp == &p_fullscreen && (gui.in_use || gui.starting))
+    {
+	if ( p_fullscreen && !old_value )
+	{
+	    gui_mch_enter_fullscreen();
+	} else if ( !p_fullscreen && old_value ) {
+	    gui_mch_leave_fullscreen();
+	}
+    }
+#endif
 
     /* when 'textauto' is set or reset also change 'fileformats' */
     else if ((int *)varp == &p_ta)

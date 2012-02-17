@@ -1321,3 +1321,7 @@
 #ifdef FEAT_NORMAL
 # define FEAT_PERSISTENT_UNDO
 #endif
+
+#if defined(FEAT_GUI_QT)
+#define FEAT_FULLSCREEN
+#endif
