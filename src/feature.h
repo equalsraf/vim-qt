@@ -1248,7 +1248,8 @@
 # if ((defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA)) \
 		&& defined(HAVE_X11_XPM_H)) \
 	|| defined(FEAT_GUI_GTK) \
-	|| (defined(WIN32) && defined(FEAT_GUI) && !defined(FEAT_GUI_QT))
+	|| defined(FEAT_GUI_QT) \
+	|| (defined(WIN32) && defined(FEAT_GUI))
 #  define FEAT_SIGN_ICONS
 # endif
 #endif

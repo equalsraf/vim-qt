@@ -1573,4 +1573,79 @@ out:
 	return rval;
 }
 
+/**
+ * Draw an icon in the shell widget
+ * 
+ */
+void
+gui_mch_drawsign(int row, int col, int typenr)
+{
+	QIcon *icon = (QIcon *)sign_get_image(typenr);
+	if ( !icon ) {
+		return;
+	}
+
+	QPoint pos = VimWrapper::mapText(row, col);
+	PaintOperation op;
+	op.type = DRAWSIGN;
+	op.pos = pos;
+	op.sign = icon->pixmap( VimWrapper::charWidth()*2, VimWrapper::charHeight() );
+	op.rect = QRect(pos, QSize(VimWrapper::charWidth()*2, VimWrapper::charHeight()));
+
+	if (op.sign.isNull()) {
+		// FIXME: this should not happen
+		return;
+	}
+	vimshell->queuePaintOp(op);
+}
+
+
+/*
+ * Free memory associated with the sign
+ */
+void
+gui_mch_destroy_sign(void *sign)
+{
+	if ( sign ) {
+		delete (QIcon*)sign;
+	}
+}
+
+/**
+ * Register an icon with the given name
+ *
+ * The name can be:
+ *  1. A file path to an icon
+ *  1. A theme icon name
+ *
+ */
+void *
+gui_mch_register_sign(char_u *signfile)
+{
+	if ( !signfile || !signfile[0] ) {
+		return NULL;
+	}
+
+	QString name = VimWrapper::convertFrom((char*)signfile);
+	QIcon icon(name);
+
+	//
+	// FIXME: QIcon::isNull may be false even the icon cannot
+	// provide a pixmap, so far this is the best alternative I
+	// have
+	if ( icon.availableSizes().isEmpty() ) {
+		icon = QIcon(QIcon::fromTheme(name));
+		if ( icon.availableSizes().isEmpty() ) {
+			EMSG(e_signdata);
+			return NULL;
+		}
+	}
+	
+	if ( icon.availableSizes().isEmpty() ) {
+		return NULL;
+	}
+
+	return new QIcon(icon);
+}
+
 } // extern "C"

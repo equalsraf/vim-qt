@@ -6,7 +6,7 @@
 
 
 
-typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT} PaintOperationType;
+typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT, DRAWSIGN} PaintOperationType;
 class PaintOperation {
 public:
 	PaintOperationType type;
@@ -17,6 +17,8 @@ public:
 	QString str;
 	bool undercurl;
 	QColor curlcolor;
+	// SIGN
+	QPixmap sign;
 	// SCROLL
 	QPoint pos;
 };

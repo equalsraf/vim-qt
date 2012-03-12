@@ -349,6 +349,9 @@ void QVimShell::flushPaintOps()
 			}
 
 			break;
+		case DRAWSIGN:
+			painter.drawPixmap( op.pos, op.sign);
+			break;
 		case INVERTRECT:
 			painter.setCompositionMode( QPainter::RasterOp_SourceXorDestination );
 			painter.fillRect( op.rect, Qt::color0);
