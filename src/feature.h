@@ -40,6 +40,10 @@
  * When +small is used, +tiny is also included.  +normal implies +small, etc.
  */
 
+#ifdef FEAT_GUI_QT
+#include <qt_features.h>
+#endif
+
 /*
  * Uncomment one of these to override the default.  For unix use a configure
  * argument, see Makefile.
@@ -684,7 +688,7 @@
 # define ESC_CHG_TO_ENG_MODE		/* if defined, when ESC pressed,
 					 * turn to english mode
 					 */
-# if !defined(FEAT_XFONTSET) && defined(HAVE_X11) && !defined(FEAT_GUI_GTK) && !defined(FEAT_GUI_QT)
+# if !defined(FEAT_XFONTSET) && defined(HAVE_X11) && !defined(FEAT_GUI_GTK)
 #  define FEAT_XFONTSET			/* Hangul input requires xfontset */
 # endif
 # if defined(FEAT_XIM) && !defined(LINT)
@@ -701,7 +705,7 @@
  * +xfontset		X fontset support.  For outputting wide characters.
  */
 #ifndef FEAT_XFONTSET
-# if defined(FEAT_MBYTE) && defined(HAVE_X11) && !defined(FEAT_GUI_GTK) && !defined(FEAT_GUI_QT)
+# if defined(FEAT_MBYTE) && defined(HAVE_X11) && !defined(FEAT_GUI_GTK)
 #  define FEAT_XFONTSET
 # else
 /* #  define FEAT_XFONTSET */
@@ -759,8 +763,7 @@
 		|| defined(FEAT_GUI_MSWIN) \
 		|| ((defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA)) \
 			&& defined(HAVE_XPM)) \
-		|| defined(FEAT_GUI_PHOTON) \
-		|| defined(FEAT_GUI_QT))
+		|| defined(FEAT_GUI_PHOTON))
 # define FEAT_TOOLBAR
 #endif
 
@@ -776,7 +779,6 @@
     && (defined(FEAT_GUI_GTK) \
 	|| (defined(FEAT_GUI_MOTIF) && defined(HAVE_XM_NOTEBOOK_H)) \
 	|| defined(FEAT_GUI_MAC) \
-	|| defined(FEAT_GUI_QT) \
 	|| (defined(FEAT_GUI_MSWIN) && !defined(WIN16) \
 	    && (!defined(_MSC_VER) || _MSC_VER > 1020)))
 # define FEAT_GUI_TABLINE
@@ -788,7 +790,7 @@
  */
 #if defined(FEAT_NORMAL)
 # define FEAT_BROWSE_CMD
-# if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_QT)
+# if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC)
 #  define FEAT_BROWSE
 # endif
 #endif
@@ -1012,10 +1014,8 @@
  * +X11			Unix only.  Include code for xterm title saving and X
  *			clipboard.  Only works if HAVE_X11 is also defined.
  */
-#if !defined(FEAT_GUI_QT)
 #if (defined(FEAT_NORMAL) || defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA))
 # define WANT_X11
-#endif
 #endif
 
 /*
@@ -1125,7 +1125,7 @@
 /*
  * +dnd		Drag'n'drop support.  Always used for the GTK+ GUI.
  */
-#if defined(FEAT_CLIPBOARD) && (defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT) )
+#if defined(FEAT_CLIPBOARD) && defined(FEAT_GUI_GTK)
 # define FEAT_DND
 #endif
 
@@ -1167,7 +1167,7 @@
 # endif
 # if defined(FEAT_GUI_W32) || defined(FEAT_GUI_W16) || defined(FEAT_GUI_MOTIF) \
 	|| defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_GTK) \
-	|| defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_QT)
+	|| defined(FEAT_GUI_PHOTON)
 #  define FEAT_MOUSESHAPE
 # endif
 #endif
@@ -1248,7 +1248,6 @@
 # if ((defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_ATHENA)) \
 		&& defined(HAVE_X11_XPM_H)) \
 	|| defined(FEAT_GUI_GTK) \
-	|| defined(FEAT_GUI_QT) \
 	|| (defined(WIN32) && defined(FEAT_GUI))
 #  define FEAT_SIGN_ICONS
 # endif
@@ -1321,8 +1320,4 @@
  */
 #ifdef FEAT_NORMAL
 # define FEAT_PERSISTENT_UNDO
-#endif
-
-#if defined(FEAT_GUI_QT)
-#define FEAT_FULLSCREEN
 #endif
