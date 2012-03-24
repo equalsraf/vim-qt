@@ -370,4 +370,11 @@ QString VimWrapper::convertFrom(const char *s, int size)
 	}
 }
 
-
+void VimWrapper::setFullscreen(bool on)
+{
+	if (on) {
+		p_fullscreen = TRUE;
+	} else {
+		p_fullscreen = FALSE;
+	}
+}

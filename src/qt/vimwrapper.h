@@ -82,6 +82,8 @@ public:
 	void sendTablineEvent(int);
 	void sendTablineMenuEvent(int, int);
 
+	static void setFullscreen(bool on);
+
 private slots:
 
 	/**

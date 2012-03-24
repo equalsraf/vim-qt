@@ -40,6 +40,7 @@ public slots:
 
 protected:
 	virtual void closeEvent( QCloseEvent *);
+	virtual void changeEvent( QEvent *ev );
 
 protected slots:
 	void updateTabOrientation();

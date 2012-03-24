@@ -129,6 +129,14 @@ void MainWindow::closeEvent (QCloseEvent * event)
 	vimshell->closeEvent(event);
 }
 
+void MainWindow::changeEvent( QEvent *ev)
+{
+	if (ev->type() == QEvent::WindowStateChange) {
+		VimWrapper::setFullscreen( windowState() & Qt::WindowFullScreen );
+	}
+	QMainWindow::changeEvent(ev);
+}
+
 void MainWindow::showTabline(bool show)
 {
 	// VIM never removes the second tab,
