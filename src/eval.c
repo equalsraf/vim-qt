@@ -12133,6 +12133,9 @@ f_has(argvars, rettv)
 #ifdef FEAT_GUI_W32
 	"gui_win32",
 #endif
+#ifdef FEAT_GUI_QT
+	"gui_qt",
+#endif
 #ifdef FEAT_HANGULIN
 	"hangul_input",
 #endif

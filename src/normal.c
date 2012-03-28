@@ -2693,7 +2693,7 @@ do_mouse(oap, c, dir, count, fixindent)
 	     * Windows only shows the popup menu on the button up event.
 	     */
 #if defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_GTK) \
-			  || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC)
+			  || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_QT)
 	    if (!is_click)
 		return FALSE;
 #endif
@@ -2703,7 +2703,7 @@ do_mouse(oap, c, dir, count, fixindent)
 #endif
 #if defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_GTK) \
 	    || defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_MSWIN) \
-	    || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_PHOTON)
+	    || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_QT)
 	    if (gui.in_use)
 	    {
 		jump_flags = 0;

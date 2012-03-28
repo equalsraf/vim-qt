@@ -147,7 +147,7 @@ extern DWORD g_PlatformId;
 extern char g_szOrigTitle[];
 #endif
 
-#ifdef FEAT_GUI
+#if defined(FEAT_GUI) && !defined(FEAT_GUI_QT)
 extern HWND s_hwnd;
 #else
 static HWND s_hwnd = 0;	    /* console window handle, set by GetConsoleHwnd() */
@@ -1034,7 +1034,7 @@ WideCharToMultiByte_alloc(UINT cp, DWORD flags,
 
 #endif /* FEAT_MBYTE */
 
-#ifdef FEAT_CLIPBOARD
+#if defined(FEAT_CLIPBOARD) && !defined(FEAT_GUI_QT)
 /*
  * Clipboard stuff, for cutting and pasting text to other windows.
  */
@@ -1472,7 +1472,7 @@ clip_mch_set_selection(VimClipboard *cbd)
 	GlobalFree(hMemVim);
 }
 
-#endif /* FEAT_CLIPBOARD */
+#endif /* FEAT_CLIPBOARD && !FEAT_GUI_QT */
 
 #if defined(FEAT_MBYTE) || defined(PROTO)
 /*
