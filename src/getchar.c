@@ -418,12 +418,12 @@ typeahead_noflush(c)
 
 /*
  * Remove the contents of the stuff buffer and the mapped characters in the
- * typeahead buffer (used in case of an error).  If 'typeahead' is true,
+ * typeahead buffer (used in case of an error).  If "flush_typeahead" is true,
  * flush all typeahead characters (used when interrupted by a CTRL-C).
  */
     void
-flush_buffers(typeahead)
-    int typeahead;
+flush_buffers(flush_typeahead)
+    int flush_typeahead;
 {
     init_typebuf();
 
@@ -431,7 +431,7 @@ flush_buffers(typeahead)
     while (read_stuff(TRUE) != NUL)
 	;
 
-    if (typeahead)	    /* remove all typeahead */
+    if (flush_typeahead)	    /* remove all typeahead */
     {
 	/*
 	 * We have to get all characters, because we may delete the first part
@@ -467,6 +467,24 @@ ResetRedobuff()
 	free_buff(&old_redobuff);
 	old_redobuff = redobuff;
 	redobuff.bh_first.b_next = NULL;
+    }
+}
+
+/*
+ * Discard the contents of the redo buffer and restore the previous redo
+ * buffer.
+ */
+    void
+CancelRedo()
+{
+    if (!block_redo)
+    {
+	free_buff(&redobuff);
+	redobuff = old_redobuff;
+	old_redobuff.bh_first.b_next = NULL;
+	start_stuff();
+	while (read_stuff(TRUE) != NUL)
+	    ;
     }
 }
 
@@ -691,9 +709,9 @@ stuffnumReadbuff(n)
  * Read a character from the redo buffer.  Translates K_SPECIAL, CSI and
  * multibyte characters.
  * The redo buffer is left as it is.
- * if init is TRUE, prepare for redo, return FAIL if nothing to redo, OK
- * otherwise
- * if old is TRUE, use old_redobuff instead of redobuff
+ * If init is TRUE, prepare for redo, return FAIL if nothing to redo, OK
+ * otherwise.
+ * If old is TRUE, use old_redobuff instead of redobuff.
  */
     static int
 read_redo(init, old_redo)
@@ -2264,7 +2282,8 @@ vgetorpeek(advance)
 						   typebuf.tb_off] == RM_YES))
 				&& !timedout)
 			{
-			    keylen = check_termcode(max_mlen + 1, NULL, 0);
+			    keylen = check_termcode(max_mlen + 1,
+							       NULL, 0, NULL);
 
 			    /* If no termcode matched but 'pastetoggle'
 			     * matched partially it's like an incomplete key
@@ -4510,6 +4529,8 @@ eval_map_expr(str, c)
     char_u	*expr;
     char_u	*save_cmd;
     pos_T	save_cursor;
+    int		save_msg_col;
+    int		save_msg_row;
 
     /* Remove escaping of CSI, because "str" is in a format to be used as
      * typeahead. */
@@ -4533,12 +4554,16 @@ eval_map_expr(str, c)
 #endif
     set_vim_var_char(c);  /* set v:char to the typed character */
     save_cursor = curwin->w_cursor;
+    save_msg_col = msg_col;
+    save_msg_row = msg_row;
     p = eval_to_string(expr, NULL, FALSE);
     --textlock;
 #ifdef FEAT_EX_EXTRA
     --ex_normal_lock;
 #endif
     curwin->w_cursor = save_cursor;
+    msg_col = save_msg_col;
+    msg_row = save_msg_row;
 
     restore_cmdline_alloc(save_cmd);
     vim_free(expr);

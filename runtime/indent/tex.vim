@@ -1,33 +1,54 @@
 " Vim indent file
 " Language:     LaTeX
-" Maintainer:   Zhou YiChao <broken.zhou@gmail.com>
+" Maintainer:   Zhou YiChao <broken.zhou AT gmail.com>
 " Created:      Sat, 16 Feb 2002 16:50:19 +0100
-" Last Change:	Tue, 25 Sep 2011
-" Last Update:  25th Sep 2002, by LH :
+" Last Change:	2012 Mar 18 19:19:50
+" Version: 0.7
+"   Please email me if you found something we can do.  Bug report and
+"   feature request is welcome.
+
+" Last Update:  {{{
+"               25th Sep 2002, by LH :
 "               (*) better support for the option
 "               (*) use some regex instead of several '||'.
 "               Oct 9th, 2003, by JT:
 "               (*) don't change indentation of lines starting with '%'
-"               2005/06/15, Moshe Kaminsky <kaminsky@math.huji.ac.il>
+"               2005/06/15, Moshe Kaminsky <kaminsky AT math.huji.ac.il>
 "               (*) New variables:
 "                   g:tex_items, g:tex_itemize_env, g:tex_noindent_env
-"               2011/3/6, by Zhou YiChao <broken.zhou@gmail.com>
+"               2011/3/6, by Zhou YiChao <broken.zhou AT gmail.com>
 "               (*) Don't change indentation of lines starting with '%'
 "                   I don't see any code with '%' and it doesn't work properly
 "                   so I add some code.
 "               (*) New features: Add smartindent-like indent for "{}" and  "[]".
 "               (*) New variables: g:tex_indent_brace
-"               2011/9/25, by Zhou Yichao <broken.zhou@gmail.com>
+"               2011/9/25, by Zhou Yichao <broken.zhou AT gmail.com>
 "               (*) Bug fix: smartindent-like indent for "[]"
 "               (*) New features: Align with "&".
-"               (*) New variable: g:tex_indent_and
-"               2011/10/23 by Zhou Yichao <broken.zhou@gmail.com>
+"               (*) New variable: g:tex_indent_and.
+"               2011/10/23 by Zhou Yichao <broken.zhou AT gmail.com>
 "               (*) Bug fix: improve the smartindent-like indent for "{}" and
 "               "[]".
-"
-" Version: 0.62
+"               2012/02/27 by Zhou Yichao <broken.zhou AT gmail.com>
+"               (*) Bug fix: support default folding marker.
+"               (*) Indent with "&" is not very handy.  Make it not enable by
+"               default.
+"               2012/03/06 by Zhou Yichao <broken.zhou AT gmail.com>
+"               (*) Modify "&" behavior and make it default again.  Now "&"
+"               won't align when there are more then one "&" in the previous
+"               line.
+"               (*) Add indent "\left(" and "\right)"
+"               (*) Trust user when in "verbatim" and "lstlisting"
+"               2012/03/11 by Zhou Yichao <broken.zhou AT gmail.com>
+"               (*) Modify "&" so that only indent when current line start with
+"               "&".
+"               2012/03/12 by Zhou Yichao <broken.zhou AT gmail.com>
+"               (*) Modify indentkeys.
+"               2012/03/18 by Zhou Yichao <broken.zhou AT gmail.com>
+"               (*) Add &cpo
+" }}}
 
-" Options: {{{
+" Document: {{{
 "
 " To set the following options (ok, currently it's just one), add a line like
 "   let g:tex_indent_items = 1
@@ -84,12 +105,22 @@
 "
 " }}} 
 
+" Only define the function once
+if exists("*GetTeXIndent")
+    finish
+endif
+
 if exists("b:did_indent")
     finish
 endif
+
+let s:cpo_save = &cpo
+set cpo&vim
+
+" Define global variable {{{
+
 let b:did_indent = 1
 
-" Delete the next line to avoid the special indention of items
 if !exists("g:tex_indent_items")
     let g:tex_indent_items = 1
 endif
@@ -110,23 +141,24 @@ else
     let g:tex_items = ''
 endif
 
-if !exists("g:tex_noindent_env")
-    let g:tex_noindent_env = 'document\|verbatim\|lstlisting'
+if !exists("g:tex_indent_paretheses")
+    let g:tex_indent_paretheses = 1
 endif
 
+if !exists("g:tex_noindent_env")
+    let g:tex_noindent_env = 'document\|verbatim\|lstlisting'
+endif "}}}
+
+" VIM Setting " {{{
 setlocal autoindent
 setlocal nosmartindent
 setlocal indentexpr=GetTeXIndent()
-exec 'setlocal indentkeys+=},],\&' . substitute(g:tex_items, '^\|\(\\|\)', ',=', 'g')
-let g:tex_items = '^\s*' . g:tex_items
+setlocal indentkeys&
+exec 'setlocal indentkeys+=[,(,{,),},],\&' . substitute(g:tex_items, '^\|\(\\|\)', ',=', 'g')
+let g:tex_items = '^\s*' . substitute(g:tex_items, '^\(\^\\s\*\)*', '', '')
+" }}}
 
-
-" Only define the function once
-if exists("*GetTeXIndent") | finish
-endif
-
-
-function GetTeXIndent()
+function GetTeXIndent() " {{{
     " Find a non-blank line above the current line.
     let lnum = prevnonblank(v:lnum - 1)
 
@@ -140,13 +172,22 @@ function GetTeXIndent()
         return 0 
     endif
 
-    let line = getline(lnum)             " last line
-    let cline = getline(v:lnum)          " current line
+    let line = substitute(getline(lnum), '%.*', ' ','g')     " last line
+    let cline = substitute(getline(v:lnum), '%.*', ' ', 'g') " current line
 
+    "  We are in verbatim, so do what our user what.
+    if synIDattr(synID(v:lnum, indent(v:lnum), 1), "name") == "texZone"
+        if empty(cline)
+            return indent(lnum)
+        else
+            return indent(v:lnum)
+        end
+    endif
+    
     " You want to align with "&"
     if g:tex_indent_and
-        " Align with last line if last line has a "&"
-        if stridx(cline, "&") != -1 && stridx(line, "&") != -1
+        " Align only when current line start with "&"
+        if line =~ '&.*\\\\' && cline =~ '^\s*&'
             return indent(v:lnum) + stridx(line, "&") - stridx(cline, "&")
         endif
 
@@ -175,8 +216,6 @@ function GetTeXIndent()
     " LH modification : \begin does not always start a line
     " ZYC modification : \end after \begin won't cause wrong indent anymore
     if line =~ '\\begin{.*}' && line !~ g:tex_noindent_env
-                \ && line !~ '\\begin{.\{-}}.*\\end{.*}'
-
         let ind = ind + &sw
 
         if g:tex_indent_items
@@ -187,9 +226,8 @@ function GetTeXIndent()
         endif
     endif
 
-
     " Subtract a 'shiftwidth' when an environment ends
-    if cline =~ '^\s*\\end' && cline !~ g:tex_noindent_env
+    if cline =~ '\\end{.*}' && cline !~ g:tex_noindent_env
 
         if g:tex_indent_items
             " Remove another sw for item-environments
@@ -202,23 +240,26 @@ function GetTeXIndent()
     endif
 
     if g:tex_indent_brace
-        " Add a 'shiftwidth' after a "{" or "[".
         let sum1 = 0
         for i in range(0, strlen(line)-1)
-            if line[i] == "}" || line[i] == "]"
+            if line[i] == "}" || line[i] == "]" ||
+                        \ strpart(line, i, 7) == '\right)'
                 let sum1 = max([0, sum1-1])
             endif
-            if line[i] == "{" || line[i] == "["
+            if line[i] == "{" || line[i] == "[" ||
+                        \ strpart(line, i, 6) == '\left('
                 let sum1 += 1
             endif
         endfor
 
         let sum2 = 0
         for i in reverse(range(0, strlen(cline)-1))
-            if cline[i] == "{" || cline[i] == "["
+            if cline[i] == "{" || cline[i] == "[" ||
+                        \ strpart(cline, i, 6) == '\left('
                 let sum2 = max([0, sum2-1])
             endif
-            if cline[i] == "}" || cline[i] == "]"
+            if cline[i] == "}" || cline[i] == "]" ||
+                        \ strpart(cline, i, 7) == '\right)'
                 let sum2 += 1
             endif
         endfor
@@ -226,6 +267,8 @@ function GetTeXIndent()
         let ind += (sum1 - sum2) * &sw
     endif
 
+    if g:tex_indent_paretheses
+    endif
 
     " Special treatment for 'item'
     " ----------------------------
@@ -245,6 +288,9 @@ function GetTeXIndent()
     endif
 
     return ind
-endfunction
+endfunction "}}}
+
+let &cpo = s:cpo_save
+unlet s:cpo_save
 
 " vim: set sw=4 textwidth=80:

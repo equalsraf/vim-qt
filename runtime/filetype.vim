@@ -1,7 +1,7 @@
 " Vim support file to detect file types
 "
 " Maintainer:	Bram Moolenaar <Bram@vim.org>
-" Last Change:	2011 Oct 26
+" Last Change:	2012 Mar 28
 
 " Listen very carefully, I will say this only once
 if exists("did_load_filetypes")
@@ -367,7 +367,11 @@ au BufNewFile,BufRead *.h			call s:FTheader()
 
 func! s:FTheader()
   if match(getline(1, min([line("$"), 200])), '^@\(interface\|end\|class\)') > -1
-    setf objc
+    if exists("g:c_syntax_for_h")
+      setf objc
+    else
+      setf objcpp
+    endif
   elseif exists("g:c_syntax_for_h")
     setf c
   elseif exists("g:ch_syntax_for_h")
@@ -1217,6 +1221,9 @@ au BufNewFile,BufRead *.NS[ACGLMNPS]		setf natural
 " Netrc
 au BufNewFile,BufRead .netrc			setf netrc
 
+" Ninja file
+au BufNewFile,BufRead *.ninja			setf ninja
+
 " Novell netware batch files
 au BufNewFile,BufRead *.ncf			setf ncf
 
@@ -1261,7 +1268,7 @@ au BufNewFile,BufRead *.nqc			setf nqc
 au BufNewFile,BufRead *.nsi			setf nsis
 
 " OCAML
-au BufNewFile,BufRead *.ml,*.mli,*.mll,*.mly	setf ocaml
+au BufNewFile,BufRead *.ml,*.mli,*.mll,*.mly,.ocamlinit	setf ocaml
 
 " Occam
 au BufNewFile,BufRead *.occ			setf occam
@@ -2314,6 +2321,9 @@ au BufNewFile,BufRead fglrxrc			setf xml
 au BufNewFile,BufRead *.xlf			setf xml
 au BufNewFile,BufRead *.xliff			setf xml
 
+" XML User Interface Language
+au BufNewFile,BufRead *.xul			setf xml
+
 " X11 xmodmap (also see below)
 au BufNewFile,BufRead *Xmodmap			setf xmodmap
 
@@ -2533,21 +2543,27 @@ au BufNewFile,BufRead */etc/yum.repos.d/* 	call s:StarSetf('dosini')
 au BufNewFile,BufRead zsh*,zlog*		call s:StarSetf('zsh')
 
 
+" Plain text files, needs to be far down to not override others.  This avoids
+" the "conf" type being used if there is a line starting with '#'.
+au BufNewFile,BufRead *.txt,*.text		setf text
+
 
 " Use the filetype detect plugins.  They may overrule any of the previously
 " detected filetypes.
 runtime! ftdetect/*.vim
 
+" NOTE: The above command could have ended the filetypedetect autocmd group
+" and started another one. Let's make sure it has ended to get to a consistent
+" state.
+augroup END
 
 " Generic configuration file (check this last, it's just guessing!)
-au BufNewFile,BufRead,StdinReadPost *
+au filetypedetect BufNewFile,BufRead,StdinReadPost *
 	\ if !did_filetype() && expand("<amatch>") !~ g:ft_ignore_pat
 	\    && (getline(1) =~ '^#' || getline(2) =~ '^#' || getline(3) =~ '^#'
 	\	|| getline(4) =~ '^#' || getline(5) =~ '^#') |
 	\   setf conf |
 	\ endif
-
-augroup END
 
 
 " If the GUI is already running, may still need to install the Syntax menu.
