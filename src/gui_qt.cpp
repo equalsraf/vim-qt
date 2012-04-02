@@ -593,11 +593,44 @@ void
 gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
 {
+
+	// We actually resize the window, not the shell, i.e. we resize the window
+	// to the new dimensions plus the difference between the window and the shell.
+	// This does not ensure the final size is what Vim requested.
 	//
-	// We don't actually resize the shell here, instead we
-	// call Qt to do it for us.
+	// The actual resize size must take into consideration
+	// - The new shell widget size
+	// - The toolbar/menubar/etc size
 	//
+	// New size <= shell size - window size + new size
+	//
+
+	int decoWidth = (window->frameGeometry().width() - window->width());
+	int decoHeight = (window->frameGeometry().height() - window->height());
+	int frameWidth = (window->size().width() - vimshell->size().width());
+	int frameHeight = (window->size().height() - vimshell->size().height());
+
+	int new_width = frameWidth + width;
+	int new_height = frameHeight + height;
+
+	QDesktopWidget *dw = QApplication::desktop();
+	QSize desktopSize = dw->availableGeometry(window).size();
+
+	// If the given dimenstions are too large,
+	// cap them at available desktop dimensions minus the window decorations
+	if ( new_width + decoWidth > desktopSize.width() - decoWidth ) {
+		new_width = desktopSize.width() - decoWidth;
+	}
+	if ( new_height + decoWidth > desktopSize.height() - decoHeight ) {
+		new_height = desktopSize.height() - decoHeight;
+	}
+
+	window->resize( new_width, new_height );
 	gui_resize_shell(vimshell->size().width(), vimshell->size().height());
+
+	// SHOCKING: it seems gui_get_shellsize() updates the proper values for
+	// the columns and rows, after a resize.
+	gui_get_shellsize();
 }
 
 /**
