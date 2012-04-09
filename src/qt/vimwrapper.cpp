@@ -215,15 +215,18 @@ bool VimWrapper::isFakeMonospace(QFont f)
 		return true;
 	}
 
-	if ( fm_italic.averageCharWidth() != fm_italic.maxWidth() ) {
+	if ( fm_italic.averageCharWidth() != fm_italic.maxWidth() ||
+			fm_italic.maxWidth()*2 != fm_italic.width("MM") ) {
 		return true;
 	}
 
-	if ( fm_boldit.averageCharWidth() != fm_boldit.maxWidth() ) {
+	if ( fm_boldit.averageCharWidth() != fm_boldit.maxWidth() ||
+			fm_boldit.maxWidth()*2 != fm_boldit.width("MM") ) {
 		return true;
 	}
 
-	if ( fm_bold.averageCharWidth() != fm_bold.maxWidth() ) {
+	if ( fm_bold.averageCharWidth() != fm_bold.maxWidth() ||
+			fm_bold.maxWidth()*2 != fm_bold.width("MM") ) {
 		return true;
 	}
 
