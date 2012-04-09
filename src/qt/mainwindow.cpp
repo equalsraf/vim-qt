@@ -73,7 +73,6 @@ void MainWindow::tabMoved(int from, int to)
 	// 3. Also, both tabpage_move and Qt use 0-indexed tab positions
 	//
 
-	qDebug() << __func__ << "(current: " << tabbar->currentIndex() << ") from: " << from << "to:" << to;
 	tabpage_move(tabbar->currentIndex());
 }
 
