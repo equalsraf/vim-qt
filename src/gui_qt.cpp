@@ -313,12 +313,19 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	if ( VimWrapper::isFakeMonospace(*qf) || getenv("QVIM_DRAW_STRING_SLOW") ) {
 		qDebug() << "Warning, fake monospace font?";
 		vimshell->setSlowStringDrawing( true );
+
+		// Use italic+bold for font width calculation
+		QFont fx(*qf);
+		fx.setBold(true);
+		fx.setItalic(true);
+		QFontMetrics metric(fx);
+		gui.char_width = metric.width('M') + qAbs(metric.leftBearing('M')) + qAbs(metric.rightBearing('M'));
 	} else {
 		vimshell->setSlowStringDrawing( false );
+		gui.char_width = metric.width("M");
 	}
 
 	gui.norm_font = qf;
-	gui.char_width = metric.width("M");
 	gui.char_height = metric.height();
 	gui.char_ascent = metric.ascent();
 	vimshell->setCharWidth(gui.char_width);
