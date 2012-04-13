@@ -73,7 +73,8 @@ set(MOC_SOURCES qt/qvimshell.cpp
 		qt/vimaction.cpp 
 		qt/vimscrollbar.cpp 
 		qt/vimwrapper.cpp 
-		qt/fontdialog.cpp)
+		qt/fontdialog.cpp
+		qt/scrollarea.cpp)
 
 set(QVIM_RCS qt/icons.qrc)
 QT4_ADD_RESOURCES( QVIM_RC_SRCS ${QVIM_RCS} )

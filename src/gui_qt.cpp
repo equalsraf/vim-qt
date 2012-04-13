@@ -53,6 +53,14 @@ void gui_mch_leave_fullscreen()
 	window->setWindowState( window->windowState() & ~Qt::WindowFullScreen );
 }
 
+void gui_mch_update_fuoptions(char_u *optstr)
+{
+	//
+	// FIXME: We don't support fuopts at this point
+	// set fuoptions=maxvert,maxhoriz
+
+}
+
 /**
  * Raise application window
  */
@@ -646,7 +654,12 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		new_height = desktopSize.height() - decoHeight;
 	}
 
-	window->resize( new_width, new_height );
+	if (window->windowState() & Qt::WindowFullScreen ) {
+		// In fullscreen mode, resize the widget
+		vimshell->setMaximumSize(width, height);
+	} else {
+		window->resize( new_width, new_height );
+	}
 	gui_resize_shell(vimshell->size().width(), vimshell->size().height());
 
 	// SHOCKING: it seems gui_get_shellsize() updates the proper values for

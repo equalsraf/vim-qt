@@ -4,6 +4,8 @@
 #include <QtGui>
 #include "qvimshell.h"
 #include "tabbar.h"
+#include "scrollarea.h"
+
 
 class MainWindow: public QMainWindow
 {
@@ -44,6 +46,7 @@ protected slots:
 private:
 	QToolBar *toolbar;
 
+	ScrollArea *scrollarea;
 	QVimShell *vimshell;
 	QToolBar *tabtoolbar;
 	TabBar *tabbar;

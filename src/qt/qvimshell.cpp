@@ -11,7 +11,7 @@ QVimShell::QVimShell(QWidget *parent)
 	m_lastClickEvent(-1), m_tooltip(0), m_slowStringDrawing(false),
 	m_mouseHidden(false)
 {
-
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	// IM Tooltip
 	m_tooltip = new QLabel(this);
 	m_tooltip->setVisible(false);
@@ -30,6 +30,7 @@ QVimShell::QVimShell(QWidget *parent)
 void QVimShell::setBackground(const QColor color)
 {
 	m_background = color;
+	emit backgroundColorChanged(m_background);
 }
 
 void QVimShell::switchTab(int idx)

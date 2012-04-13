@@ -1232,6 +1232,17 @@ static struct vimoption
 #endif
 			    SCRIPTID_INIT},
 
+    {"fuoptions",  "fuopt", P_STRING|P_COMMA|P_NODUP|P_VI_DEF,
+#ifdef FEAT_FULLSCREEN
+			    (char_u *)&p_fuoptions, PV_NONE,
+			    {(char_u *)"", (char_u *)0L}
+#else
+			    (char_u *)NULL, PV_NONE,
+			    {(char_u *)NULL, (char_u *)0L}
+#endif
+			    SCRIPTID_INIT},
+
+
     {"gdefault",    "gd",   P_BOOL|P_VI_DEF|P_VIM,
 			    (char_u *)&p_gd, PV_NONE,
 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
@@ -6892,6 +6903,14 @@ did_set_string_option(opt_idx, varp, new_value_alloced, oldval, errbuf,
     {
 	if (foldmethodIsIndent(curwin))
 	    foldUpdateAll(curwin);
+    }
+#endif
+
+#ifdef FEAT_FULLSCREEN
+    /* 'fuoptions' */
+    else if (varp == &p_fuoptions)
+    {
+        gui_mch_update_fuoptions(p_fuoptions);
     }
 #endif
 

@@ -18,8 +18,14 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	toolbar->setObjectName("toolbar");
 
 	// Vim shell
-	vimshell = new QVimShell();
-	setCentralWidget(vimshell);
+	vimshell = new QVimShell(this);
+
+	scrollarea = new ScrollArea(this);
+	scrollarea->setWidget(vimshell);
+	connect(vimshell, SIGNAL(backgroundColorChanged(QColor)),
+		scrollarea, SLOT(setBackgroundColor(QColor)) );
+
+	setCentralWidget(scrollarea);
 
 	// TabLine
 	tabtoolbar = addToolBar("tabline");
@@ -131,6 +137,13 @@ void MainWindow::changeEvent( QEvent *ev)
 {
 	if (ev->type() == QEvent::WindowStateChange) {
 		VimWrapper::setFullscreen( windowState() & Qt::WindowFullScreen );
+
+		if ( ! (windowState() & Qt::WindowFullScreen) ) {
+			// Reset vimshell size policy when leaving fullscreen
+			vimshell->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+			vimshell->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+			vimshell->updateGeometry();
+		}
 	}
 	QMainWindow::changeEvent(ev);
 }
