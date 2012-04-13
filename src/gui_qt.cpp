@@ -639,6 +639,7 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 void
 gui_mch_new_colors()
 {
+	vimshell->setBackground(VimWrapper::backgroundColor() );
 }
 
 /**
