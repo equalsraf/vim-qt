@@ -311,7 +311,6 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	QFontMetrics metric( *qf );
 
 	if ( VimWrapper::isFakeMonospace(*qf) || getenv("QVIM_DRAW_STRING_SLOW") ) {
-		qDebug() << "Warning, fake monospace font?";
 		vimshell->setSlowStringDrawing( true );
 
 		// Use italic+bold for font width calculation
