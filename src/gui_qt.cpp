@@ -503,7 +503,6 @@ gui_mch_init()
 	QSettings settings("Vim", "qVim");
 	settings.beginGroup("mainwindow");
 	window->restoreState( settings.value("state").toByteArray() );
-	window->resize( settings.value("size", QSize(400, 400)).toSize() );
 	settings.endGroup();
 
 	vimshell = window->vimShell();
@@ -571,7 +570,6 @@ gui_mch_set_blinking(long waittime, long on, long off)
 void
 gui_mch_prepare(int *argc, char **argv)
 {
-
 #ifdef Q_WS_X11
 	QColor::setAllowX11ColorNames(true);
 #endif
@@ -585,7 +583,6 @@ void
 gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 		    int base_width, int base_height, int direction)
 {
-
 	// We actually resize the window, not the shell, i.e. we resize the window
 	// to the new dimensions plus the difference between the window and the shell.
 	// This does not ensure the final size is what Vim requested.
@@ -596,6 +593,11 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	//
 	// New size <= shell size - window size + new size
 	//
+	if ( !window->isVisible() ) {
+		// We can't resize properly if the window is not
+		// visible
+		return;
+	}
 
 	int decoWidth = (window->frameGeometry().width() - window->width());
 	int decoHeight = (window->frameGeometry().height() - window->height());
@@ -754,7 +756,6 @@ gui_mch_exit(int rc)
 	QSettings settings("Vim", "qVim");
 	settings.beginGroup("mainwindow");
 	settings.setValue("state", window->saveState());
-	settings.setValue("size", window->size());
 	settings.endGroup();
 
 	QApplication::quit();
@@ -860,13 +861,17 @@ clip_mch_request_selection(VimClipboard *cbd)
 int
 gui_mch_open()
 {
-	if ( window != NULL ) {
-
-		window->show();
-		return OK;
+	if ( window == NULL ) {
+		return FAIL;
 	}
 
-	return FAIL;
+	window->show();
+    	if (gui_win_x != -1 && gui_win_y != -1) {
+		gui_mch_set_winpos(gui_win_x, gui_win_y);
+	}
+	gui_set_shellsize(FALSE, FALSE, RESIZE_BOTH);
+
+	return OK;
 }
 
 /**
