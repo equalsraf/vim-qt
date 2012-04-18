@@ -73,6 +73,7 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 	QString family = (char*)name;
 	QFont font;
 	font.setStyleHint(QFont::TypeWriter);
+	font.setStyleStrategy(QFont::StyleStrategy(QFont::PreferDefault | QFont::ForceIntegerMetrics) );
 
 	if ( name == NULL ) { // Fallback font
 		font.setFamily("Monospace");
