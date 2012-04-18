@@ -595,9 +595,21 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	//
 	// New size <= shell size - window size + new size
 	//
+
+	QDesktopWidget *dw = QApplication::desktop();
+	QSize desktopSize = dw->availableGeometry(window).size();
+
 	if ( !window->isVisible() ) {
 		// We can't resize properly if the window is not
-		// visible
+		// visible just resize the window to the intended size
+		if ( width > desktopSize.width() ) {
+			width = desktopSize.width();
+		}
+		if ( height > desktopSize.height() ) {
+			height = desktopSize.height();
+		}
+
+		window->resize(width, height);
 		return;
 	}
 
@@ -609,15 +621,12 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	int new_width = frameWidth + width;
 	int new_height = frameHeight + height;
 
-	QDesktopWidget *dw = QApplication::desktop();
-	QSize desktopSize = dw->availableGeometry(window).size();
-
 	// If the given dimenstions are too large,
 	// cap them at available desktop dimensions minus the window decorations
-	if ( new_width + decoWidth > desktopSize.width() - decoWidth ) {
+	if ( new_width + decoWidth > desktopSize.width() ) {
 		new_width = desktopSize.width() - decoWidth;
 	}
-	if ( new_height + decoWidth > desktopSize.height() - decoHeight ) {
+	if ( new_height + decoWidth > desktopSize.height() ) {
 		new_height = desktopSize.height() - decoHeight;
 	}
 
@@ -871,7 +880,6 @@ gui_mch_open()
     	if (gui_win_x != -1 && gui_win_y != -1) {
 		gui_mch_set_winpos(gui_win_x, gui_win_y);
 	}
-	gui_set_shellsize(FALSE, FALSE, RESIZE_BOTH);
 
 	return OK;
 }
