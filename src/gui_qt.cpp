@@ -319,8 +319,9 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 
 	gui.norm_font = qf;
 	gui.char_width = metric.width("M");
-	gui.char_height = metric.height();
-	gui.char_ascent = metric.ascent();
+	// The actual linespace plus Vim's fake linespace
+	gui.char_height = metric.lineSpacing() + p_linespace;
+	gui.char_ascent = metric.ascent() + p_linespace/2;
 	vimshell->setCharWidth(gui.char_width);
 
 	return OK;
@@ -683,8 +684,8 @@ gui_mch_adjust_charheight()
 {
 	QFontMetrics metric( *gui.norm_font );
 
-	gui.char_height = metric.height();
-	gui.char_ascent = metric.ascent();
+	gui.char_height = metric.lineSpacing() + p_linespace;
+	gui.char_ascent = metric.ascent() + p_linespace/2;
 
 	return OK;
 }
@@ -971,10 +972,12 @@ gui_mch_draw_string(
 		vimshell->queuePaintOp(op);
 	}
 
+	// Remove upper linespace from rect
+	QRect rect_text( pos.x(), pos.y() + p_linespace/2, gui.char_width*cellwidth, gui.char_height);
 	PaintOperation op;
 	op.type = DRAWSTRING;
 	op.font = f;
-	op.rect = rect;
+	op.rect = rect_text;
 	op.str = str;
 	op.color = foregroundColor;
 	op.undercurl = flags & DRAW_UNDERC;
