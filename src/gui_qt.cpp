@@ -149,7 +149,7 @@ gui_mch_get_fontname(GuiFont font, char_u  *name)
 void
 gui_mch_free_font(GuiFont font)
 {
-	free(font);
+	delete font;
 }
 
 /**

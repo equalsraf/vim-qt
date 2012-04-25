@@ -18,11 +18,24 @@ protected slots:
 	void fontSelected();
 
 private:
-	QListWidget *fontList;
-	QListWidget *sizeList;
+	// layouts and widgets
+	QHBoxLayout   *hlayout;
+	QVBoxLayout   *vlayout;
+	QVBoxLayout   *vlayoutInfo;
+	QListWidget   *fontList;
+	QListWidget   *sizeList;
 	QDialogButtonBox *buttons;
-	QLineEdit *preview;
+	QLineEdit     *preview;
+	QScrollArea   *scrollInfo;
+	QGroupBox     *groupboxInfo;
+	QLabel        *styleInfo;
+	QLabel        *writingInfo;
+	QLabel        *separatorInfo;
+	// data
 	QFontDatabase fontDatabase;
+	QString       regularStyle;
+	// constants
+	static const  QRegExp regular_rx;
 };
 
 #endif
