@@ -295,6 +295,25 @@ gui_mch_clear_all()
 	vimshell->queuePaintOp(op);
 }
 
+
+/**
+ * Update Vim metrics
+ */
+static void
+update_char_metrics(const QFontMetrics& metric)
+{
+	gui.char_width = metric.width("M");
+
+	// The actual linespace plus Vim's fake linespace
+	gui.char_height = metric.lineSpacing() + p_linespace;
+	if ( metric.underlinePos() >= metric.descent() ) {
+		gui.char_height += metric.underlinePos() - metric.descent() + metric.lineWidth();
+	}
+
+	gui.char_ascent = metric.ascent() + p_linespace/2 + metric.leading();
+	gui.char_ul_pos = metric.underlinePos();
+}
+
 /**
  * Initialise vim to use the font "font_name".  If it's NULL, pick a default
  * font.
@@ -318,10 +337,7 @@ gui_mch_init_font(char_u *font_name, int do_fontset)
 	}
 
 	gui.norm_font = qf;
-	gui.char_width = metric.width("M");
-	// The actual linespace plus Vim's fake linespace
-	gui.char_height = metric.lineSpacing() + p_linespace;
-	gui.char_ascent = metric.ascent() + p_linespace/2;
+	update_char_metrics(metric);
 	vimshell->setCharWidth(gui.char_width);
 
 	return OK;
@@ -692,13 +708,9 @@ int
 gui_mch_adjust_charheight()
 {
 	QFontMetrics metric( *gui.norm_font );
-
-	gui.char_height = metric.lineSpacing() + p_linespace;
-	gui.char_ascent = metric.ascent() + p_linespace/2;
-
+	update_char_metrics(metric);
 	return OK;
 }
-
 
 /**
  * Return OK if the key with the termcap name "name" is supported.
@@ -992,6 +1004,10 @@ gui_mch_draw_string(
 	if ( op.undercurl ) { // FIXME: Refactor PaintOperation
 		op.curlcolor = specialColor;
 	}
+
+	// op.pos is the text baseline
+	op.pos = rect.topLeft();
+	op.pos.setY( op.pos.y() + gui.char_ascent );
 
 	vimshell->queuePaintOp(op);
 }

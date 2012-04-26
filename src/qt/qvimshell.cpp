@@ -250,7 +250,6 @@ QFont QVimShell::fixPainterFont( const QFont& pfont )
 void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 {
 	QFont f = op.font;
-	f.setUnderline(op.undercurl);
 	painter.setFont(f);
 	painter.setPen( op.color );
 
@@ -265,9 +264,9 @@ void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 			continue;
 		}
 
-		if ( c != ' ' ) {
-			painter.drawText(rect, Qt::TextSingleLine, c);
-		}
+		QPoint pos = op.pos;
+		pos.setX(rect.left());
+		painter.drawText(pos, c);
 		rect.moveTo( rect.x() + rect.width(), rect.y() );
 	}
 }
@@ -279,43 +278,8 @@ void QVimShell::drawStringSlow( const PaintOperation& op, QPainter &painter )
 void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 {
 	painter.setPen( op.color );
-
-	QTextLayout l(op.str);
-	QTextOption opt;
-	opt.setWrapMode(QTextOption::WrapAnywhere);
-
-	l.setTextOption(opt);
-	l.setFont(op.font);
-
-	if (op.undercurl) {
-		QTextCharFormat charFormat;
-		charFormat.setUnderlineStyle(QTextCharFormat::SpellCheckUnderline);
-		charFormat.setUnderlineColor(op.curlcolor);
-
-		QTextLayout::FormatRange format;
-		format.start = 0;
-		format.length = op.str.size();
-		format.format = charFormat;
-
-		QList<QTextLayout::FormatRange> list;
-		list.append(format);
-		l.setAdditionalFormats(list);
-	}
-
-	l.beginLayout();
-	QTextLine line = l.createLine();
-	line.setNumColumns(op.str.size());
-	l.endLayout();
-	l.draw(&painter, op.rect.topLeft());
-
-	//
-	// An error of one pixel seems to be insignificant. We tolerate this here
-	// but the painter is clipped anyway.
-	int miss = l.maximumWidth() - QFontMetrics(op.font).width(op.str);
-	if( miss  > 1 || miss < -1 ) {
-		qDebug() << __func__ << "rect mismatch, this is serious, please poke a developer about this" 
-			<< l.maximumWidth() << QFontMetrics(op.font).width(op.str) << op.str << op.str.size() << op.font;
-	}
+	painter.setFont(op.font);
+	painter.drawText( op.pos, op.str);
 }
 
 void QVimShell::flushPaintOps()
@@ -338,12 +302,32 @@ void QVimShell::flushPaintOps()
 			break;
 		case DRAWSTRING:
 			painter.setClipRect(op.rect);
+
+			// Disable underline if undercurl is in place
+			if (op.undercurl && op.font.underline()) {
+				op.font.setUnderline(false);
+			}
+
 			if ( m_slowStringDrawing ) {
 				drawStringSlow(op, painter);
 			} else if ( op.str.length() != VimWrapper::stringCellWidth(op.str) ) {
 				drawStringSlow(op, painter);
 			} else {
 				drawString(op, painter);
+			}
+
+			// Draw undercurl
+			// FIXME: we are doing it wrong - the underlinePos needs
+			// to be stored someplace else
+			if (op.undercurl) {
+				QPoint start(op.rect.bottomLeft());
+				start.setY(op.pos.y() + 1 + gui.char_ul_pos );
+				QPoint end(start);
+				end.setX(op.rect.right());
+
+				QPen pen(op.curlcolor, 1, Qt::DashDotDotLine);
+				painter.setPen(pen);
+				painter.drawLine(QLine(start, end));
 			}
 
 			break;

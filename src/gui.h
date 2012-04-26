@@ -328,6 +328,10 @@ typedef struct Gui
 				     * The styled font variants are not used. */
 #endif
 
+#ifdef FEAT_GUI_QT
+    int		char_ul_pos;        /* underline position - distance from the baseline */
+#endif
+
 #if defined(FEAT_MENU) && !defined(FEAT_GUI_GTK)
 # ifdef FONTSET_ALWAYS
     GuiFontset	menu_fontset;	    /* set of fonts for multi-byte chars */
