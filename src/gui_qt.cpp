@@ -1373,13 +1373,13 @@ gui_mch_create_scrollbar( scrollbar_T *sb, int orient)
 
 	switch(sb->type) {
 	case SBAR_RIGHT:
-		window->addScrollbarRight(widget);
+//		window->addScrollbarRight(widget);
 		break;
 	case SBAR_LEFT:
-		window->addScrollbarLeft(widget);
+//		window->addScrollbarLeft(widget);
 		break;
 	case SBAR_BOTTOM:
-		window->addScrollbarBottom(widget);
+//		window->addScrollbarBottom(widget);
 		break;
 	}
 }

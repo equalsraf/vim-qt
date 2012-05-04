@@ -1246,12 +1246,12 @@ MOC		= $(QT_MOC)
 QT_LIBS1	= $(QT_LIBS)
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/vimscrollbar.cpp \
-			qt/fontdialog.cpp qt/scrollarea.cpp \
+			qt/fontdialog.cpp \
 			qt/vimwrapper.cpp qt/tabbar.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
-			objects/vimscrollbar.o objects/fontdialog.o objects/scrollarea.o objects/vimwrapper.o \
+			objects/vimscrollbar.o objects/fontdialog.o objects/vimwrapper.o \
 			objects/tabbar.o
 
 QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I. $(QT_INCPATH)
@@ -2562,10 +2562,6 @@ objects/vimgui.o: qt/vimgui.cpp
 objects/fontdialog.o: qt/fontdialog.cpp
 	$(MOC) qt/fontdialog.h > fontdialog.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/fontdialog.cpp
-
-objects/scrollarea.o: qt/scrollarea.cpp
-	$(MOC) qt/scrollarea.h > scrollarea.moc
-	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/scrollarea.cpp
 
 objects/vimwrapper.o: qt/vimwrapper.cpp
 	$(MOC) qt/vimwrapper.h > vimwrapper.moc

@@ -1,7 +1,7 @@
 #include "mainwindow.moc"
 
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
-:QMainWindow(parent), m_keepTabbar(false), scrollArea(0)
+:QMainWindow(parent), m_keepTabbar(false)
 {
 	setWindowIcon(QIcon(":/icons/vim-qt.png"));
 	setContextMenuPolicy(Qt::PreventContextMenu);
@@ -10,20 +10,16 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	menutoolbar = addToolBar("Menu");
 	menutoolbar->setObjectName("menu");
 	menutoolbar->setAllowedAreas(Qt::BottomToolBarArea | Qt::TopToolBarArea);
-	menu = new QMenuBar(menutoolbar);
+	menu = new QMenuBar();
 	menutoolbar->addWidget(menu);
 
 	// Tool bar
 	toolbar = addToolBar("ToolBar");
 	toolbar->setObjectName("toolbar");
 
-	scrollArea = new ScrollArea(this);
-	setCentralWidget( scrollArea );
-
 	// Vim shell
-	vimshell = new QVimShell( scrollArea );
-	vimshell->setFocus();
-	scrollArea->setWidget(vimshell);
+	vimshell = new QVimShell();
+	setCentralWidget(vimshell);
 
 	// TabLine
 	tabtoolbar = addToolBar("tabline");
@@ -55,6 +51,9 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 			this, SLOT(switchTab(int)));
 	connect( newTab, SIGNAL(triggered()),
 			this, SLOT(openNewTab()));
+
+
+	vimshell->setFocus();
 }
 
 void MainWindow::tabMoved(int from, int to)
