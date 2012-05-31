@@ -85,6 +85,7 @@ protected:
 
 	virtual void leaveEvent(QEvent *ev);
 	virtual void enterEvent(QEvent *ev);
+	bool focusNextPrevChild(bool next);
 private:
 	QColor m_background;
 	int m_charWidth;

@@ -569,6 +569,11 @@ void QVimShell::focusOutEvent(QFocusEvent *ev)
 	update();
 }
 
+bool QVimShell::focusNextPrevChild(bool next)
+{
+	return false;
+}
+
 void QVimShell::setCharWidth(int w)
 {
 	m_charWidth = w;
