@@ -69,7 +69,6 @@ set(GUI_SOURCES gui_qt.cpp )
 set(MOC_SOURCES qt/qvimshell.cpp 
 		qt/mainwindow.cpp 
 		qt/vimaction.cpp 
-		qt/scrollarea.cpp 
 		qt/tabbar.cpp 
 		qt/vimaction.cpp 
 		qt/vimscrollbar.cpp 
@@ -83,6 +82,7 @@ qt4_automoc(${MOC_SOURCES})
 
 
 if(MSVC OR MINGW)
+
 	set(VIM_SOURCES ${VIM_SOURCES} 
 			os_win32.c 
 			os_mswin.c)
