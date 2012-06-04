@@ -14,6 +14,7 @@ protected slots:
 
 private:
 	vimmenu_T *m_menu;
+	static QStringList iconNames;
 };
 
 #endif
