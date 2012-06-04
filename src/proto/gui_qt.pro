@@ -74,8 +74,9 @@ void gui_mch_draw_string __ARGS((int row, int col, char_u *s, int len, int flags
 int gui_mch_showing_tabline __ARGS((void));
 void gui_mch_enable_menu __ARGS((int flag));
 void gui_mch_show_tabline __ARGS((int showit));
-
-
-
-
+void gui_mch_enter_fullscreen __ARGS((void));
+void gui_mch_leave_fullscreen __ARGS((void));
+void* gui_mch_register_sign __ARGS((char_u *signfile));
+void gui_mch_destroy_sign __ARGS((void *sign));
+void gui_mch_drawsign __ARGS((int row, int col, int typenr));
 
