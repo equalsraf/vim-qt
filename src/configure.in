@@ -2449,7 +2449,7 @@ EOF
     fi
 
     # add options
-    echo "QT += network" >> $tmp/test.pro
+    echo "QT += network widgets" >> $tmp/test.pro
 
     # generate Makefile
     qmake_try=`cd $tmp; $QMAKE`
@@ -2458,34 +2458,64 @@ EOF
         AC_MSG_ERROR(qmake failed)
     fi
 
+    #
+    # A dummy Makefile to help extract the
+    # real parameters
+    #
+cat > $tmp/makefile.dummy << EOF
+def: info
+include $tmp/Makefile
+info:
+	@echo "CXXFLAGS = \$(CXXFLAGS)"
+	@echo "CFLAGS = \$(CFLAGS)"
+	@echo "LFLAGS = \$(LFLAGS)"
+	@echo "LIBS = \$(LIBS)"
+	@echo "INCPATH = \$(INCPATH)"
+EOF
+
     # LIBS
-    QT_LIBS=`grep LIBS.*= $tmp/Makefile | awk '{sub(/^LIBS +=/, ""); print}'`
+    QT_LIBS=`gmake -f $tmp/makefile.dummy |grep LIBS.*= | awk '{sub(/^LIBS +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         AC_MSG_ERROR(Unable to find Qt libraries)
     fi
 
     # Include directives
-    QT_INCPATH=`grep INCPATH.*= $tmp/Makefile | awk '{sub(/^INCPATH +=/, ""); print}'`
+    QT_INCPATH=`gmake -f $tmp/makefile.dummy |grep INCPATH.*= | awk '{sub(/^INCPATH +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         AC_MSG_ERROR(Unable to find Qt include path)
     fi
 
     # LFLAGS
-    QT_LFLAGS=`grep LFLAGS.*= $tmp/Makefile | awk '{sub(/^LFLAGS +=/, ""); print}'`
+    QT_LFLAGS=`gmake -f $tmp/makefile.dummy |grep LFLAGS.*= | awk '{sub(/^LFLAGS +=/, ""); print}'`
     if test -z "$QT_LFLAGS"; then
         AC_MSG_ERROR(Unable to find Qt link flags)
+    fi
+
+    # Qt CXXFLAGS
+    QT_CXXFLAGS=`gmake -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
+    if test -z "$QT_LFLAGS"; then
+        AC_MSG_ERROR(Unable to find Qt C flags)
+    fi
+
+    # Qt CFLAGS
+    QT_CFLAGS=`gmake -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
+    if test -z "$QT_CFLAGS"; then
+        AC_MSG_ERROR(Unable to find Qt C++ flags)
     fi
 
     LDFLAGS="$LDFLAGS $QT_LFLAGS -lstdc++"
     AC_SUBST(QT_LIBS)
     AC_SUBST(QT_MOC)
     AC_SUBST(QT_INCPATH)
+    AC_SUBST(QT_CXXFLAGS)
+    AC_SUBST(QT_CFLAGS)
     AC_LANG_POP(C++)
 
     # Remove temp directory
     rm $tmp/Makefile
     rm $tmp/qttest.cpp
     rm $tmp/test.pro
+    rm $tmp/makefile.dummy
     rmdir $tmp
 fi
 

@@ -159,6 +159,8 @@ GTK_LIBNAME	= @GTK_LIBNAME@
 QT_MOC		= @QT_MOC@
 QT_LIBS		= @QT_LIBS@
 QT_INCPATH	= @QT_INCPATH@
+QT_CXXFLAGS	= @QT_CXXFLAGS@
+QT_CFLAGS	= @QT_CFLAGS@
 
 ### Any OS dependent extra source and object file
 OS_EXTRA_SRC	= @OS_EXTRA_SRC@

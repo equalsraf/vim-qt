@@ -614,6 +614,8 @@ GUI_X_LIBS
 GUITYPE
 GUI_LIB_LOC
 GUI_INC_LOC
+QT_CFLAGS
+QT_CXXFLAGS
 QT_INCPATH
 QT_LIBS
 QT_MOC
@@ -9374,7 +9376,7 @@ EOF
     fi
 
     # add options
-    echo "QT += network" >> $tmp/test.pro
+    echo "QT += network widgets" >> $tmp/test.pro
 
     # generate Makefile
     qmake_try=`cd $tmp; $QMAKE`
@@ -9387,25 +9389,54 @@ EOF
         as_fn_error $? "qmake failed" "$LINENO" 5
     fi
 
+    #
+    # A dummy Makefile to help extract the
+    # real parameters
+    #
+cat > $tmp/makefile.dummy << EOF
+def: info
+include $tmp/Makefile
+info:
+	@echo "CXXFLAGS = \$(CXXFLAGS)"
+	@echo "CFLAGS = \$(CFLAGS)"
+	@echo "LFLAGS = \$(LFLAGS)"
+	@echo "LIBS = \$(LIBS)"
+	@echo "INCPATH = \$(INCPATH)"
+EOF
+
     # LIBS
-    QT_LIBS=`grep LIBS.*= $tmp/Makefile | awk '{sub(/^LIBS +=/, ""); print}'`
+    QT_LIBS=`gmake -f $tmp/makefile.dummy |grep LIBS.*= | awk '{sub(/^LIBS +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         as_fn_error $? "Unable to find Qt libraries" "$LINENO" 5
     fi
 
     # Include directives
-    QT_INCPATH=`grep INCPATH.*= $tmp/Makefile | awk '{sub(/^INCPATH +=/, ""); print}'`
+    QT_INCPATH=`gmake -f $tmp/makefile.dummy |grep INCPATH.*= | awk '{sub(/^INCPATH +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         as_fn_error $? "Unable to find Qt include path" "$LINENO" 5
     fi
 
     # LFLAGS
-    QT_LFLAGS=`grep LFLAGS.*= $tmp/Makefile | awk '{sub(/^LFLAGS +=/, ""); print}'`
+    QT_LFLAGS=`gmake -f $tmp/makefile.dummy |grep LFLAGS.*= | awk '{sub(/^LFLAGS +=/, ""); print}'`
     if test -z "$QT_LFLAGS"; then
         as_fn_error $? "Unable to find Qt link flags" "$LINENO" 5
     fi
 
+    # Qt CXXFLAGS
+    QT_CXXFLAGS=`gmake -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
+    if test -z "$QT_LFLAGS"; then
+        as_fn_error $? "Unable to find Qt C flags" "$LINENO" 5
+    fi
+
+    # Qt CFLAGS
+    QT_CFLAGS=`gmake -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
+    if test -z "$QT_CFLAGS"; then
+        as_fn_error $? "Unable to find Qt C++ flags" "$LINENO" 5
+    fi
+
     LDFLAGS="$LDFLAGS $QT_LFLAGS -lstdc++"
+
+
 
 
 
@@ -9420,6 +9451,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
     rm $tmp/Makefile
     rm $tmp/qttest.cpp
     rm $tmp/test.pro
+    rm $tmp/makefile.dummy
     rmdir $tmp
 fi
 

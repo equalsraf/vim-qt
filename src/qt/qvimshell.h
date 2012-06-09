@@ -5,7 +5,6 @@
 #include <QQueue>
 #include <QLabel>
 #include <QTime>
-
 #include "vimwrapper.h"
 
 
