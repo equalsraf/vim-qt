@@ -1,4 +1,4 @@
-*todo.txt*      For Vim version 7.3.  Last change: 2012 Mar 28
+*todo.txt*      For Vim version 7.3.  Last change: 2012 Jun 01
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -34,26 +34,31 @@ not be repeated below, unless there is extra information.
 							*known-bugs*
 -------------------- Known bugs and current work -----------------------
 
-Go through list of maintainers that didn't respond. (Thilo Six, Mar 19)
-
 Go through more coverity reports.
 
 Discussion about canonicalization of Hebrew. (Ron Aaron, 2011 April 10)
 
-Stack trace of crash: http://vpaste.net/GBt9S
-(Alexandre Provencio)
-
-Once syntax and other runtime files have been fixed: add "set cp" to
-check.vim.  Use a function to run both with 'cp' and 'nocp'.
-
 GTK: problem with 'L' in 'guioptions' changing the window width.
 (Aaron Cornelius, 2012 Feb 6)
+
+Patch: home_replace() does not work whtn 8.3 filename. (Yasuhiro
+Matsumoto, 2012 Apr 18)  Asked for another version of the patch.
+Again May 18.  Update May 29 on github.  Does not handle multi-byte chars.
+
+Javascript file where indent gets stuck on: GalaxyMaster, 2012 May 3.
 
 Win32: When a directory name contains an exclamation mark, completion doesn't
 complete the contents of the directory.  No escaping for the "!"? (Jan
 Stocker, 2012 Jan 5)
 
+Patch for this request: (Lech Lorens, 2012 May 26)
+7   Add 'j' flag to 'formatoptions': Remove comment leader when joining lines.
+
 Issue 54: document behavior of -complete, also expands arg.
+
+Cursor on wrong line after ":copen". (John Beckett, 2012 Apr 30)
+Fix by Christian Brabandt, 2012 May 2.  But calling changed_window_setting()
+would be a simpler solution.
 
 Syntax update problem in one buffer opened in two windows, bottom window is
 not correctly updated. (Paul Harris, 2012 Feb 27)
@@ -65,42 +70,37 @@ Win32: When the taskbar is at the top of the screen creating the tabbar causes
 the window to move unnecessarily. (William E. Skeith III, 2012 Jan 12)
 Patch: 2012 Jan 13  Needs more work (2012 Feb 2)
 
+ml_get error when using syntastic plugin. (Alex Efros, 2012 May 24)
+Probably caused by recursive use of :lclose.
+May also crash Vim (May 25)
+Patch by Christian Brabandt, May 26.  Is this right?
+
+Help for b:undo_indent'. (Thilo Six, 2012 May 28)
+Also question if examples are correct.
+
+Docs patch for BufRead/BufReadPost. (Gary Johnson, 2012 May 28)
+
 URXVT:
 - will get stuck if byte sequence does not containe expected semicolon.
 - Use urxvt mouse support also in xterm.  Explanations:
   http://www.midnight-commander.org/ticket/2662
 
+Patch for IBM z/OS makefile. (Stephen Bovy, 2012 Apr 26)
+Patch for configure (Stephen Bovy, 2012 Apr 28)
+Updates later. Context diff May 7.
+
+Patch to support browserfilter for GTK. (Christian Brabandt, 2012 May 22)
+
 When running Vim in silent ex mode, an existing swapfile causes Vim to wait
 for a user action without a prompt. (Maarten Billemont, 2012 Feb 3)
 Do give the prompt? Quit with an error?
 
-When exiting with unsaved changes, selecting an existing file in the file
-dialog, there is no dialog to ask whether the existing file should be
-overwritten. (Felipe G. Nievinski, 2011 Dec 22)
-
-Using Ctrl-] in a mapping does not expand abbreviations. Patch by Christian
-Brabandt, 2012 Mar 2.
-
-Patch to fix member confusion in Lua interface. (Taro Muraoka, 2012 Jan 8)
-Update Jan 9.
-Carvalho merged the patch:  New version 2012 Jan 19.
-
-Patch for option in 'cino' to specify more indent for continued conditions.
-(Lech Lorens, 2011 Nov 27)
-Isn't this already possible?  Update 2012 Feb 15.
-
-Docs fix for v:register. (Ingo Karkat, 2011 Sep 26, 27)
-v:register doesn't work exactly as expected. (David Fishburn, 2011 Sep 20)
-
-Patch for: vimgrep fails when 'autochdir' is set. (Ben Fritz, 2012 Feb 4)
-
-Patch for: (Christian Brabandt, 2011 Aug 22)
--   Make it possible to enter "r<C-E>" and "r<C-Y>" (get character from line
-    below/above).
-
 Patch for: (Christian Brabandt, 2011 Aug 24, updated patch)
 8   ":sign unplace * file={filename}" should work.  Also: ":sign unplace *
     buffer={bufnr}".  So one can remove all signs for one file/buffer.
+
+Patch for auto copy selecting to + register. (by Christian Brabant, in email
+from Sergey Vakulenko, 2012 Apr 27)
 
 Patch to add "onselected" callback for completion. (Taro Muraoka, 2011 Sep 24)
 Another for CompleteFuncOk. (Florian Klein, 2012 Jan 31)
@@ -109,19 +109,21 @@ Name it "CompleteFuncDone".
 Patch for Make_mvc.mak and Make_ming.mak for Ruby support. (Yasuhiro
 Matsumoto, 2012 Jan 30)
 
-Patch to add completion for :history command.  (Dominique Pelle, 2012 Feb 26)
-
 Patch for 'backupcopy' default behavior for symlinks on Windows. (David Pope,
-2012 Mar 21)
+2012 Mar 21, update Mar 31)
 
-Use a count before "v" and "V" to select that many characters or lines?
-(Kikyous)
+Patch to list user digraphs. (Christian Brabandt, 2012 Apr 14)
+
+Patch for input method status. (Hirohito Higashi, 2012 Apr 18)
 
 Problem with winfixheight and resizing. (Yukihiro Nakadaira, 2011 Sep 17)
 Patch Sep 18.
 
 Patch for has('unnamedplus') docs. (Tony Mechelynck, 2011 Sep 27)
 And one for gui_x11.txt.
+
+Patch for Python: add pyeval() and vim.bindeval() (zyx, 2012 Apr 15, update
+Apr 16) Also changes for Lua.  Update Apr 19.  Update Apr 22.
 
 ":cd" doesn't work when current directory path contains "**".
 finddir() has the same problem.  (Yukihiro Nakadaira, 2012 Jan 10)
@@ -139,19 +141,23 @@ Patch to pass list to or(), and() and xor(). (Yasuhiro Matsumoto, 2012 Feb 8)
 Patch to improve "it" and "at" text object matching. (Christian Brabandt, 2011
 Nov 20)
 
+Patch to improve GUI find/replace dialog. (Christian Brabandt, 2012 May 26)
+
+Patch to add ":py3do". (Lilydjwg, 2012 Apr 7)
+
 `[ moves to character after insert, instead of the last inserted character.
 (Yukihiro Nakadaira, 2011 Dec 9)
 
 Plugin for Modeleasy. (Massimiliano Tripoli, 2011 Nov 29)
+
+When using remote-silent the -R flag is not passed on. (Axel Bender, 2012 May
+31)
 
 Updated syntax file for ssh_config, maintainer doesn't respond.
 (Leonard Ehrenfried, 2011 Sep 26)
 
 BufWinLeave triggers too late when quitting last window in a tab page. (Lech
 Lorens, 2012 Feb 21)
-
-"fC" doesn't position the cursor correctly when there are concealed
-characters.  Patch by Christian Brabandt, 2011 Oct 11)
 
 Patch for 'transparency' option. (Sergiu Dotenco, 2011 Sep 17)
 Only for MS-Windows.  No documentation.  Do we want this?
@@ -161,10 +167,18 @@ Patch to support cursor shape in Cygwin console. (Ben bgold, 2011 Dec 27)
 Patch to support UTF-8 for Hangul. (Shawn Y.H. Kim, 2011 May 1)
 Needs more work.  Pinged 2012 Jan 4.
 
+Issue 64: when 'incsearch' is on can't paste LF on command line.
+
 'cursorline' is displayed too short when there are concealed characters and
 'list' is set.  (Dennis Preiser)
 Patch 7.3.116 was the wrong solution.
 Christian Brabandt has another incomplete patch. (2011 Jul 13)
+Also: Alignment in help with tabs gets messed up, esp. at ":help index".
+Probably need to make a tab work like there was no concealing.  Possibly with
+an option.  Like line wrapping works as if there is no concealing.
+Patch by Dominique Pelle, Also fixes "fC" problem.
+    "fC" doesn't position the cursor correctly when there are concealed
+    characters.  Patch by Christian Brabandt, 2011 Oct 11)
 
 With concealed text mouse click doesn't put the cursor in the right position.
 (Herb Sitz)  Fix by Christian Brabandt, 2011 Jun 16.  Doesn't work properly,
@@ -173,6 +187,12 @@ need to make the change in where RET_WIN_BUF_CHARTABSIZE() is called.
 Syntax region with 'concealends' and a 'cchar' value, 'conceallevel' set to 2,
 only one of the two ends gets the cchar displayed. (Brett Stahlman, 2010 Aug
 21, Ben Fritz, 2010 Sep 14)
+
+'cursorline' is drawn incorrectly in diff mode. Patch by Christian Brabandt,
+2012 Apr 2.
+
+'cursorline' works on a text line only.  Add 'cursorscreenline' for
+highlighting the screen line. (Christian Brabandt, 2012 Mar 31)
 
 Win32: Does building a 64 bit version with VC9 give warnings for int
 conversions? (Mike Williams)
@@ -363,6 +383,7 @@ When putting text in the cut buffer (when exiting) and conversion doesn't work
 properly, Prepend "ENC==={value of 'enc'}:" to the text and don't convert?
 Then it should at least work from Vim to Vim and in other applications it's
 clear why it doesn't work.
+Experimental patch by Christian Brabandt, 2012 Apr 19.
 
 Editing a file with a ^M with 'ff' set to "mac", opening a help file, then the
 ^M is displayed as ^J sometimes.  Getting 'ff' value from wrong window/buffer?
@@ -1095,6 +1116,7 @@ Latest version: 2011 May 18
 8   Windows install with NSIS: make it possible to do a silent install, see
     http://nsis.sourceforge.net/Docs/Chapter4.html#4.12
     Version from Guopeng Wen that does this (2010 Dec 27)
+Alternative: MSI installer: https://github.com/petrkle/vim-msi/
 
 Windows installer should install 32-bit version of right-click handler also on
 64-bit systems. (Brian Cunningham, 2011 Dec 28)
@@ -3928,7 +3950,6 @@ Insert mode:
 -   Add option to 'cindent' to set indent for comments outside of {}?
 -   Make a command to line up a comment after a code line with a previous
     comment after a code line.	Can 'cindent' do this automatically?
-7   Add 'j' flag to 'formatoptions': Remove comment leader when joining lines.
 -   When 'cindent'ing a '}', showmatch is done before fixing the indent.  It
     looks better when the indent is fixed before the showmatch. (Webb)
 -   Add option to make indenting work in comments too (for commented-out

@@ -1,4 +1,4 @@
-*syntax.txt*	For Vim version 7.3.  Last change: 2012 Mar 28
+*syntax.txt*	For Vim version 7.3.  Last change: 2012 Apr 06
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -2721,7 +2721,14 @@ Some folks like to include things like source code in comments and so would
 prefer that spell checking be disabled in comments in LaTeX files.  To do
 this, put the following in your <.vimrc>: >
       let g:tex_comment_nospell= 1
-<
+The comment lines >
+	% nospell{
+	...
+	% nospell}
+will suppress spell checking between them.  These comment lines spelling
+control are known to be fragile; for example, don't include any of the section
+commands (\part, \chapter, \section, \paragraph, etc) inside nospell blocks
+or interleave environments (such as math) across nospell blocks.
 								*tex-verb*
  Tex: Want Spell Checking in Verbatim Zones?~
 
@@ -2828,6 +2835,7 @@ You may selectively use conceal mode by setting g:tex_conceal in your
 following sets of characters: >
 
 	a = accents/ligatures
+	b = bold and italic
 	d = delimiters
 	m = math symbols
 	g = Greek
@@ -2836,6 +2844,18 @@ following sets of characters: >
 By leaving one or more of these out, the associated conceal-character
 substitution will not be made.
 
+						*g:tex_isk*
+ Tex: Controlling What's In A Keyword~
+
+(La)Tex keywords normally use the characters 0-9,a-z,A-Z,192-255 only
+but the "_" is the only one that causes problems.  So, by default,
+syntax/tex.vim overrides the usual |'iskeyword'| setting (using |:setlocal|)
+with one that works for LaTeX.
+
+However, one may override this iskeyword re-setting by setting the
+variable, g:tex_isk, in one's .vimrc to whatever one wishes and
+it will be used instead.
+ 
 
 TF						*tf.vim* *ft-tf-syntax*
 

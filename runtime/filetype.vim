@@ -1,7 +1,7 @@
 " Vim support file to detect file types
 "
 " Maintainer:	Bram Moolenaar <Bram@vim.org>
-" Last Change:	2012 Mar 28
+" Last Change:	2012 May 18
 
 " Listen very carefully, I will say this only once
 if exists("did_load_filetypes")
@@ -17,7 +17,7 @@ augroup filetypedetect
 
 " Ignored extensions
 if exists("*fnameescape")
-au BufNewFile,BufRead ?\+.orig,?\+.bak,?\+.old,?\+.new,?\+.dpkg-dist,?\+.dpkg-old,?\+.rpmsave,?\+.rpmnew
+au BufNewFile,BufRead ?\+.orig,?\+.bak,?\+.old,?\+.new,?\+.dpkg-dist,?\+.dpkg-old,?\+.dpkg-new,?\+.dpkg-bak,?\+.rpmsave,?\+.rpmnew
 	\ exe "doau filetypedetect BufRead " . fnameescape(expand("<afile>:r"))
 au BufNewFile,BufRead *~
 	\ let s:name = expand("<afile>") |
@@ -239,8 +239,8 @@ func! s:FTVB(alt)
   endif
 endfunc
 
-" Visual Basic Script (close to Visual Basic)
-au BufNewFile,BufRead *.vbs,*.dsm,*.ctl		setf vb
+" Visual Basic Script (close to Visual Basic) or Visual Basic .NET
+au BufNewFile,BufRead *.vb,*.vbs,*.dsm,*.ctl	setf vb
 
 " IBasic file (similar to QBasic)
 au BufNewFile,BufRead *.iba,*.ibi		setf ibasic
@@ -735,9 +735,11 @@ au BufNewFile,BufRead *.mo,*.gdmo		setf gdmo
 au BufNewFile,BufRead *.ged,lltxxxxx.txt	setf gedcom
 
 " Git
-au BufNewFile,BufRead *.git/COMMIT_EDITMSG setf gitcommit
+au BufNewFile,BufRead *.git/COMMIT_EDITMSG 	setf gitcommit
 au BufNewFile,BufRead *.git/config,.gitconfig,.gitmodules setf gitconfig
-au BufNewFile,BufRead git-rebase-todo      setf gitrebase
+au BufNewFile,BufRead *.git/modules/**/COMMIT_EDITMSG setf gitcommit
+au BufNewFile,BufRead *.git/modules/**/config 	setf gitconfig
+au BufNewFile,BufRead git-rebase-todo      	setf gitrebase
 au BufNewFile,BufRead .msg.[0-9]*
       \ if getline(1) =~ '^From.*# This line is ignored.$' |
       \   setf gitsendemail |
@@ -1265,7 +1267,7 @@ endfunc
 au BufNewFile,BufRead *.nqc			setf nqc
 
 " NSIS
-au BufNewFile,BufRead *.nsi			setf nsis
+au BufNewFile,BufRead *.nsi,*.nsh		setf nsis
 
 " OCAML
 au BufNewFile,BufRead *.ml,*.mli,*.mll,*.mly,.ocamlinit	setf ocaml
@@ -1840,7 +1842,7 @@ au BufNewFile,BufRead .zsh*,.zlog*,.zcompdump*  call s:StarSetf('zsh')
 au BufNewFile,BufRead *.zsh			setf zsh
 
 " Scheme
-au BufNewFile,BufRead *.scm,*.ss		setf scheme
+au BufNewFile,BufRead *.scm,*.ss,*.rkt		setf scheme
 
 " Screen RC
 au BufNewFile,BufRead .screenrc,screenrc	setf screen
@@ -2142,6 +2144,9 @@ au BufNewFile,BufReadPost *.tssop		setf tssop
 " TSS - Command Line (temporary)
 au BufNewFile,BufReadPost *.tsscl		setf tsscl
 
+" TWIG files
+au BufNewFile,BufReadPost *.twig		setf twig
+
 " Motif UIT/UIL files
 au BufNewFile,BufRead *.uit,*.uil		setf uil
 
@@ -2365,6 +2370,9 @@ au BufNewFile,BufRead *.yaml,*.yml		setf yaml
 
 " yum conf (close enough to dosini)
 au BufNewFile,BufRead */etc/yum.conf 		setf dosini
+
+" Zimbu
+au BufNewFile,BufRead *.zu 			setf zimbu
 
 " Zope
 "   dtml (zope dynamic template markup language), pt (zope page template),

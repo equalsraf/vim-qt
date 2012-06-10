@@ -29,9 +29,9 @@ static int	restart_VIsual_select = 0;
 static void	set_vcount_ca __ARGS((cmdarg_T *cap, int *set_prevcount));
 #endif
 static int
-# ifdef __BORLANDC__
-_RTLENTRYF
-# endif
+#ifdef __BORLANDC__
+    _RTLENTRYF
+#endif
 		nv_compare __ARGS((const void *s1, const void *s2));
 static int	find_command __ARGS((int cmdchar));
 static void	op_colon __ARGS((oparg_T *oap));
@@ -1968,7 +1968,7 @@ do_pending_operator(cap, old_col, gui_yank)
 		beep_flush();
 	    else
 	    {
-		(void)do_join(oap->line_count, oap->op_type == OP_JOIN, TRUE);
+		(void)do_join(oap->line_count, oap->op_type == OP_JOIN, TRUE, TRUE);
 		auto_format(FALSE, TRUE);
 	    }
 	    break;
@@ -4426,7 +4426,7 @@ find_decl(ptr, len, locally, thisblock, searchflags)
 	    break;
 	}
 #ifdef FEAT_COMMENTS
-	if (get_leader_len(ml_get_curline(), NULL, FALSE) > 0)
+	if (get_leader_len(ml_get_curline(), NULL, FALSE, TRUE) > 0)
 	{
 	    /* Ignore this line, continue at start of next line. */
 	    ++curwin->w_cursor.lnum;
@@ -7070,7 +7070,18 @@ nv_replace(cap)
 	    for (n = cap->count1; n > 0; --n)
 	    {
 		State = REPLACE;
-		ins_char(cap->nchar);
+		if (cap->nchar == Ctrl_E || cap->nchar == Ctrl_Y)
+		{
+		    int c = ins_copychar(curwin->w_cursor.lnum
+					   + (cap->nchar == Ctrl_Y ? -1 : 1));
+		    if (c != NUL)
+			ins_char(c);
+		    else
+			/* will be decremented further down */
+			++curwin->w_cursor.col;
+		}
+		else
+		    ins_char(cap->nchar);
 		State = old_State;
 		if (cap->ncharC1 != 0)
 		    ins_char(cap->ncharC1);
@@ -7092,7 +7103,15 @@ nv_replace(cap)
 		 * line will be changed.
 		 */
 		ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
-		ptr[curwin->w_cursor.col] = cap->nchar;
+		if (cap->nchar == Ctrl_E || cap->nchar == Ctrl_Y)
+		{
+		  int c = ins_copychar(curwin->w_cursor.lnum
+					   + (cap->nchar == Ctrl_Y ? -1 : 1));
+		  if (c != NUL)
+		    ptr[curwin->w_cursor.col] = c;
+		}
+		else
+		    ptr[curwin->w_cursor.col] = cap->nchar;
 		if (p_sm && msg_silent == 0)
 		    showmatch(cap->nchar);
 		++curwin->w_cursor.col;
@@ -7641,13 +7660,9 @@ nv_visual(cap)
     else		    /* start Visual mode */
     {
 	check_visual_highlight();
-	if (cap->count0)		    /* use previously selected part */
+	if (cap->count0 > 0 && resel_VIsual_mode != NUL)
 	{
-	    if (resel_VIsual_mode == NUL)   /* there is none */
-	    {
-		beep_flush();
-		return;
-	    }
+	    /* use previously selected part */
 	    VIsual = curwin->w_cursor;
 
 	    VIsual_active = TRUE;
@@ -7706,6 +7721,16 @@ nv_visual(cap)
 		/* start Select mode when 'selectmode' contains "cmd" */
 		may_start_select('c');
 	    n_start_visual_mode(cap->cmdchar);
+	    if (VIsual_mode != 'V' && *p_sel == 'e')
+		++cap->count1;  /* include one more char */
+	    if (cap->count0 > 0 && --cap->count1 > 0)
+	    {
+		/* With a count select that many characters or lines. */
+		if (VIsual_mode == 'v' || VIsual_mode == Ctrl_V)
+		    nv_right(cap);
+		else if (VIsual_mode == 'V')
+		    nv_down(cap);
+	    }
 	}
     }
 }
@@ -9299,7 +9324,7 @@ nv_join(cap)
 	{
 	    prep_redo(cap->oap->regname, cap->count0,
 			 NUL, cap->cmdchar, NUL, NUL, cap->nchar);
-	    (void)do_join(cap->count0, cap->nchar == NUL, TRUE);
+	    (void)do_join(cap->count0, cap->nchar == NUL, TRUE, TRUE);
 	}
     }
 }

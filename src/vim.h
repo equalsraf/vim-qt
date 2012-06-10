@@ -781,6 +781,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EXPAND_FILES_IN_PATH	38
 #define EXPAND_OWNSYNTAX	39
 #define EXPAND_LOCALES		40
+#define EXPAND_HISTORY		41
 
 /* Values for exmode_active (0 is no exmode) */
 #define EXMODE_NORMAL		1
@@ -1263,8 +1264,9 @@ enum auto_event
     EVENT_INSERTENTER,		/* when entering Insert mode */
     EVENT_INSERTLEAVE,		/* when leaving Insert mode */
     EVENT_MENUPOPUP,		/* just before popup menu is displayed */
-    EVENT_QUICKFIXCMDPOST,	/* after :make, :grep etc */
-    EVENT_QUICKFIXCMDPRE,	/* before :make, :grep etc */
+    EVENT_QUICKFIXCMDPOST,	/* after :make, :grep etc. */
+    EVENT_QUICKFIXCMDPRE,	/* before :make, :grep etc. */
+    EVENT_QUITPRE,		/* before :quit */
     EVENT_SESSIONLOADPOST,	/* after loading a session file */
     EVENT_STDINREADPOST,	/* after reading from stdin */
     EVENT_STDINREADPRE,		/* before reading from stdin */
@@ -1702,6 +1704,8 @@ int vim_memcmp __ARGS((void *, void *, size_t));
  * character of up to 6 bytes, or one 16-bit character of up to three bytes
  * plus six following composing characters of three bytes each. */
 # define MB_MAXBYTES	21
+#else
+# define MB_MAXBYTES	1
 #endif
 
 #if (defined(FEAT_PROFILE) || defined(FEAT_RELTIME)) && !defined(PROTO)
@@ -2016,6 +2020,7 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
  #pragma warning(disable : 4312)
 #endif
 
+/* Note: a NULL argument for vim_realloc() is not portable, don't use it. */
 #if defined(MEM_PROFILE)
 # define vim_realloc(ptr, size)  mem_realloc((ptr), (size))
 #else

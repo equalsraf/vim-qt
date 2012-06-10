@@ -622,6 +622,9 @@ static void f_localtime __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_log __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_log10 __ARGS((typval_T *argvars, typval_T *rettv));
 #endif
+#ifdef FEAT_LUA
+static void f_luaeval __ARGS((typval_T *argvars, typval_T *rettv));
+#endif
 static void f_map __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_maparg __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_mapcheck __ARGS((typval_T *argvars, typval_T *rettv));
@@ -877,6 +880,7 @@ eval_init()
 	    hash_add(&compat_hashtab, p->vv_di.di_key);
     }
     set_vim_var_nr(VV_SEARCHFORWARD, 1L);
+    set_reg_var(0);  /* default for v:register is not 0 but '"' */
 
 #ifdef EBCDIC
     /*
@@ -6777,6 +6781,10 @@ garbage_collect()
     /* v: vars */
     set_ref_in_ht(&vimvarht, copyID);
 
+#ifdef FEAT_LUA
+    set_ref_in_lua(copyID);
+#endif
+
     /*
      * 2. Free lists and dictionaries that are not referenced.
      */
@@ -7945,6 +7953,9 @@ static struct fst
 #ifdef FEAT_FLOAT
     {"log",		1, 1, f_log},
     {"log10",		1, 1, f_log10},
+#endif
+#ifdef FEAT_LUA
+    {"luaeval",         1, 2, f_luaeval},
 #endif
     {"map",		2, 2, f_map},
     {"maparg",		1, 4, f_maparg},
@@ -10180,7 +10191,7 @@ f_extend(argvars, rettv)
 			EMSG2(_("E737: Key already exists: %s"), hi2->hi_key);
 			break;
 		    }
-		    else if (*action == 'f')
+		    else if (*action == 'f' && HI2DI(hi2) != di1)
 		    {
 			clear_tv(&di1->di_tv);
 			copy_tv(&HI2DI(hi2)->di_tv, &di1->di_tv);
@@ -12080,7 +12091,7 @@ f_has(argvars, rettv)
 #ifdef FEAT_SEARCHPATH
 	"file_in_path",
 #endif
-#if (defined(UNIX) && !defined(USE_SYSTEM)) || defined(WIN3264)
+#ifdef FEAT_FILTERPIPE
 	"filterpipe",
 #endif
 #ifdef FEAT_FIND_ID
@@ -13626,6 +13637,23 @@ f_log10(argvars, rettv)
 }
 #endif
 
+#ifdef FEAT_LUA
+/*
+ * "luaeval()" function
+ */
+    static void
+f_luaeval(argvars, rettv)
+    typval_T	*argvars;
+    typval_T	*rettv;
+{
+    char_u	*str;
+    char_u	buf[NUMBUFLEN];
+
+    str = get_tv_string_buf(&argvars[0], buf);
+    do_luaeval(str, argvars + 1, rettv);
+}
+#endif
+
 /*
  * "map()" function
  */
@@ -14615,7 +14643,9 @@ f_readfile(argvars, rettv)
 		    long growmin  = (long)((p - start) * 2 + prevlen);
 		    prevsize = grow50pc > growmin ? grow50pc : growmin;
 		}
-		if ((newprev = vim_realloc(prev, prevsize)) == NULL)
+		newprev = prev == NULL ? alloc(prevsize)
+						: vim_realloc(prev, prevsize);
+		if (newprev == NULL)
 		{
 		    do_outofmem_msg((long_u)prevsize);
 		    failed = TRUE;
@@ -18231,11 +18261,21 @@ f_undofile(argvars, rettv)
     rettv->v_type = VAR_STRING;
 #ifdef FEAT_PERSISTENT_UNDO
     {
-	char_u *ffname = FullName_save(get_tv_string(&argvars[0]), FALSE);
+	char_u *fname = get_tv_string(&argvars[0]);
 
-	if (ffname != NULL)
-	    rettv->vval.v_string = u_get_undo_file_name(ffname, FALSE);
-	vim_free(ffname);
+	if (*fname == NUL)
+	{
+	    /* If there is no file name there will be no undo file. */
+	    rettv->vval.v_string = NULL;
+	}
+	else
+	{
+	    char_u *ffname = FullName_save(fname, FALSE);
+
+	    if (ffname != NULL)
+		rettv->vval.v_string = u_get_undo_file_name(ffname, FALSE);
+	    vim_free(ffname);
+	}
     }
 #else
     rettv->vval.v_string = NULL;
@@ -18467,9 +18507,7 @@ f_winrestview(argvars, rettv)
 	curwin->w_skipcol = get_dict_number(dict, (char_u *)"skipcol");
 
 	check_cursor();
-	changed_cline_bef_curs();
-	invalidate_botline();
-	redraw_later(VALID);
+	changed_window_setting();
 
 	if (curwin->w_topline == 0)
 	    curwin->w_topline = 1;
@@ -19130,11 +19168,7 @@ get_vim_var_list(idx)
 set_vim_var_char(c)
     int c;
 {
-#ifdef FEAT_MBYTE
-    char_u	buf[MB_MAXBYTES];
-#else
-    char_u	buf[2];
-#endif
+    char_u	buf[MB_MAXBYTES + 1];
 
 #ifdef FEAT_MBYTE
     if (has_mbyte)

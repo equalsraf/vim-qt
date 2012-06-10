@@ -3920,7 +3920,15 @@ set_one_cmd_context(xp, buff)
 #endif
 	case CMD_behave:
 	    xp->xp_context = EXPAND_BEHAVE;
+	    xp->xp_pattern = arg;
 	    break;
+
+#if defined(FEAT_CMDHIST)
+	case CMD_history:
+	    xp->xp_context = EXPAND_HISTORY;
+	    xp->xp_pattern = arg;
+	    break;
+#endif
 
 #endif /* FEAT_CMDL_COMPL */
 
@@ -5329,6 +5337,7 @@ static struct
 } command_complete[] =
 {
     {EXPAND_AUGROUP, "augroup"},
+    {EXPAND_BEHAVE, "behave"},
     {EXPAND_BUFFERS, "buffer"},
     {EXPAND_COLORS, "color"},
     {EXPAND_COMMANDS, "command"},
@@ -5350,8 +5359,11 @@ static struct
     {EXPAND_FUNCTIONS, "function"},
     {EXPAND_HELP, "help"},
     {EXPAND_HIGHLIGHT, "highlight"},
+#if defined(FEAT_CMDHIST)
+    {EXPAND_HISTORY, "history"},
+#endif
 #if (defined(HAVE_LOCALE_H) || defined(X_LOCALE)) \
-        && (defined(FEAT_GETTEXT) || defined(FEAT_MBYTE))
+	&& (defined(FEAT_GETTEXT) || defined(FEAT_MBYTE))
     {EXPAND_LOCALES, "locale"},
 #endif
     {EXPAND_MAPPINGS, "mapping"},
@@ -6446,7 +6458,10 @@ ex_quit(eap)
 	return;
     }
 #ifdef FEAT_AUTOCMD
-    if (curbuf_locked())
+    apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
+    /* Refuse to quick when locked or when the buffer in the last window is
+     * being closed (can only happen in autocommands). */
+    if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
 	return;
 #endif
 
@@ -8533,7 +8548,7 @@ ex_join(eap)
 	}
 	++eap->line2;
     }
-    (void)do_join(eap->line2 - eap->line1 + 1, !eap->forceit, TRUE);
+    (void)do_join(eap->line2 - eap->line1 + 1, !eap->forceit, TRUE, TRUE);
     beginline(BL_WHITE | BL_FIX);
     ex_may_print(eap);
 }

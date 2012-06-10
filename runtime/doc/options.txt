@@ -1,4 +1,4 @@
-*options.txt*	For Vim version 7.3.  Last change: 2012 Mar 28
+*options.txt*	For Vim version 7.3.  Last change: 2012 May 16
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -744,7 +744,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	- Reset the 'rightleft' option.
 	- Disable the use of 'keymap' (without changing its value).
 	Note that 'arabicshape' and 'delcombine' are not reset (it is a global
-	option.
+	option).
 	Also see |arabic.txt|.
 
 					*'arabicshape'* *'arshape'*
@@ -1046,6 +1046,11 @@ A jump table for the options with a short description can be found at |Q_op|.
 	Watch out for special characters, see |option-backslash|.
 	When $TMPDIR, $TMP or $TEMP is not defined, it is not used for the
 	default value.  "/tmp/*" is only used for Unix.
+
+	WARNING: Not having a backup file means that when Vim fails to write
+	your buffer correctly and then, for whatever reason, Vim exits, you
+	lose both the original file and what you were writing.  Only disable
+	backups if you don't care about losing the file.
 
 	Note that environment variables are not expanded.  If you want to use
 	$HOME you must expand it explicitly, e.g.: >
@@ -2125,7 +2130,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 			and the cursor is right in front of the searched
 			character, the cursor won't move. When not included,
 			the cursor would skip over it and jump to the
-			following occurence.
+			following occurrence.
 
 	POSIX flags.  These are not included in the Vi default value, except
 	when $VIM_POSIX was set on startup. |posix|
@@ -6294,7 +6299,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	Override the 'ignorecase' option if the search pattern contains upper
 	case characters.  Only used when the search pattern is typed and
 	'ignorecase' option is on.  Used for the commands "/", "?", "n", "N",
-	":g" and ":s".  Not used for "*", "#", "gd", tag search, etc..  After
+	":g" and ":s".  Not used for "*", "#", "gd", tag search, etc.  After
 	"*" and "#" you can make 'smartcase' used by doing a "/" command,
 	recalling the search pattern from history and hitting <Enter>.
 	NOTE: This option is reset when 'compatible' is set.
@@ -7119,8 +7124,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	the file should contain words with similar meaning, separated by
 	non-keyword characters (white space is preferred).  Maximum line
 	length is 510 bytes.
-	To obtain a file to be used here, check out the wordlist FAQ at
-	http://www.hyphenologist.co.uk .
+	To obtain a file to be used here, check out this ftp site:
+	ftp://ftp.ox.ac.uk/pub/wordlists/  First get the README file.
 	To include a comma in a file name precede it with a backslash.  Spaces
 	after a comma are ignored, otherwise spaces are included in the file
 	name.  See |option-backslash| about using backslashes.
@@ -8140,8 +8145,13 @@ A jump table for the options with a short description can be found at |Q_op|.
 			{not in Vi}
 	Make a backup before overwriting a file.  The backup is removed after
 	the file was successfully written, unless the 'backup' option is
-	also on.  Reset this option if your file system is almost full.  See
-	|backup-table| for another explanation.
+	also on.
+	WARNING: Switching this option off means that when Vim fails to write
+	your buffer correctly and then, for whatever reason, Vim exits, you
+	lose both the original file and what you were writing.  Only reset
+	this option if your file system is almost full and it makes the write
+	fail (and make sure not to exit Vim until the write was successful).
+	See |backup-table| for another explanation.
 	When the 'backupskip' pattern matches, a backup is not made anyway.
 	NOTE: This option is set to the default value when 'compatible' is
 	set.

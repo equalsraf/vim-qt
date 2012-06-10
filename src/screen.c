@@ -3228,8 +3228,7 @@ win_line(wp, lnum, startrow, endrow, nochange)
 		/* no bad word found at line start, don't check until end of a
 		 * word */
 		spell_hlf = HLF_COUNT;
-		word_end = (int)(spell_to_word_end(ptr, wp)
-								  - line + 1);
+		word_end = (int)(spell_to_word_end(ptr, wp) - line + 1);
 	    }
 	    else
 	    {
@@ -6621,16 +6620,17 @@ screen_putchar(c, row, col, attr)
     int	    row, col;
     int	    attr;
 {
-#ifdef FEAT_MBYTE
     char_u	buf[MB_MAXBYTES + 1];
 
-    buf[(*mb_char2bytes)(c, buf)] = NUL;
-#else
-    char_u	buf[2];
-
-    buf[0] = c;
-    buf[1] = NUL;
+#ifdef FEAT_MBYTE
+    if (has_mbyte)
+	buf[(*mb_char2bytes)(c, buf)] = NUL;
+    else
 #endif
+    {
+	buf[0] = c;
+	buf[1] = NUL;
+    }
     screen_puts(buf, row, col, attr);
 }
 

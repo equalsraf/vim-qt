@@ -2655,10 +2655,6 @@ failed:
     }
 #endif
 
-    /* Reset now, following writes should not omit the EOL.  Also, the line
-     * number will become invalid because of edits. */
-    curbuf->b_no_eol_lnum = 0;
-
     if (recoverymode && error)
 	return FAIL;
     return OK;
@@ -5097,6 +5093,8 @@ nofail:
 #endif
     {
 	aco_save_T	aco;
+
+	curbuf->b_no_eol_lnum = 0;  /* in case it was set by the previous read */
 
 	/*
 	 * Apply POST autocommands.
@@ -7680,6 +7678,7 @@ static struct event_name
     {"MenuPopup",	EVENT_MENUPOPUP},
     {"QuickFixCmdPost",	EVENT_QUICKFIXCMDPOST},
     {"QuickFixCmdPre",	EVENT_QUICKFIXCMDPRE},
+    {"QuitPre",		EVENT_QUITPRE},
     {"RemoteReply",	EVENT_REMOTEREPLY},
     {"SessionLoadPost",	EVENT_SESSIONLOADPOST},
     {"ShellCmdPost",	EVENT_SHELLCMDPOST},
@@ -8984,6 +8983,10 @@ win_found:
 		    && buf_valid(aco->new_curbuf)
 		    && aco->new_curbuf->b_ml.ml_mfp != NULL)
 	    {
+# if defined(FEAT_SYN_HL) || defined(FEAT_SPELL)
+		if (curwin->w_s == &curbuf->b_s)
+		    curwin->w_s = &aco->new_curbuf->b_s;
+# endif
 		--curbuf->b_nwindows;
 		curbuf = aco->new_curbuf;
 		curwin->w_buffer = curbuf;

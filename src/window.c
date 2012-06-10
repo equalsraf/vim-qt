@@ -23,6 +23,7 @@ static void win_rotate __ARGS((int, int));
 static void win_totop __ARGS((int size, int flags));
 static void win_equal_rec __ARGS((win_T *next_curwin, int current, frame_T *topfr, int dir, int col, int row, int width, int height));
 static int last_window __ARGS((void));
+static int close_last_window_tabpage __ARGS((win_T *win, int free_buf, tabpage_T *prev_curtab));
 static win_T *win_free_mem __ARGS((win_T *win, int *dirp, tabpage_T *tp));
 static frame_T *win_altframe __ARGS((win_T *win, tabpage_T *tp));
 static tabpage_T *alt_tabpage __ARGS((void));
@@ -2033,7 +2034,11 @@ close_windows(buf, keep_curwin)
 
     for (wp = firstwin; wp != NULL && lastwin != firstwin; )
     {
-	if (wp->w_buffer == buf && (!keep_curwin || wp != curwin))
+	if (wp->w_buffer == buf && (!keep_curwin || wp != curwin)
+#ifdef FEAT_AUTOCMD
+		&& !(wp->w_closing || wp->w_buffer->b_closing)
+#endif
+		)
 	{
 	    win_close(wp, FALSE);
 
@@ -2050,7 +2055,11 @@ close_windows(buf, keep_curwin)
 	nexttp = tp->tp_next;
 	if (tp != curtab)
 	    for (wp = tp->tp_firstwin; wp != NULL; wp = wp->w_next)
-		if (wp->w_buffer == buf)
+		if (wp->w_buffer == buf
+#ifdef FEAT_AUTOCMD
+		    && !(wp->w_closing || wp->w_buffer->b_closing)
+#endif
+		    )
 		{
 		    win_close_othertab(wp, FALSE, tp);
 
@@ -2105,6 +2114,42 @@ one_window()
 }
 
 /*
+ * Close the possibly last window in a tab page.
+ * Returns TRUE when the window was closed already.
+ */
+    static int
+close_last_window_tabpage(win, free_buf, prev_curtab)
+    win_T	*win;
+    int		free_buf;
+    tabpage_T   *prev_curtab;
+{
+    if (firstwin == lastwin)
+    {
+	/*
+	 * Closing the last window in a tab page.  First go to another tab
+	 * page and then close the window and the tab page.  This avoids that
+	 * curwin and curtab are invalid while we are freeing memory, they may
+	 * be used in GUI events.
+	 */
+	goto_tabpage_tp(alt_tabpage());
+	redraw_tabline = TRUE;
+
+	/* Safety check: Autocommands may have closed the window when jumping
+	 * to the other tab page. */
+	if (valid_tabpage(prev_curtab) && prev_curtab->tp_firstwin == win)
+	{
+	    int	    h = tabline_height();
+
+	    win_close_othertab(win, free_buf, prev_curtab);
+	    if (h != tabline_height())
+		shell_new_rows();
+	}
+	return TRUE;
+    }
+    return FALSE;
+}
+
+/*
  * Close window "win".  Only works for the current tab page.
  * If "free_buf" is TRUE related buffer may be unloaded.
  *
@@ -2131,6 +2176,8 @@ win_close(win, free_buf)
     }
 
 #ifdef FEAT_AUTOCMD
+    if (win->w_closing || win->w_buffer->b_closing)
+	return; /* window is already being closed */
     if (win == aucmd_win)
     {
 	EMSG(_("E813: Cannot close autocmd window"));
@@ -2143,29 +2190,11 @@ win_close(win, free_buf)
     }
 #endif
 
-    /*
-     * When closing the last window in a tab page first go to another tab
-     * page and then close the window and the tab page.  This avoids that
-     * curwin and curtab are not invalid while we are freeing memory, they may
-     * be used in GUI events.
-     */
-    if (firstwin == lastwin)
-    {
-	goto_tabpage_tp(alt_tabpage());
-	redraw_tabline = TRUE;
-
-	/* Safety check: Autocommands may have closed the window when jumping
-	 * to the other tab page. */
-	if (valid_tabpage(prev_curtab) && prev_curtab->tp_firstwin == win)
-	{
-	    int	    h = tabline_height();
-
-	    win_close_othertab(win, free_buf, prev_curtab);
-	    if (h != tabline_height())
-		shell_new_rows();
-	}
-	return;
-    }
+    /* When closing the last window in a tab page first go to another tab page
+     * and then close the window and the tab page to avoid that curwin and
+     * curtab are invalid while we are freeing memory. */
+    if (close_last_window_tabpage(win, free_buf, prev_curtab))
+      return;
 
     /* When closing the help window, try restoring a snapshot after closing
      * the window.  Otherwise clear the snapshot, it's now invalid. */
@@ -2184,17 +2213,26 @@ win_close(win, free_buf)
 	wp = frame2win(win_altframe(win, NULL));
 
 	/*
-	 * Be careful: If autocommands delete the window, return now.
+	 * Be careful: If autocommands delete the window or cause this window
+	 * to be the last one left, return now.
 	 */
 	if (wp->w_buffer != curbuf)
 	{
 	    other_buffer = TRUE;
+	    win->w_closing = TRUE;
 	    apply_autocmds(EVENT_BUFLEAVE, NULL, NULL, FALSE, curbuf);
-	    if (!win_valid(win) || last_window())
+	    if (!win_valid(win))
+		return;
+	    win->w_closing = FALSE;
+	    if (last_window())
 		return;
 	}
+	win->w_closing = TRUE;
 	apply_autocmds(EVENT_WINLEAVE, NULL, NULL, FALSE, curbuf);
-	if (!win_valid(win) || last_window())
+	if (!win_valid(win))
+	    return;
+	win->w_closing = FALSE;
+	if (last_window())
 	    return;
 # ifdef FEAT_EVAL
 	/* autocmds may abort script processing */
@@ -2221,11 +2259,21 @@ win_close(win, free_buf)
      * Close the link to the buffer.
      */
     if (win->w_buffer != NULL)
-	close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, TRUE);
+    {
+#ifdef FEAT_AUTOCMD
+	win->w_closing = TRUE;
+#endif
+	close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, FALSE);
+#ifdef FEAT_AUTOCMD
+	if (win_valid(win))
+	    win->w_closing = FALSE;
+#endif
+    }
 
     /* Autocommands may have closed the window already, or closed the only
      * other window or moved to another tab page. */
-    if (!win_valid(win) || last_window() || curtab != prev_curtab)
+    if (!win_valid(win) || last_window() || curtab != prev_curtab
+	    || close_last_window_tabpage(win, free_buf, prev_curtab))
 	return;
 
     /* Free the memory used for the window and get the window that received
@@ -2310,7 +2358,7 @@ win_close(win, free_buf)
 
 /*
  * Close window "win" in tab page "tp", which is not the current tab page.
- * This may be the last window ih that tab page and result in closing the tab,
+ * This may be the last window in that tab page and result in closing the tab,
  * thus "tp" may become invalid!
  * Caller must check if buffer is hidden and whether the tabline needs to be
  * updated.
@@ -2325,6 +2373,11 @@ win_close_othertab(win, free_buf, tp)
     int		dir;
     tabpage_T   *ptp = NULL;
     int		free_tp = FALSE;
+
+#ifdef FEAT_AUTOCMD
+    if (win->w_closing || win->w_buffer->b_closing)
+	return; /* window is already being closed */
+#endif
 
     /* Close the link to the buffer. */
     close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, FALSE);

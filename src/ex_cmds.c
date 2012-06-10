@@ -25,7 +25,6 @@ static int viminfo_encoding __ARGS((vir_T *virp));
 static int read_viminfo_up_to_marks __ARGS((vir_T *virp, int forceit, int writing));
 #endif
 
-static int check_overwrite __ARGS((exarg_T *eap, buf_T *buf, char_u *fname, char_u *ffname, int other));
 static int check_readonly __ARGS((int *forceit, buf_T *buf));
 #ifdef FEAT_AUTOCMD
 static void delbuf_msg __ARGS((char_u *name));
@@ -1113,7 +1112,7 @@ do_filter(line1, line2, eap, cmd, do_in, do_out)
     if (do_out)
 	shell_flags |= SHELL_DOOUT;
 
-#if (!defined(USE_SYSTEM) && defined(UNIX)) || defined(WIN3264)
+#ifdef FEAT_FILTERPIPE
     if (!do_in && do_out && !p_stmp)
     {
 	/* Use a pipe to fetch stdout of the command, do not use a temp file. */
@@ -2722,7 +2721,7 @@ theend:
  * May set eap->forceit if a dialog says it's OK to overwrite.
  * Return OK if it's OK, FAIL if it is not.
  */
-    static int
+    int
 check_overwrite(eap, buf, fname, ffname, other)
     exarg_T	*eap;
     buf_T	*buf;
@@ -3421,7 +3420,7 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 		     * and re-attach to buffer, perhaps.
 		     */
 		    if (curwin->w_s == &(curwin->w_buffer->b_s))
-			    curwin->w_s = &(buf->b_s);
+			curwin->w_s = &(buf->b_s);
 #endif
 		    curwin->w_buffer = buf;
 		    curbuf = buf;
@@ -5546,7 +5545,7 @@ ex_help(eap)
 	}
 	arg = eap->arg;
 
-	if (eap->forceit && *arg == NUL)
+	if (eap->forceit && *arg == NUL && !curbuf->b_help)
 	{
 	    EMSG(_("E478: Don't panic!"));
 	    return;
@@ -5965,6 +5964,29 @@ find_help_tags(arg, num_matches, matches, keep_lang)
 		break;
 	  }
 	  *d = NUL;
+
+	  if (*IObuff == '`')
+	  {
+	      if (d > IObuff + 2 && d[-1] == '`')
+	      {
+		  /* remove the backticks from `command` */
+		  mch_memmove(IObuff, IObuff + 1, STRLEN(IObuff));
+		  d[-2] = NUL;
+	      }
+	      else if (d > IObuff + 3 && d[-2] == '`' && d[-1] == ',')
+	      {
+		  /* remove the backticks and comma from `command`, */
+		  mch_memmove(IObuff, IObuff + 1, STRLEN(IObuff));
+		  d[-3] = NUL;
+	      }
+	      else if (d > IObuff + 4 && d[-3] == '`'
+					     && d[-2] == '\\' && d[-1] == '.')
+	      {
+		  /* remove the backticks and dot from `command`\. */
+		  mch_memmove(IObuff, IObuff + 1, STRLEN(IObuff));
+		  d[-4] = NUL;
+	      }
+	  }
 	}
     }
 
@@ -6513,7 +6535,10 @@ helptags_one(dir, ext, tagfname, add_help_tags)
 	    p1 = vim_strchr(IObuff, '*');	/* find first '*' */
 	    while (p1 != NULL)
 	    {
-		p2 = vim_strchr(p1 + 1, '*');	/* find second '*' */
+		/* Use vim_strbyte() instead of vim_strchr() so that when
+		 * 'encoding' is dbcs it still works, don't find '*' in the
+		 * second byte. */
+		p2 = vim_strbyte(p1 + 1, '*');	/* find second '*' */
 		if (p2 != NULL && p2 > p1 + 1)	/* skip "*" and "**" */
 		{
 		    for (s = p1 + 1; s < p2; ++s)

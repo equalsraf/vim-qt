@@ -671,7 +671,7 @@ open_line(dir, flags, old_indent)
 	    ptr = saved_line;
 # ifdef FEAT_COMMENTS
 	    if (flags & OPENLINE_DO_COM)
-		lead_len = get_leader_len(ptr, NULL, FALSE);
+		lead_len = get_leader_len(ptr, NULL, FALSE, TRUE);
 	    else
 		lead_len = 0;
 # endif
@@ -693,7 +693,7 @@ open_line(dir, flags, old_indent)
 		}
 # ifdef FEAT_COMMENTS
 		if (flags & OPENLINE_DO_COM)
-		    lead_len = get_leader_len(ptr, NULL, FALSE);
+		    lead_len = get_leader_len(ptr, NULL, FALSE, TRUE);
 		else
 		    lead_len = 0;
 		if (lead_len > 0)
@@ -836,7 +836,7 @@ open_line(dir, flags, old_indent)
      */
     end_comment_pending = NUL;
     if (flags & OPENLINE_DO_COM)
-	lead_len = get_leader_len(saved_line, &lead_flags, dir == BACKWARD);
+	lead_len = get_leader_len(saved_line, &lead_flags, dir == BACKWARD, TRUE);
     else
 	lead_len = 0;
     if (lead_len > 0)
@@ -1548,14 +1548,18 @@ theend:
  * When "flags" is not NULL, it is set to point to the flags of the recognized
  * comment leader.
  * "backward" must be true for the "O" command.
+ * If "include_space" is set, include trailing whitespace while calculating the
+ * length.
  */
     int
-get_leader_len(line, flags, backward)
+get_leader_len(line, flags, backward, include_space)
     char_u	*line;
     char_u	**flags;
     int		backward;
+    int		include_space;
 {
     int		i, j;
+    int		result;
     int		got_com = FALSE;
     int		found_one;
     char_u	part_buf[COM_MAX_LEN];	/* buffer for one option part */
@@ -1565,7 +1569,7 @@ get_leader_len(line, flags, backward)
     char_u	*prev_list;
     char_u	*saved_flags = NULL;
 
-    i = 0;
+    result = i = 0;
     while (vim_iswhite(line[i]))    /* leading white space is ignored */
 	++i;
 
@@ -1668,17 +1672,167 @@ get_leader_len(line, flags, backward)
 	if (!found_one)
 	    break;
 
+	result = i;
+
 	/* Include any trailing white space. */
 	while (vim_iswhite(line[i]))
 	    ++i;
+
+	if (include_space)
+	    result = i;
 
 	/* If this comment doesn't nest, stop here. */
 	got_com = TRUE;
 	if (vim_strchr(part_buf, COM_NEST) == NULL)
 	    break;
     }
+    return result;
+}
 
-    return (got_com ? i : 0);
+/*
+ * Return the offset at which the last comment in line starts. If there is no
+ * comment in the whole line, -1 is returned.
+ *
+ * When "flags" is not null, it is set to point to the flags describing the
+ * recognized comment leader.
+ */
+    int
+get_last_leader_offset(line, flags)
+    char_u	*line;
+    char_u	**flags;
+{
+    int		result = -1;
+    int		i, j;
+    int		lower_check_bound = 0;
+    char_u	*string;
+    char_u	*com_leader;
+    char_u	*com_flags;
+    char_u	*list;
+    int		found_one;
+    char_u	part_buf[COM_MAX_LEN];	/* buffer for one option part */
+
+    /*
+     * Repeat to match several nested comment strings.
+     */
+    i = (int)STRLEN(line);
+    while (--i >= lower_check_bound)
+    {
+	/*
+	 * scan through the 'comments' option for a match
+	 */
+	found_one = FALSE;
+	for (list = curbuf->b_p_com; *list; )
+	{
+	    char_u *flags_save = list;
+
+	    /*
+	     * Get one option part into part_buf[].  Advance list to next one.
+	     * put string at start of string.
+	     */
+	    (void)copy_option_part(&list, part_buf, COM_MAX_LEN, ",");
+	    string = vim_strchr(part_buf, ':');
+	    if (string == NULL)	/* If everything is fine, this cannot actually
+				 * happen. */
+	    {
+		continue;
+	    }
+	    *string++ = NUL;	/* Isolate flags from string. */
+	    com_leader = string;
+
+	    /*
+	     * Line contents and string must match.
+	     * When string starts with white space, must have some white space
+	     * (but the amount does not need to match, there might be a mix of
+	     * TABs and spaces).
+	     */
+	    if (vim_iswhite(string[0]))
+	    {
+		if (i == 0 || !vim_iswhite(line[i - 1]))
+		    continue;
+		while (vim_iswhite(string[0]))
+		    ++string;
+	    }
+	    for (j = 0; string[j] != NUL && string[j] == line[i + j]; ++j)
+		/* do nothing */;
+	    if (string[j] != NUL)
+		continue;
+
+	    /*
+	     * When 'b' flag used, there must be white space or an
+	     * end-of-line after the string in the line.
+	     */
+	    if (vim_strchr(part_buf, COM_BLANK) != NULL
+		    && !vim_iswhite(line[i + j]) && line[i + j] != NUL)
+	    {
+		continue;
+	    }
+
+	    /*
+	     * We have found a match, stop searching.
+	     */
+	    found_one = TRUE;
+
+	    if (flags)
+		*flags = flags_save;
+	    com_flags = flags_save;
+
+	    break;
+	}
+
+	if (found_one)
+	{
+	    char_u  part_buf2[COM_MAX_LEN];	/* buffer for one option part */
+	    int     len1, len2, off;
+
+	    result = i;
+	    /*
+	     * If this comment nests, continue searching.
+	     */
+	    if (vim_strchr(part_buf, COM_NEST) != NULL)
+		continue;
+
+	    lower_check_bound = i;
+
+	    /* Let's verify whether the comment leader found is a substring
+	     * of other comment leaders. If it is, let's adjust the
+	     * lower_check_bound so that we make sure that we have determined
+	     * the comment leader correctly.
+	     */
+
+	    while (vim_iswhite(*com_leader))
+		++com_leader;
+	    len1 = (int)STRLEN(com_leader);
+
+	    for (list = curbuf->b_p_com; *list; )
+	    {
+		char_u *flags_save = list;
+
+		(void)copy_option_part(&list, part_buf2, COM_MAX_LEN, ",");
+		if (flags_save == com_flags)
+		    continue;
+		string = vim_strchr(part_buf2, ':');
+		++string;
+		while (vim_iswhite(*string))
+		    ++string;
+		len2 = (int)STRLEN(string);
+		if (len2 == 0)
+		    continue;
+
+		/* Now we have to verify whether string ends with a substring
+		 * beginning the com_leader. */
+		for (off = (len2 > i ? i : len2); off > 0 && off + len1 > len2;)
+		{
+		    --off;
+		    if (!STRNCMP(string + off, com_leader, len2 - off))
+		    {
+			if (i - off < lower_check_bound)
+			    lower_check_bound = i - off;
+		    }
+		}
+	    }
+	}
+    }
+    return result;
 }
 #endif
 
@@ -1932,7 +2086,7 @@ ins_char(c)
     int		c;
 {
 #if defined(FEAT_MBYTE) || defined(PROTO)
-    char_u	buf[MB_MAXBYTES];
+    char_u	buf[MB_MAXBYTES + 1];
     int		n;
 
     n = (*mb_char2bytes)(c, buf);
@@ -4972,6 +5126,7 @@ static int	cin_isif __ARGS((char_u *));
 static int	cin_iselse __ARGS((char_u *));
 static int	cin_isdo __ARGS((char_u *));
 static int	cin_iswhileofdo __ARGS((char_u *, linenr_T, int));
+static int	cin_is_if_for_while_before_offset __ARGS((char_u *line, int *poffset));
 static int	cin_iswhileofdo_end __ARGS((int terminated, int	ind_maxparen, int ind_maxcomment));
 static int	cin_isbreak __ARGS((char_u *));
 static int	cin_is_cpp_baseclass __ARGS((colnr_T *col));
@@ -5771,6 +5926,52 @@ cin_iswhileofdo(p, lnum, ind_maxparen)	    /* XXX */
 }
 
 /*
+ * Check whether in "p" there is an "if", "for" or "while" before "*poffset".
+ * Return 0 if there is none.
+ * Otherwise return !0 and update "*poffset" to point to the place where the
+ * string was found.
+ */
+    static int
+cin_is_if_for_while_before_offset(line, poffset)
+    char_u *line;
+    int    *poffset;
+{
+    int offset = *poffset;
+
+    if (offset-- < 2)
+	return 0;
+    while (offset > 2 && vim_iswhite(line[offset]))
+	--offset;
+
+    offset -= 1;
+    if (!STRNCMP(line + offset, "if", 2))
+	goto probablyFound;
+
+    if (offset >= 1)
+    {
+	offset -= 1;
+	if (!STRNCMP(line + offset, "for", 3))
+	    goto probablyFound;
+
+	if (offset >= 2)
+	{
+	    offset -= 2;
+	    if (!STRNCMP(line + offset, "while", 5))
+		goto probablyFound;
+	}
+    }
+    return 0;
+
+probablyFound:
+    if (!offset || !vim_isIDc(line[offset - 1]))
+    {
+	*poffset = offset;
+	return 1;
+    }
+    return 0;
+}
+
+/*
  * Return TRUE if we are at the end of a do-while.
  *    do
  *       nothing;
@@ -6124,7 +6325,7 @@ find_start_brace(ind_maxcomment)	    /* XXX */
 
 /*
  * Find the matching '(', failing if it is in a comment.
- * Return NULL of no match found.
+ * Return NULL if no match found.
  */
     static pos_T *
 find_match_paren(ind_maxparen, ind_maxcomment)	    /* XXX */
@@ -6393,6 +6594,12 @@ get_c_indent()
      */
     int ind_cpp_namespace = 0;
 
+    /*
+     * handle continuation lines containing conditions of if(), for() and
+     * while()
+     */
+    int ind_if_for_while = 0;
+
     pos_T	cur_curpos;
     int		amount;
     int		scope_amount;
@@ -6509,6 +6716,7 @@ get_c_indent()
 	    case 'l': ind_keep_case_label = n; break;
 	    case '#': ind_hash_comment = n; break;
 	    case 'N': ind_cpp_namespace = n; break;
+	    case 'k': ind_if_for_while = n; break;
 	}
 	if (*options == ',')
 	    ++options;
@@ -6812,6 +7020,33 @@ get_c_indent()
 	if (amount == -1)
 	{
 	    int	    ignore_paren_col = 0;
+	    int	    is_if_for_while = 0;
+
+	    if (ind_if_for_while)
+	    {
+		/* Look for the outermost opening parenthesis on this line
+		 * and check whether it belongs to an "if", "for" or "while". */
+
+		pos_T	    cursor_save = curwin->w_cursor;
+		pos_T	    outermost;
+		char_u	    *line;
+
+		trypos = &our_paren_pos;
+		do {
+		    outermost = *trypos;
+		    curwin->w_cursor.lnum = outermost.lnum;
+		    curwin->w_cursor.col = outermost.col;
+
+		    trypos = find_match_paren(ind_maxparen, ind_maxcomment);
+		} while (trypos && trypos->lnum == outermost.lnum);
+
+		curwin->w_cursor = cursor_save;
+
+		line = ml_get(outermost.lnum);
+
+		is_if_for_while =
+		    cin_is_if_for_while_before_offset(line, &outermost.col);
+	    }
 
 	    amount = skip_label(our_paren_pos.lnum, &look, ind_maxcomment);
 	    look = skipwhite(look);
@@ -6836,7 +7071,7 @@ get_c_indent()
 		curwin->w_cursor.lnum = save_lnum;
 		look = ml_get(our_paren_pos.lnum) + look_col;
 	    }
-	    if (theline[0] == ')' || ind_unclosed == 0
+	    if (theline[0] == ')' || (ind_unclosed == 0 && is_if_for_while == 0)
 		    || (!ind_unclosed_noignore && *look == '('
 						    && ignore_paren_col == 0))
 	    {
@@ -6907,7 +7142,8 @@ get_c_indent()
 	    {
 		/* Line up with the start of the matching paren line. */
 	    }
-	    else if (ind_unclosed == 0 || (!ind_unclosed_noignore
+	    else if ((ind_unclosed == 0 && is_if_for_while == 0)
+		     || (!ind_unclosed_noignore
 				    && *look == '(' && ignore_paren_col == 0))
 	    {
 		if (cur_amount != MAXCOL)
@@ -6943,7 +7179,12 @@ get_c_indent()
 		    if (find_match_paren(ind_maxparen, ind_maxcomment) != NULL)
 			amount += ind_unclosed2;
 		    else
-			amount += ind_unclosed;
+		    {
+			if (is_if_for_while)
+			    amount += ind_if_for_while;
+			else
+			    amount += ind_unclosed;
+		    }
 		}
 		/*
 		 * For a line starting with ')' use the minimum of the two
@@ -9374,6 +9615,7 @@ unix_expandpath(gap, path, wildoff, flags, didstar)
 
     /*
      * Find the first part in the path name that contains a wildcard.
+     * When EW_ICASE is set every letter is considered to be a wildcard.
      * Copy it into "buf", including the preceding characters.
      */
     p = buf;
@@ -9393,7 +9635,12 @@ unix_expandpath(gap, path, wildoff, flags, didstar)
 	    s = p + 1;
 	}
 	else if (path_end >= path + wildoff
-			 && vim_strchr((char_u *)"*?[{~$", *path_end) != NULL)
+			 && (vim_strchr((char_u *)"*?[{~$", *path_end) != NULL
+#ifndef CASE_INSENSITIVE_FILENAME
+			     || ((flags & EW_ICASE)
+					       && isalpha(PTR2CHAR(path_end)))
+#endif
+			     ))
 	    e = p;
 #ifdef FEAT_MBYTE
 	if (has_mbyte)

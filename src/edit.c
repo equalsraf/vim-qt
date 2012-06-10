@@ -253,7 +253,6 @@ static int  ins_eol __ARGS((int c));
 #ifdef FEAT_DIGRAPHS
 static int  ins_digraph __ARGS((void));
 #endif
-static int  ins_copychar __ARGS((linenr_T lnum));
 static int  ins_ctrl_ey __ARGS((int tc));
 #ifdef FEAT_SMARTINDENT
 static void ins_try_si __ARGS((int c));
@@ -1455,13 +1454,16 @@ normalchar:
 		    Insstart_blank_vcol = get_nolist_virtcol();
 	    }
 
-	    if (vim_iswordc(c) || !echeck_abbr(
+	    /* Insert a normal character and check for abbreviations on a
+	     * special character.  Let CTRL-] expand abbreviations without
+	     * inserting it. */
+	    if (vim_iswordc(c) || (!echeck_abbr(
 #ifdef FEAT_MBYTE
 			/* Add ABBR_OFF for characters above 0x100, this is
 			 * what check_abbr() expects. */
 			(has_mbyte && c >= 0x100) ? (c + ABBR_OFF) :
 #endif
-			c))
+                       c) && c != Ctrl_RSB))
 	    {
 		insert_special(c, FALSE, FALSE);
 #ifdef FEAT_RIGHTLEFT
@@ -1646,11 +1648,7 @@ static int  pc_status;
 #define PC_STATUS_RIGHT	1	/* right halve of double-wide char */
 #define PC_STATUS_LEFT	2	/* left halve of double-wide char */
 #define PC_STATUS_SET	3	/* pc_bytes was filled */
-#ifdef FEAT_MBYTE
 static char_u pc_bytes[MB_MAXBYTES + 1]; /* saved bytes */
-#else
-static char_u pc_bytes[2];		/* saved bytes */
-#endif
 static int  pc_attr;
 static int  pc_row;
 static int  pc_col;
@@ -5203,9 +5201,17 @@ ins_complete(c)
 	    }
 
 	    /* Return value -2 means the user complete function wants to
-	     * cancel the complete without an error. */
+	     * cancel the complete without an error.
+	     * Return value -3 does the same as -2 and leaves CTRL-X mode.*/
 	    if (col == -2)
 		return FAIL;
+	    if (col == -3)
+	    {
+		ctrl_x_mode = 0;
+		edit_submode = NULL;
+		msg_clr_cmdline();
+		return FAIL;
+	    }
 
 	    /*
 	     * Reset extended parameters of completion, when start new
@@ -5841,7 +5847,7 @@ insertchar(c, flags, second_indent)
 	 * Need to remove existing (middle) comment leader and insert end
 	 * comment leader.  First, check what comment leader we can find.
 	 */
-	i = get_leader_len(line = ml_get_curline(), &p, FALSE);
+	i = get_leader_len(line = ml_get_curline(), &p, FALSE, TRUE);
 	if (i > 0 && vim_strchr(p, COM_MIDDLE) != NULL)	/* Just checking */
 	{
 	    /* Skip middle-comment string */
@@ -6079,7 +6085,7 @@ internal_format(textwidth, second_indent, flags, format_only, c)
 
 	/* Don't break until after the comment leader */
 	if (do_comments)
-	    leader_len = get_leader_len(ml_get_curline(), NULL, FALSE);
+	    leader_len = get_leader_len(ml_get_curline(), NULL, FALSE, TRUE);
 	else
 	    leader_len = 0;
 
@@ -6405,7 +6411,7 @@ auto_format(trailblank, prev_line)
     /* With the 'c' flag in 'formatoptions' and 't' missing: only format
      * comments. */
     if (has_format_option(FO_WRAP_COMS) && !has_format_option(FO_WRAP)
-				     && get_leader_len(old, NULL, FALSE) == 0)
+				     && get_leader_len(old, NULL, FALSE, TRUE) == 0)
 	return;
 #endif
 
@@ -6809,11 +6815,7 @@ set_last_insert(c)
     char_u	*s;
 
     vim_free(last_insert);
-#ifdef FEAT_MBYTE
     last_insert = alloc(MB_MAXBYTES * 3 + 5);
-#else
-    last_insert = alloc(6);
-#endif
     if (last_insert != NULL)
     {
 	s = last_insert;
@@ -6851,7 +6853,7 @@ add_char2buf(c, s)
     char_u	*s;
 {
 #ifdef FEAT_MBYTE
-    char_u	temp[MB_MAXBYTES];
+    char_u	temp[MB_MAXBYTES + 1];
     int		i;
     int		len;
 
@@ -7413,7 +7415,7 @@ mb_replace_pop_ins(cc)
     int		cc;
 {
     int		n;
-    char_u	buf[MB_MAXBYTES];
+    char_u	buf[MB_MAXBYTES + 1];
     int		i;
     int		c;
 
@@ -8563,7 +8565,7 @@ ins_del()
     {
 	temp = curwin->w_cursor.col;
 	if (!can_bs(BS_EOL)		/* only if "eol" included */
-		|| do_join(2, FALSE, TRUE) == FAIL)
+		|| do_join(2, FALSE, TRUE, FALSE) == FAIL)
 	    vim_beep();
 	else
 	    curwin->w_cursor.col = temp;
@@ -8744,7 +8746,7 @@ ins_bs(c, mode, inserted_space_p)
 			ptr[len - 1] = NUL;
 		}
 
-		(void)do_join(2, FALSE, FALSE);
+		(void)do_join(2, FALSE, FALSE, FALSE);
 		if (temp == NUL && gchar_cursor() != NUL)
 		    inc_cursor();
 	    }
@@ -9896,7 +9898,7 @@ ins_digraph()
  * Handle CTRL-E and CTRL-Y in Insert mode: copy char from other line.
  * Returns the char to be inserted, or NUL if none found.
  */
-    static int
+    int
 ins_copychar(lnum)
     linenr_T	lnum;
 {
@@ -10098,22 +10100,36 @@ get_nolist_virtcol()
 do_insert_char_pre(c)
     int c;
 {
-    char_u *res;
+    char_u	*res;
+    char_u	buf[MB_MAXBYTES + 1];
 
     /* Return quickly when there is nothing to do. */
     if (!has_insertcharpre())
 	return NULL;
 
+#ifdef FEAT_MBYTE
+    if (has_mbyte)
+	buf[(*mb_char2bytes)(c, buf)] = NUL;
+    else
+#endif
+    {
+	buf[0] = c;
+	buf[1] = NUL;
+    }
+
     /* Lock the text to avoid weird things from happening. */
     ++textlock;
-    set_vim_var_char(c);  /* set v:char */
+    set_vim_var_string(VV_CHAR, buf, -1);  /* set v:char */
 
+    res = NULL;
     if (apply_autocmds(EVENT_INSERTCHARPRE, NULL, NULL, FALSE, curbuf))
-	/* Get the new value of v:char.  It may be empty or more than one
-	 * character. */
-	res = vim_strsave(get_vim_var_str(VV_CHAR));
-    else
-	res = NULL;
+    {
+	/* Get the value of v:char.  It may be empty or more than one
+	 * character.  Only use it when changed, otherwise continue with the
+	 * original character to avoid breaking autoindent. */
+	if (STRCMP(buf, get_vim_var_str(VV_CHAR)) != 0)
+	    res = vim_strsave(get_vim_var_str(VV_CHAR));
+    }
 
     set_vim_var_string(VV_CHAR, NULL, -1);  /* clear v:char */
     --textlock;
