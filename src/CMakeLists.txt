@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 find_package(Qt4 REQUIRED)
 set( QT_USE_QTGUI TRUE )
+set( QT_USE_QTNETWORK TRUE )
 include(${QT_USE_FILE} )
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

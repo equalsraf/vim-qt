@@ -18,7 +18,14 @@
 #include "vimaction.h"
 #include "vimscrollbar.h"
 #include "fontdialog.h"
+
+//
+// Win32 can use its own clientserver
+// implementation
+//
+#if defined(FEAT_CLIENTSERVER) && !defined(QT_OS_WIN32)
 #include "commandserver.h"
+#endif
 
 extern "C" {
 
@@ -574,6 +581,8 @@ gui_mch_init()
 		gui_mch_enter_fullscreen();
 	}
 
+
+#if defined(FEAT_CLIENTSERVER) && !defined(QT_OS_WIN32)
 	//
 	// Client-Server
 	// - Start the server
@@ -594,6 +603,7 @@ gui_mch_init()
 		set_vim_var_string(VV_SEND_SERVER, serverName, -1);
 #endif
 	}
+#endif // FEAT_CLIENTSERVER
 
 	return OK;
 }
@@ -821,9 +831,11 @@ gui_mch_exit(int rc)
 	settings.setValue("state", window->saveState());
 	settings.endGroup();
 
+#if defined(FEAT_CLIENTSERVER) && !defined(QT_OS_WIN32)
 	// Close the Vim server
 	CommandServer *server = CommandServer::getInstance();
 	server->close();
+#endif // FEAT_CLIENTSERVER
 	QApplication::quit();
 }
 
