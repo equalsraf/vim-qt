@@ -46,9 +46,9 @@ VimAction::VimAction(vimmenu_T* menu, QObject *parent)
 			setIcon( VimWrapper::icon(iconNames.at(menu->iconidx)) );
 		}
 
-		setToolTip(QString::fromUtf8((char*) menu->strings[MENU_INDEX_TIP]));
+		setToolTip(VimWrapper::convertFrom(menu->strings[MENU_INDEX_TIP]));
 	} else {
-		setText( QString::fromUtf8((char*)menu->name) );
+		setText( VimWrapper::convertFrom(menu->name) );
 	}
 	connect(this, SIGNAL(triggered()),
 			this, SLOT(actionTriggered()));

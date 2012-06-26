@@ -70,7 +70,7 @@ gui_mch_set_foreground()
 GuiFont
 gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 {
-	QString family = (char*)name;
+	QString family = VimWrapper::convertFrom(name);
 	QFont font;
 	font.setStyleHint(QFont::TypeWriter);
 	font.setStyleStrategy(QFont::StyleStrategy(QFont::PreferDefault | QFont::ForceIntegerMetrics) );
@@ -89,8 +89,8 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 		QString realname = family.section(' ', 0, -2).trimmed();
 		font.setFamily(realname);
 		font.setPointSize(size);
-	} else if ( !font.fromString((char*)name) ) {
-		font.setRawName((char*)name);
+	} else if ( !font.fromString(family) ) {
+		font.setRawName(family);
 	}
 
 	font.setBold(false);
@@ -681,7 +681,7 @@ void
 gui_mch_settitle(char_u *title, char_u *icon)
 {
 	if ( title != NULL ) {
-		window->setWindowTitle( VimWrapper::convertFrom((char*)title) );
+		window->setWindowTitle( VimWrapper::convertFrom(title) );
 	}
 }
 
@@ -839,7 +839,7 @@ clip_mch_set_selection(VimClipboard *cbd)
 	type = clip_convert_selection(&str, (long_u *)&size, cbd);
 	if (type >= 0) {
 		QClipboard *clip = QApplication::clipboard();
-		clip->setText( VimWrapper::convertFrom((char *)str, size), (QClipboard::Mode)cbd->clipboardMode);
+		clip->setText( VimWrapper::convertFrom(str, size), (QClipboard::Mode)cbd->clipboardMode);
 	}
 
 	vim_free(str);
@@ -967,7 +967,7 @@ gui_mch_draw_string(
     int		len,
     int		flags)
 {
-	QString str = VimWrapper::convertFrom((char *)s, len);
+	QString str = VimWrapper::convertFrom(s, len);
 	
 	// Font
 	QFont f = vimshell->font();
@@ -1023,7 +1023,7 @@ gui_mch_get_color(char_u *reqname)
 	if ( reqname == NULL ) {
 		return INVALCOLOR;
 	}
-	QColor c = vimshell->color((char*)reqname);
+	QColor c = vimshell->color(VimWrapper::convertFrom(reqname));
 	if ( c.isValid() ) {
 		return VimWrapper::toColor(c);
 	}
@@ -1195,7 +1195,7 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 	QAction *before=NULL;
 
 	if ( menu_is_popup(menu->name) ) {
-		menu->qmenu = new QMenu(VimWrapper::convertFrom((char*)menu->name), vimshell);
+		menu->qmenu = new QMenu(VimWrapper::convertFrom(menu->name), vimshell);
 	} else if ( menu_is_toolbar(menu->name) ) {
 		menu->qmenu = window->toolBar();
 	} else if ( menu->parent == NULL ) {
@@ -1204,7 +1204,7 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 			before = actions.at(idx);
 		}
 
-		QMenu *m = new QMenu(VimWrapper::convertFrom((char*)menu->name), window);
+		QMenu *m = new QMenu(VimWrapper::convertFrom(menu->name), window);
 		window->menuBar()->insertMenu( before, m);
 		menu->qmenu = m;
 	} else if ( menu->parent && menu->parent->qmenu ) {
@@ -1214,7 +1214,7 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 			before = actions.at(idx);
 		}
 
-		QMenu *m = new QMenu(VimWrapper::convertFrom((char*)menu->name), window);
+		QMenu *m = new QMenu(VimWrapper::convertFrom(menu->name), window);
 		parent->insertMenu( before, m);
 		menu->qmenu = m;
 	}
@@ -1438,11 +1438,11 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 	if ( initdir == NULL ) {
 		dir = "";
 	} else {
-		dir = (char*)initdir;
+		dir = VimWrapper::convertFrom(initdir);
 	}
 
 	window->setEnabled(false);
-	QString file = QFileDialog::getOpenFileName(window, (char*)title, dir);
+	QString file = QFileDialog::getOpenFileName(window, VimWrapper::convertFrom(title), dir);
 	window->setEnabled(true);
 	vimshell->setFocus();
 
@@ -1461,8 +1461,8 @@ int
 gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int dfltbutton, char_u *textfield, int ex_cmd)
 {
 	QMessageBox msgBox(window);
-	msgBox.setText( (char*)message );
-	msgBox.setWindowTitle( (char*)title );
+	msgBox.setText( VimWrapper::convertFrom(message) );
+	msgBox.setWindowTitle( VimWrapper::convertFrom(title) );
 	
 	// Set icon
 	QMessageBox::Icon icon;
@@ -1493,7 +1493,7 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 	if ( buttons != NULL ) {
 		QStringList b_string;
 
-		b_string = VimWrapper::convertFrom((char*)buttons).split(DLG_BUTTON_SEP);
+		b_string = VimWrapper::convertFrom(buttons).split(DLG_BUTTON_SEP);
 
 		QListIterator<QString> it(b_string);
 		int bt=1;
@@ -1576,7 +1576,7 @@ gui_mch_update_tabline(void)
 
 		get_tabline_label(tp, FALSE);
 		char_u *labeltext = CONVERT_TO_UTF8(NameBuff);
-		window->setTab( nr, VimWrapper::convertFrom((char*)labeltext));
+		window->setTab( nr, VimWrapper::convertFrom(labeltext));
 		CONVERT_TO_UTF8_FREE(labeltext);
 	}
 	window->removeTabs(nr);
@@ -1690,7 +1690,7 @@ gui_mch_register_sign(char_u *signfile)
 		return NULL;
 	}
 
-	QString name = VimWrapper::convertFrom((char*)signfile);
+	QString name = VimWrapper::convertFrom(signfile);
 	QIcon icon(name);
 
 	//

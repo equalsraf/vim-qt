@@ -65,7 +65,8 @@ public:
 	static void newTab(int idx=1);
 
 	static QByteArray convertTo(const QString& s);
-	static QString convertFrom(const char *, int size=-1);
+	static QString convertFrom(const char_u *, int size=-1);
+	static QString convertFrom(const QByteArray&);
 
 
 	/**
@@ -83,6 +84,9 @@ public:
 	void sendTablineMenuEvent(int, int);
 
 	static void setFullscreen(bool on);
+
+protected:
+	static QString convertFrom(const char *, int size=-1);
 
 private slots:
 

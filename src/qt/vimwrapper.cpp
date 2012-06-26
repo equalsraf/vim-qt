@@ -332,6 +332,16 @@ QString VimWrapper::convertFrom(const char *s, int size)
 	}
 }
 
+QString VimWrapper::convertFrom(const QByteArray& arr)
+{
+	return convertFrom( arr.data(), arr.size());
+}
+
+QString VimWrapper::convertFrom(const char_u *s, int size)
+{
+	return convertFrom( (char*)s, size);
+}
+
 void VimWrapper::setFullscreen(bool on)
 {
 	if (on) {
