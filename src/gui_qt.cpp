@@ -1442,7 +1442,12 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 	}
 
 	window->setEnabled(false);
-	QString file = QFileDialog::getOpenFileName(window, VimWrapper::convertFrom(title), dir);
+	QString file;
+	if ( saving ) {
+		file = QFileDialog::getSaveFileName(window, VimWrapper::convertFrom(title), dir);
+	} else {
+		file = QFileDialog::getOpenFileName(window, VimWrapper::convertFrom(title), dir);
+	}
 	window->setEnabled(true);
 	vimshell->setFocus();
 
