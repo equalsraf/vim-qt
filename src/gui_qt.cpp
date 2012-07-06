@@ -1421,18 +1421,28 @@ gui_mch_destroy_scrollbar(scrollbar_T *sb)
  *  ext     - Default extension to be added to files without extensions.
  *  initdir - directory in which to open the browser (NULL = current dir)
  *  filter  - Filter for matched files to choose from.
- *  Has a format like this:
- *  "C Files (*.c)\0*.c\0"
- *  "All Files\0*.*\0\0"
- *  If these two strings were concatenated, then a choice of two file
- *  filters will be selectable to the user.  Then only matching files will
- *  be shown in the browser.  If NULL, the default allows all files.
  *
- *  *NOTE* - the filter string must be terminated with TWO nulls.
+ *  @see :h browsefilter
  */
 char_u *
-gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *initdir, char_u *filter)
+gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *initdir, char_u *vimfilter)
 {
+
+	QStringList res_filter ;
+	QString filters = VimWrapper::convertFrom(vimfilter);
+	filters.replace("(", "[").replace(")", "]");
+	QStringListIterator it(filters.split('\n', QString::SkipEmptyParts));
+	while (it.hasNext())
+	{
+		QString s = it.next();
+		int index = s.lastIndexOf('\t');
+		if (-1 != index)
+		{
+			QString new_str = s.mid(index+1).replace(";"," ");
+			res_filter << s.left(index) << "(" << new_str << ")" << ";;" ;
+		}
+	}
+	QString filterstr =  res_filter.join("") ;
 
 	QString dir;
 	if ( initdir == NULL ) {
@@ -1444,9 +1454,9 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 	window->setEnabled(false);
 	QString file;
 	if ( saving ) {
-		file = QFileDialog::getSaveFileName(window, VimWrapper::convertFrom(title), dir);
+		file = QFileDialog::getSaveFileName(window, VimWrapper::convertFrom(title), dir, filterstr);
 	} else {
-		file = QFileDialog::getOpenFileName(window, VimWrapper::convertFrom(title), dir);
+		file = QFileDialog::getOpenFileName(window, VimWrapper::convertFrom(title), dir, filterstr);
 	}
 	window->setEnabled(true);
 	vimshell->setFocus();
