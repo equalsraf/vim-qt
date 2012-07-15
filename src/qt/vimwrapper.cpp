@@ -87,6 +87,17 @@ void VimWrapper::sendTablineEvent(int ev)
 	send_tabline_event(ev);
 }
 
+void VimWrapper::updateCursor(bool force, bool clearsel)
+{
+	gui_update_cursor( force ? TRUE: FALSE,
+				clearsel ? TRUE: FALSE);
+}
+
+void VimWrapper::undrawCursor()
+{
+	gui_undraw_cursor();
+}
+
 void VimWrapper::sendTablineMenuEvent(int idx, int ev)
 {
 	send_tabline_menu_event(idx, ev);

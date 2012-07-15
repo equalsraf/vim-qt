@@ -5,6 +5,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <QFile>
+#include <QTimer>
 
 extern "C" {
 #include "proto/gui.pro"
@@ -18,6 +19,20 @@ QVimShell::QVimShell(QWidget *parent)
 	m_mouseHidden(false)
 {
 	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+	// cursor blinking
+	timer_cursorBlinkOn = new QTimer();
+	timer_cursorBlinkOff = new QTimer();
+	timer_firstOff = new QTimer();
+	timer_firstOn = new QTimer();
+	timer_firstOn->setSingleShot(true);
+	timer_firstOff->setSingleShot(true);
+	blinkState = BLINK_NONE;
+	connect(timer_cursorBlinkOn, SIGNAL(timeout()), this, SLOT(cursorOn()));
+	connect(timer_firstOn, SIGNAL(timeout()), this, SLOT(startBlinkOnTimer()));
+	connect(timer_firstOff, SIGNAL(timeout()), this, SLOT(startBlinkOffTimer()));
+	connect(timer_cursorBlinkOff, SIGNAL(timeout()), this, SLOT(cursorOff()));
+
 	// IM Tooltip
 	m_tooltip = new QLabel(this);
 	m_tooltip->setVisible(false);
@@ -618,3 +633,72 @@ void QVimShell::restoreCursor()
 	}
 }
 
+
+void QVimShell::setBlinkTime(const long waittime, const long ontime, const long offtime)
+{
+	m_blinkWaitTime = waittime;
+	m_blinkOnTime = ontime;
+	m_blinkOffTime = offtime;
+}
+
+/*
+ * start blinking: show cursor for waitingtime then blink
+ */
+void QVimShell::startBlinking()
+{
+	if (m_blinkWaitTime && m_blinkOnTime && m_blinkOffTime && hasFocus())
+	{
+		// wait waitTime before starting the blink
+		timer_cursorBlinkOn->stop();
+		timer_cursorBlinkOff->stop();
+		timer_firstOff->stop();
+		timer_firstOn->stop();
+
+		timer_firstOff->start(m_blinkWaitTime);
+		cursorOn();
+	}
+}
+
+void QVimShell::startBlinkOnTimer()
+{
+	if (blinkState == BLINK_OFF) // if blinkstate == NONE do nothing
+	{
+		timer_cursorBlinkOn->start(m_blinkOnTime+m_blinkOffTime);
+		cursorOn();
+	}
+}
+
+void QVimShell::startBlinkOffTimer()
+{
+	if (blinkState == BLINK_ON) // if blinkstate == NONE do nothing
+	{
+		timer_firstOn->start(m_blinkOffTime);
+		timer_cursorBlinkOff->start(m_blinkOnTime+m_blinkOffTime);
+		cursorOff();
+	}
+}
+
+
+/*
+ * Stop cursor blinking
+ */
+void QVimShell::stopBlinking()
+{
+	blinkState = BLINK_NONE;
+	timer_cursorBlinkOn->stop();
+	timer_cursorBlinkOff->stop();
+	timer_firstOn->stop();
+	timer_firstOff->stop();
+}
+
+void QVimShell::cursorOff()
+{
+	blinkState = BLINK_OFF;
+	vim.undrawCursor();
+}
+
+void QVimShell::cursorOn()
+{
+	blinkState = BLINK_ON;
+	vim.updateCursor(true, false);
+}

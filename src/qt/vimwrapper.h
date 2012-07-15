@@ -87,6 +87,9 @@ public:
 	void sendTablineEvent(int);
 	void sendTablineMenuEvent(int, int);
 
+	void updateCursor(bool force, bool clearsel);
+	void undrawCursor();
+
 	static void setFullscreen(bool on);
 
 protected:

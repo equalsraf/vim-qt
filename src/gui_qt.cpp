@@ -272,22 +272,21 @@ gui_mch_set_bg_color(guicolor_T color)
  * Start the cursor blinking.  If it was already blinking, this restarts the
  * waiting time and shows the cursor.
  *
- * FIXME: We dont blink, we simply update the cursor
  */
 void
 gui_mch_start_blink()
 {
-	gui_update_cursor(TRUE, FALSE);
+	vimshell->startBlinking();
 }
 
 /**
  * Start the cursor blinking.
  *
- * FIXME: We dont blink, we simply update the cursor
  */
 void
 gui_mch_stop_blink()
 {
+	vimshell->stopBlinking();
 	gui_update_cursor(TRUE, FALSE);
 }
 
@@ -595,12 +594,13 @@ gui_mch_init()
 }
 
 /**
+ * Set blinking time duration 
  *
- * FIXME: We dont blink
  */
 void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
+	vimshell->setBlinkTime(waittime, on, off);
 }
 
 /**

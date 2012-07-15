@@ -43,6 +43,12 @@ public:
 	virtual QVariant inputMethodQuery(Qt::InputMethodQuery);
 	void setSlowStringDrawing(bool slow) {m_slowStringDrawing = slow;}
 
+	void setBlinkTime(const long waittime, const long ontime, const long offtime);
+
+	void stopBlinking();
+	void startBlinking();
+
+
 public slots:
 	void setBackground(const QColor);
 	void setCharWidth(int);
@@ -89,10 +95,23 @@ protected:
 	virtual void leaveEvent(QEvent *ev);
 	virtual void enterEvent(QEvent *ev);
 	bool focusNextPrevChild(bool next);
+
+private slots:
+	void cursorOff();
+	void cursorOn();
+	void startBlinkOffTimer();
+	void startBlinkOnTimer();
+
 private:
 	QColor m_background;
 	int m_charWidth;
 	QFont m_font;
+
+	QTimer * timer_cursorBlinkOn ;
+	QTimer * timer_cursorBlinkOff ;
+	QTimer * timer_firstOff;
+	QTimer * timer_firstOn;
+
 
 	long m_blinkWaitTime, m_blinkOnTime, m_blinkOffTime;
 
