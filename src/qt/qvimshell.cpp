@@ -377,8 +377,9 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 	restoreCursor();
 
 	if ( ev->buttons() ) {
+		int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
 		vim.guiSendMouseEvent(MOUSE_DRAG, ev->pos().x(),
-					  ev->pos().y(), FALSE, 0);
+					  ev->pos().y(), FALSE, vmod);
 	} else {
 		vim.guiMouseMoved(ev->pos().x(), ev->pos().y());
 	}
@@ -428,14 +429,16 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {
+	int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
 	vim.guiSendMouseEvent(MOUSE_RELEASE, ev->pos().x(),
-					  ev->pos().y(), FALSE, 0);
+					  ev->pos().y(), FALSE, vmod);
 }
 
 void QVimShell::wheelEvent(QWheelEvent *ev)
 {
+	int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
 	vim.guiSendMouseEvent((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
-					    ev->pos().x(), ev->pos().y(), FALSE, 0);
+					    ev->pos().x(), ev->pos().y(), FALSE, vmod);
 }
 
 /**
