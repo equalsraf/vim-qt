@@ -10,6 +10,9 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	setWindowIcon(QIcon(":/icons/vim-qt.png"));
 	setContextMenuPolicy(Qt::PreventContextMenu);
 
+	// We sometimes crash if this is on
+	setAnimated(false);
+
 	// Menu
 	menutoolbar = addToolBar("Menu");
 	menutoolbar->setObjectName("menu");

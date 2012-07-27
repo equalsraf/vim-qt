@@ -1248,12 +1248,14 @@ QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/scrollarea.cpp \
 			qt/fontdialog.cpp \
 			qt/colortable.cpp \
-			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp
+			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp \
+			qt/vimevents.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
 			objects/colortable.o \
 			objects/scrollarea.o objects/fontdialog.o objects/vimwrapper.o \
+			objects/vimevents.o \
 			objects/tabbar.o objects/vimscrollbar.o
 
 QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I. $(QT_INCPATH)
@@ -2574,8 +2576,10 @@ objects/fontdialog.o: qt/fontdialog.cpp
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/fontdialog.cpp
 
 objects/vimwrapper.o: qt/vimwrapper.cpp
-	$(MOC) qt/vimwrapper.h > vimwrapper.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimwrapper.cpp
+
+objects/vimevents.o: qt/vimevents.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimevents.cpp
 
 objects/tabbar.o: qt/tabbar.cpp
 	$(MOC) qt/tabbar.h > tabbar.moc

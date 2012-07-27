@@ -1,7 +1,11 @@
-#include "vimwrapper.moc"
 #include <QApplication>
 #include <QStyle>
 #include <QMetaType>
+#include <QTime>
+#include <QTimer>
+#include <QTimer>
+#include <QTime>
+#include "vimwrapper.h"
 
 extern "C" {
 #include "vim.h"
@@ -9,8 +13,8 @@ extern "C" {
 
 Q_DECLARE_METATYPE( QList<QUrl> );
 
-VimWrapper::VimWrapper(QObject *parent)
-:QObject(parent)
+VimWrapper::VimWrapper()
+:m_processInputOnly(false)
 {
 	qRegisterMetaType<QList<QUrl> >("URLList");
 
@@ -18,72 +22,42 @@ VimWrapper::VimWrapper(QObject *parent)
 
 void VimWrapper::guiResizeShell(int w, int h)
 {
-	QMetaObject::invokeMethod(this, 
-				"slot_guiResizeShell", Qt::QueuedConnection, 
-				Q_ARG(int, w), 
-				Q_ARG(int, h)
-			);
-	
-}
-void VimWrapper::slot_guiResizeShell(int w, int h)
-{
-	gui_resize_shell(w,h);
+	if ( m_processInputOnly ) {
+		ResizeEvent *ev = new ResizeEvent( *this, w, h);
+		pendingEvents.append(ev);
+	} else {
+		gui_resize_shell(w, h);
+	}
 }
 
 void VimWrapper::guiShellClosed()
 {
-	QMetaObject::invokeMethod(this, 
-				"slot_guiShellClosed", 
-				Qt::QueuedConnection);
-}
-void VimWrapper::slot_guiShellClosed()
-{
-	gui_shell_closed();
+	if ( m_processInputOnly ) {
+		pendingEvents.append(new CloseEvent(*this));
+	} else {
+		gui_shell_closed();
+	}
 }
 
 void VimWrapper::guiSendMouseEvent(int button, int x, int y, int repeated_click, unsigned int modifiers)
 {
-	QMetaObject::invokeMethod(this, 
-				"slot_guiSendMouseEvent", Qt::QueuedConnection, 
-				Q_ARG(int, button), 
-				Q_ARG(int, x), 
-				Q_ARG(int, y), 
-				Q_ARG(int, repeated_click), 
-				Q_ARG(unsigned int, modifiers)
-				);
-}
-void VimWrapper::slot_guiSendMouseEvent(int button, int x, int y, int repeated_click, unsigned int modifiers)
-{
+	// This is safe
 	gui_send_mouse_event(button, x, y, repeated_click, modifiers);
 }
 
 void VimWrapper::guiMouseMoved(int x, int y)
-{
-	QMetaObject::invokeMethod(this, 
-				"slot_guiMouseMoved",  Qt::QueuedConnection, 
-				Q_ARG(int, x),
-				Q_ARG(int, y)
-				);
-
-}
-void VimWrapper::slot_guiMouseMoved(int x, int y)
 {
 	gui_mouse_moved(x, y);
 }
 
 void VimWrapper::guiFocusChanged(int focus)
 {
-	QMetaObject::invokeMethod(this, 
-				"slot_guiFocusChanged", 
-				Qt::QueuedConnection, Q_ARG(int, focus));
-}
-void VimWrapper::slot_guiFocusChanged(int focus)
-{
 	gui_focus_change(focus);
 }
 
 void VimWrapper::sendTablineEvent(int ev)
 {
+	// This just writes to the input buf
 	send_tabline_event(ev);
 }
 
@@ -100,45 +74,54 @@ void VimWrapper::undrawCursor()
 
 void VimWrapper::sendTablineMenuEvent(int idx, int ev)
 {
+	// This just writes to the input buf
 	send_tabline_menu_event(idx, ev);
 }
 
-void VimWrapper::guiHandleDrop(int x, int y, unsigned int mod, const QList<QUrl> urls)
+/**
+ * Place text into the '~' register and push
+ * drop event into the input buffer
+ */
+void VimWrapper::guiHandleDropText(const QString& s)
 {
-	QMetaObject::invokeMethod(this, 
-				"slot_guiHandleDrop", 
-				Qt::QueuedConnection, 
-				Q_ARG(int, x),
-				Q_ARG(int, y),
-				Q_ARG(unsigned int, mod),
-				Q_ARG(QList<QUrl>, urls)
-				);
+	QByteArray text = convertTo(s);
+	dnd_yank_drag_data( (char_u*)text.data(), text.size());
+
+	char_u buf[3] = {CSI, KS_EXTRA, (char_u)KE_DROP};
+	add_to_input_buf(buf, 3);
 }
-void VimWrapper::slot_guiHandleDrop(int x, int y, unsigned int mod, const QList<QUrl> urls)
+
+void VimWrapper::guiHandleDrop(const QPoint& pos, unsigned int mod, const QList<QUrl> urls)
 {
 	if ( urls.size() == 0 ) {
 		return;
 	}
 
-	char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
-	int i;
-	for (i=0; i<urls.size(); i++) {
-		QByteArray encoded;
-		if ( urls.at(i).scheme() == "file" ) {
-			encoded = convertTo(urls.at(i).toLocalFile());
-		} else {
-			encoded = convertTo(urls.at(i).toString());
+	if ( m_processInputOnly ) {
+		DropEvent *ev = new DropEvent( *this, pos, mod, urls);
+		pendingEvents.append(ev);
+	} else {
+	
+		char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
+		int i;
+		for (i=0; i<urls.size(); i++) {
+			QByteArray encoded;
+			if ( urls.at(i).scheme() == "file" ) {
+				encoded = convertTo(urls.at(i).toLocalFile());
+			} else {
+				encoded = convertTo(urls.at(i).toString());
+			}
+	
+			char *s = (char*)alloc(encoded.size()*sizeof(char)+1);
+			int j;
+			for (j=0; j<encoded.size(); j++) {
+				s[j] = encoded.at(j);
+			}
+			s[j]='\0';
+			fnames[i] = (char_u *) s;
 		}
-
-		char *s = (char*)alloc(encoded.size()*sizeof(char)+1);
-		int j;
-		for (j=0; j<encoded.size(); j++) {
-			s[j] = encoded.at(j);
-		}
-		s[j]='\0';
-		fnames[i] = (char_u *) s;
+		gui_handle_drop(pos.x(), pos.y(), mod, fnames, urls.size());
 	}
-	gui_handle_drop(x, y, 0, fnames, urls.size());
 }
 
 
@@ -364,3 +347,61 @@ void VimWrapper::setFullscreen(bool on)
 		p_fullscreen = FALSE;
 	}
 }
+
+/**
+ *
+ *  wtime == -1	    Wait forever.
+ *  wtime == 0	    Process what you have and exit
+ *  wtime > 0	    Wait wtime milliseconds for a character.
+ *
+ *  Just like gui_mch_wait_for_chars we return OK if there is
+ *  input or FAIL otherwise
+ */
+bool VimWrapper::processEvents(long wtime, bool inputOnly)
+{
+	bool prev = m_processInputOnly;
+	m_processInputOnly = inputOnly;
+
+	// Process pending events
+	if (!inputOnly) {
+		while(pendingEvents.size() > 0) {
+			VimEvent *ev = pendingEvents.takeFirst();
+			ev->handle();
+			delete ev;
+		}
+	}
+
+	int ret = FAIL;
+	if ( wtime == -1 ) {
+		QApplication::processEvents( QEventLoop::WaitForMoreEvents);
+	} else if ( wtime == 0 ) {
+		QApplication::processEvents();
+	} else {
+		QTime t;
+		t.start();
+		do {
+			QTimer::singleShot( wtime - t.elapsed(),
+						QApplication::instance(),
+						SLOT(quit())
+					);
+			QApplication::processEvents( QEventLoop::WaitForMoreEvents);
+			if ( hasPendingEvents() || !vim_is_input_buf_empty() ) {
+				goto out;
+			}
+		} while( t.elapsed() < wtime );
+	}
+
+out:
+	m_processInputOnly = prev;
+	if ( hasPendingEvents() || !vim_is_input_buf_empty() ) {
+		return OK;
+	} else {
+		return FAIL;
+	}
+}
+
+bool VimWrapper::hasPendingEvents()
+{
+	return pendingEvents.size() != 0;
+}
+

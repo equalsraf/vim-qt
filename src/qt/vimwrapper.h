@@ -11,11 +11,17 @@ extern "C" {
 #include "vim.h"
 }
 
-class VimWrapper: public QObject
+#include "vimevents.h"
+
+/**
+ * VimWrapper is wrapper around Vim, it handles conversion between Qt types
+ * and vim function's argument types
+ *
+ */
+class VimWrapper
 {
-	Q_OBJECT
 public:
-	VimWrapper(QObject *parent=0);
+	VimWrapper();
 	
 	/**
 	 * Map a row/col coordinate to a point in widget coordinates
@@ -76,13 +82,15 @@ public:
 	/**
 	 * Vim methods
 	 */
-	void guiResizeShell(int, int);
+	//void guiResizeShell(int, int);
+	void guiResizeShell(int w, int h);
 	void guiShellClosed();
-	void guiSendMouseEvent(int, int);
 	void guiSendMouseEvent(int , int , int , int , unsigned int );
 	void guiMouseMoved(int, int);
 	void guiFocusChanged(int);
-	void guiHandleDrop(int, int, unsigned int, const QList<QUrl>);
+
+	void guiHandleDropText(const QString&);
+	void guiHandleDrop(const QPoint& , unsigned int, const QList<QUrl>);
 
 	void sendTablineEvent(int);
 	void sendTablineMenuEvent(int, int);
@@ -91,24 +99,16 @@ public:
 	void undrawCursor();
 
 	static void setFullscreen(bool on);
+	void setProcessInputOnly(bool input_only);
+	bool processEvents(long wtime=0, bool inputOnly=false);
 
 protected:
 	static QString convertFrom(const char *, int size=-1);
+	bool hasPendingEvents();
 
-private slots:
-
-	/**
-	 * Vim methods slots
-	 */
-	void slot_guiResizeShell(int, int);
-	void slot_guiShellClosed();
-	void slot_guiSendMouseEvent(int , int , int , int , unsigned int );
-	void slot_guiMouseMoved(int, int);
-	void slot_guiFocusChanged(int);
-	void slot_guiHandleDrop(int, int, unsigned int, const QList<QUrl>);
-
-//	void guiMenuCb(long);
-
+private:
+	bool m_processInputOnly;
+	QList<VimEvent *> pendingEvents;
 };
 
 #endif

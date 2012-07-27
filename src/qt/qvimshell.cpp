@@ -44,6 +44,7 @@ QVimShell::QVimShell(QWidget *parent)
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
+	setAutoFillBackground(true);
 	setAcceptDrops(true);
 	setMouseTracking(true);
 }
@@ -51,17 +52,20 @@ QVimShell::QVimShell(QWidget *parent)
 void QVimShell::setBackground(const QColor color)
 {
 	m_background = color;
+	QPalette p = palette();
+	p.setColor(QPalette::Window, color);
+	setPalette(p);
 	emit backgroundColorChanged(m_background);
 }
 
 void QVimShell::switchTab(int idx)
 {
-	vim.sendTablineEvent(idx);
+	sendTablineEvent(idx);
 }
 
 void QVimShell::closeTab(int idx)
 {
-	vim.sendTablineMenuEvent(idx, TABLINE_MENU_CLOSE);
+	sendTablineMenuEvent(idx, TABLINE_MENU_CLOSE);
 }
 
 
@@ -72,24 +76,8 @@ QColor QVimShell::background()
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
-	if ( canvas.isNull() ) {
-		QPixmap newCanvas = QPixmap( ev->size() );
-		newCanvas.fill(background());
-		canvas = newCanvas;
-	} else {
-		// Keep old contents
-		QPixmap old = canvas.copy(QRect(QPoint(0,0), ev->size()));
-		canvas = QPixmap( ev->size() );
-		canvas.fill(background()); // FIXME: please optimise me
-
-		{
-		QPainter p(&canvas);
-		p.drawPixmap(QPoint(0,0), old);
-		}
-	}
-
 	update();
-	vim.guiResizeShell(ev->size().width(), ev->size().height());
+	guiResizeShell(ev->size().width(), ev->size().height());
 }
 
 /**
@@ -203,7 +191,7 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 
 void QVimShell::close()
 {
-	vim.guiShellClosed();
+	guiShellClosed();
 }
 
 void QVimShell::closeEvent(QCloseEvent *event)
@@ -306,14 +294,14 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 
 void QVimShell::flushPaintOps()
 {
-	QPainter painter(&canvas);
+	QPainter painter(this);
 	while ( !paintOps.isEmpty() ) {
 		painter.save();
 
 		PaintOperation op = paintOps.dequeue();
 		switch( op.type ) {
 		case CLEARALL:
-			painter.fillRect(canvas.rect(), op.color);
+			painter.fillRect(rect(), op.color);
 			break;
 		case FILLRECT:
 			painter.fillRect(op.rect, op.color);
@@ -362,16 +350,19 @@ void QVimShell::flushPaintOps()
 			painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
 			break;
 		case SCROLLRECT:
-			painter.restore();
-			painter.end();
+			// We only support vertical scroll
+			// i.e. op.pos.x() is ignored
 
-			QRegion exposed;
-			canvas.scroll(op.pos.x(), op.pos.y(),
-			 	op.rect, &exposed);
-
-			painter.begin(&canvas);
-			painter.fillRect(exposed.boundingRect(), op.color);
-			continue; // exception, skip painter restore
+			int top;
+			if ( op.pos.y() >= 0 ) {
+				top = op.rect.top();
+			} else {
+				top = op.rect.bottom() + op.pos.y();
+			}
+			QRect exposed(op.rect.left(), top, op.rect.width(), qAbs(op.pos.y()));
+			scroll(op.pos.x(), op.pos.y(), op.rect);
+			painter.fillRect(exposed, op.color);
+			break;
 		}
 
 		painter.restore();
@@ -381,12 +372,8 @@ void QVimShell::flushPaintOps()
 
 void QVimShell::paintEvent ( QPaintEvent *ev )
 {
+	QWidget::paintEvent(ev);
 	flushPaintOps();
-
-	QPainter realpainter(this);
-	foreach(const QRect r, ev->region().rects()) {
-		realpainter.drawPixmap( r, canvas, r);
-	}
 }
 
 //
@@ -400,10 +387,10 @@ void QVimShell::mouseMoveEvent(QMouseEvent *ev)
 
 	if ( ev->buttons() ) {
 		int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
-		vim.guiSendMouseEvent(MOUSE_DRAG, ev->pos().x(),
+		guiSendMouseEvent(MOUSE_DRAG, ev->pos().x(),
 					  ev->pos().y(), FALSE, vmod);
 	} else {
-		vim.guiMouseMoved(ev->pos().x(), ev->pos().y());
+		guiMouseMoved(ev->pos().x(), ev->pos().y());
 	}
 }
 
@@ -445,21 +432,21 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 	int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
 
-	vim.guiSendMouseEvent(but, ev->pos().x(),
+	guiSendMouseEvent(but, ev->pos().x(),
 					  ev->pos().y(), repeat, vmod);
 }
 
 void QVimShell::mouseReleaseEvent(QMouseEvent *ev)
 {
 	int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
-	vim.guiSendMouseEvent(MOUSE_RELEASE, ev->pos().x(),
+	guiSendMouseEvent(MOUSE_RELEASE, ev->pos().x(),
 					  ev->pos().y(), FALSE, vmod);
 }
 
 void QVimShell::wheelEvent(QWheelEvent *ev)
 {
 	int_u vmod = vimMouseModifiers(QApplication::keyboardModifiers());
-	vim.guiSendMouseEvent((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
+	guiSendMouseEvent((ev->delta() > 0) ? MOUSE_4 : MOUSE_5,
 					    ev->pos().x(), ev->pos().y(), FALSE, vmod);
 }
 
@@ -516,14 +503,10 @@ void QVimShell::dropEvent(QDropEvent *ev)
 		if ( urls.size() == 0 ) {
 			return;
 		}
-		vim.guiHandleDrop(ev->pos().x(), ev->pos().y(), 0, urls);
+		guiHandleDrop(ev->pos(), 0, urls);
 
 	} else {
-		QByteArray text = VimWrapper::convertTo(ev->mimeData()->text());
-		dnd_yank_drag_data( (char_u*)text.data(), text.size());
-
-		char_u buf[3] = {CSI, KS_EXTRA, (char_u)KE_DROP};
-		add_to_input_buf(buf, 3);
+		guiHandleDropText(ev->mimeData()->text());
 	}
 	ev->acceptProposedAction();
 }
@@ -533,7 +516,7 @@ void QVimShell::focusInEvent(QFocusEvent *ev)
 	// mousehide - show mouse pointer
 	restoreCursor();
 
-	vim.guiFocusChanged(TRUE);
+	guiFocusChanged(TRUE);
 	QWidget::focusInEvent(ev);
 	update();
 }
@@ -552,7 +535,7 @@ void QVimShell::enterEvent(QEvent *ev)
 
 void QVimShell::focusOutEvent(QFocusEvent *ev)
 {
-	vim.guiFocusChanged(FALSE);
+	guiFocusChanged(FALSE);
 	QWidget::focusOutEvent(ev);
 	update();
 }
@@ -694,11 +677,11 @@ void QVimShell::stopBlinking()
 void QVimShell::cursorOff()
 {
 	blinkState = BLINK_OFF;
-	vim.undrawCursor();
+	undrawCursor();
 }
 
 void QVimShell::cursorOn()
 {
 	blinkState = BLINK_ON;
-	vim.updateCursor(true, false);
+	updateCursor(true, false);
 }

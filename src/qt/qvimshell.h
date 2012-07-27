@@ -8,27 +8,29 @@
 
 #include "vimwrapper.h"
 
-typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT, DRAWSIGN} PaintOperationType;
-class PaintOperation {
-public:
-	PaintOperationType type;
-	QRect rect;
-	QColor color;
-	// DRAWSTRING
-	QFont font;
-	QString str;
-	bool undercurl;
-	QColor curlcolor;
-	// SIGN
-	QPixmap sign;
-	// SCROLL
-	QPoint pos;
-};
 
-class QVimShell: public QWidget
+class QVimShell: public QWidget, public VimWrapper
 {
 	Q_OBJECT
+	Q_ENUMS(PaintOperationType)
 public:
+	enum PaintOperationType { CLEARALL=0, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT, DRAWSIGN};
+	class PaintOperation {
+	public:
+		enum QVimShell::PaintOperationType type;
+		QRect rect;
+		QColor color;
+		// DRAWSTRING
+		QFont font;
+		QString str;
+		bool undercurl;
+		QColor curlcolor;
+		// SIGN
+		QPixmap sign;
+		// SCROLL
+		QPoint pos;
+	};
+
 	QVimShell(QWidget *parent=0);
 
 	bool hasInput();
@@ -120,13 +122,11 @@ private:
 	bool m_encoding_utf8;
 
 	QQueue<PaintOperation> paintOps;
-	QPixmap canvas;
 
 	QTime m_lastClick;
 	int m_lastClickEvent;
 	QLabel *m_tooltip;
 
-	VimWrapper vim;
 	bool m_slowStringDrawing;
 	bool m_mouseHidden;
 };

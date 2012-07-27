@@ -11,6 +11,7 @@
 #include <QToolBar>
 #include <QFileDialog>
 #include <QPushButton>
+#include <QTimer>
 
 #include "qvimshell.h"
 #include "mainwindow.h"
@@ -201,21 +202,7 @@ gui_mch_wait_for_chars(long wtime)
 		return OK;
 	}
 
-	if ( wtime == -1 ) {
-		QApplication::processEvents( QEventLoop::WaitForMoreEvents);
-		return OK;
-	} else {
-		QTime t;
-		t.start();
-		do {
-			QApplication::processEvents( QEventLoop::WaitForMoreEvents);
-			if (!vim_is_input_buf_empty()) {
-				return OK;
-			}
-		} while( t.elapsed() < wtime );
-	}
-
-	return FAIL;
+	return vimshell->processEvents(wtime, true);
 }
 
 /**
@@ -227,9 +214,7 @@ gui_mch_wait_for_chars(long wtime)
 void
 gui_mch_update()
 {
-	if ( QApplication::hasPendingEvents() ) {
-		QApplication::processEvents();
-	}
+	vimshell->processEvents();
 }
 
 
@@ -239,8 +224,7 @@ gui_mch_update()
 void
 gui_mch_flush()
 {
-	// Is this necessary?
-	QApplication::flush();
+	vimshell->processEvents(0, true);
 }
 
 /**
@@ -309,8 +293,8 @@ gui_mch_beep()
 void
 gui_mch_clear_all()
 {
-	PaintOperation op;
-	op.type = CLEARALL;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::CLEARALL;
 	op.color = VimWrapper::fromColor(gui.back_pixel);
 	vimshell->queuePaintOp(op);
 }
@@ -432,8 +416,8 @@ gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
 	QRect rect = VimWrapper::mapBlock(row1, col1, row2, col2); 
 
-	PaintOperation op;
-	op.type = FILLRECT;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::FILLRECT;
 	op.color = VimWrapper::fromColor(gui.back_pixel);
 	op.rect = rect;
 	vimshell->queuePaintOp(op);
@@ -456,8 +440,8 @@ clear_shell_border()
 	br.setX(vimshell->width());
 	br.setY(vimshell->height());
 
-	PaintOperation op;
-	op.type = FILLRECT;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::FILLRECT;
 	op.color = VimWrapper::fromColor(gui.back_pixel);
 	op.rect = QRect(tl, br);
 	vimshell->queuePaintOp(op);
@@ -473,8 +457,8 @@ gui_mch_insert_lines(int row, int num_lines)
 	QRect scrollRect = VimWrapper::mapBlock(row, gui.scroll_region_left, 
 					gui.scroll_region_bot, gui.scroll_region_right);
 
-	PaintOperation op1;
-	op1.type = SCROLLRECT;
+	QVimShell::PaintOperation op1;
+	op1.type = QVimShell::SCROLLRECT;
 	op1.rect = scrollRect;
 	op1.pos = QPoint(0, num_lines*gui.char_height);
 	op1.color = VimWrapper::fromColor(gui.back_pixel);
@@ -494,8 +478,8 @@ gui_mch_delete_lines(int row, int num_lines)
 	QRect scrollRect = VimWrapper::mapBlock(row, gui.scroll_region_left, 
 					gui.scroll_region_bot, gui.scroll_region_right);
 
-	PaintOperation op;
-	op.type = SCROLLRECT;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::SCROLLRECT;
 	op.rect = scrollRect;
 	op.pos = QPoint(0, -num_lines*gui.char_height);
 	op.color = VimWrapper::fromColor(gui.back_pixel);
@@ -773,8 +757,8 @@ gui_mch_invert_rectangle(int row, int col, int nr, int nc)
 {
 	QRect rect = VimWrapper::mapBlock(row, col, row+nr-1, col +nc-1);
 
-	PaintOperation op;
-	op.type = INVERTRECT;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::INVERTRECT;
 	op.rect = rect;
 	vimshell->queuePaintOp(op);
 }
@@ -936,8 +920,8 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 			FILL_Y(gui.row)+gui.char_height-2);
 	QRect rect(tl, br);
 
-	PaintOperation op;
-	op.type = DRAWRECT;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::DRAWRECT;
 	op.rect = rect;
 	op.color = VimWrapper::fromColor(color);
 	vimshell->queuePaintOp(op);
@@ -963,8 +947,8 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
 
 	QRect rect( x, y, w, h);
 
-	PaintOperation op;
-	op.type = FILLRECT;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::FILLRECT;
 	op.rect = rect;
 	op.color = VimWrapper::fromColor(color);
 	vimshell->queuePaintOp(op);
@@ -1010,8 +994,8 @@ gui_mch_draw_string(
 		// Do we need to do anything?
 	} else {
 		// Fill in the background
-		PaintOperation op;
-		op.type = FILLRECT;
+		QVimShell::PaintOperation op;
+		op.type = QVimShell::FILLRECT;
 		op.rect = rect;
 		op.color = backgroundColor;
 		vimshell->queuePaintOp(op);
@@ -1019,14 +1003,14 @@ gui_mch_draw_string(
 
 	// Remove upper linespace from rect
 	QRect rect_text( pos.x(), pos.y() + p_linespace/2, gui.char_width*cellwidth, gui.char_height);
-	PaintOperation op;
-	op.type = DRAWSTRING;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::DRAWSTRING;
 	op.font = f;
 	op.rect = rect_text;
 	op.str = str;
 	op.color = foregroundColor;
 	op.undercurl = flags & DRAW_UNDERC;
-	if ( op.undercurl ) { // FIXME: Refactor PaintOperation
+	if ( op.undercurl ) { // FIXME: Refactor QVimShell::PaintOperation
 		op.curlcolor = specialColor;
 	}
 
@@ -1690,8 +1674,8 @@ gui_mch_drawsign(int row, int col, int typenr)
 	}
 
 	QPoint pos = VimWrapper::mapText(row, col);
-	PaintOperation op;
-	op.type = DRAWSIGN;
+	QVimShell::PaintOperation op;
+	op.type = QVimShell::DRAWSIGN;
 	op.pos = pos;
 	op.sign = icon->pixmap( VimWrapper::charWidth()*2, VimWrapper::charHeight() );
 	op.rect = QRect(pos, QSize(VimWrapper::charWidth()*2, VimWrapper::charHeight()));
