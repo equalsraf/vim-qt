@@ -1,5 +1,9 @@
 #include "fontdialog.moc"
 
+#include <QLineEdit>
+#include <QPushButton>
+#include <QFontDialog>
+
 // some of the style names which could indicate the "regular" one
 const QRegExp FontDialog::regular_rx = QRegExp("Regular|Normal|Book|Roman|Plain|Upright|Medium|Light|Sans");
 

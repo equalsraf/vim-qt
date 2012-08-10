@@ -1,5 +1,9 @@
 #include "mainwindow.moc"
 
+#include <QToolBar>
+#include <QMenuBar>
+#include <QEvent>
+
 MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 :QMainWindow(parent), m_keepTabbar(false)
 {

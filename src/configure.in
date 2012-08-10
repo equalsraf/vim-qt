@@ -2434,7 +2434,7 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     fi
 
 cat > $tmp/qttest.cpp << EOF
-#include <Qt/QtGui>
+#include <QApplication>
 int main(int ac, char **av) {
     QApplication app(ac, av);
     return app.exec();

@@ -1,10 +1,12 @@
 #ifndef __QVIMSHELL__
 #define __QVIMSHELL__
 
-#include <QtGui>
+#include <QWidget>
+#include <QQueue>
+#include <QLabel>
+#include <QTime>
+
 #include "vimwrapper.h"
-
-
 
 typedef enum { CLEARALL, FILLRECT, DRAWSTRING, DRAWRECT, INVERTRECT, SCROLLRECT, DRAWSIGN} PaintOperationType;
 class PaintOperation {

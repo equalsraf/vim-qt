@@ -1,5 +1,10 @@
 #include "qvimshell.moc"
 
+#include <QResizeEvent>
+#include <QPainter>
+#include <QApplication>
+#include <QDebug>
+
 extern "C" {
 #include "proto/gui.pro"
 }

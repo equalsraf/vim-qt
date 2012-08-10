@@ -1,6 +1,7 @@
 #include "scrollarea.moc"
 
-#include <QtGui>
+#include <QWidget>
+#include <QGridLayout>
 
 ScrollArea::ScrollArea(QWidget *parent)
 :QWidget(parent), m_widget(NULL)

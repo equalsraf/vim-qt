@@ -1,7 +1,11 @@
 #ifndef __VIM_QT_VIM__
 #define __VIM_QT_VIM__
 
-#include <QtGui>
+#include <QObject>
+#include <QIcon>
+#include <QUrl>
+#include <QWidget>
+#include <QDebug>
 
 extern "C" {
 #include "vim.h"

@@ -1,4 +1,17 @@
-#include <QtGui>
+#include <QApplication>
+#include <QMessageBox>
+#include <QDesktopWidget>
+#include <QSettings>
+#include <QFile>
+#include <QFileInfo>
+#include <QDir>
+#include <QClipboard>
+#include <QMenu>
+#include <QMenuBar>
+#include <QToolBar>
+#include <QFileDialog>
+#include <QPushButton>
+
 #include "qvimshell.h"
 #include "mainwindow.h"
 #include "vimaction.h"

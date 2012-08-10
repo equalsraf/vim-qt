@@ -1,5 +1,6 @@
 #include "tabbar.moc"
 
+#include <QMouseEvent>
 
 TabBar::TabBar(QWidget *parent)
 :QTabBar(parent)

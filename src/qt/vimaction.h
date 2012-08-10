@@ -1,6 +1,7 @@
 #ifndef __GUI_QT_VIMACTION__
 #define __GUI_QT_VIMACTION__
 
+#include <QAction>
 #include "qvimshell.h"
 
 class VimAction: public QAction

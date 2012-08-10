@@ -1,7 +1,7 @@
 #ifndef __GUI_QT_TABBAR__
 #define __GUI_QT_TABBAR__
 
-#include <QtGui>
+#include <QTabBar>
 
 class TabBar: public QTabBar
 {
