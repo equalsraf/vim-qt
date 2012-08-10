@@ -146,7 +146,7 @@ QRect VimWrapper::mapBlock(int row1, int col1, int row2, int col2)
 	QPoint tl = mapText( row1, col1 );
 	QPoint br = mapText( row2+1, col2+1);
 	br.setX( br.x()-1 );
-	br.setY( br.y()-1 );
+	br.setY( br.y() );
 
 	return QRect(tl, br);
 }
