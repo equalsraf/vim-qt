@@ -662,8 +662,8 @@ void QVimShell::setupColorMap()
 	/*
 	 * For some reason these are not in rgb.txt
 	 */
-	m_colorMap["lightmagenta"] = QColor(255, 224, 255);
-	m_colorMap["lightred"] = QColor(255, 0, 0);
+	m_colorMap["lightmagenta"] = QColor(255, 160, 240);
+	m_colorMap["lightred"] = QColor(255, 160, 160);
 
 	/*
 	 * DONT EDIT - auto generated from rgb.txt
