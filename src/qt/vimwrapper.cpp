@@ -1,6 +1,7 @@
 #include "vimwrapper.moc"
 #include <QApplication>
 #include <QStyle>
+#include <QMetaType>
 
 extern "C" {
 #include "vim.h"

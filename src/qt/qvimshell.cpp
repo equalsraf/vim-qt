@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QApplication>
 #include <QDebug>
+#include <QFile>
 
 extern "C" {
 #include "proto/gui.pro"
