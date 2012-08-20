@@ -8,16 +8,16 @@ For the most part you can build it as you would build vim with support for anoth
 
     $ ./configure --enable-gui=qt
     $ make  
-    $ sudo make install
 
 All the regular configure options apply. Just don’t forget, you need libqt and libqt4-devel now. Usually you'll want to pass in something like:
 
-    ./configure --prefix=/usr/ --with-features=huge --enable-gui=qt
-
+    ./configure --prefix=/usr/ --with-features=huge --with-vim-name=qvim --enable-gui=qt
 
 If configure is unable to find Qt, try passing in the Qt base dir as follows:
 
-    ./configure --enable-gui=qt --with-qt-dir=/usr/lib/qt4
+    ./configure <...> --with-qt-dir=/usr/lib/qt4
+
+The vim binary will be created under **src/vim**.
 
 
 ## Building on Windows
@@ -43,6 +43,9 @@ Make sure all mingw tools are in your path (i.e. gcc, mingw32-make), and then fr
 
     $ cmake -G MinGW Makefiles PATH_TO_QTVIM\src
     $ mingw32-make
+
+
+
 
 
 
