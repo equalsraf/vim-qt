@@ -32,7 +32,6 @@ public:
 	QVimShell(QWidget *parent=0);
 
 	bool hasInput();
-	void loadColors(const QString&);
 	static QColor color(const QString&);
 
 	void queuePaintOp(PaintOperation);
@@ -41,7 +40,6 @@ public:
 	int charWidth();
 
 	void setEncodingUtf8(bool);
-	static void setupColorMap();
 	virtual QVariant inputMethodQuery(Qt::InputMethodQuery);
 	void setSlowStringDrawing(bool slow) {m_slowStringDrawing = slow;}
 
@@ -109,7 +107,6 @@ private:
 	int m_lastClickEvent;
 	QLabel *m_tooltip;
 
-	static QHash<QString, QColor> m_colorMap;
 	VimWrapper vim;
 	bool m_slowStringDrawing;
 	bool m_mouseHidden;

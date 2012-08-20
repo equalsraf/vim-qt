@@ -612,7 +612,6 @@ gui_mch_prepare(int *argc, char **argv)
 #ifdef Q_WS_X11
 	QColor::setAllowX11ColorNames(true);
 #endif
-	QVimShell::setupColorMap();
 }
 
 /**

@@ -1247,10 +1247,12 @@ QT_LIBS1	= $(QT_LIBS)
 QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/scrollarea.cpp \
 			qt/fontdialog.cpp \
+			qt/colortable.cpp \
 			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
+			objects/colortable.o \
 			objects/scrollarea.o objects/fontdialog.o objects/vimwrapper.o \
 			objects/tabbar.o objects/vimscrollbar.o
 
@@ -1310,7 +1312,7 @@ APPDIR = $(VIMNAME).app
 CARBONGUI_TESTARG = VIMPROG=../$(APPDIR)/Contents/MacOS/$(VIMTARGET)
 
 # All GUI files
-ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qt/qvimshell.cpp qt/mainwindow.cpp qt/vimgui.cpp qt/fontdialog.cpp
+ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qt/qvimshell.cpp qt/mainwindow.cpp qt/vimgui.cpp qt/fontdialog.cpp qt/colortable.cpp
 ALL_GUI_PRO  = gui.pro gui_gtk.pro gui_motif.pro gui_xmdlg.pro gui_athena.pro gui_gtk_x11.pro gui_x11.pro gui_w16.pro gui_w32.pro gui_photon.pro
 
 # }}}
@@ -2542,6 +2544,10 @@ objects/mainwindow.o: qt/mainwindow.cpp
 objects/qvimshell.o: qt/qvimshell.cpp
 	$(MOC) qt/qvimshell.h > qvimshell.moc
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/qvimshell.cpp
+
+objects/colortable.o: qt/colortable.cpp
+	$(MOC) qt/colortable.h > colortable.moc
+	$(CXX) $(ALL_CFLAGS) -O0 -o $@ -c qt/colortable.cpp # -O0 is needed here
 
 objects/vimaction.o: qt/vimaction.cpp
 	$(MOC) qt/vimaction.h > vimaction.moc
