@@ -74,6 +74,7 @@ set(MOC_SOURCES qt/qvimshell.cpp
 		qt/vimscrollbar.cpp 
 		qt/vimwrapper.cpp 
 		qt/fontdialog.cpp
+		qt/colortable.cpp
 		qt/scrollarea.cpp)
 
 set(QVIM_RCS qt/icons.qrc)
