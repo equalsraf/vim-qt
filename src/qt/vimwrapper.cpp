@@ -380,10 +380,15 @@ bool VimWrapper::processEvents(long wtime, bool inputOnly)
 		QTime t;
 		t.start();
 		do {
-			QTimer::singleShot( wtime - t.elapsed(),
-						QApplication::instance(),
-						SLOT(quit())
-					);
+			//
+			// DONT use ::singleShot, we need to remove the timer
+			// when leaving this scope, to ensure the slot is not
+			// called after we exited.
+			QTimer timer;
+			timer.setSingleShot(true);
+			QObject::connect(&timer, SIGNAL(timeout()), QApplication::instance(), SLOT(quit()));
+			timer.start(wtime - t.elapsed());
+
 			QApplication::processEvents( QEventLoop::WaitForMoreEvents);
 			if ( hasPendingEvents() || !vim_is_input_buf_empty() ) {
 				goto out;
