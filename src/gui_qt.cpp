@@ -1318,7 +1318,7 @@ void gui_mch_show_popupmenu(vimmenu_T *menu)
 	}
 
 	QMenu *m = (QMenu*)menu->qmenu;
-	m->exec( QCursor::pos() );
+	m->popup( QCursor::pos() );
 }
 
 /**
