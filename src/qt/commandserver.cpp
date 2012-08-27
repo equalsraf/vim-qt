@@ -33,7 +33,7 @@ void CommandClient::readRequest()
 
 		if ( asExpr ) {
 			char_u *res = eval_client_expr_to_string( (char_u *)VimWrapper::convertTo(cmd).constData() );
-			*stream << VimWrapper::convertFrom((char*)res);
+			*stream << VimWrapper::convertFrom(res);
 		} else {
 			// Do we need to poke the loop ?
 			server_to_input_buf((char_u *)VimWrapper::convertTo(cmd).constData());

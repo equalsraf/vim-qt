@@ -195,7 +195,7 @@ int
 serverSendToVim(char_u *name, char_u *cmd, char **result, void *ptarget, int asExpr, int silent)
 {
 	QDir dir( socketFolder() );
-	QString remotecmd = VimWrapper::convertFrom((char *)cmd);
+	QString remotecmd = VimWrapper::convertFrom(cmd);
 
 	QLocalSocket *sock = new QLocalSocket();
 	QObject::connect(sock, SIGNAL(disconnected()), sock, SLOT(deleteLater()));
