@@ -171,6 +171,7 @@ static const struct special_key special_keys[] =
     {Qt::Key_Print,	'%', '9'},
     {Qt::Key_Tab,	TAB, NUL},
     {Qt::Key_Backtab,	TAB, NUL},
+    {Qt::Key_Escape,	ESC, NUL},
 
 
     /* End of list marker: */
