@@ -1263,9 +1263,9 @@ QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/colortable.cpp \
 			qt/if_qtcmdsrv.cpp \
 			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp \
-			qt/vimevents.cpp
 			qt/if_commandserver.cpp \
-			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp
+			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp \
+			qt/vimevents.cpp
 
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
 			objects/pty.o objects/gui_beval.o \
