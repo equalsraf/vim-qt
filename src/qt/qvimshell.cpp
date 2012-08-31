@@ -77,7 +77,13 @@ QColor QVimShell::background()
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
 	update();
-	guiResizeShell(ev->size().width(), ev->size().height());
+
+	//
+	// Vim might trigger another resize, postpone the call
+	// to guiResizeShell - otherwise we might be called
+	// recursivelly and crash
+	//
+	postGuiResizeShell(ev->size().width(), ev->size().height());
 }
 
 /**

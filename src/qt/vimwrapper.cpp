@@ -20,11 +20,26 @@ VimWrapper::VimWrapper()
 
 }
 
+/*
+ * Post a vim resize event to be handled later
+ *
+ */
+void VimWrapper::postGuiResizeShell(int w, int h)
+{
+	ResizeEvent *ev = new ResizeEvent( *this, w, h);
+	pendingEvents.append(ev);
+}
+
+/*
+ * Notify Vim of a GUI resize
+ *
+ * If m_processInputOnly is true the handling of this event WILL
+ * be delayed
+ */
 void VimWrapper::guiResizeShell(int w, int h)
 {
 	if ( m_processInputOnly ) {
-		ResizeEvent *ev = new ResizeEvent( *this, w, h);
-		pendingEvents.append(ev);
+		postGuiResizeShell(w, h);
 	} else {
 		gui_resize_shell(w, h);
 	}

@@ -82,7 +82,7 @@ public:
 	/**
 	 * Vim methods
 	 */
-	//void guiResizeShell(int, int);
+	void postGuiResizeShell(int w, int h);
 	void guiResizeShell(int w, int h);
 	void guiShellClosed();
 	void guiSendMouseEvent(int , int , int , int , unsigned int );
