@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QFile>
 #include <QTimer>
+#include <QMimeData>
 
 extern "C" {
 #include "proto/gui.pro"
