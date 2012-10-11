@@ -2422,6 +2422,16 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     fi
 
     #
+    # Check Qt version
+    QT_MIN_VERSION="4.7.0"
+    AC_MSG_CHECKING(Qt version)
+    QT_VERSION=`$QMAKE -query QT_VERSION | cut -f1`
+    if test [ "$QT_VERSION" \< "$QT_MIN_VERSION" ]; then
+       AC_MSG_ERROR("Qt version is too old - need at least $QT_MIN_VERSION")
+    fi
+    AC_MSG_RESULT($QT_VERSION)
+
+    #
     # Call qmake to generate bogus project
     #
     # What we do here is call qmake to generate a valid Makefile and
@@ -2448,8 +2458,13 @@ EOF
         AC_MSG_ERROR(qmake failed)
     fi
 
-    # add options
-    echo "QT += network widgets" >> $tmp/test.pro
+    # Qt Modules
+    echo "QT += network" >> $tmp/test.pro
+    if test ![ "5.0.0" \> "$QT_VERSION" ]; then
+    	# Qt5 needs QtWidgets
+	echo "QT += widgets" >> $tmp/test.pro
+    fi
+
 
     # generate Makefile
     qmake_try=`cd $tmp; $QMAKE`
