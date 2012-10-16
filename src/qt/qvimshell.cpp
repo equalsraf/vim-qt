@@ -200,10 +200,11 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 		add_to_input_buf((char_u *) str, len);
 	} else if ( !ev->text().isEmpty() ) {
 		if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
-			char str[2] = {(char)195, ev->text().data()[0].toAscii() + 64};
+			char str[2] = {(char)195, ev->text().data()[0].toLatin1() + 64};
 			add_to_input_buf( (char_u *) str, 2 );
 		} else {
-			add_to_input_buf( (char_u *) VimWrapper::convertTo(ev->text()).data(), ev->count() );
+			QByteArray t = VimWrapper::convertTo(ev->text());
+			add_to_input_buf( (char_u *) t.data(), t.size() );
 		}
 	}
 
