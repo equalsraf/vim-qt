@@ -203,7 +203,8 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 			char str[2] = {(char)195, ev->text().data()[0].toAscii() + 64};
 			add_to_input_buf( (char_u *) str, 2 );
 		} else {
-			add_to_input_buf( (char_u *) VimWrapper::convertTo(ev->text()).data(), ev->count() );
+			QByteArray t = VimWrapper::convertTo(ev->text());
+			add_to_input_buf( (char_u *) t.data(), t.size() );
 		}
 	}
 
