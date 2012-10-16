@@ -2451,6 +2451,16 @@ int main(int ac, char **av) {
 }
 EOF
 
+
+    AC_PATH_PROG(MAKE_P, gmake)
+    if test -z "$MAKE_P"; then
+    	MAKE_P="make"
+
+    else
+        AC_PATH_PROG(MAKE_P, gmake)
+    fi
+    echo "$MAKE_P"
+
     # Generate qmake project
     qmake_try=`cd $tmp; $QMAKE -project -o test.pro`
     AC_TRY_EVAL(qt_try)
@@ -2489,31 +2499,31 @@ info:
 EOF
 
     # LIBS
-    QT_LIBS=`gmake -f $tmp/makefile.dummy |grep LIBS.*= | awk '{sub(/^LIBS +=/, ""); print}'`
+    QT_LIBS=`$MAKE_P -f $tmp/makefile.dummy |grep LIBS.*= | awk '{sub(/^LIBS +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         AC_MSG_ERROR(Unable to find Qt libraries)
     fi
 
     # Include directives
-    QT_INCPATH=`gmake -f $tmp/makefile.dummy |grep INCPATH.*= | awk '{sub(/^INCPATH +=/, ""); print}'`
+    QT_INCPATH=`$MAKE_P -f $tmp/makefile.dummy |grep INCPATH.*= | awk '{sub(/^INCPATH +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         AC_MSG_ERROR(Unable to find Qt include path)
     fi
 
     # LFLAGS
-    QT_LFLAGS=`gmake -f $tmp/makefile.dummy |grep LFLAGS.*= | awk '{sub(/^LFLAGS +=/, ""); print}'`
+    QT_LFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep LFLAGS.*= | awk '{sub(/^LFLAGS +=/, ""); print}'`
     if test -z "$QT_LFLAGS"; then
         AC_MSG_ERROR(Unable to find Qt link flags)
     fi
 
     # Qt CXXFLAGS
-    QT_CXXFLAGS=`gmake -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
+    QT_CXXFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
     if test -z "$QT_LFLAGS"; then
         AC_MSG_ERROR(Unable to find Qt C flags)
     fi
 
     # Qt CFLAGS
-    QT_CFLAGS=`gmake -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
+    QT_CFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
     if test -z "$QT_CFLAGS"; then
         AC_MSG_ERROR(Unable to find Qt C++ flags)
     fi

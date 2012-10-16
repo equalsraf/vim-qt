@@ -618,6 +618,7 @@ QT_CFLAGS
 QT_CXXFLAGS
 QT_INCPATH
 QT_LIBS
+MAKE_P
 QT_MOC
 QMAKE
 ac_ct_CXX
@@ -9376,6 +9377,94 @@ int main(int ac, char **av) {
 }
 EOF
 
+
+    # Extract the first word of "gmake", so it can be a program name with args.
+set dummy gmake; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_MAKE_P+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $MAKE_P in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_MAKE_P="$MAKE_P" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_MAKE_P="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+MAKE_P=$ac_cv_path_MAKE_P
+if test -n "$MAKE_P"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MAKE_P" >&5
+$as_echo "$MAKE_P" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    if test -z "$MAKE_P"; then
+    	MAKE_P="make"
+
+    else
+        # Extract the first word of "gmake", so it can be a program name with args.
+set dummy gmake; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_MAKE_P+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $MAKE_P in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_MAKE_P="$MAKE_P" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_MAKE_P="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+MAKE_P=$ac_cv_path_MAKE_P
+if test -n "$MAKE_P"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MAKE_P" >&5
+$as_echo "$MAKE_P" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    fi
+    echo "$MAKE_P"
+
     # Generate qmake project
     qmake_try=`cd $tmp; $QMAKE -project -o test.pro`
     { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$qt_try\""; } >&5
@@ -9422,31 +9511,31 @@ info:
 EOF
 
     # LIBS
-    QT_LIBS=`gmake -f $tmp/makefile.dummy |grep LIBS.*= | awk '{sub(/^LIBS +=/, ""); print}'`
+    QT_LIBS=`$MAKE_P -f $tmp/makefile.dummy |grep LIBS.*= | awk '{sub(/^LIBS +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         as_fn_error $? "Unable to find Qt libraries" "$LINENO" 5
     fi
 
     # Include directives
-    QT_INCPATH=`gmake -f $tmp/makefile.dummy |grep INCPATH.*= | awk '{sub(/^INCPATH +=/, ""); print}'`
+    QT_INCPATH=`$MAKE_P -f $tmp/makefile.dummy |grep INCPATH.*= | awk '{sub(/^INCPATH +=/, ""); print}'`
     if test -z "$QT_LIBS"; then
         as_fn_error $? "Unable to find Qt include path" "$LINENO" 5
     fi
 
     # LFLAGS
-    QT_LFLAGS=`gmake -f $tmp/makefile.dummy |grep LFLAGS.*= | awk '{sub(/^LFLAGS +=/, ""); print}'`
+    QT_LFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep LFLAGS.*= | awk '{sub(/^LFLAGS +=/, ""); print}'`
     if test -z "$QT_LFLAGS"; then
         as_fn_error $? "Unable to find Qt link flags" "$LINENO" 5
     fi
 
     # Qt CXXFLAGS
-    QT_CXXFLAGS=`gmake -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
+    QT_CXXFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
     if test -z "$QT_LFLAGS"; then
         as_fn_error $? "Unable to find Qt C flags" "$LINENO" 5
     fi
 
     # Qt CFLAGS
-    QT_CFLAGS=`gmake -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
+    QT_CFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
     if test -z "$QT_CFLAGS"; then
         as_fn_error $? "Unable to find Qt C++ flags" "$LINENO" 5
     fi
