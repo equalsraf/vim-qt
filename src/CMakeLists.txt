@@ -104,7 +104,14 @@ if(MSVC OR MINGW)
 		add_definitions(-wd4099)
 	endif (MSVC)
 
-	add_executable(qvim WIN32 ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES} ${QVIM_RC_SRCS})
+	set(SOURCES ${VIM_SOURCES} ${GUI_SOURCES} ${MOC_SOURCES} ${QVIM_RC_SRCS})
+
+	if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+		message("Building Debug version")
+		add_executable(qvim ${SOURCES})
+	else ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+		add_executable(qvim WIN32 ${SOURCES})
+	endif ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 
 	target_link_libraries(qvim ${QT_QTMAIN_LIBRARY} # Link to qtmain.lib to avoid WinMain()
 				   ${QT_LIBRARIES} )	# Link to Qt
