@@ -9,10 +9,14 @@ struct VimWrapper;
 // Base class
 class VimEvent {
 public:
-	VimEvent(VimWrapper& vim);
+	enum EvType {Resize, Close, Drop};
+
+	VimEvent(VimWrapper& vim, EvType t);
 	virtual void handle()=0;
+	EvType type() { return m_type; }
 protected:
 	VimWrapper& vim;
+	EvType m_type;
 };
 
 

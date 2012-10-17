@@ -1,13 +1,13 @@
 #include "vimevents.h"
 #include "vimwrapper.h"
 
-VimEvent::VimEvent(VimWrapper &vim)
-:vim(vim)
+VimEvent::VimEvent(VimWrapper &vim, EvType t)
+:vim(vim), m_type(t)
 {
 }
 
 ResizeEvent::ResizeEvent(VimWrapper &vim, int w, int h)
-:VimEvent(vim), width(w), height(h)
+:VimEvent(vim, Resize), width(w), height(h)
 {
 }
 
@@ -17,7 +17,7 @@ void ResizeEvent::handle()
 }
 
 CloseEvent::CloseEvent(VimWrapper& vim)
-:VimEvent(vim)
+:VimEvent(vim, Close)
 {
 }
 
@@ -27,7 +27,7 @@ void CloseEvent::handle()
 }
 
 DropEvent::DropEvent(VimWrapper& vim, const QPoint& pos, unsigned int mod, QList<QUrl> urls)
-:VimEvent(vim), pos(pos), mod(mod), urls(urls)
+:VimEvent(vim, Drop), pos(pos), mod(mod), urls(urls)
 {
 }
 

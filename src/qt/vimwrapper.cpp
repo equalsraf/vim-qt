@@ -26,8 +26,14 @@ VimWrapper::VimWrapper()
  */
 void VimWrapper::postGuiResizeShell(int w, int h)
 {
-	ResizeEvent *ev = new ResizeEvent( *this, w, h);
-	pendingEvents.append(ev);
+	ResizeEvent *new_ev = new ResizeEvent( *this, w, h);
+	foreach(VimEvent *ev, pendingEvents) {
+		if (ev->type() == VimEvent::Resize) {
+			pendingEvents.removeOne(ev);
+			delete ev;
+		}
+	}
+	pendingEvents.append(new_ev);
 }
 
 /*
