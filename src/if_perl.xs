@@ -76,6 +76,12 @@
 # define EXTERN_C
 #endif
 
+#if (PERL_REVISION == 5) && (PERL_VERSION >= 14) && defined(_MSC_VER)
+/* Using PL_errgv to get the error message after perl_eval_sv() causes a crash
+ * with MSVC and Perl version 5.14. */
+# define AVOID_PL_ERRGV
+#endif
+
 /* Compatibility hacks over */
 
 static PerlInterpreter *perl_interp = NULL;
@@ -149,7 +155,7 @@ typedef int perl_key;
 # define Perl_set_context dll_Perl_set_context
 # if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
 # define Perl_sv_2bool_flags dll_Perl_sv_2bool_flags
-# define Perl_xs_apiversion_bootcheck dll_Perl_xs_apiversion_bootcheck 
+# define Perl_xs_apiversion_bootcheck dll_Perl_xs_apiversion_bootcheck
 # else
 # define Perl_sv_2bool dll_Perl_sv_2bool
 # endif
@@ -219,6 +225,9 @@ typedef int perl_key;
 # define Perl_call_list dll_Perl_call_list
 # define Perl_Iscopestack_ix_ptr dll_Perl_Iscopestack_ix_ptr
 # define Perl_Iunitcheckav_ptr dll_Perl_Iunitcheckav_ptr
+# if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
+#  define PL_thr_key *dll_PL_thr_key
+# endif
 
 /*
  * Declare HANDLE for perl.dll and function pointers.
@@ -309,6 +318,9 @@ static STRLEN* (*Perl_Tna_ptr)(register PerlInterpreter*);
 static void (*Perl_sv_free2)(pTHX_ SV*);
 static void (*Perl_sys_init)(int* argc, char*** argv);
 static void (*Perl_sys_term)(void);
+static void (*Perl_call_list)(pTHX_ I32, AV*);
+# if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
+# else
 static SV** (*Perl_ISv_ptr)(register PerlInterpreter*);
 static SV*** (*Perl_Istack_max_ptr)(register PerlInterpreter*);
 static SV*** (*Perl_Istack_base_ptr)(register PerlInterpreter*);
@@ -320,16 +332,20 @@ static I32** (*Perl_Imarkstack_ptr_ptr)(register PerlInterpreter*);
 static I32** (*Perl_Imarkstack_max_ptr)(register PerlInterpreter*);
 static SV*** (*Perl_Istack_sp_ptr)(register PerlInterpreter*);
 static OP** (*Perl_Iop_ptr)(register PerlInterpreter*);
-static void (*Perl_call_list)(pTHX_ I32, AV*);
 static I32* (*Perl_Iscopestack_ix_ptr)(register PerlInterpreter*);
 static AV** (*Perl_Iunitcheckav_ptr)(register PerlInterpreter*);
+# endif
 #endif
 
+#if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
+static perl_key* dll_PL_thr_key;
+#else
 static GV** (*Perl_Idefgv_ptr)(register PerlInterpreter*);
 static GV** (*Perl_Ierrgv_ptr)(register PerlInterpreter*);
 static SV* (*Perl_Isv_yes_ptr)(register PerlInterpreter*);
-static void (*boot_DynaLoader)_((pTHX_ CV*));
 static perl_key* (*Perl_Gthr_key_ptr)_((pTHX));
+#endif
+static void (*boot_DynaLoader)_((pTHX_ CV*));
 
 /*
  * Table of name to function pointer of perl.
@@ -441,6 +457,7 @@ static struct {
 # endif
 #endif
 #if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
+    {"PL_thr_key", (PERL_PROC*)&dll_PL_thr_key},
 #else
     {"Perl_Idefgv_ptr", (PERL_PROC*)&Perl_Idefgv_ptr},
     {"Perl_Ierrgv_ptr", (PERL_PROC*)&Perl_Ierrgv_ptr},
@@ -796,7 +813,11 @@ ex_perl(eap)
 
     SvREFCNT_dec(sv);
 
+#ifdef AVOID_PL_ERRGV
+    err = SvPV(perl_get_sv("@", GV_ADD), length);
+#else
     err = SvPV(GvSV(PL_errgv), length);
+#endif
 
     FREETMPS;
     LEAVE;
@@ -866,7 +887,11 @@ ex_perldo(eap)
     sv_catpvn(sv, "}", 1);
     perl_eval_sv(sv, G_DISCARD | G_NOARGS);
     SvREFCNT_dec(sv);
+#ifdef AVOID_PL_ERRGV
+    str = SvPV(perl_get_sv("@", GV_ADD), length);
+#else
     str = SvPV(GvSV(PL_errgv), length);
+#endif
     if (length)
 	goto err;
 
@@ -880,7 +905,11 @@ ex_perldo(eap)
 	sv_setpv(GvSV(PL_defgv), (char *)ml_get(i));
 	PUSHMARK(sp);
 	perl_call_pv("VIM::perldo", G_SCALAR | G_EVAL);
+#ifdef AVOID_PL_ERRGV
+	str = SvPV(perl_get_sv("@", GV_ADD), length);
+#else
 	str = SvPV(GvSV(PL_errgv), length);
+#endif
 	if (length)
 	    break;
 	SPAGAIN;

@@ -332,7 +332,7 @@ shift_line(left, round, amount, call_changed_bytes)
 {
     int		count;
     int		i, j;
-    int		p_sw = (int)curbuf->b_p_sw;
+    int		p_sw = (int)get_sw_value();
 
     count = get_indent();	/* get current indent */
 
@@ -388,7 +388,7 @@ shift_block(oap, amount)
     int			total;
     char_u		*newp, *oldp;
     int			oldcol = curwin->w_cursor.col;
-    int			p_sw = (int)curbuf->b_p_sw;
+    int			p_sw = (int)get_sw_value();
     int			p_ts = (int)curbuf->b_p_ts;
     struct block_def	bd;
     int			incr;
@@ -962,8 +962,14 @@ get_register(name, copy)
      * selection too. */
     if (name == '*' && clip_star.available)
     {
-	if (clip_isautosel())
-	    clip_update_selection();
+	if (clip_isautosel_star())
+	    clip_update_selection(&clip_star);
+	may_get_selection(name);
+    }
+    if (name == '+' && clip_plus.available)
+    {
+	if (clip_isautosel_plus())
+	    clip_update_selection(&clip_plus);
 	may_get_selection(name);
     }
 #endif
@@ -1617,6 +1623,7 @@ op_delete(oap)
 #endif
     linenr_T		old_lcount = curbuf->b_ml.ml_line_count;
     int			did_yank = FALSE;
+    int			orig_regname = oap->regname;
 
     if (curbuf->b_ml.ml_flags & ML_EMPTY)	    /* nothing to do */
 	return OK;
@@ -1709,8 +1716,10 @@ op_delete(oap)
 	/*
 	 * Put deleted text into register 1 and shift number registers if the
 	 * delete contains a line break, or when a regname has been specified.
+	 * Use the register name from before adjust_clip_reg() may have
+	 * changed it.
 	 */
-	if (oap->regname != 0 || oap->motion_type == MLINE
+	if (orig_regname != 0 || oap->motion_type == MLINE
 				   || oap->line_count > 1 || oap->use_reg_one)
 	{
 	    y_current = &y_regs[9];
@@ -1727,8 +1736,8 @@ op_delete(oap)
 	 * and the delete is within one line. */
 	if ((
 #ifdef FEAT_CLIPBOARD
-            ((clip_unnamed & CLIP_UNNAMED) && oap->regname == '*') ||
-            ((clip_unnamed & CLIP_UNNAMED_PLUS) && oap->regname == '+') ||
+	    ((clip_unnamed & CLIP_UNNAMED) && oap->regname == '*') ||
+	    ((clip_unnamed & CLIP_UNNAMED_PLUS) && oap->regname == '+') ||
 #endif
 	    oap->regname == 0) && oap->motion_type != MLINE
 						      && oap->line_count == 1)
@@ -3190,7 +3199,8 @@ op_yank(oap, deleting, mess)
 
 	clip_own_selection(&clip_plus);
 	clip_gen_set_selection(&clip_plus);
-	if (!clip_isautosel() && !did_star && curr == &(y_regs[PLUS_REGISTER]))
+	if (!clip_isautosel_star() && !did_star
+					  && curr == &(y_regs[PLUS_REGISTER]))
 	{
 	    copy_yank_reg(&(y_regs[STAR_REGISTER]));
 	    clip_own_selection(&clip_star);
@@ -4208,10 +4218,10 @@ dis_msg(p, skip_esc)
  * "is_comment".
  * line - line to be processed,
  * process - if FALSE, will only check whether the line ends with an unclosed
- *           comment,
+ *	     comment,
  * include_space - whether to also skip space following the comment leader,
  * is_comment - will indicate whether the current line ends with an unclosed
- *              comment.
+ *		comment.
  */
     static char_u *
 skip_comment(line, process, include_space, is_comment)
@@ -4250,15 +4260,13 @@ skip_comment(line, process, include_space, is_comment)
 	return line;
 
     /* Find:
-     * - COM_START,
      * - COM_END,
      * - colon,
      * whichever comes first.
      */
     while (*comment_flags)
     {
-	if (*comment_flags == COM_START
-		|| *comment_flags == COM_END
+	if (*comment_flags == COM_END
 		|| *comment_flags == ':')
 	{
 	    break;
@@ -4267,9 +4275,8 @@ skip_comment(line, process, include_space, is_comment)
     }
 
     /* If we found a colon, it means that we are not processing a line
-     * starting with an opening or a closing part of a three-part
-     * comment. That's good, because we don't want to remove those as
-     * this would be annoying.
+     * starting with a closing part of a three-part comment. That's good,
+     * because we don't want to remove those as this would be annoying.
      */
     if (*comment_flags == ':' || *comment_flags == NUL)
 	line += lead_len;
@@ -4726,9 +4733,11 @@ format_lines(line_count, avoid_fex)
     char_u	*leader_flags = NULL;	/* flags for leader of current line */
     char_u	*next_leader_flags;	/* flags for leader of next line */
     int		do_comments;		/* format comments */
+    int		do_comments_list = 0;	/* format comments with 'n' or '2' */
 #endif
     int		advance = TRUE;
-    int		second_indent = -1;
+    int		second_indent = -1;	/* indent for second line (comment
+					 * aware) */
     int		do_second_indent;
     int		do_number_indent;
     int		do_trail_white;
@@ -4831,18 +4840,46 @@ format_lines(line_count, avoid_fex)
 	    if (first_par_line
 		    && (do_second_indent || do_number_indent)
 		    && prev_is_end_par
-		    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count
-#ifdef FEAT_COMMENTS
-		    && leader_len == 0
-		    && next_leader_len == 0
-#endif
-		    )
+		    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
 	    {
-		if (do_second_indent
-			&& !lineempty(curwin->w_cursor.lnum + 1))
-		    second_indent = get_indent_lnum(curwin->w_cursor.lnum + 1);
+		if (do_second_indent && !lineempty(curwin->w_cursor.lnum + 1))
+		{
+#ifdef FEAT_COMMENTS
+		    if (leader_len == 0 && next_leader_len == 0)
+		    {
+			/* no comment found */
+#endif
+			second_indent =
+				   get_indent_lnum(curwin->w_cursor.lnum + 1);
+#ifdef FEAT_COMMENTS
+		    }
+		    else
+		    {
+			second_indent = next_leader_len;
+			do_comments_list = 1;
+		    }
+#endif
+		}
 		else if (do_number_indent)
-		    second_indent = get_number_indent(curwin->w_cursor.lnum);
+		{
+#ifdef FEAT_COMMENTS
+		    if (leader_len == 0 && next_leader_len == 0)
+		    {
+			/* no comment found */
+#endif
+			second_indent =
+				     get_number_indent(curwin->w_cursor.lnum);
+#ifdef FEAT_COMMENTS
+		    }
+		    else
+		    {
+			/* get_number_indent() is now "comment aware"... */
+			second_indent =
+				     get_number_indent(curwin->w_cursor.lnum);
+			do_comments_list = 1;
+		    }
+#endif
+		}
 	    }
 
 	    /*
@@ -4881,6 +4918,8 @@ format_lines(line_count, avoid_fex)
 		insertchar(NUL, INSCHAR_FORMAT
 #ifdef FEAT_COMMENTS
 			+ (do_comments ? INSCHAR_DO_COM : 0)
+			+ (do_comments && do_comments_list
+						       ? INSCHAR_COM_LIST : 0)
 #endif
 			+ (avoid_fex ? INSCHAR_NO_FEX : 0), second_indent);
 		State = old_State;
@@ -6429,7 +6468,7 @@ line_count_info(line, wc, cc, limit, eol_size)
     long	chars = 0;
     int		is_word = 0;
 
-    for (i = 0; line[i] && i < limit; )
+    for (i = 0; i < limit && line[i] != NUL; )
     {
 	if (is_word)
 	{

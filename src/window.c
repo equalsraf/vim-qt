@@ -45,7 +45,7 @@ static void new_frame __ARGS((win_T *wp));
 #if defined(FEAT_WINDOWS) || defined(PROTO)
 static tabpage_T *alloc_tabpage __ARGS((void));
 static int leave_tabpage __ARGS((buf_T *new_curbuf));
-static void enter_tabpage __ARGS((tabpage_T *tp, buf_T *old_curbuf));
+static void enter_tabpage __ARGS((tabpage_T *tp, buf_T *old_curbuf, int trigger_autocmds));
 static void frame_fix_height __ARGS((win_T *wp));
 static int frame_minheight __ARGS((frame_T *topfrp, win_T *next_curwin));
 static void win_enter_ext __ARGS((win_T *wp, int undo_sync, int no_curwin));
@@ -54,7 +54,6 @@ static void frame_append __ARGS((frame_T *after, frame_T *frp));
 static void frame_insert __ARGS((frame_T *before, frame_T *frp));
 static void frame_remove __ARGS((frame_T *frp));
 #ifdef FEAT_VERTSPLIT
-static void win_new_width __ARGS((win_T *wp, int width));
 static void win_goto_ver __ARGS((int up, long count));
 static void win_goto_hor __ARGS((int left, long count));
 #endif
@@ -71,7 +70,6 @@ static win_T *restore_snapshot_rec __ARGS((frame_T *sn, frame_T *fr));
 
 static win_T *win_alloc __ARGS((win_T *after, int hidden));
 static void set_fraction __ARGS((win_T *wp));
-static void win_new_height __ARGS((win_T *wp, int height));
 
 #define URL_SLASH	1		/* path_is_url() has found "://" */
 #define URL_BACKSLASH	2		/* path_is_url() has found ":\\" */
@@ -355,11 +353,11 @@ newwindow:
 						     && valid_tabpage(oldtab))
 		    {
 			newtab = curtab;
-			goto_tabpage_tp(oldtab);
+			goto_tabpage_tp(oldtab, TRUE);
 			if (curwin == wp)
 			    win_close(curwin, FALSE);
 			if (valid_tabpage(newtab))
-			    goto_tabpage_tp(newtab);
+			    goto_tabpage_tp(newtab, TRUE);
 		    }
 		}
 		break;
@@ -2130,8 +2128,10 @@ close_last_window_tabpage(win, free_buf, prev_curtab)
 	 * page and then close the window and the tab page.  This avoids that
 	 * curwin and curtab are invalid while we are freeing memory, they may
 	 * be used in GUI events.
+	 * Don't trigger autocommands yet, they may use wrong values, so do
+	 * that below.
 	 */
-	goto_tabpage_tp(alt_tabpage());
+	goto_tabpage_tp(alt_tabpage(), FALSE);
 	redraw_tabline = TRUE;
 
 	/* Safety check: Autocommands may have closed the window when jumping
@@ -2144,6 +2144,12 @@ close_last_window_tabpage(win, free_buf, prev_curtab)
 	    if (h != tabline_height())
 		shell_new_rows();
 	}
+	/* Since goto_tabpage_tp above did not trigger *Enter autocommands, do
+	 * that now. */
+#ifdef FEAT_AUTOCMD
+	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
+	apply_autocmds(EVENT_WINENTER, NULL, NULL, FALSE, curbuf);
+#endif
 	return TRUE;
     }
     return FALSE;
@@ -2176,7 +2182,7 @@ win_close(win, free_buf)
     }
 
 #ifdef FEAT_AUTOCMD
-    if (win->w_closing || win->w_buffer->b_closing)
+    if (win->w_closing || (win->w_buffer != NULL && win->w_buffer->b_closing))
 	return; /* window is already being closed */
     if (win == aucmd_win)
     {
@@ -2263,7 +2269,7 @@ win_close(win, free_buf)
 #ifdef FEAT_AUTOCMD
 	win->w_closing = TRUE;
 #endif
-	close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, FALSE);
+	close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, TRUE);
 #ifdef FEAT_AUTOCMD
 	if (win_valid(win))
 	    win->w_closing = FALSE;
@@ -3460,7 +3466,7 @@ alloc_tabpage()
 # endif
 #ifdef FEAT_EVAL
 	/* init t: variables */
-	init_var_dict(&tp->tp_vars, &tp->tp_winvar);
+	init_var_dict(&tp->tp_vars, &tp->tp_winvar, VAR_SCOPE);
 #endif
 	tp->tp_ch_used = p_ch;
     }
@@ -3556,7 +3562,7 @@ win_new_tabpage(after)
     }
 
     /* Failed, get back the previous Tab page */
-    enter_tabpage(curtab, curbuf);
+    enter_tabpage(curtab, curbuf, TRUE);
     return FAIL;
 }
 
@@ -3709,11 +3715,13 @@ leave_tabpage(new_curbuf)
 /*
  * Start using tab page "tp".
  * Only to be used after leave_tabpage() or freeing the current tab page.
+ * Only trigger *Enter autocommands when trigger_autocmds is TRUE.
  */
     static void
-enter_tabpage(tp, old_curbuf)
+enter_tabpage(tp, old_curbuf, trigger_autocmds)
     tabpage_T	*tp;
     buf_T	*old_curbuf UNUSED;
+    int		trigger_autocmds UNUSED;
 {
     int		old_off = tp->tp_firstwin->w_winrow;
     win_T	*next_prevwin = tp->tp_prevwin;
@@ -3761,9 +3769,12 @@ enter_tabpage(tp, old_curbuf)
 #ifdef FEAT_AUTOCMD
     /* Apply autocommands after updating the display, when 'rows' and
      * 'columns' have been set correctly. */
-    apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
-    if (old_curbuf != curbuf)
-	apply_autocmds(EVENT_BUFENTER, NULL, NULL, FALSE, curbuf);
+    if (trigger_autocmds)
+    {
+	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
+	if (old_curbuf != curbuf)
+	    apply_autocmds(EVENT_BUFENTER, NULL, NULL, FALSE, curbuf);
+    }
 #endif
 
     redraw_all_later(CLEAR);
@@ -3839,7 +3850,7 @@ goto_tabpage(n)
 	}
     }
 
-    goto_tabpage_tp(tp);
+    goto_tabpage_tp(tp, TRUE);
 
 #ifdef FEAT_GUI_TABLINE
     if (gui_use_tabline())
@@ -3849,11 +3860,13 @@ goto_tabpage(n)
 
 /*
  * Go to tabpage "tp".
+ * Only trigger *Enter autocommands when trigger_autocmds is TRUE.
  * Note: doesn't update the GUI tab.
  */
     void
-goto_tabpage_tp(tp)
+goto_tabpage_tp(tp, trigger_autocmds)
     tabpage_T	*tp;
+    int		trigger_autocmds;
 {
     /* Don't repeat a message in another tab page. */
     set_keep_msg(NULL, 0);
@@ -3861,9 +3874,9 @@ goto_tabpage_tp(tp)
     if (tp != curtab && leave_tabpage(tp->tp_curwin->w_buffer) == OK)
     {
 	if (valid_tabpage(tp))
-	    enter_tabpage(tp, curbuf);
+	    enter_tabpage(tp, curbuf, trigger_autocmds);
 	else
-	    enter_tabpage(curtab, curbuf);
+	    enter_tabpage(curtab, curbuf, trigger_autocmds);
     }
 }
 
@@ -3876,7 +3889,7 @@ goto_tabpage_win(tp, wp)
     tabpage_T	*tp;
     win_T	*wp;
 {
-    goto_tabpage_tp(tp);
+    goto_tabpage_tp(tp, TRUE);
     if (curtab == tp && win_valid(wp))
     {
 	win_enter(wp, TRUE);
@@ -3914,7 +3927,7 @@ tabpage_move(nr)
     }
 
     /* Re-insert it at the specified position. */
-    if (n == 0)
+    if (n <= 0)
     {
 	curtab->tp_next = first_tabpage;
 	first_tabpage = curtab;
@@ -4395,7 +4408,7 @@ win_alloc(after, hidden)
 #endif
 #ifdef FEAT_EVAL
 	/* init w: variables */
-	init_var_dict(&new_wp->w_vars, &new_wp->w_winvar);
+	init_var_dict(&new_wp->w_vars, &new_wp->w_winvar, VAR_SCOPE);
 #endif
 #ifdef FEAT_FOLDING
 	foldInitWin(new_wp);
@@ -5542,7 +5555,7 @@ set_fraction(wp)
  * This takes care of the things inside the window, not what happens to the
  * window position, the frame or to other windows.
  */
-    static void
+    void
 win_new_height(wp, height)
     win_T	*wp;
     int		height;
@@ -5682,7 +5695,7 @@ win_new_height(wp, height)
 /*
  * Set the width of a window.
  */
-    static void
+    void
 win_new_width(wp, width)
     win_T	*wp;
     int		width;

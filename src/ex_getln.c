@@ -667,9 +667,10 @@ getcmdline(firstc, count, indent)
 	    c = plain_vgetc();
 	    --no_mapping;
 	    --allow_keys;
-	    /* CTRL-\ e doesn't work when obtaining an expression. */
-	    if (c != Ctrl_N && c != Ctrl_G
-				     && (c != 'e' || ccline.cmdfirstc == '='))
+	    /* CTRL-\ e doesn't work when obtaining an expression, unless it
+	     * is in a mapping. */
+	    if (c != Ctrl_N && c != Ctrl_G && (c != 'e'
+				    || (ccline.cmdfirstc == '=' && KeyTyped)))
 	    {
 		vungetc(c);
 		c = Ctrl_BSL;
@@ -2268,10 +2269,12 @@ getexmodeline(promptc, cookie, indent)
 
 	    if (c1 == Ctrl_T)
 	    {
+		long        sw = get_sw_value();
+
 		p = (char_u *)line_ga.ga_data;
 		p[line_ga.ga_len] = NUL;
 		indent = get_indent_str(p, 8);
-		indent += curbuf->b_p_sw - indent % curbuf->b_p_sw;
+		indent += sw - indent % sw;
 add_indent:
 		while (get_indent_str(p, 8) < indent)
 		{
@@ -2323,7 +2326,7 @@ redraw:
 		    p[line_ga.ga_len] = NUL;
 		    indent = get_indent_str(p, 8);
 		    --indent;
-		    indent -= indent % curbuf->b_p_sw;
+		    indent -= indent % get_sw_value();
 		}
 		while (get_indent_str(p, 8) > indent)
 		{
@@ -3133,7 +3136,8 @@ cmdline_paste_str(s, literally)
 	    else
 #endif
 		c = *s++;
-	    if (cv == Ctrl_V || c == ESC || c == Ctrl_C || c == CAR || c == NL
+	    if (cv == Ctrl_V || c == ESC || c == Ctrl_C
+		    || c == CAR || c == NL || c == Ctrl_L
 #ifdef UNIX
 		    || c == intr_char
 #endif
@@ -4333,6 +4337,7 @@ addstar(fname, len, context)
  *  EXPAND_EXPRESSION	    Complete internal or user defined function/variable
  *			    names in expressions, eg :while s^I
  *  EXPAND_ENV_VARS	    Complete environment variable names
+ *  EXPAND_USER		    Complete user names
  */
     static void
 set_expand_context(xp)
@@ -4678,6 +4683,7 @@ ExpandFromContext(xp, pat, num_file, file, options)
 	    {EXPAND_LOCALES, get_locales, TRUE, FALSE},
 #endif
 	    {EXPAND_ENV_VARS, get_env_name, TRUE, TRUE},
+	    {EXPAND_USER, get_users, TRUE, FALSE},
 	};
 	int	i;
 
@@ -4692,7 +4698,7 @@ ExpandFromContext(xp, pat, num_file, file, options)
 		if (tab[i].ic)
 		    regmatch.rm_ic = TRUE;
 		ret = ExpandGeneric(xp, &regmatch, num_file, file,
-                                                tab[i].func, tab[i].escaped);
+						tab[i].func, tab[i].escaped);
 		break;
 	    }
     }
@@ -5125,7 +5131,7 @@ ExpandRTDir(pat, num_file, file, dirnames)
 	vim_free(matches);
     }
     if (ga.ga_len == 0)
-        return FAIL;
+	return FAIL;
 
     /* Sort and remove duplicates which can happen when specifying multiple
      * directories in dirnames. */

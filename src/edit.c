@@ -1463,7 +1463,7 @@ normalchar:
 			 * what check_abbr() expects. */
 			(has_mbyte && c >= 0x100) ? (c + ABBR_OFF) :
 #endif
-                       c) && c != Ctrl_RSB))
+		       c) && c != Ctrl_RSB))
 	    {
 		insert_special(c, FALSE, FALSE);
 #ifdef FEAT_RIGHTLEFT
@@ -3467,17 +3467,23 @@ ins_compl_addleader(c)
 	(*mb_char2bytes)(c, buf);
 	buf[cc] = NUL;
 	ins_char_bytes(buf, cc);
+	if (compl_opt_refresh_always)
+	    AppendToRedobuff(buf);
     }
     else
 #endif
+    {
 	ins_char(c);
+	if (compl_opt_refresh_always)
+	    AppendCharToRedobuff(c);
+    }
 
     /* If we didn't complete finding matches we must search again. */
     if (ins_compl_need_restart())
 	ins_compl_restart();
 
     /* When 'always' is set, don't reset compl_leader. While completing,
-     * cursor don't point original position, changing compl_leader would
+     * cursor doesn't point original position, changing compl_leader would
      * break redo. */
     if (!compl_opt_refresh_always)
     {
@@ -3818,6 +3824,11 @@ ins_compl_prep(c)
 	    if (want_cindent && in_cinkeys(KEY_COMPLETE, ' ', inindent(0)))
 		do_c_expr_indent();
 #endif
+#ifdef FEAT_AUTOCMD
+	    /* Trigger the CompleteDone event to give scripts a chance to act
+	     * upon the completion. */
+	    apply_autocmds(EVENT_COMPLETEDONE, NULL, NULL, FALSE, curbuf);
+#endif
 	}
     }
 
@@ -3948,7 +3959,7 @@ expand_by_function(type, base)
     curbuf_save = curbuf;
 
     /* Call a function, which returns a list or dict. */
-    if (call_vim_function(funcname, 2, args, FALSE, &rettv) == OK)
+    if (call_vim_function(funcname, 2, args, FALSE, FALSE, &rettv) == OK)
     {
 	switch (rettv.v_type)
 	{
@@ -4183,8 +4194,8 @@ ins_compl_get_exp(ini)
 			ins_buf->b_fname == NULL
 			    ? buf_spname(ins_buf)
 			    : ins_buf->b_sfname == NULL
-				? (char *)ins_buf->b_fname
-				: (char *)ins_buf->b_sfname);
+				? ins_buf->b_fname
+				: ins_buf->b_sfname);
 		(void)msg_trunc_attr(IObuff, TRUE, hl_attr(HLF_R));
 	    }
 	    else if (*e_cpt == NUL)
@@ -5769,6 +5780,16 @@ insert_special(c, allow_modmask, ctrlv)
 # define WHITECHAR(cc) vim_iswhite(cc)
 #endif
 
+/*
+ * "flags": INSCHAR_FORMAT - force formatting
+ *	    INSCHAR_CTRLV  - char typed just after CTRL-V
+ *	    INSCHAR_NO_FEX - don't use 'formatexpr'
+ *
+ *   NOTE: passes the flags value straight through to internal_format() which,
+ *	   beside INSCHAR_FORMAT (above), is also looking for these:
+ *	    INSCHAR_DO_COM   - format comments
+ *	    INSCHAR_COM_LIST - format comments with num list or 2nd line indent
+ */
     void
 insertchar(c, flags, second_indent)
     int		c;			/* character to insert or NUL */
@@ -6011,6 +6032,9 @@ insertchar(c, flags, second_indent)
 
 /*
  * Format text at the current insert position.
+ *
+ * If the INSCHAR_COM_LIST flag is present, then the value of second_indent
+ * will be the comment leader length sent to open_line().
  */
     static void
 internal_format(textwidth, second_indent, flags, format_only, c)
@@ -6289,23 +6313,59 @@ internal_format(textwidth, second_indent, flags, format_only, c)
 		+ (fo_white_par ? OPENLINE_KEEPTRAIL : 0)
 #ifdef FEAT_COMMENTS
 		+ (do_comments ? OPENLINE_DO_COM : 0)
+		+ ((flags & INSCHAR_COM_LIST) ? OPENLINE_COM_LIST : 0)
 #endif
-		, old_indent);
-	old_indent = 0;
+		, ((flags & INSCHAR_COM_LIST) ? second_indent : old_indent));
+	if (!(flags & INSCHAR_COM_LIST))
+	    old_indent = 0;
 
 	replace_offset = 0;
 	if (first_line)
 	{
-	    if (second_indent < 0 && has_format_option(FO_Q_NUMBER))
-		second_indent = get_number_indent(curwin->w_cursor.lnum -1);
-	    if (second_indent >= 0)
+	    if (!(flags & INSCHAR_COM_LIST))
 	    {
+		/*
+		 * This section is for auto-wrap of numeric lists.  When not
+		 * in insert mode (i.e. format_lines()), the INSCHAR_COM_LIST
+		 * flag will be set and open_line() will handle it (as seen
+		 * above).  The code here (and in get_number_indent()) will
+		 * recognize comments if needed...
+		 */
+		if (second_indent < 0 && has_format_option(FO_Q_NUMBER))
+		    second_indent =
+				 get_number_indent(curwin->w_cursor.lnum - 1);
+		if (second_indent >= 0)
+		{
 #ifdef FEAT_VREPLACE
-		if (State & VREPLACE_FLAG)
-		    change_indent(INDENT_SET, second_indent, FALSE, NUL, TRUE);
-		else
+		    if (State & VREPLACE_FLAG)
+			change_indent(INDENT_SET, second_indent,
+							    FALSE, NUL, TRUE);
+		    else
 #endif
-		    (void)set_indent(second_indent, SIN_CHANGED);
+#ifdef FEAT_COMMENTS
+			if (leader_len > 0 && second_indent - leader_len > 0)
+		    {
+			int i;
+			int padding = second_indent - leader_len;
+
+			/* We started at the first_line of a numbered list
+			 * that has a comment.  the open_line() function has
+			 * inserted the proper comment leader and positioned
+			 * the cursor at the end of the split line.  Now we
+			 * add the additional whitespace needed after the
+			 * comment leader for the numbered list.  */
+			for (i = 0; i < padding; i++)
+			    ins_str((char_u *)" ");
+			changed_bytes(curwin->w_cursor.lnum, leader_len);
+		    }
+		    else
+		    {
+#endif
+			(void)set_indent(second_indent, SIN_CHANGED);
+#ifdef FEAT_COMMENTS
+		    }
+#endif
+		}
 	    }
 	    first_line = FALSE;
 	}
@@ -8839,9 +8899,9 @@ ins_bs(c, mode, inserted_space_p)
 
 	    *inserted_space_p = FALSE;
 	    if (p_sta && in_indent)
-		ts = curbuf->b_p_sw;
+		ts = (int)get_sw_value();
 	    else
-		ts = curbuf->b_p_sts;
+		ts = (int)curbuf->b_p_sts;
 	    /* Compute the virtual column where we want to be.  Since
 	     * 'showbreak' may get in the way, need to get the last column of
 	     * the previous character. */
@@ -9529,7 +9589,7 @@ ins_tab()
      * When nothing special, insert TAB like a normal character
      */
     if (!curbuf->b_p_et
-	    && !(p_sta && ind && curbuf->b_p_ts != curbuf->b_p_sw)
+	    && !(p_sta && ind && curbuf->b_p_ts != get_sw_value())
 	    && curbuf->b_p_sts == 0)
 	return TRUE;
 
@@ -9545,7 +9605,7 @@ ins_tab()
     AppendToRedobuff((char_u *)"\t");
 
     if (p_sta && ind)		/* insert tab in indent, use 'shiftwidth' */
-	temp = (int)curbuf->b_p_sw;
+	temp = (int)get_sw_value();
     else if (curbuf->b_p_sts > 0) /* use 'softtabstop' when set */
 	temp = (int)curbuf->b_p_sts;
     else			/* otherwise use 'tabstop' */

@@ -7060,8 +7060,23 @@ buf_check_timestamp(buf, focus)
     }
 
     if (reload)
+    {
 	/* Reload the buffer. */
 	buf_reload(buf, orig_mode);
+#ifdef FEAT_PERSISTENT_UNDO
+	if (buf->b_p_udf && buf->b_ffname != NULL)
+	{
+	    char_u	    hash[UNDO_HASH_SIZE];
+	    buf_T	    *save_curbuf = curbuf;
+
+	    /* Any existing undo file is unusable, write it now. */
+	    curbuf = buf;
+	    u_compute_hash(hash);
+	    u_write_undo(NULL, FALSE, buf, hash);
+	    curbuf = save_curbuf;
+	}
+#endif
+    }
 
 #ifdef FEAT_AUTOCMD
     /* Trigger FileChangedShell when the file was changed in any way. */
@@ -7643,6 +7658,7 @@ static struct event_name
     {"CmdwinEnter",	EVENT_CMDWINENTER},
     {"CmdwinLeave",	EVENT_CMDWINLEAVE},
     {"ColorScheme",	EVENT_COLORSCHEME},
+    {"CompleteDone",	EVENT_COMPLETEDONE},
     {"CursorHold",	EVENT_CURSORHOLD},
     {"CursorHoldI",	EVENT_CURSORHOLDI},
     {"CursorMoved",	EVENT_CURSORMOVED},
@@ -8918,7 +8934,7 @@ aucmd_restbuf(aco)
 		if (wp == aucmd_win)
 		{
 		    if (tp != curtab)
-			goto_tabpage_tp(tp);
+			goto_tabpage_tp(tp, TRUE);
 		    win_goto(aucmd_win);
 		    goto win_found;
 		}

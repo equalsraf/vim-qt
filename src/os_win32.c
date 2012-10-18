@@ -308,7 +308,7 @@ vimLoadLib(char *name)
 # ifndef GETTEXT_DLL
 #  define GETTEXT_DLL "libintl.dll"
 # endif
-/* Dummy funcitons */
+/* Dummy functions */
 static char *null_libintl_gettext(const char *);
 static char *null_libintl_textdomain(const char *);
 static char *null_libintl_bindtextdomain(const char *, const char *);
@@ -1409,7 +1409,7 @@ tgetch(int *pmodifiers, char_u *pch2)
 
 
 /*
- * mch_inchar(): low-level input funcion.
+ * mch_inchar(): low-level input function.
  * Get one or more characters from the keyboard or the mouse.
  * If time == 0, do not wait for characters.
  * If time == n, wait a short time for characters.
@@ -3319,6 +3319,8 @@ mch_system_classic(char *cmd, int options)
 	    {
 		TranslateMessage(&msg);
 		pDispatchMessage(&msg);
+		delay = 1;
+		continue;
 	    }
 	    if (WaitForSingleObject(pi.hProcess, delay) != WAIT_TIMEOUT)
 		break;
@@ -3451,14 +3453,14 @@ dump_pipe(int	    options,
      * to avoid to perform a blocking read */
     ret = PeekNamedPipe(g_hChildStd_OUT_Rd, /* pipe to query */
 			NULL,		    /* optional buffer */
-			0,		    /* buffe size */
+			0,		    /* buffer size */
 			NULL,		    /* number of read bytes */
 			&availableBytes,    /* available bytes total */
 			NULL);		    /* byteLeft */
 
     repeatCount = 0;
     /* We got real data in the pipe, read it */
-    while (ret != 0 && availableBytes > 0 && availableBytes > 0)
+    while (ret != 0 && availableBytes > 0)
     {
 	repeatCount++;
 	toRead =
@@ -3638,7 +3640,7 @@ mch_system_piped(char *cmd, int options)
 		  NULL,			/* Process security attributes */
 		  NULL,			/* Thread security attributes */
 
-		  // this command can be litigeous, handle inheritence was
+		  // this command can be litigious, handle inheritance was
 		  // deactivated for pending temp file, but, if we deactivate
 		  // it, the pipes don't work for some reason.
 		  TRUE,			/* Inherit handles, first deactivated,
@@ -4992,18 +4994,34 @@ mch_breakcheck(void)
 
 
 /*
- * How much memory is available?
+ * How much memory is available in Kbyte?
  * Return sum of available physical and page file memory.
  */
 /*ARGSUSED*/
     long_u
 mch_avail_mem(int special)
 {
-    MEMORYSTATUS	ms;
+#ifdef MEMORYSTATUSEX
+    PlatformId();
+    if (g_PlatformId == VER_PLATFORM_WIN32_NT)
+    {
+	MEMORYSTATUSEX	ms;
 
-    ms.dwLength = sizeof(MEMORYSTATUS);
-    GlobalMemoryStatus(&ms);
-    return (long_u) (ms.dwAvailPhys + ms.dwAvailPageFile);
+	/* Need to use GlobalMemoryStatusEx() when there is more memory than
+	 * what fits in 32 bits. But it's not always available. */
+	ms.dwLength = sizeof(MEMORYSTATUSEX);
+	GlobalMemoryStatusEx(&ms);
+	return (long_u)((ms.ullAvailPhys + ms.ullAvailPageFile) >> 10);
+    }
+    else
+#endif
+    {
+	MEMORYSTATUS	ms;
+
+	ms.dwLength = sizeof(MEMORYSTATUS);
+	GlobalMemoryStatus(&ms);
+	return (long_u)((ms.dwAvailPhys + ms.dwAvailPageFile) >> 10);
+    }
 }
 
 #ifdef FEAT_MBYTE

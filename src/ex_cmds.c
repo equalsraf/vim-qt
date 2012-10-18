@@ -4264,6 +4264,9 @@ do_sub(eap)
     int		endcolumn = FALSE;	/* cursor in last column when done */
     pos_T	old_cursor = curwin->w_cursor;
     int		start_nsubs;
+#ifdef FEAT_EVAL
+    int         save_ma = 0;
+#endif
 
     cmd = eap->arg;
     if (!global_busy)
@@ -4668,7 +4671,12 @@ do_sub(eap)
 		    }
 		    sub_nsubs++;
 		    did_sub = TRUE;
-		    goto skip;
+#ifdef FEAT_EVAL
+		    /* Skip the substitution, unless an expression is used,
+		     * then it is evaluated in the sandbox. */
+		    if (!(sub[0] == '\\' && sub[1] == '='))
+#endif
+			goto skip;
 		}
 
 		if (do_ask)
@@ -4840,10 +4848,27 @@ do_sub(eap)
 		/*
 		 * 3. substitute the string.
 		 */
+#ifdef FEAT_EVAL
+		if (do_count)
+		{
+		    /* prevent accidentally changing the buffer by a function */
+		    save_ma = curbuf->b_p_ma;
+		    curbuf->b_p_ma = FALSE;
+		    sandbox++;
+		}
+#endif
 		/* get length of substitution part */
 		sublen = vim_regsub_multi(&regmatch,
 				    sub_firstlnum - regmatch.startpos[0].lnum,
 				    sub, sub_firstline, FALSE, p_magic, TRUE);
+#ifdef FEAT_EVAL
+		if (do_count)
+		{
+		    curbuf->b_p_ma = save_ma;
+		    sandbox--;
+		    goto skip;
+		}
+#endif
 
 		/* When the match included the "$" of the last line it may
 		 * go beyond the last line of the buffer. */
@@ -5239,7 +5264,7 @@ do_sub_msg(count_only)
  * is assumed to be 'p' if missing.
  *
  * This is implemented in two passes: first we scan the file for the pattern and
- * set a mark for each line that (not) matches. secondly we execute the command
+ * set a mark for each line that (not) matches. Secondly we execute the command
  * for each line that has a mark. This is required because after deleting
  * lines we do not know where to search for the next match.
  */
@@ -5871,9 +5896,14 @@ find_help_tags(arg, num_matches, matches, keep_lang)
 	}
 	else
 	{
-	  /* replace "[:...:]" with "\[:...:]"; "[+...]" with "\[++...]" */
-	    if (arg[0] == '[' && (arg[1] == ':'
-					 || (arg[1] == '+' && arg[2] == '+')))
+	  /* Replace:
+	   * "[:...:]" with "\[:...:]"
+	   * "[++...]" with "\[++...]"
+	   * "\{" with "\\{"
+	   */
+	    if ((arg[0] == '[' && (arg[1] == ':'
+			 || (arg[1] == '+' && arg[2] == '+')))
+		    || (arg[0] == '\\' && arg[1] == '{'))
 	      *d++ = '\\';
 
 	  for (s = arg; *s; ++s)
@@ -6997,6 +7027,16 @@ ex_sign(eap)
 		lnum = atoi((char *)arg);
 		arg = skiptowhite(arg);
 	    }
+	    else if (STRNCMP(arg, "*", 1) == 0 && idx == SIGNCMD_UNPLACE)
+	    {
+		if (id != -1)
+		{
+		    EMSG(_(e_invarg));
+		    return;
+		}
+		id = -2;
+		arg = skiptowhite(arg + 1);
+	    }
 	    else if (STRNCMP(arg, "name=", 5) == 0)
 	    {
 		arg += 5;
@@ -7033,7 +7073,7 @@ ex_sign(eap)
 	{
 	    EMSG2(_("E158: Invalid buffer name: %s"), arg);
 	}
-	else if (id <= 0)
+	else if (id <= 0 && !(idx == SIGNCMD_UNPLACE && id == -2))
 	{
 	    if (lnum >= 0 || sign_name != NULL)
 		EMSG(_(e_invarg));
@@ -7074,11 +7114,17 @@ ex_sign(eap)
 	}
 	else if (idx == SIGNCMD_UNPLACE)
 	{
-	    /* ":sign unplace {id} file={fname}" */
 	    if (lnum >= 0 || sign_name != NULL)
 		EMSG(_(e_invarg));
+	    else if (id == -2)
+	    {
+		/* ":sign unplace * file={fname}" */
+		redraw_buf_later(buf, NOT_VALID);
+		buf_delete_signs(buf);
+	    }
 	    else
 	    {
+		/* ":sign unplace {id} file={fname}" */
 		lnum = buf_delsign(buf, id);
 		update_debug_sign(buf, lnum);
 	    }

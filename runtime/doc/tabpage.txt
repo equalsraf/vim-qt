@@ -1,4 +1,4 @@
-*tabpage.txt*   For Vim version 7.3.  Last change: 2010 Jul 31
+*tabpage.txt*   For Vim version 7.3.  Last change: 2012 Aug 08
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -113,7 +113,7 @@ something else.
 		this is a "safe" command.
 
 :tabc[lose][!] {count}
-		Close tab page {count}.  Fails in the same way as ':tabclose"
+		Close tab page {count}.  Fails in the same way as `:tabclose`
 		above.
 
 							*:tabo* *:tabonly*
@@ -173,9 +173,19 @@ Other commands:
 REORDERING TAB PAGES:
 
 :tabm[ove] [N]						*:tabm* *:tabmove*
+:[N]tabm[ove]
 		Move the current tab page to after tab page N.  Use zero to
 		make the current tab page the first one.  Without N the tab
 		page is made the last one.
+
+:tabm[ove] +[N]
+:tabm[ove] -[N]
+		Move the current tab page N places to the right (with +) or to
+		the left (with -).
+
+Note that although it is possible to move a tab behind the N-th one by using
+:Ntabmove, it is impossible to move it by N places by using :+Ntabmove. For
+clarification what +N means in this context see |[range]|.
 
 
 LOOPING OVER TAB PAGES:

@@ -1,7 +1,7 @@
 " Vim support file to detect file types
 "
 " Maintainer:	Bram Moolenaar <Bram@vim.org>
-" Last Change:	2012 May 18
+" Last Change:	2012 Oct 05
 
 " Listen very carefully, I will say this only once
 if exists("did_load_filetypes")
@@ -127,6 +127,11 @@ au BufNewFile,BufRead .asoundrc,*/usr/share/alsa/alsa.conf,*/etc/asound.conf set
 
 " Arc Macro Language
 au BufNewFile,BufRead *.aml			setf aml
+
+" APT config file
+au BufNewFile,BufRead apt.conf                 setf aptconf
+au BufNewFile,BufRead */.aptitude/config       setf aptconf
+au BufNewFile,BufRead */etc/apt/apt.conf.d/{[-_[:alnum:]]\+,[-_.[:alnum:]]\+.conf} setf aptconf
 
 " Arch Inventory file
 au BufNewFile,BufRead .arch-inventory,=tagging-method	setf arch
@@ -633,6 +638,9 @@ au BufNewFile,BufRead *.dsl			setf dsl
 " DTD (Document Type Definition for XML)
 au BufNewFile,BufRead *.dtd			setf dtd
 
+" DTS/DSTI (device tree files)
+au BufNewFile,BufRead *.dts,*.dtsi		setf dts
+
 " EDIF (*.edf,*.edif,*.edn,*.edo)
 au BufNewFile,BufRead *.ed\(f\|if\|n\|o\)	setf edif
 
@@ -1119,6 +1127,9 @@ au BufNewFile,BufRead *.nb			setf mma
 " Maya Extension Language
 au BufNewFile,BufRead *.mel			setf mel
 
+" Mercurial (hg) commit file
+au BufNewFile,BufRead hg-editor-*.txt		setf hgcommit
+
 " Mercurial config (looks like generic config file)
 au BufNewFile,BufRead *.hgrc,*hgrc		setf cfg
 
@@ -1200,7 +1211,7 @@ au BufNewFile,BufRead *.mysql			setf mysql
 au BufNewFile,BufRead */etc/Muttrc.d/*		call s:StarSetf('muttrc')
 
 " M$ Resource files
-au BufNewFile,BufRead *.rc			setf rc
+au BufNewFile,BufRead *.rc,*.rch		setf rc
 
 " MuPAD source
 au BufRead,BufNewFile *.mu			setf mupad
@@ -1768,6 +1779,10 @@ func! SetFileTypeSH(name)
   elseif a:name =~ '\<tcsh\>'
     " Some .sh scripts contain #!/bin/tcsh.
     call SetFileTypeShell("tcsh")
+    return
+  elseif a:name =~ '\<zsh\>'
+    " Some .sh scripts contain #!/bin/zsh.
+    call SetFileTypeShell("zsh")
     return
   elseif a:name =~ '\<ksh\>'
     let b:is_kornshell = 1

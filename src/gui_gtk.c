@@ -779,9 +779,6 @@ gui_mch_destroy_scrollbar(scrollbar_T *sb)
 /*
  * Implementation of the file selector related stuff
  */
-#if GTK_CHECK_VERSION(2,4,0)
-# define USE_FILE_CHOOSER
-#endif
 
 #ifndef USE_FILE_CHOOSER
     static void
@@ -840,7 +837,7 @@ gui_mch_browse(int saving UNUSED,
 	       char_u *dflt,
 	       char_u *ext UNUSED,
 	       char_u *initdir,
-	       char_u *filter UNUSED)
+	       char_u *filter)
 {
 #ifdef USE_FILE_CHOOSER
     GtkWidget		*fc;
@@ -879,6 +876,46 @@ gui_mch_browse(int saving UNUSED,
 	    NULL);
     gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(fc),
 						       (const gchar *)dirbuf);
+
+    if (filter != NULL && *filter != NUL)
+    {
+	int     i = 0;
+	char_u  *patt;
+	char_u  *p = filter;
+	GtkFileFilter	*gfilter;
+
+	gfilter = gtk_file_filter_new();
+	patt = alloc(STRLEN(filter));
+	while (p != NULL && *p != NUL)
+	{
+	    if (*p == '\n' || *p == ';' || *p == '\t')
+	    {
+		STRNCPY(patt, filter, i);
+		patt[i] = '\0';
+		if (*p == '\t')
+		    gtk_file_filter_set_name(gfilter, (gchar *)patt);
+		else
+		{
+		    gtk_file_filter_add_pattern(gfilter, (gchar *)patt);
+		    if (*p == '\n')
+		    {
+			gtk_file_chooser_add_filter((GtkFileChooser *)fc,
+								     gfilter);
+			if (*(p + 1) != NUL)
+			    gfilter = gtk_file_filter_new();
+		    }
+		}
+		filter = ++p;
+		i = 0;
+	    }
+	    else
+	    {
+		p++;
+		i++;
+	    }
+	}
+	vim_free(patt);
+    }
     if (saving && dflt != NULL && *dflt != NUL)
 	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(fc), (char *)dflt);
 
@@ -1304,7 +1341,7 @@ gui_mch_dialog(int	type,	    /* type of dialog */
 	gtk_widget_show(entry);
 
 	/* Make Enter work like pressing OK. */
-        gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+	gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
 	text = CONVERT_TO_UTF8(textfield);
 	gtk_entry_set_text(GTK_ENTRY(entry), (const char *)text);

@@ -782,6 +782,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EXPAND_OWNSYNTAX	39
 #define EXPAND_LOCALES		40
 #define EXPAND_HISTORY		41
+#define EXPAND_USER		42
 
 /* Values for exmode_active (0 is no exmode) */
 #define EXMODE_NORMAL		1
@@ -1072,12 +1073,14 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define INSCHAR_DO_COM	2	/* format comments */
 #define INSCHAR_CTRLV	4	/* char typed just after CTRL-V */
 #define INSCHAR_NO_FEX	8	/* don't use 'formatexpr' */
+#define INSCHAR_COM_LIST 16	/* format comments with list/2nd line indent */
 
 /* flags for open_line() */
 #define OPENLINE_DELSPACES  1	/* delete spaces after cursor */
 #define OPENLINE_DO_COM	    2	/* format comments */
 #define OPENLINE_KEEPTRAIL  4	/* keep trailing spaces */
 #define OPENLINE_MARKFIX    8	/* fix mark positions */
+#define OPENLINE_COM_LIST  16	/* format comments with list/2nd line indent */
 
 /*
  * There are four history tables:
@@ -1239,6 +1242,7 @@ enum auto_event
     EVENT_CMDWINENTER,		/* after entering the cmdline window */
     EVENT_CMDWINLEAVE,		/* before leaving the cmdline window */
     EVENT_COLORSCHEME,		/* after loading a colorscheme */
+    EVENT_COMPLETEDONE,		/* after finishing insert complete */
     EVENT_FILEAPPENDPOST,	/* after appending to a file */
     EVENT_FILEAPPENDPRE,	/* before appending to a file */
     EVENT_FILEAPPENDCMD,	/* append to a file using command */
@@ -2120,6 +2124,12 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 #  endif
 # else
 #  define X_DISPLAY	xterm_dpy
+# endif
+#endif
+
+#if defined(FEAT_BROWSE) && defined(GTK_CHECK_VERSION)
+# if GTK_CHECK_VERSION(2,4,0)
+#  define USE_FILE_CHOOSER
 # endif
 #endif
 
