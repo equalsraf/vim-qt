@@ -121,6 +121,7 @@ private:
 	bool m_encoding_utf8;
 
 	QQueue<PaintOperation> paintOps;
+	QPixmap canvas;
 
 	QTime m_lastClick;
 	int m_lastClickEvent;

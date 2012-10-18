@@ -45,7 +45,6 @@ QVimShell::QVimShell(QWidget *parent)
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
-	setAutoFillBackground(true);
 	setAcceptDrops(true);
 	setMouseTracking(true);
 }
@@ -53,9 +52,6 @@ QVimShell::QVimShell(QWidget *parent)
 void QVimShell::setBackground(const QColor color)
 {
 	m_background = color;
-	QPalette p = palette();
-	p.setColor(QPalette::Window, color);
-	setPalette(p);
 	emit backgroundColorChanged(m_background);
 }
 
@@ -77,6 +73,22 @@ QColor QVimShell::background()
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
+	if ( canvas.isNull() ) {
+		QPixmap newCanvas = QPixmap( ev->size() );
+		newCanvas.fill(background());
+		canvas = newCanvas;
+	} else {
+		// Keep old contents
+		QPixmap old = canvas.copy(QRect(QPoint(0,0), ev->size()));
+		canvas = QPixmap( ev->size() );
+		canvas.fill(background()); // FIXME: please optimise me
+
+		{
+		QPainter p(&canvas);
+		p.drawPixmap(QPoint(0,0), old);
+		}
+	}
+
 	update();
 
 	//
@@ -301,14 +313,14 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 
 void QVimShell::flushPaintOps()
 {
-	QPainter painter(this);
+	QPainter painter(&canvas);
 	while ( !paintOps.isEmpty() ) {
 		painter.save();
 
 		PaintOperation op = paintOps.dequeue();
 		switch( op.type ) {
 		case CLEARALL:
-			painter.fillRect(rect(), op.color);
+			painter.fillRect(canvas.rect(), op.color);
 			break;
 		case FILLRECT:
 			painter.fillRect(op.rect, op.color);
@@ -357,19 +369,16 @@ void QVimShell::flushPaintOps()
 			painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
 			break;
 		case SCROLLRECT:
-			// We only support vertical scroll
-			// i.e. op.pos.x() is ignored
+			painter.restore();
+			painter.end();
 
-			int top;
-			if ( op.pos.y() >= 0 ) {
-				top = op.rect.top();
-			} else {
-				top = op.rect.bottom() + op.pos.y();
-			}
-			QRect exposed(op.rect.left(), top, op.rect.width(), qAbs(op.pos.y()));
-			scroll(op.pos.x(), op.pos.y(), op.rect);
-			painter.fillRect(exposed, op.color);
-			break;
+			QRegion exposed;
+			canvas.scroll(op.pos.x(), op.pos.y(),
+					op.rect, &exposed);
+
+			painter.begin(&canvas);
+			painter.fillRect(exposed.boundingRect(), op.color);
+			continue; // exception, skip painter restore
 		}
 
 		painter.restore();
@@ -379,8 +388,12 @@ void QVimShell::flushPaintOps()
 
 void QVimShell::paintEvent ( QPaintEvent *ev )
 {
-	QWidget::paintEvent(ev);
 	flushPaintOps();
+
+	QPainter realpainter(this);
+	foreach(const QRect r, ev->region().rects()) {
+		realpainter.drawPixmap(r, canvas, r);
+	}
 }
 
 //
