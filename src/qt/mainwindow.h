@@ -17,7 +17,6 @@ public:
 
 	bool tablineVisible();
 
-	QMenuBar* menuBar() const;
 	QToolBar* toolBar() const;
 	bool keepTabbar();
 
@@ -51,8 +50,6 @@ private:
 	QToolBar *tabtoolbar;
 	TabBar *tabbar;
 	
-	QToolBar *menutoolbar;
-	QMenuBar *menu;
 
 	bool m_keepTabbar;
 };

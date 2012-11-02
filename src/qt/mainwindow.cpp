@@ -10,13 +10,6 @@ MainWindow::MainWindow( gui_T* gui, QWidget *parent)
 	setWindowIcon(QIcon(":/icons/vim-qt.png"));
 	setContextMenuPolicy(Qt::PreventContextMenu);
 
-	// Menu
-	menutoolbar = addToolBar("Menu");
-	menutoolbar->setObjectName("menu");
-	menutoolbar->setAllowedAreas(Qt::BottomToolBarArea | Qt::TopToolBarArea);
-	menu = new QMenuBar();
-	menutoolbar->addWidget(menu);
-
 	// Tool bar
 	toolbar = addToolBar("ToolBar");
 	toolbar->setObjectName("toolbar");
@@ -122,11 +115,6 @@ QVimShell* MainWindow::vimShell()
 	return this->vimshell;
 }
 
-QMenuBar* MainWindow::menuBar() const
-{
-	return menu;
-}
-
 QToolBar* MainWindow::toolBar() const
 {
 	return toolbar;
@@ -174,7 +162,7 @@ void MainWindow::showToolbar(bool show)
 
 void MainWindow::showMenu(bool show)
 {
-	menutoolbar->setVisible(show);
+	QMainWindow::menuBar()->setVisible(show);
 }
 
 bool MainWindow::tablineVisible()
