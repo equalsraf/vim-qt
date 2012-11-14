@@ -145,7 +145,12 @@ void VimWrapper::guiHandleDrop(const QPoint& pos, unsigned int mod, const QList<
 	}
 }
 
-
+/**
+ * Map row/column into absolute pixel coordinates
+ *
+ * The returned point is the top left corner of the cell
+ *
+ */
 QPoint VimWrapper::mapText(int row, int col) 
 { 
 	return QPoint( gui.char_width*col, gui.char_height*row );
@@ -156,12 +161,17 @@ QPoint VimWrapper::cursorPosition()
 	return mapText(gui.cursor_row, gui.cursor_col);
 }
 
+/**
+ * Return a rect from row1/col1 to row2/col2 (inclusive)
+ *
+ * The rect coordinates are in pixels
+ */
 QRect VimWrapper::mapBlock(int row1, int col1, int row2, int col2)
 {
 	QPoint tl = mapText( row1, col1 );
 	QPoint br = mapText( row2+1, col2+1);
 	br.setX( br.x()-1 );
-	br.setY( br.y() );
+	br.setY( br.y()-1 );
 
 	return QRect(tl, br);
 }
