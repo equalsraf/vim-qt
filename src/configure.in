@@ -1773,11 +1773,11 @@ else
   fi
 fi
 
-test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" && enable_gui=no
+test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" -a "x$enable_gui" != "xqt" && enable_gui=no
 
 AC_MSG_CHECKING(--enable-gui argument)
 AC_ARG_ENABLE(gui,
- [  --enable-gui[=OPTS]     X11 GUI [default=auto] [OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon]], , enable_gui="auto")
+ [  --enable-gui[=OPTS]     X11 GUI [default=auto] [OPTS=auto/no/gtk2/gnome2/motif/athena/neXtaw/photon/carbon/qt]], , enable_gui="auto")
 
 dnl Canonicalize the --enable-gui= argument so that it can be easily compared.
 dnl Do not use character classes for portability with old tools.
@@ -1792,6 +1792,7 @@ SKIP_ATHENA=YES
 SKIP_NEXTAW=YES
 SKIP_PHOTON=YES
 SKIP_CARBON=YES
+SKIP_QT=YES
 GUITYPE=NONE
 
 if test "x$QNX" = "xyes" -a "x$with_x" = "xno" ; then
@@ -1829,7 +1830,8 @@ else
 		SKIP_MOTIF=
 		SKIP_ATHENA=
 		SKIP_NEXTAW=
-		SKIP_CARBON=;;
+		SKIP_CARBON=
+		SKIP_QT=;;
     gtk2)	AC_MSG_RESULT(GTK+ 2.x GUI support)
 		SKIP_GTK2=;;
     gnome2)	AC_MSG_RESULT(GNOME 2.x GUI support)
@@ -1841,6 +1843,8 @@ else
 		SKIP_ATHENA=;;
     nextaw)	AC_MSG_RESULT(neXtaw GUI support)
 		SKIP_NEXTAW=;;
+    qt)		AC_MSG_RESULT(Qt GUI support)
+    		SKIP_QT=;;
     *)		AC_MSG_RESULT([Sorry, $enable_gui GUI is not supported]) ;;
   esac
 
@@ -1914,7 +1918,6 @@ if test "x$SKIP_CARBON" != "xYES" -a "$enable_gui_canon" != "carbon"; then
   fi
 fi
 
-
 if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   AC_MSG_CHECKING(for Carbon GUI)
   dnl already did the check, just give the message
@@ -1945,7 +1948,8 @@ if test "x$MACOSX" = "xyes" -a -z "$SKIP_CARBON" -a "x$CARBON" = "xyes"; then
   SKIP_ATHENA=YES;
   SKIP_NEXTAW=YES;
   SKIP_PHOTON=YES;
-  SKIP_CARBON=YES
+  SKIP_CARBON=YES;
+  SKIP_QT=YES;
 fi
 
 dnl define an autoconf function to check for a specified version of GTK, and
@@ -2155,6 +2159,7 @@ if test -z "$SKIP_GTK2"; then
       SKIP_ATHENA=YES
       SKIP_NEXTAW=YES
       SKIP_MOTIF=YES
+      SKIP_QT=YES
       GUITYPE=GTK
       AC_SUBST(GTK_LIBNAME)
     fi
@@ -2263,6 +2268,7 @@ fi
 if test -z "$SKIP_MOTIF"; then
   SKIP_ATHENA=YES
   SKIP_NEXTAW=YES
+  SKIP_QT=YES
   GUITYPE=MOTIF
   AC_SUBST(MOTIF_LIBNAME)
 fi
@@ -2364,6 +2370,213 @@ if test "$enable_xsmp" = "yes"; then
   CPPFLAGS=$cppflags_save
 fi
 
+dnl Check if the Qt files can be found
+
+if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
+    AC_LANG_PUSH(C++)
+    AC_PROG_CXX
+    QT_FOUND="no"
+
+    AC_MSG_CHECKING(--with-qt-dir argument)
+    AC_ARG_WITH(qt-dir,
+    [  --with-qt-dir=PATH   Qt prefix path (ex: /usr/ or /usr/lib/qt4)],
+    [ QT_DIR="${withval}" ] )
+
+    if test -n "$QT_DIR"; then
+        AC_MSG_RESULT($QT_DIR)
+
+        #
+	# Use the prefix given by --with-qt-dir
+	#
+	QMAKE="$QT_DIR/bin/qmake"
+	QT_MOC="$QT_DIR/bin/moc"
+
+    	AC_MSG_CHECKING(for $QMAKE)
+	if test ! -x "$QMAKE"; then
+            AC_MSG_ERROR("Unable to find qmake")
+	fi
+
+    	AC_MSG_CHECKING(for $QT_MOC)
+	if test ! -x "$QT_MOC"; then
+            AC_MSG_ERROR("Unable to find moc")
+	fi
+    else
+        AC_MSG_RESULT(no)
+
+        #
+        # Find qmake
+        # 1. First look for "qmake4" in the PATH - some systems use the name qmake(Qt3) and qmake4(Qt4) 
+        # 2. If qmake4 is not found then look for qmake-qt4 in the PATH
+	# 3. Look for qmake in the PATH
+        # 4. Look for "qmake", outside the path, in the following locations
+        QT_BIN_PATH="/usr/lib64/qt4/bin:/usr/local/lib64/qt4/bin:/usr/lib/qt4/bin:/usr/local/lib/qt4/bin"
+    
+        AC_PATH_PROG(QMAKE, qmake4)
+        if test -z "$QMAKE"; then
+            AC_PATH_PROG(QMAKE, qmake-qt4)
+        fi
+ 
+        if test -z "$QMAKE"; then
+            AC_PATH_PROG(QMAKE, qmake)
+        fi
+
+        if test -z "$QMAKE"; then
+            AC_PATH_PROG(QMAKE, qmake, , $QT_BIN_PATH)
+        fi
+    
+        if test -z "$QMAKE"; then
+            AC_MSG_ERROR("Unable to find qmake")
+        fi
+    
+        #
+        # Find moc
+        # - Exactly the same as previous case with qmake
+        # 
+        AC_PATH_PROG(QT_MOC, moc4)
+        if test -z "$QT_MOC"; then
+            AC_PATH_PROG(QT_MOC, moc-qt4)
+        fi
+ 
+        if test -z "$QT_MOC"; then
+            AC_PATH_PROG(QT_MOC, moc)
+        fi
+
+        if test -z "$QT_MOC"; then
+            AC_PATH_PROG(QT_MOC, moc, , $QT_BIN_PATH)
+        fi
+    
+        if test -z "$QT_MOC"; then
+            AC_MSG_ERROR("Unable to find moc")
+        fi
+    fi
+
+    #
+    # Check Qt version
+    QT_MIN_VERSION="4.7.0"
+    AC_MSG_CHECKING(Qt version)
+    QT_VERSION=`$QMAKE -query QT_VERSION | cut -f1`
+    if test [ "$QT_VERSION" \< "$QT_MIN_VERSION" ]; then
+       AC_MSG_ERROR("Qt version is too old - need at least $QT_MIN_VERSION")
+    fi
+    AC_MSG_RESULT($QT_VERSION)
+
+    #
+    # Call qmake to generate bogus project
+    #
+    # What we do here is call qmake to generate a valid Makefile and
+    # then extract the Qt compiler flags from the generated Makefile
+    #
+    TMPDIR=/tmp
+    tmp=`(umask 077 && mktemp -d -q "$TMPDIR/test-vim-qt-XXXXXXXX") 2>/dev/null`;
+    if test -z "$tmp" -a -d "$tmp"; then
+	AC_MSG_ERROR(Unable to create temporary directory)
+    fi
+
+cat > $tmp/qttest.cpp << EOF
+#include <QApplication>
+int main(int ac, char **av) {
+    QApplication app(ac, av);
+    return app.exec();
+}
+EOF
+
+
+    AC_PATH_PROG(MAKE_P, gmake)
+    if test -z "$MAKE_P"; then
+    	MAKE_P="make"
+
+    else
+        AC_PATH_PROG(MAKE_P, gmake)
+    fi
+    echo "$MAKE_P"
+
+    # Generate qmake project
+    qmake_try=`cd $tmp; $QMAKE -project -o test.pro`
+    AC_TRY_EVAL(qt_try)
+    if test x"$ac_status" != x0; then
+        AC_MSG_ERROR(qmake failed)
+    fi
+
+    # Qt Modules
+    echo "QT += network" >> $tmp/test.pro
+    if test ![ "5.0.0" \> "$QT_VERSION" ]; then
+    	# Qt5 needs QtWidgets
+	echo "QT += widgets" >> $tmp/test.pro
+    fi
+
+
+    # generate Makefile
+    qmake_try=`cd $tmp; $QMAKE`
+    AC_TRY_EVAL(qt_try)
+    if test x"$ac_status" != x0; then
+        AC_MSG_ERROR(qmake failed)
+    fi
+
+    #
+    # A dummy Makefile to help extract the
+    # real parameters
+    #
+cat > $tmp/makefile.dummy << EOF
+def: info
+include $tmp/Makefile
+info:
+	@echo "CXXFLAGS = \$(CXXFLAGS)"
+	@echo "CFLAGS = \$(CFLAGS)"
+	@echo "LFLAGS = \$(LFLAGS)"
+	@echo "LIBS = \$(LIBS)"
+	@echo "INCPATH = \$(INCPATH)"
+EOF
+
+    # LIBS
+    QT_LIBS=`$MAKE_P -f $tmp/makefile.dummy |grep LIBS.*= | awk '{sub(/^LIBS +=/, ""); print}'`
+    if test -z "$QT_LIBS"; then
+        AC_MSG_ERROR(Unable to find Qt libraries)
+    fi
+
+    # Include directives
+    QT_INCPATH=`$MAKE_P -f $tmp/makefile.dummy |grep INCPATH.*= | awk '{sub(/^INCPATH +=/, ""); print}'`
+    if test -z "$QT_LIBS"; then
+        AC_MSG_ERROR(Unable to find Qt include path)
+    fi
+
+    # LFLAGS
+    QT_LFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep LFLAGS.*= | awk '{sub(/^LFLAGS +=/, ""); print}'`
+    if test -z "$QT_LFLAGS"; then
+        AC_MSG_ERROR(Unable to find Qt link flags)
+    fi
+
+    # Qt CXXFLAGS
+    QT_CXXFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
+    if test -z "$QT_LFLAGS"; then
+        AC_MSG_ERROR(Unable to find Qt C flags)
+    fi
+
+    # Qt CFLAGS
+    QT_CFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
+    if test -z "$QT_CFLAGS"; then
+        AC_MSG_ERROR(Unable to find Qt C++ flags)
+    fi
+
+    LDFLAGS="$LDFLAGS $QT_LFLAGS -lstdc++"
+    AC_SUBST(QT_LIBS)
+    AC_SUBST(QT_MOC)
+    AC_SUBST(QT_INCPATH)
+    AC_SUBST(QT_CXXFLAGS)
+    AC_SUBST(QT_CFLAGS)
+    AC_LANG_POP(C++)
+
+    # Remove temp directory
+    rm $tmp/Makefile
+    rm $tmp/qttest.cpp
+    rm $tmp/test.pro
+    rm $tmp/makefile.dummy
+    rmdir $tmp
+fi
+
+if test -z "$SKIP_QT"; then
+  GUITYPE=QT
+  GUI_X_LIBS=
+fi
 
 if test -z "$SKIP_ATHENA" -o -z "$SKIP_NEXTAW" -o -z "$SKIP_MOTIF" -o -z "$SKIP_GTK2"; then
   dnl Check for X11/xpm.h and X11/Sunkeysym.h with the GUI include path

@@ -5763,7 +5763,7 @@ translate_mapping(str, expmap)
 }
 #endif
 
-#if (defined(WIN3264) && !defined(FEAT_GUI)) || defined(PROTO)
+#if (defined(WIN3264) && !defined(FEAT_GUI)) || defined(PROTO) || (defined(WIN3264) && defined(FEAT_GUI_QT))
 static char ksme_str[20];
 static char ksmr_str[20];
 static char ksmd_str[20];

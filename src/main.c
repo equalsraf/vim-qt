@@ -1601,7 +1601,7 @@ parse_command_name(parmp)
     }
 
     /* "gvim" starts the GUI.  Also accept "Gvim" for MS-Windows. */
-    if (TOLOWER_ASC(initstr[0]) == 'g')
+    if (TOLOWER_ASC(initstr[0]) == 'g' || TOLOWER_ASC(initstr[0]) == 'q')
     {
 	main_start_gui();
 #ifdef FEAT_GUI
