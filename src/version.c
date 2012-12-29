@@ -348,6 +348,7 @@ static char *(features[]) =
 # else
 	"-mouse",
 #endif
+
 #if defined(UNIX) || defined(VMS)
 # ifdef FEAT_MOUSE_DEC
 	"+mouse_dec",
@@ -369,27 +370,8 @@ static char *(features[]) =
 # else
 	"-mouse_netterm",
 # endif
-# ifdef FEAT_SYSMOUSE
-	"+mouse_sysmouse",
-# else
-	"-mouse_sysmouse",
-# endif
-# ifdef FEAT_MOUSE_XTERM
-	"+mouse_xterm",
-# else
-	"-mouse_xterm",
-# endif
-# ifdef FEAT_MOUSE_URXVT
-	"+mouse_urxvt",
-# else
-	"-mouse_urxvt",
-# endif
-# ifdef FEAT_MOUSE_SGR
-	"+mouse_sgr",
-# else
-	"-mouse_sgr",
-# endif
 #endif
+
 #ifdef __QNX__
 # ifdef FEAT_MOUSE_PTERM
 	"+mouse_pterm",
@@ -397,6 +379,30 @@ static char *(features[]) =
 	"-mouse_pterm",
 # endif
 #endif
+
+#if defined(UNIX) || defined(VMS)
+# ifdef FEAT_MOUSE_SGR
+	"+mouse_sgr",
+# else
+	"-mouse_sgr",
+# endif
+# ifdef FEAT_SYSMOUSE
+	"+mouse_sysmouse",
+# else
+	"-mouse_sysmouse",
+# endif
+# ifdef FEAT_MOUSE_URXVT
+	"+mouse_urxvt",
+# else
+	"-mouse_urxvt",
+# endif
+# ifdef FEAT_MOUSE_XTERM
+	"+mouse_xterm",
+# else
+	"-mouse_xterm",
+# endif
+#endif
+
 #ifdef FEAT_MBYTE_IME
 # ifdef DYNAMIC_IME
 	"+multi_byte_ime/dyn",
@@ -719,6 +725,146 @@ static char *(features[]) =
 
 static int included_patches[] =
 {   /* Add new patch number below this line */
+/**/
+    762,
+/**/
+    761,
+/**/
+    760,
+/**/
+    759,
+/**/
+    758,
+/**/
+    757,
+/**/
+    756,
+/**/
+    755,
+/**/
+    754,
+/**/
+    753,
+/**/
+    752,
+/**/
+    751,
+/**/
+    750,
+/**/
+    749,
+/**/
+    748,
+/**/
+    747,
+/**/
+    746,
+/**/
+    745,
+/**/
+    744,
+/**/
+    743,
+/**/
+    742,
+/**/
+    741,
+/**/
+    740,
+/**/
+    739,
+/**/
+    738,
+/**/
+    737,
+/**/
+    736,
+/**/
+    735,
+/**/
+    734,
+/**/
+    733,
+/**/
+    732,
+/**/
+    731,
+/**/
+    730,
+/**/
+    729,
+/**/
+    728,
+/**/
+    727,
+/**/
+    726,
+/**/
+    725,
+/**/
+    724,
+/**/
+    723,
+/**/
+    722,
+/**/
+    721,
+/**/
+    720,
+/**/
+    719,
+/**/
+    718,
+/**/
+    717,
+/**/
+    716,
+/**/
+    715,
+/**/
+    714,
+/**/
+    713,
+/**/
+    712,
+/**/
+    711,
+/**/
+    710,
+/**/
+    709,
+/**/
+    708,
+/**/
+    707,
+/**/
+    706,
+/**/
+    705,
+/**/
+    704,
+/**/
+    703,
+/**/
+    702,
+/**/
+    701,
+/**/
+    700,
+/**/
+    699,
+/**/
+    698,
+/**/
+    697,
+/**/
+    696,
+/**/
+    695,
+/**/
+    694,
+/**/
+    693,
 /**/
     692,
 /**/

@@ -668,6 +668,8 @@ static void f_reverse __ARGS((typval_T *argvars, typval_T *rettv));
 #ifdef FEAT_FLOAT
 static void f_round __ARGS((typval_T *argvars, typval_T *rettv));
 #endif
+static void f_screencol __ARGS((typval_T *argvars, typval_T *rettv));
+static void f_screenrow __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_search __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_searchdecl __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_searchpair __ARGS((typval_T *argvars, typval_T *rettv));
@@ -687,6 +689,7 @@ static void f_settabvar __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_settabwinvar __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_setwinvar __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_shellescape __ARGS((typval_T *argvars, typval_T *rettv));
+static void f_shiftwidth __ARGS((typval_T *argvars, typval_T *rettv));
 static void f_simplify __ARGS((typval_T *argvars, typval_T *rettv));
 #ifdef FEAT_FLOAT
 static void f_sin __ARGS((typval_T *argvars, typval_T *rettv));
@@ -8032,6 +8035,8 @@ static struct fst
 #ifdef FEAT_FLOAT
     {"round",		1, 1, f_round},
 #endif
+    {"screencol",	0, 0, f_screencol},
+    {"screenrow",	0, 0, f_screenrow},
     {"search",		1, 4, f_search},
     {"searchdecl",	1, 3, f_searchdecl},
     {"searchpair",	3, 7, f_searchpair},
@@ -8051,6 +8056,7 @@ static struct fst
     {"settabwinvar",	4, 4, f_settabwinvar},
     {"setwinvar",	3, 3, f_setwinvar},
     {"shellescape",	1, 2, f_shellescape},
+    {"shiftwidth",	0, 0, f_shiftwidth},
     {"simplify",	1, 1, f_simplify},
 #ifdef FEAT_FLOAT
     {"sin",		1, 1, f_sin},
@@ -12274,8 +12280,14 @@ f_has(argvars, rettv)
 # ifdef FEAT_MOUSE_PTERM
 	"mouse_pterm",
 # endif
+# ifdef FEAT_MOUSE_SGR
+	"mouse_sgr",
+# endif
 # ifdef FEAT_SYSMOUSE
 	"mouse_sysmouse",
+# endif
+# ifdef FEAT_MOUSE_URXVT
+	"mouse_urxvt",
 # endif
 # ifdef FEAT_MOUSE_XTERM
 	"mouse_xterm",
@@ -15717,6 +15729,30 @@ f_round(argvars, rettv)
 #endif
 
 /*
+ * "screencol()" function
+ *
+ * First column is 1 to be consistent with virtcol().
+ */
+    static void
+f_screencol(argvars, rettv)
+    typval_T	*argvars UNUSED;
+    typval_T	*rettv;
+{
+    rettv->vval.v_number = screen_screencol() + 1;
+}
+
+/*
+ * "screenrow()" function
+ */
+    static void
+f_screenrow(argvars, rettv)
+    typval_T	*argvars UNUSED;
+    typval_T	*rettv;
+{
+    rettv->vval.v_number = screen_screenrow() + 1;
+}
+
+/*
  * "search()" function
  */
     static void
@@ -16284,7 +16320,8 @@ set_qf_ll_list(wp, list_arg, action_arg, rettv)
 		action = *act;
 	}
 
-	if (l != NULL && set_errorlist(wp, l, action, NULL) == OK)
+	if (l != NULL && set_errorlist(wp, l, action,
+	       (char_u *)(wp == NULL ? "setqflist()" : "setloclist()")) == OK)
 	    rettv->vval.v_number = 0;
     }
 #endif
@@ -16649,6 +16686,17 @@ f_shellescape(argvars, rettv)
     rettv->vval.v_string = vim_strsave_shellescape(
 		       get_tv_string(&argvars[0]), non_zero_arg(&argvars[1]));
     rettv->v_type = VAR_STRING;
+}
+
+/*
+ * shiftwidth() function
+ */
+    static void
+f_shiftwidth(argvars, rettv)
+    typval_T	*argvars UNUSED;
+    typval_T	*rettv;
+{
+    rettv->vval.v_number = get_sw_value();
 }
 
 /*
