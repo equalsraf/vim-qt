@@ -2547,12 +2547,14 @@ EOF
 
     # Qt CXXFLAGS
     QT_CXXFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CXXFLAGS.*= | awk '{sub(/^CXXFLAGS +=/, ""); print}'`
+    QT_CXXFLAGS=`echo "$QT_CXXFLAGS" | sed -e 's/-Wp,-D_FORTIFY_SOURCE=.//g' -e 's/-D_FORTIFY_SOURCE=.//g' -e 's/$/ -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1/'`
     if test -z "$QT_LFLAGS"; then
         AC_MSG_ERROR(Unable to find Qt C flags)
     fi
 
     # Qt CFLAGS
     QT_CFLAGS=`$MAKE_P -f $tmp/makefile.dummy |grep CFLAGS.*= | awk '{sub(/^CFLAGS +=/, ""); print}'`
+    QT_CFLAGS=`echo "$QT_CFLAGS" | sed -e 's/-Wp,-D_FORTIFY_SOURCE=.//g' -e 's/-D_FORTIFY_SOURCE=.//g' -e 's/$/ -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1/'`
     if test -z "$QT_CFLAGS"; then
         AC_MSG_ERROR(Unable to find Qt C++ flags)
     fi
