@@ -653,6 +653,8 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	if (window->windowState() & Qt::WindowFullScreen ) {
 		// In fullscreen mode, resize the widget
 		vimshell->setMaximumSize(width, height);
+	} else if ( window->isMaximized() ) {
+		// Nothing to do here - the windows is maximized
 	} else {
 		window->resize( new_width, new_height );
 	}
