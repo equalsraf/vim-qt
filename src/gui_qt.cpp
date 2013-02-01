@@ -662,6 +662,10 @@ gui_mch_set_shellsize(int width, int height, int min_width, int min_height,
 	// cause gui_resize_shell() to be called
 	gui_mch_update();
 
+	// Seems redundant but there are cases were the shell might not
+	// call this - because its size is unchanged
+	gui_resize_shell(vimshell->width(), vimshell->height());
+
 	// SHOCKING: it seems gui_get_shellsize() updates the proper values for
 	// the columns and rows, after a resize.
 	gui_get_shellsize();
