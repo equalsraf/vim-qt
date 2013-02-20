@@ -573,10 +573,12 @@ void QVimShell::inputMethodEvent(QInputMethodEvent *ev)
 	}
 }
 
-QVariant QVimShell::inputMethodQuery(Qt::InputMethodQuery query)
+QVariant QVimShell::inputMethodQuery(Qt::InputMethodQuery query) const
 {
 	if ( query == Qt::ImFont) {
 		return font();
+	} else if ( query == Qt::ImMicroFocus ) {
+		return QRect(VimWrapper::cursorPosition(), QSize(0, charHeight()));
 	}
 
 	return QVariant();
