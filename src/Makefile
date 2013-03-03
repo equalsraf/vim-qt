@@ -2601,7 +2601,7 @@ objects/vimaction.o: qt/vimaction.cpp
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimaction.cpp
 
 objects/qtresources.o: qt/icons.qrc
-	rcc -no-compress qt/icons.qrc -o qtresources.cpp
+	$(QT_RCC) -no-compress qt/icons.qrc -o qtresources.cpp
 	$(CXX) $(ALL_CFLAGS) -o $@ -c qtresources.cpp
 
 objects/vimscrollbar.o: qt/vimscrollbar.cpp

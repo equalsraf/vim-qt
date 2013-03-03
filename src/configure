@@ -637,9 +637,10 @@ GUI_INC_LOC
 QT_CFLAGS
 QT_CXXFLAGS
 QT_INCPATH
+QT_RCC
+QT_MOC
 QT_LIBS
 MAKE_P
-QT_MOC
 QMAKE
 ac_ct_CXX
 CXXFLAGS
@@ -831,7 +832,7 @@ with_gnome_includes
 with_gnome_libs
 with_gnome
 with_motif_lib
-with_qt_dir
+with_qt_qmake
 with_tlib
 enable_largefile
 enable_acl
@@ -1524,7 +1525,7 @@ Optional Packages:
   --with-gnome-libs=DIR   Specify location of GNOME libs
   --with-gnome            Specify prefix for GNOME files
   --with-motif-lib=STRING   Library for Motif
-  --with-qt-dir=PATH   Qt prefix path (ex: /usr/ or /usr/lib/qt4)
+  --with-qt-qmake=PATH   QMake location (ex: /usr/lib/qt4/bin/qmake)
   --with-tlib=library     terminal library to be used
 
 Some influential environment variables:
@@ -9390,40 +9391,30 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
     QT_FOUND="no"
+    QT_MIN_VERSION="4.7.0"
 
     # Disable xim - Qt will decide on this
     enable_xim="no"
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking --with-qt-dir argument" >&5
-$as_echo_n "checking --with-qt-dir argument... " >&6; }
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking --with-qt-qmake argument" >&5
+$as_echo_n "checking --with-qt-qmake argument... " >&6; }
 
-# Check whether --with-qt-dir was given.
-if test "${with_qt_dir+set}" = set; then :
-  withval=$with_qt_dir;  QT_DIR="${withval}"
+# Check whether --with-qt-qmake was given.
+if test "${with_qt_qmake+set}" = set; then :
+  withval=$with_qt_qmake;  QMAKE="${withval}"
 fi
 
 
-    if test -n "$QT_DIR"; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_DIR" >&5
-$as_echo "$QT_DIR" >&6; }
-
-        #
-	# Use the prefix given by --with-qt-dir
-	#
-	QMAKE="$QT_DIR/bin/qmake"
-	QT_MOC="$QT_DIR/bin/moc"
+    if test -n "$QMAKE"; then
 
     	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $QMAKE" >&5
 $as_echo_n "checking for $QMAKE... " >&6; }
 	if test ! -x "$QMAKE"; then
-            as_fn_error $? "\"Unable to find qmake\"" "$LINENO" 5
+            as_fn_error $? "\"Unable to find the given qmake $QMAKE\"" "$LINENO" 5
 	fi
 
-    	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $QT_MOC" >&5
-$as_echo_n "checking for $QT_MOC... " >&6; }
-	if test ! -x "$QT_MOC"; then
-            as_fn_error $? "\"Unable to find moc\"" "$LINENO" 5
-	fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
     else
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -9609,187 +9600,11 @@ fi
             as_fn_error $? "\"Unable to find qmake\"" "$LINENO" 5
         fi
 
-        #
-        # Find moc
-        # - Exactly the same as previous case with qmake
-        #
-        # Extract the first word of "moc4", so it can be a program name with args.
-set dummy moc4; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_QT_MOC+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $QT_MOC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_QT_MOC="$QT_MOC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_QT_MOC="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-QT_MOC=$ac_cv_path_QT_MOC
-if test -n "$QT_MOC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_MOC" >&5
-$as_echo "$QT_MOC" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-        if test -z "$QT_MOC"; then
-            # Extract the first word of "moc-qt4", so it can be a program name with args.
-set dummy moc-qt4; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_QT_MOC+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $QT_MOC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_QT_MOC="$QT_MOC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_QT_MOC="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-QT_MOC=$ac_cv_path_QT_MOC
-if test -n "$QT_MOC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_MOC" >&5
-$as_echo "$QT_MOC" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-        fi
-
-        if test -z "$QT_MOC"; then
-            # Extract the first word of "moc", so it can be a program name with args.
-set dummy moc; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_QT_MOC+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $QT_MOC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_QT_MOC="$QT_MOC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_QT_MOC="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-QT_MOC=$ac_cv_path_QT_MOC
-if test -n "$QT_MOC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_MOC" >&5
-$as_echo "$QT_MOC" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-        fi
-
-        if test -z "$QT_MOC"; then
-            # Extract the first word of "moc", so it can be a program name with args.
-set dummy moc; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_QT_MOC+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $QT_MOC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_QT_MOC="$QT_MOC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $QT_BIN_PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_QT_MOC="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-QT_MOC=$ac_cv_path_QT_MOC
-if test -n "$QT_MOC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_MOC" >&5
-$as_echo "$QT_MOC" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-        fi
-
-        if test -z "$QT_MOC"; then
-            as_fn_error $? "\"Unable to find moc\"" "$LINENO" 5
-        fi
     fi
 
     #
-    # Check Qt version
-    QT_MIN_VERSION="4.7.0"
+    # Check Qt version >= 4.7.0
+
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking Qt version" >&5
 $as_echo_n "checking Qt version... " >&6; }
     QT_VERSION=`$QMAKE -query QT_VERSION | cut -f1`
@@ -9798,6 +9613,16 @@ $as_echo_n "checking Qt version... " >&6; }
     fi
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT_VERSION" >&5
 $as_echo "$QT_VERSION" >&6; }
+
+    QT_INSTALL_BINS=`$QMAKE -query QT_INSTALL_BINS | cut -f1`
+    QT_MOC="$QT_INSTALL_BINS/moc"
+    if test ! -x "$QT_MOC"; then
+    	as_fn_error $? "\"Unable to find the given Qt moc $QT_MOC\"" "$LINENO" 5
+    fi
+    QT_RCC="$QT_INSTALL_BINS/rcc"
+    if test ! -x "$QT_RCC"; then
+    	as_fn_error $? "\"Unable to find the given Qt rcc $QT_RCC\"" "$LINENO" 5
+    fi
 
     #
     # Call qmake to generate bogus project
@@ -9818,7 +9643,6 @@ int main(int ac, char **av) {
     return app.exec();
 }
 EOF
-
 
     # Extract the first word of "gmake", so it can be a program name with args.
 set dummy gmake; ac_word=$2
@@ -9985,6 +9809,7 @@ EOF
     fi
 
     LDFLAGS="$LDFLAGS $QT_LFLAGS -lstdc++"
+
 
 
 

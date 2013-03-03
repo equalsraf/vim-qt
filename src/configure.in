@@ -2574,33 +2574,24 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     AC_LANG_PUSH(C++)
     AC_PROG_CXX
     QT_FOUND="no"
+    QT_MIN_VERSION="4.7.0"
 
     # Disable xim - Qt will decide on this
     enable_xim="no"
 
-    AC_MSG_CHECKING(--with-qt-dir argument)
-    AC_ARG_WITH(qt-dir,
-    [  --with-qt-dir=PATH   Qt prefix path (ex: /usr/ or /usr/lib/qt4)],
-    [ QT_DIR="${withval}" ] )
+    AC_MSG_CHECKING(--with-qt-qmake argument)
+    AC_ARG_WITH(qt-qmake,
+    [  --with-qt-qmake=PATH   QMake location (ex: /usr/lib/qt4/bin/qmake)],
+    [ QMAKE="${withval}" ] )
 
-    if test -n "$QT_DIR"; then
-        AC_MSG_RESULT($QT_DIR)
-
-        #
-	# Use the prefix given by --with-qt-dir
-	#
-	QMAKE="$QT_DIR/bin/qmake"
-	QT_MOC="$QT_DIR/bin/moc"
+    if test -n "$QMAKE"; then
 
     	AC_MSG_CHECKING(for $QMAKE)
 	if test ! -x "$QMAKE"; then
-            AC_MSG_ERROR("Unable to find qmake")
+            AC_MSG_ERROR("Unable to find the given qmake $QMAKE")
 	fi
 
-    	AC_MSG_CHECKING(for $QT_MOC)
-	if test ! -x "$QT_MOC"; then
-            AC_MSG_ERROR("Unable to find moc")
-	fi
+        AC_MSG_RESULT(yes)
     else
         AC_MSG_RESULT(no)
 
@@ -2629,37 +2620,27 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
             AC_MSG_ERROR("Unable to find qmake")
         fi
     
-        #
-        # Find moc
-        # - Exactly the same as previous case with qmake
-        # 
-        AC_PATH_PROG(QT_MOC, moc4)
-        if test -z "$QT_MOC"; then
-            AC_PATH_PROG(QT_MOC, moc-qt4)
-        fi
- 
-        if test -z "$QT_MOC"; then
-            AC_PATH_PROG(QT_MOC, moc)
-        fi
-
-        if test -z "$QT_MOC"; then
-            AC_PATH_PROG(QT_MOC, moc, , $QT_BIN_PATH)
-        fi
-    
-        if test -z "$QT_MOC"; then
-            AC_MSG_ERROR("Unable to find moc")
-        fi
     fi
 
     #
-    # Check Qt version
-    QT_MIN_VERSION="4.7.0"
+    # Check Qt version >= 4.7.0
+
     AC_MSG_CHECKING(Qt version)
     QT_VERSION=`$QMAKE -query QT_VERSION | cut -f1`
     if test [ "$QT_VERSION" \< "$QT_MIN_VERSION" ]; then
        AC_MSG_ERROR("Qt version is too old - need at least $QT_MIN_VERSION")
     fi
     AC_MSG_RESULT($QT_VERSION)
+
+    QT_INSTALL_BINS=`$QMAKE -query QT_INSTALL_BINS | cut -f1`
+    QT_MOC="$QT_INSTALL_BINS/moc"
+    if test ! -x "$QT_MOC"; then
+    	AC_MSG_ERROR("Unable to find the given Qt moc $QT_MOC")
+    fi
+    QT_RCC="$QT_INSTALL_BINS/rcc"
+    if test ! -x "$QT_RCC"; then
+    	AC_MSG_ERROR("Unable to find the given Qt rcc $QT_RCC")
+    fi
 
     #
     # Call qmake to generate bogus project
@@ -2680,7 +2661,6 @@ int main(int ac, char **av) {
     return app.exec();
 }
 EOF
-
 
     AC_PATH_PROG(MAKE_P, gmake)
     if test -z "$MAKE_P"; then
@@ -2763,6 +2743,7 @@ EOF
     LDFLAGS="$LDFLAGS $QT_LFLAGS -lstdc++"
     AC_SUBST(QT_LIBS)
     AC_SUBST(QT_MOC)
+    AC_SUBST(QT_RCC)
     AC_SUBST(QT_INCPATH)
     AC_SUBST(QT_CXXFLAGS)
     AC_SUBST(QT_CFLAGS)
