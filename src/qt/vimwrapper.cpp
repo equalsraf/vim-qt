@@ -345,7 +345,7 @@ QByteArray VimWrapper::convertTo(const QString& s)
 	if ( m_encoding_utf8 ) {
 		return s.toUtf8();
 	} else {
-		return s.toAscii();
+		return s.toLatin1();
 	}
 }
 
@@ -356,7 +356,7 @@ QString VimWrapper::convertFrom(const char *s, int size)
 	if ( m_encoding_utf8 ) {
 		return QString::fromUtf8(s, size);
 	} else {
-		return QString::fromAscii(s, size);
+		return QString::fromLatin1(s, size);
 	}
 }
 
