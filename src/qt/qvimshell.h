@@ -41,7 +41,7 @@ public:
 	int charWidth();
 
 	void setEncodingUtf8(bool);
-	virtual QVariant inputMethodQuery(Qt::InputMethodQuery);
+	virtual QVariant inputMethodQuery(Qt::InputMethodQuery) const;
 	void setSlowStringDrawing(bool slow) {m_slowStringDrawing = slow;}
 
 	void setBlinkTime(const long waittime, const long ontime, const long offtime);
