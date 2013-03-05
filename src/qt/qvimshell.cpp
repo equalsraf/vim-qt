@@ -193,19 +193,21 @@ int_u QVimShell::vimMouseModifiers(Qt::KeyboardModifiers mod)
 
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
+	qDebug() << __func__ << "text:(" << ev->text() << ") length:" << ev->count() << " modifiers"
+			<< (ev->modifiers() & Qt::ShiftModifier ? ":SHIFT" : "")
+			<< (ev->modifiers() & Qt::ControlModifier ? ":CTRL" : "")
+			<< (ev->modifiers() & Qt::AltModifier ? ":ALT" : "")
+			<< (ev->modifiers() & Qt::MetaModifier ? ":Meta" : "")
+			;
 	char str[20];
 	int len=0;
 
 	if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
 	} else if ( !ev->text().isEmpty() ) {
-		if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
-			char str[2] = {(char)195, ev->text().data()[0].toLatin1() + 64};
-			add_to_input_buf( (char_u *) str, 2 );
-		} else {
-			QByteArray t = VimWrapper::convertTo(ev->text());
-			add_to_input_buf( (char_u *) t.data(), t.size() );
-		}
+		QByteArray t = VimWrapper::convertTo(ev->text());
+		int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
+		add_to_input_buf( (char_u *) t.data(), t.size() );
 	}
 
 	// mousehide - conceal mouse pointer when typing
