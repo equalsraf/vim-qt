@@ -29,7 +29,7 @@
 #define DELETION_REGISTER	36
 #ifdef FEAT_CLIPBOARD
 # define STAR_REGISTER		37
-#  ifdef FEAT_X11
+#  if defined(FEAT_X11) || defined(FEAT_GUI_QT)
 #   define PLUS_REGISTER	38
 #  else
 #   define PLUS_REGISTER	STAR_REGISTER	    /* there is only one */
@@ -2907,7 +2907,7 @@ op_yank(oap, deleting, mess)
     char_u		*p;
     char_u		*pnew;
     struct block_def	bd;
-#if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+#if defined(FEAT_CLIPBOARD) && ( defined(FEAT_X11) || defined(FEAT_GUI_QT) )
     int			did_star = FALSE;
 #endif
 
@@ -3192,12 +3192,12 @@ op_yank(oap, deleting, mess)
 
 	clip_own_selection(&clip_star);
 	clip_gen_set_selection(&clip_star);
-# ifdef FEAT_X11
+# if defined(FEAT_X11) || defined(FEAT_GUI_QT)
 	did_star = TRUE;
 # endif
     }
 
-# ifdef FEAT_X11
+# if defined(FEAT_X11) || defined(FEAT_GUI_QT)
     /*
      * If we were yanking to the '+' register, send result to selection.
      * Also copy to the '*' register, in case auto-select is off.

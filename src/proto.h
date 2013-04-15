@@ -250,6 +250,9 @@ extern char *vim_SelFile __ARGS((Widget toplevel, char *prompt, char *init_path,
 #  ifdef FEAT_SUN_WORKSHOP
 #   include "workshop.pro"
 #  endif
+#  ifdef FEAT_GUI_QT
+#   include "gui_qt.pro"
+#  endif
 # endif	/* FEAT_GUI */
 
 # ifdef FEAT_OLE
