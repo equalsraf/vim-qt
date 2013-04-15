@@ -6485,9 +6485,7 @@ vim_rename(from, to)
 #ifdef HAVE_ACL
     vim_acl_T	acl;		/* ACL from original file */
 #endif
-#if defined(UNIX) || defined(CASE_INSENSITIVE_FILENAME)
     int		use_tmp_file = FALSE;
-#endif
 
     /*
      * When the names are identical, there is nothing to do.  When they refer
@@ -6496,11 +6494,9 @@ vim_rename(from, to)
      */
     if (fnamecmp(from, to) == 0)
     {
-#ifdef CASE_INSENSITIVE_FILENAME
-	if (STRCMP(gettail(from), gettail(to)) != 0)
+	if (p_fic && STRCMP(gettail(from), gettail(to)) != 0)
 	    use_tmp_file = TRUE;
 	else
-#endif
 	    return 0;
     }
 
@@ -6539,7 +6535,6 @@ vim_rename(from, to)
     }
 #endif
 
-#if defined(UNIX) || defined(CASE_INSENSITIVE_FILENAME)
     if (use_tmp_file)
     {
 	char	tempname[MAXPATHL + 1];
@@ -6572,7 +6567,6 @@ vim_rename(from, to)
 	}
 	return -1;
     }
-#endif
 
     /*
      * Delete the "to" file, this is required on some systems to make the
@@ -7243,6 +7237,9 @@ buf_reload(buf, orig_mode)
 	 * reset it, might have had a read error. */
 	if (orig_mode == curbuf->b_orig_mode)
 	    curbuf->b_p_ro |= old_ro;
+
+	/* Modelines must override settings done by autocommands. */
+	do_modelines(0);
     }
 
     /* restore curwin/curbuf and a few other things */
@@ -7710,6 +7707,8 @@ static struct event_name
     {"TabLeave",	EVENT_TABLEAVE},
     {"TermChanged",	EVENT_TERMCHANGED},
     {"TermResponse",	EVENT_TERMRESPONSE},
+    {"TextChanged",	EVENT_TEXTCHANGED},
+    {"TextChangedI",	EVENT_TEXTCHANGEDI},
     {"User",		EVENT_USER},
     {"VimEnter",	EVENT_VIMENTER},
     {"VimLeave",	EVENT_VIMLEAVE},
@@ -9135,6 +9134,24 @@ has_cursormovedI()
 }
 
 /*
+ * Return TRUE when there is a TextChanged autocommand defined.
+ */
+    int
+has_textchanged()
+{
+    return (first_autopat[(int)EVENT_TEXTCHANGED] != NULL);
+}
+
+/*
+ * Return TRUE when there is a TextChangedI autocommand defined.
+ */
+    int
+has_textchangedI()
+{
+    return (first_autopat[(int)EVENT_TEXTCHANGEDI] != NULL);
+}
+
+/*
  * Return TRUE when there is an InsertCharPre autocommand defined.
  */
     int
@@ -9984,11 +10001,7 @@ match_file_pat(pattern, prog, fname, sfname, tail, allow_dirs)
     int		match = FALSE;
 #endif
 
-#ifdef CASE_INSENSITIVE_FILENAME
-    regmatch.rm_ic = TRUE;		/* Always ignore case */
-#else
-    regmatch.rm_ic = FALSE;		/* Don't ever ignore case */
-#endif
+    regmatch.rm_ic = p_fic; /* ignore case if 'fileignorecase' is set */
 #ifdef FEAT_OSFILETYPE
     if (*pattern == '<')
     {

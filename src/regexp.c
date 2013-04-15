@@ -2397,13 +2397,15 @@ collection:
 			    /* '\n' in range: also match NL */
 			    if (ret != JUST_CALC_SIZE)
 			    {
-				if (*ret == ANYBUT)
-				    *ret = ANYBUT + ADD_NL;
-				else if (*ret == ANYOF)
+				/* Using \n inside [^] does not change what
+				 * matches. "[^\n]" is the same as ".". */
+				if (*ret == ANYOF)
+				{
 				    *ret = ANYOF + ADD_NL;
+				    *flagp |= HASNL;
+				}
 				/* else: must have had a \n already */
 			    }
-			    *flagp |= HASNL;
 			    regparse++;
 			    startc = -1;
 			}
@@ -3413,7 +3415,7 @@ static unsigned	reg_tofreelen;
  * reg_startpos		<invalid>		reg_mmatch->startpos
  * reg_endpos		<invalid>		reg_mmatch->endpos
  * reg_win		NULL			window in which to search
- * reg_buf		<invalid>		buffer in which to search
+ * reg_buf		curbuf			buffer in which to search
  * reg_firstlnum	<invalid>		first line in which to search
  * reg_maxline		0			last line nr
  * reg_line_lbr		FALSE or TRUE		FALSE
@@ -3571,6 +3573,7 @@ vim_regexec(rmp, line, col)
     reg_mmatch = NULL;
     reg_maxline = 0;
     reg_line_lbr = FALSE;
+    reg_buf = curbuf;
     reg_win = NULL;
     ireg_ic = rmp->rm_ic;
 #ifdef FEAT_MBYTE
@@ -3595,6 +3598,7 @@ vim_regexec_nl(rmp, line, col)
     reg_mmatch = NULL;
     reg_maxline = 0;
     reg_line_lbr = TRUE;
+    reg_buf = curbuf;
     reg_win = NULL;
     ireg_ic = rmp->rm_ic;
 #ifdef FEAT_MBYTE
@@ -3623,7 +3627,6 @@ vim_regexec_multi(rmp, win, buf, lnum, col, tm)
     proftime_T	*tm;		/* timeout limit or NULL */
 {
     long	r;
-    buf_T	*save_curbuf = curbuf;
 
     reg_match = NULL;
     reg_mmatch = rmp;
@@ -3638,10 +3641,7 @@ vim_regexec_multi(rmp, win, buf, lnum, col, tm)
 #endif
     ireg_maxcol = rmp->rmm_maxcol;
 
-    /* Need to switch to buffer "buf" to make vim_iswordc() work. */
-    curbuf = buf;
     r = vim_regexec_both(NULL, col, tm);
-    curbuf = save_curbuf;
 
     return r;
 }
@@ -4015,8 +4015,8 @@ static int reg_prev_class __ARGS((void));
 reg_prev_class()
 {
     if (reginput > regline)
-	return mb_get_class(reginput - 1
-				     - (*mb_head_off)(regline, reginput - 1));
+	return mb_get_class_buf(reginput - 1
+			    - (*mb_head_off)(regline, reginput - 1), reg_buf);
     return -1;
 }
 
@@ -4185,7 +4185,7 @@ regmatch(scan)
 		int	cmp = OPERAND(scan)[1];
 		pos_T	*pos;
 
-		pos = getmark(mark, FALSE);
+		pos = getmark_buf(reg_buf, mark, FALSE);
 		if (pos == NULL		     /* mark doesn't exist */
 			|| pos->lnum <= 0    /* mark isn't set (in curbuf) */
 			|| (pos->lnum == reglnum + reg_firstlnum
@@ -4306,7 +4306,7 @@ regmatch(scan)
 		int this_class;
 
 		/* Get class of current and previous char (if it exists). */
-		this_class = mb_get_class(reginput);
+		this_class = mb_get_class_buf(reginput, reg_buf);
 		if (this_class <= 1)
 		    status = RA_NOMATCH;  /* not on a word at all */
 		else if (reg_prev_class() == this_class)
@@ -4315,8 +4315,8 @@ regmatch(scan)
 #endif
 	    else
 	    {
-		if (!vim_iswordc(c)
-			|| (reginput > regline && vim_iswordc(reginput[-1])))
+		if (!vim_iswordc_buf(c, reg_buf) || (reginput > regline
+				   && vim_iswordc_buf(reginput[-1], reg_buf)))
 		    status = RA_NOMATCH;
 	    }
 	    break;
@@ -4330,7 +4330,7 @@ regmatch(scan)
 		int this_class, prev_class;
 
 		/* Get class of current and previous char (if it exists). */
-		this_class = mb_get_class(reginput);
+		this_class = mb_get_class_buf(reginput, reg_buf);
 		prev_class = reg_prev_class();
 		if (this_class == prev_class
 			|| prev_class == 0 || prev_class == 1)
@@ -4339,13 +4339,14 @@ regmatch(scan)
 #endif
 	    else
 	    {
-		if (!vim_iswordc(reginput[-1])
-			|| (reginput[0] != NUL && vim_iswordc(c)))
+		if (!vim_iswordc_buf(reginput[-1], reg_buf)
+			|| (reginput[0] != NUL && vim_iswordc_buf(c, reg_buf)))
 		    status = RA_NOMATCH;
 	    }
 	    break; /* Matched with EOW */
 
 	  case ANY:
+	    /* ANY does not match new lines. */
 	    if (c == NUL)
 		status = RA_NOMATCH;
 	    else
@@ -4367,14 +4368,14 @@ regmatch(scan)
 	    break;
 
 	  case KWORD:
-	    if (!vim_iswordp(reginput))
+	    if (!vim_iswordp_buf(reginput, reg_buf))
 		status = RA_NOMATCH;
 	    else
 		ADVANCE_REGINPUT();
 	    break;
 
 	  case SKWORD:
-	    if (VIM_ISDIGIT(*reginput) || !vim_iswordp(reginput))
+	    if (VIM_ISDIGIT(*reginput) || !vim_iswordp_buf(reginput, reg_buf))
 		status = RA_NOMATCH;
 	    else
 		ADVANCE_REGINPUT();
@@ -5448,6 +5449,13 @@ regmatch(scan)
 			}
 		    }
 		    else
+#ifdef FEAT_MBYTE
+		    if (has_mbyte)
+			rp->rs_un.regsave.rs_u.pos.col -=
+			    (*mb_head_off)(regline, regline
+				    + rp->rs_un.regsave.rs_u.pos.col - 1) + 1;
+		    else
+#endif
 			--rp->rs_un.regsave.rs_u.pos.col;
 		}
 		else
@@ -5736,7 +5744,8 @@ regrepeat(p, maxcount)
       case SKWORD + ADD_NL:
 	while (count < maxcount)
 	{
-	    if (vim_iswordp(scan) && (testval || !VIM_ISDIGIT(*scan)))
+	    if (vim_iswordp_buf(scan, reg_buf)
+					  && (testval || !VIM_ISDIGIT(*scan)))
 	    {
 		mb_ptr_adv(scan);
 	    }
@@ -7139,6 +7148,7 @@ vim_regsub(rmp, source, dest, copy, magic, backslash)
     reg_match = rmp;
     reg_mmatch = NULL;
     reg_maxline = 0;
+    reg_buf = curbuf;
     return vim_regsub_both(source, dest, copy, magic, backslash);
 }
 #endif
@@ -7175,7 +7185,8 @@ vim_regsub_both(source, dest, copy, magic, backslash)
     int		c;
     int		cc;
     int		no = -1;
-    fptr_T	func = (fptr_T)NULL;
+    fptr_T	func_all = (fptr_T)NULL;
+    fptr_T	func_one = (fptr_T)NULL;
     linenr_T	clnum = 0;	/* init for GCC */
     int		len = 0;	/* init for GCC */
 #ifdef FEAT_EVAL
@@ -7308,16 +7319,16 @@ vim_regsub_both(source, dest, copy, magic, backslash)
 	    {
 		switch (*src++)
 		{
-		case 'u':   func = (fptr_T)do_upper;
+		case 'u':   func_one = (fptr_T)do_upper;
 			    continue;
-		case 'U':   func = (fptr_T)do_Upper;
+		case 'U':   func_all = (fptr_T)do_Upper;
 			    continue;
-		case 'l':   func = (fptr_T)do_lower;
+		case 'l':   func_one = (fptr_T)do_lower;
 			    continue;
-		case 'L':   func = (fptr_T)do_Lower;
+		case 'L':   func_all = (fptr_T)do_Lower;
 			    continue;
 		case 'e':
-		case 'E':   func = (fptr_T)NULL;
+		case 'E':   func_one = func_all = (fptr_T)NULL;
 			    continue;
 		}
 	    }
@@ -7370,11 +7381,14 @@ vim_regsub_both(source, dest, copy, magic, backslash)
 #endif
 
 	    /* Write to buffer, if copy is set. */
-	    if (func == (fptr_T)NULL)	/* just copy */
-		cc = c;
-	    else
+	    if (func_one != (fptr_T)NULL)
 		/* Turbo C complains without the typecast */
-		func = (fptr_T)(func(&cc, c));
+		func_one = (fptr_T)(func_one(&cc, c));
+	    else if (func_all != (fptr_T)NULL)
+		/* Turbo C complains without the typecast */
+		func_all = (fptr_T)(func_all(&cc, c));
+	    else /* just copy */
+		cc = c;
 
 #ifdef FEAT_MBYTE
 	    if (has_mbyte)
@@ -7485,11 +7499,14 @@ vim_regsub_both(source, dest, copy, magic, backslash)
 #endif
 				c = *s;
 
-			    if (func == (fptr_T)NULL)	/* just copy */
-				cc = c;
-			    else
+			    if (func_one != (fptr_T)NULL)
 				/* Turbo C complains without the typecast */
-				func = (fptr_T)(func(&cc, c));
+				func_one = (fptr_T)(func_one(&cc, c));
+			    else if (func_all != (fptr_T)NULL)
+				/* Turbo C complains without the typecast */
+				func_all = (fptr_T)(func_all(&cc, c));
+			    else /* just copy */
+				cc = c;
 
 #ifdef FEAT_MBYTE
 			    if (has_mbyte)

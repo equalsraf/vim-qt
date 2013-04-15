@@ -104,7 +104,7 @@
 # endif
 #endif
 #if defined(MACOS_X) || defined(MACOS_CLASSIC)
-#  define MACOS
+# define MACOS
 #endif
 #if defined(MACOS_X) && defined(MACOS_CLASSIC)
     Error: To compile for both MACOS X and Classic use a Classic Carbon
@@ -490,7 +490,7 @@ typedef unsigned long u8char_T;	    /* long should be 32 bits or more */
 #  include <string.h>
 # endif
 # if defined(HAVE_STRINGS_H) && !defined(NO_STRINGS_WITH_STRING_H)
-#   include <strings.h>
+#  include <strings.h>
 # endif
 # ifdef HAVE_STAT_H
 #  include <stat.h>
@@ -515,22 +515,22 @@ typedef unsigned long u8char_T;	    /* long should be 32 bits or more */
 # include <stdarg.h>
 #endif
 
-# if defined(HAVE_SYS_SELECT_H) && \
+#if defined(HAVE_SYS_SELECT_H) && \
 	(!defined(HAVE_SYS_TIME_H) || defined(SYS_SELECT_WITH_SYS_TIME))
-#  include <sys/select.h>
-# endif
+# include <sys/select.h>
+#endif
 
-# ifndef HAVE_SELECT
-#  ifdef HAVE_SYS_POLL_H
-#   include <sys/poll.h>
+#ifndef HAVE_SELECT
+# ifdef HAVE_SYS_POLL_H
+#  include <sys/poll.h>
+#  define HAVE_POLL
+# else
+#  ifdef HAVE_POLL_H
+#   include <poll.h>
 #   define HAVE_POLL
-#  else
-#   ifdef HAVE_POLL_H
-#    include <poll.h>
-#    define HAVE_POLL
-#   endif
 #  endif
 # endif
+#endif
 
 /* ================ end of the header file puzzle =============== */
 
@@ -1300,6 +1300,8 @@ enum auto_event
     EVENT_TABENTER,		/* after entering a tab page */
     EVENT_SHELLCMDPOST,		/* after ":!cmd" */
     EVENT_SHELLFILTERPOST,	/* after ":1,2!cmd", ":w !cmd", ":r !cmd". */
+    EVENT_TEXTCHANGED,		/* text was modified */
+    EVENT_TEXTCHANGEDI,		/* text was modified in Insert mode*/
     NUM_EVENTS			/* MUST be the last one */
 };
 
@@ -1625,18 +1627,8 @@ void mch_memmove __ARGS((void *, void *, size_t));
  * (this does not account for maximum name lengths and things like "../dir",
  * thus it is not 100% accurate!)
  */
-#ifdef CASE_INSENSITIVE_FILENAME
-# ifdef BACKSLASH_IN_FILENAME
-#  define fnamecmp(x, y) vim_fnamecmp((x), (y))
-#  define fnamencmp(x, y, n) vim_fnamencmp((x), (y), (size_t)(n))
-# else
-#  define fnamecmp(x, y) MB_STRICMP((x), (y))
-#  define fnamencmp(x, y, n) MB_STRNICMP((x), (y), (n))
-# endif
-#else
-# define fnamecmp(x, y) strcmp((char *)(x), (char *)(y))
-# define fnamencmp(x, y, n) strncmp((char *)(x), (char *)(y), (size_t)(n))
-#endif
+#define fnamecmp(x, y) vim_fnamecmp((char_u *)(x), (char_u *)(y))
+#define fnamencmp(x, y, n) vim_fnamencmp((char_u *)(x), (char_u *)(y), (size_t)(n))
 
 #ifdef HAVE_MEMSET
 # define vim_memset(ptr, c, size)   memset((ptr), (c), (size))
@@ -1877,8 +1869,8 @@ typedef int proftime_T;	    /* dummy for function prototypes */
 /* VIM_ATOM_NAME is the older Vim-specific selection type for X11.  Still
  * supported for when a mix of Vim versions is used. VIMENC_ATOM_NAME includes
  * the encoding to support Vims using different 'encoding' values. */
-#define VIM_ATOM_NAME "_VIM_TEXT"
-#define VIMENC_ATOM_NAME "_VIMENC_TEXT"
+# define VIM_ATOM_NAME "_VIM_TEXT"
+# define VIMENC_ATOM_NAME "_VIMENC_TEXT"
 
 /* Selection states for modeless selection */
 # define SELECT_CLEARED		0
@@ -1927,7 +1919,7 @@ typedef struct VimClipboard
     GdkAtom     gtk_sel_atom;	/* PRIMARY/CLIPBOARD selection ID */
 # endif
 
-# ifdef MSWIN
+# if defined(MSWIN) || defined(FEAT_CYGWIN_WIN32_CLIPBOARD)
     int_u	format;		/* Vim's own special clipboard format */
     int_u	format_raw;	/* Vim's raw text clipboard format */
 # endif

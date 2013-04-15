@@ -3130,8 +3130,16 @@ gui_mch_init(void)
      * exits on failure, but that's a non-issue because we already called
      * gtk_init_check() in gui_mch_init_check(). */
     if (using_gnome)
+    {
 	gnome_program_init(VIMPACKAGE, VIM_VERSION_SHORT,
 			   LIBGNOMEUI_MODULE, gui_argc, gui_argv, NULL);
+# if defined(FEAT_FLOAT) && defined(LC_NUMERIC)
+	/* Make sure strtod() uses a decimal point, not a comma. Gnome init
+	 * may change it. */
+	if (setlocale(LC_NUMERIC, NULL) != (char *) "C")
+	   setlocale(LC_NUMERIC, "C");
+# endif
+    }
 #endif
     vim_free(gui_argv);
     gui_argv = NULL;
@@ -5156,8 +5164,7 @@ gui_mch_haskey(char_u *name)
     return FAIL;
 }
 
-#if defined(FEAT_TITLE) \
-	|| defined(PROTO)
+#if defined(FEAT_TITLE) || defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Return the text window-id and display.  Only required for X-based GUI's
  */
@@ -5667,12 +5674,8 @@ clip_mch_request_selection(VimClipboard *cbd)
     void
 clip_mch_lose_selection(VimClipboard *cbd UNUSED)
 {
-    /* WEIRD: when using NULL to actually disown the selection, we lose the
-     * selection the first time we own it. */
-    /*
-    gtk_selection_owner_set(NULL, cbd->gtk_sel_atom, (guint32)GDK_CURRENT_TIME);
+    gtk_selection_owner_set(NULL, cbd->gtk_sel_atom, gui.event_time);
     gui_mch_update();
-     */
 }
 
 /*
@@ -5696,6 +5699,12 @@ clip_mch_own_selection(VimClipboard *cbd)
     void
 clip_mch_set_selection(VimClipboard *cbd UNUSED)
 {
+}
+
+    int
+clip_gtk_owner_exists(VimClipboard *cbd)
+{
+    return gdk_selection_owner_get(cbd->gtk_sel_atom) != NULL;
 }
 
 

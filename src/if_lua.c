@@ -665,13 +665,6 @@ luaV_pushtype(list_T, list, luaV_List)
 luaV_type_tostring(list, LUAVIM_LIST)
 
     static int
-luaV_list_gc (lua_State *L)
-{
-    list_unref(luaV_unbox(L, luaV_List, 1));
-    return 0;
-}
-
-    static int
 luaV_list_len (lua_State *L)
 {
     list_T *l = luaV_unbox(L, luaV_List, 1);
@@ -801,7 +794,6 @@ luaV_list_insert (lua_State *L)
 
 static const luaL_Reg luaV_List_mt[] = {
     {"__tostring", luaV_list_tostring},
-    {"__gc", luaV_list_gc},
     {"__len", luaV_list_len},
     {"__call", luaV_list_call},
     {"__index", luaV_list_index},
@@ -830,13 +822,6 @@ luaV_pushtype(dict_T, dict, luaV_Dict)
 luaV_type_tostring(dict, LUAVIM_DICT)
 
     static int
-luaV_dict_gc (lua_State *L)
-{
-    dict_unref(luaV_unbox(L, luaV_Dict, 1));
-    return 0;
-}
-
-    static int
 luaV_dict_len (lua_State *L)
 {
     dict_T *d = luaV_unbox(L, luaV_Dict, 1);
@@ -845,8 +830,9 @@ luaV_dict_len (lua_State *L)
 }
 
     static int
-luaV_dict_iter (lua_State *L)
+luaV_dict_iter (lua_State *L UNUSED)
 {
+#ifdef FEAT_EVAL
     hashitem_T *hi = (hashitem_T *) lua_touserdata(L, lua_upvalueindex(2));
     int n = lua_tointeger(L, lua_upvalueindex(3));
     dictitem_T *di;
@@ -860,6 +846,9 @@ luaV_dict_iter (lua_State *L)
     lua_pushinteger(L, n - 1);
     lua_replace(L, lua_upvalueindex(3));
     return 2;
+#else
+    return 0;
+#endif
 }
 
     static int
@@ -925,7 +914,6 @@ luaV_dict_newindex (lua_State *L)
 
 static const luaL_Reg luaV_Dict_mt[] = {
     {"__tostring", luaV_dict_tostring},
-    {"__gc", luaV_dict_gc},
     {"__len", luaV_dict_len},
     {"__call", luaV_dict_call},
     {"__index", luaV_dict_index},

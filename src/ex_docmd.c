@@ -1734,6 +1734,8 @@ do_one_cmd(cmdlinep, sourcing,
 #ifdef FEAT_EVAL
 	    /* avoid that a function call in 'statusline' does this */
 	    && !getline_equal(fgetline, cookie, get_func_line)
+#endif
+#ifdef FEAT_AUTOCMD
 	    /* avoid that an autocommand, e.g. QuitPre, does this */
 	    && !getline_equal(fgetline, cookie, getnextac)
 #endif
@@ -2643,7 +2645,8 @@ do_one_cmd(cmdlinep, sourcing,
 	    while (p > ea.arg && vim_iswhite(p[-1]))
 		--p;
 	}
-	ea.line2 = buflist_findpat(ea.arg, p, (ea.argt & BUFUNL) != 0, FALSE);
+	ea.line2 = buflist_findpat(ea.arg, p, (ea.argt & BUFUNL) != 0,
+								FALSE, FALSE);
 	if (ea.line2 < 0)	    /* failed */
 	    goto doend;
 	ea.addr_count = 1;
@@ -5375,7 +5378,9 @@ fail:
 #endif
     return FAIL;
 }
+#endif
 
+#if defined(FEAT_USR_CMDS) || defined(FEAT_EVAL) || defined(PROTO)
 /*
  * List of names for completion for ":command" with the EXPAND_ flag.
  * Must be alphabetical for completion.
@@ -5430,7 +5435,9 @@ static struct
     {EXPAND_USER_VARS, "var"},
     {0, NULL}
 };
+#endif
 
+#if defined(FEAT_USR_CMDS) || defined(PROTO)
     static void
 uc_list(name, name_len)
     char_u	*name;
@@ -6375,10 +6382,12 @@ parse_compl_arg(value, vallen, complp, argt, compl_arg)
     int		vallen;
     int		*complp;
     long	*argt;
-    char_u	**compl_arg;
+    char_u	**compl_arg UNUSED;
 {
     char_u	*arg = NULL;
+# if defined(FEAT_EVAL) && defined(FEAT_CMDL_COMPL)
     size_t	arglen = 0;
+# endif
     int		i;
     int		valend = vallen;
 
@@ -6388,7 +6397,9 @@ parse_compl_arg(value, vallen, complp, argt, compl_arg)
 	if (value[i] == ',')
 	{
 	    arg = &value[i + 1];
+# if defined(FEAT_EVAL) && defined(FEAT_CMDL_COMPL)
 	    arglen = vallen - i - 1;
+# endif
 	    valend = i;
 	    break;
 	}
@@ -6516,7 +6527,7 @@ ex_quit(eap)
     }
 #ifdef FEAT_AUTOCMD
     apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
-    /* Refuse to quick when locked or when the buffer in the last window is
+    /* Refuse to quit when locked or when the buffer in the last window is
      * being closed (can only happen in autocommands). */
     if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
 	return;
@@ -6590,7 +6601,10 @@ ex_quit_all(eap)
 	return;
     }
 #ifdef FEAT_AUTOCMD
-    if (curbuf_locked())
+    apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
+    /* Refuse to quit when locked or when the buffer in the last window is
+     * being closed (can only happen in autocommands). */
+    if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
 	return;
 #endif
 
@@ -6926,7 +6940,10 @@ ex_exit(eap)
 	return;
     }
 #ifdef FEAT_AUTOCMD
-    if (curbuf_locked())
+    apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
+    /* Refuse to quit when locked or when the buffer in the last window is
+     * being closed (can only happen in autocommands). */
+    if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
 	return;
 #endif
 
@@ -10819,24 +10836,24 @@ put_view(fd, wp, add_edit, flagp, current_arg_idx)
 	    {
 		if (fprintf(fd,
 			  "let s:c = %ld - ((%ld * winwidth(0) + %ld) / %ld)",
-			    (long)wp->w_cursor.col,
-			    (long)(wp->w_cursor.col - wp->w_leftcol),
+			    (long)wp->w_virtcol + 1,
+			    (long)(wp->w_virtcol - wp->w_leftcol),
 			    (long)wp->w_width / 2, (long)wp->w_width) < 0
 			|| put_eol(fd) == FAIL
 			|| put_line(fd, "if s:c > 0") == FAIL
 			|| fprintf(fd,
-			    "  exe 'normal! 0' . s:c . 'lzs' . (%ld - s:c) . 'l'",
-			    (long)wp->w_cursor.col) < 0
+			    "  exe 'normal! ' . s:c . '|zs' . %ld . '|'",
+			    (long)wp->w_virtcol + 1) < 0
 			|| put_eol(fd) == FAIL
 			|| put_line(fd, "else") == FAIL
-			|| fprintf(fd, "  normal! 0%dl", wp->w_cursor.col) < 0
+			|| fprintf(fd, "  normal! 0%d|", wp->w_virtcol + 1) < 0
 			|| put_eol(fd) == FAIL
 			|| put_line(fd, "endif") == FAIL)
 		    return FAIL;
 	    }
 	    else
 	    {
-		if (fprintf(fd, "normal! 0%dl", wp->w_cursor.col) < 0
+		if (fprintf(fd, "normal! 0%d|", wp->w_virtcol + 1) < 0
 			|| put_eol(fd) == FAIL)
 		    return FAIL;
 	    }

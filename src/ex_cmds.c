@@ -415,8 +415,15 @@ ex_sort(eap)
 	    }
 	    *s = NUL;
 	    /* Use last search pattern if sort pattern is empty. */
-	    if (s == p + 1 && last_search_pat() != NULL)
+	    if (s == p + 1)
+	    {
+		if (last_search_pat() == NULL)
+		{
+		    EMSG(_(e_noprevre));
+		    goto sortend;
+		}
 		regmatch.regprog = vim_regcomp(last_search_pat(), RE_MAGIC);
+	    }
 	    else
 		regmatch.regprog = vim_regcomp(p + 1, RE_MAGIC);
 	    if (regmatch.regprog == NULL)
@@ -2106,7 +2113,7 @@ read_viminfo_up_to_marks(virp, forceit, writing)
     buf_T	*buf;
 
 #ifdef FEAT_CMDHIST
-    prepare_viminfo_history(forceit ? 9999 : 0);
+    prepare_viminfo_history(forceit ? 9999 : 0, writing);
 #endif
     eof = viminfo_readline(virp);
     while (!eof && virp->vir_line[0] != '>')
@@ -2154,7 +2161,7 @@ read_viminfo_up_to_marks(virp, forceit, writing)
 	    case '=':
 	    case '@':
 #ifdef FEAT_CMDHIST
-		eof = read_viminfo_history(virp);
+		eof = read_viminfo_history(virp, writing);
 #else
 		eof = viminfo_readline(virp);
 #endif
@@ -2175,7 +2182,8 @@ read_viminfo_up_to_marks(virp, forceit, writing)
 
 #ifdef FEAT_CMDHIST
     /* Finish reading history items. */
-    finish_viminfo_history();
+    if (!writing)
+	finish_viminfo_history();
 #endif
 
     /* Change file names to buffer numbers for fmarks. */
@@ -4727,6 +4735,8 @@ do_sub(eap)
 			}
 			else
 			{
+			    char_u *orig_line = NULL;
+			    int    len_change = 0;
 #ifdef FEAT_FOLDING
 			    int save_p_fen = curwin->w_p_fen;
 
@@ -4737,9 +4747,43 @@ do_sub(eap)
 			    temp = RedrawingDisabled;
 			    RedrawingDisabled = 0;
 
+			    if (new_start != NULL)
+			    {
+				/* There already was a substitution, we would
+				 * like to show this to the user.  We cannot
+				 * really update the line, it would change
+				 * what matches.  Temporarily replace the line
+				 * and change it back afterwards. */
+				orig_line = vim_strsave(ml_get(lnum));
+				if (orig_line != NULL)
+				{
+				    char_u *new_line = concat_str(new_start,
+						     sub_firstline + copycol);
+
+				    if (new_line == NULL)
+				    {
+					vim_free(orig_line);
+					orig_line = NULL;
+				    }
+				    else
+				    {
+					/* Position the cursor relative to the
+					 * end of the line, the previous
+					 * substitute may have inserted or
+					 * deleted characters before the
+					 * cursor. */
+					len_change = (int)STRLEN(new_line)
+						     - (int)STRLEN(orig_line);
+					curwin->w_cursor.col += len_change;
+					ml_replace(lnum, new_line, FALSE);
+				    }
+				}
+			    }
+
 			    search_match_lines = regmatch.endpos[0].lnum
 						  - regmatch.startpos[0].lnum;
-			    search_match_endcol = regmatch.endpos[0].col;
+			    search_match_endcol = regmatch.endpos[0].col
+								 + len_change;
 			    highlight_match = TRUE;
 
 			    update_topline();
@@ -4781,6 +4825,10 @@ do_sub(eap)
 			    msg_didout = FALSE;	/* don't scroll up */
 			    msg_col = 0;
 			    gotocmdline(TRUE);
+
+			    /* restore the line */
+			    if (orig_line != NULL)
+				ml_replace(lnum, orig_line, FALSE);
 			}
 
 			need_wait_return = FALSE; /* no hit-return prompt */
@@ -4838,7 +4886,7 @@ do_sub(eap)
 			goto skip;
 		    }
 		    if (got_quit)
-			break;
+			goto skip;
 		}
 
 		/* Move the cursor to the start of the match, so that we can
@@ -5045,14 +5093,10 @@ skip:
 		 * The check for nmatch_tl is needed for when multi-line
 		 * matching must replace the lines before trying to do another
 		 * match, otherwise "\@<=" won't work.
-		 * When asking the user we like to show the already replaced
-		 * text, but don't do it when "\<@=" or "\<@!" is used, it
-		 * changes what matches.
 		 * When the match starts below where we start searching also
 		 * need to replace the line first (using \zs after \n).
 		 */
 		if (lastone
-			|| (do_ask && !re_lookbehind(regmatch.regprog))
 			|| nmatch_tl > 0
 			|| (nmatch = vim_regexec_multi(&regmatch, curwin,
 							curbuf, sub_firstlnum,
@@ -5199,6 +5243,12 @@ outofmem:
 	else if (do_error)	/* nothing found */
 	    EMSG2(_(e_patnotf2), get_search_pat());
     }
+
+#ifdef FEAT_FOLDING
+    if (do_ask && hasAnyFolding(curwin))
+	/* Cursor position may require updating */
+	changed_window_setting();
+#endif
 
     vim_free(regmatch.regprog);
 }
@@ -5369,7 +5419,7 @@ ex_global(eap)
 	if (type == 'v')
 	    smsg((char_u *)_("Pattern found in every line: %s"), pat);
 	else
-	    smsg((char_u *)_(e_patnotf2), pat);
+	    smsg((char_u *)_("Pattern not found: %s"), pat);
     }
     else
 	global_exe(cmd);
@@ -5849,14 +5899,14 @@ find_help_tags(arg, num_matches, matches, keep_lang)
     int		i;
     static char *(mtable[]) = {"*", "g*", "[*", "]*", ":*",
 			       "/*", "/\\*", "\"*", "**",
-			       "/\\(\\)",
+			       "cpo-*", "/\\(\\)",
 			       "?", ":?", "?<CR>", "g?", "g?g?", "g??", "z?",
 			       "/\\?", "/\\z(\\)", "\\=", ":s\\=",
 			       "[count]", "[quotex]", "[range]",
 			       "[pattern]", "\\|", "\\%$"};
     static char *(rtable[]) = {"star", "gstar", "[star", "]star", ":star",
 			       "/star", "/\\\\star", "quotestar", "starstar",
-			       "/\\\\(\\\\)",
+			       "cpo-star", "/\\\\(\\\\)",
 			       "?", ":?", "?<CR>", "g?", "g?g?", "g??", "z?",
 			       "/\\\\?", "/\\\\z(\\\\)", "\\\\=", ":s\\\\=",
 			       "\\[count]", "\\[quotex]", "\\[range]",

@@ -543,6 +543,7 @@ OBJ = \
 	$(OUTDIR)\ops.obj \
 	$(OUTDIR)\option.obj \
 	$(OUTDIR)\os_mswin.obj \
+	$(OUTDIR)\winclip.obj \
 	$(OUTDIR)\os_win32.obj \
 	$(OUTDIR)\pathdef.obj \
 	$(OUTDIR)\popupmnu.obj \
@@ -1096,7 +1097,7 @@ $(OUTDIR)/if_perl.obj: $(OUTDIR) if_perl.c  $(INCL)
 $(OUTDIR)/if_perlsfio.obj: $(OUTDIR) if_perlsfio.c  $(INCL)
 	$(CC) $(CFLAGS) $(PERL_INC) if_perlsfio.c
 
-$(OUTDIR)/if_mzsch.obj: $(OUTDIR) if_mzsch.c  $(INCL) $(MZSCHEME_EXTRA_DEP)
+$(OUTDIR)/if_mzsch.obj: $(OUTDIR) if_mzsch.c if_mzsch.h $(INCL) $(MZSCHEME_EXTRA_DEP)
 	$(CC) $(CFLAGS) if_mzsch.c \
 		-DMZSCHEME_COLLECTS=\"$(MZSCHEME:\=\\)\\collects\"
 mzscheme_base.c:
@@ -1148,6 +1149,8 @@ $(OUTDIR)/option.obj:	$(OUTDIR) option.c  $(INCL)
 $(OUTDIR)/ops.obj:	$(OUTDIR) ops.c  $(INCL)
 
 $(OUTDIR)/os_mswin.obj:	$(OUTDIR) os_mswin.c  $(INCL)
+
+$(OUTDIR)/winclip.obj:	$(OUTDIR) winclip.c  $(INCL)
 
 $(OUTDIR)/os_win32.obj:	$(OUTDIR) os_win32.c  $(INCL) os_win32.h
 
@@ -1256,6 +1259,7 @@ proto.h: \
 	proto/ops.pro \
 	proto/option.pro \
 	proto/os_mswin.pro \
+	proto/winclip.pro \
 	proto/os_win32.pro \
 	proto/popupmnu.pro \
 	proto/quickfix.pro \

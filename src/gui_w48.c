@@ -323,10 +323,15 @@ static void TrackUserActivity __ARGS((UINT uMsg));
 
 /*
  * For control IME.
+ *
+ * These LOGFONT used for IME.
  */
 #ifdef FEAT_MBYTE
 # ifdef USE_IM_CONTROL
+/* holds LOGFONT for 'guifontwide' if available, otherwise 'guifont' */
 static LOGFONT norm_logfont;
+/* holds LOGFONT for 'guifont' always. */
+static LOGFONT sub_logfont;
 # endif
 #endif
 
@@ -3090,6 +3095,40 @@ logfont2name(LOGFONT lf)
     return res;
 }
 
+
+#ifdef FEAT_MBYTE_IME
+/*
+ * Set correct LOGFONT to IME.  Use 'guifontwide' if available, otherwise use
+ * 'guifont'
+ */
+    static void
+update_im_font()
+{
+    LOGFONT	lf_wide;
+
+    if (p_guifontwide != NULL && *p_guifontwide != NUL
+	    && gui.wide_font != NOFONT
+	    && GetObject((HFONT)gui.wide_font, sizeof(lf_wide), &lf_wide))
+	norm_logfont = lf_wide;
+    else
+	norm_logfont = sub_logfont;
+    im_set_font(&norm_logfont);
+}
+#endif
+
+#ifdef FEAT_MBYTE
+/*
+ * Handler of gui.wide_font (p_guifontwide) changed notification.
+ */
+    void
+gui_mch_wide_font_changed()
+{
+# ifdef FEAT_MBYTE_IME
+    update_im_font();
+# endif
+}
+#endif
+
 /*
  * Initialise vim to use the font with the given name.
  * Return FAIL if the font could not be loaded, OK otherwise.
@@ -3112,9 +3151,10 @@ gui_mch_init_font(char_u *font_name, int fontset)
 	font_name = lf.lfFaceName;
 #if defined(FEAT_MBYTE_IME) || defined(GLOBAL_IME)
     norm_logfont = lf;
+    sub_logfont = lf;
 #endif
 #ifdef FEAT_MBYTE_IME
-    im_set_font(&lf);
+    update_im_font();
 #endif
     gui_mch_free_font(gui.norm_font);
     gui.norm_font = font;
@@ -3225,27 +3265,27 @@ gui_mch_settitle(
  * misc2.c! */
 static LPCSTR mshape_idcs[] =
 {
-    MAKEINTRESOURCE(IDC_ARROW),		/* arrow */
-    MAKEINTRESOURCE(0),			/* blank */
-    MAKEINTRESOURCE(IDC_IBEAM),		/* beam */
-    MAKEINTRESOURCE(IDC_SIZENS),	/* updown */
-    MAKEINTRESOURCE(IDC_SIZENS),	/* udsizing */
-    MAKEINTRESOURCE(IDC_SIZEWE),	/* leftright */
-    MAKEINTRESOURCE(IDC_SIZEWE),	/* lrsizing */
-    MAKEINTRESOURCE(IDC_WAIT),		/* busy */
+    IDC_ARROW,			/* arrow */
+    MAKEINTRESOURCE(0),		/* blank */
+    IDC_IBEAM,			/* beam */
+    IDC_SIZENS,			/* updown */
+    IDC_SIZENS,			/* udsizing */
+    IDC_SIZEWE,			/* leftright */
+    IDC_SIZEWE,			/* lrsizing */
+    IDC_WAIT,			/* busy */
 #ifdef WIN3264
-    MAKEINTRESOURCE(IDC_NO),		/* no */
+    IDC_NO,			/* no */
 #else
-    MAKEINTRESOURCE(IDC_ICON),		/* no */
+    IDC_ICON,			/* no */
 #endif
-    MAKEINTRESOURCE(IDC_ARROW),		/* crosshair */
-    MAKEINTRESOURCE(IDC_ARROW),		/* hand1 */
-    MAKEINTRESOURCE(IDC_ARROW),		/* hand2 */
-    MAKEINTRESOURCE(IDC_ARROW),		/* pencil */
-    MAKEINTRESOURCE(IDC_ARROW),		/* question */
-    MAKEINTRESOURCE(IDC_ARROW),		/* right-arrow */
-    MAKEINTRESOURCE(IDC_UPARROW),	/* up-arrow */
-    MAKEINTRESOURCE(IDC_ARROW)		/* last one */
+    IDC_ARROW,			/* crosshair */
+    IDC_ARROW,			/* hand1 */
+    IDC_ARROW,			/* hand2 */
+    IDC_ARROW,			/* pencil */
+    IDC_ARROW,			/* question */
+    IDC_ARROW,			/* right-arrow */
+    IDC_UPARROW,		/* up-arrow */
+    IDC_ARROW			/* last one */
 };
 
     void
@@ -3258,7 +3298,7 @@ mch_set_mouse_shape(int shape)
     else
     {
 	if (shape >= MSHAPE_NUMBERED)
-	    idc = MAKEINTRESOURCE(IDC_ARROW);
+	    idc = IDC_ARROW;
 	else
 	    idc = mshape_idcs[shape];
 #ifdef SetClassLongPtr
