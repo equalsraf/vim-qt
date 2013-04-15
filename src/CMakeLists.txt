@@ -88,6 +88,7 @@ if(MSVC OR MINGW)
 
 	set(VIM_SOURCES ${VIM_SOURCES} 
 			os_win32.c 
+			winclip.c
 			os_mswin.c)
 
 	add_definitions(-DWIN32
