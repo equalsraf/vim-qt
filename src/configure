@@ -9031,6 +9031,9 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
     QT_FOUND="no"
 
+    # Disable xim - Qt will decide on this
+    enable_xim="no"
+
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking --with-qt-dir argument" >&5
 $as_echo_n "checking --with-qt-dir argument... " >&6; }
 

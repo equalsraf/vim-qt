@@ -2384,6 +2384,9 @@ if test -z "$SKIP_QT" -a -z "$DONT_FIND_QT"; then
     AC_PROG_CXX
     QT_FOUND="no"
 
+    # Disable xim - Qt will decide on this
+    enable_xim="no"
+
     AC_MSG_CHECKING(--with-qt-dir argument)
     AC_ARG_WITH(qt-dir,
     [  --with-qt-dir=PATH   Qt prefix path (ex: /usr/ or /usr/lib/qt4)],
