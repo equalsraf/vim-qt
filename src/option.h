@@ -881,7 +881,7 @@ EXTERN char_u	*p_wop;		/* 'wildoptions' */
 #endif
 EXTERN long	p_window;	/* 'window' */
 #if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_MOTIF) || defined(LINT) \
-	|| defined (FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON)
+	|| defined (FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_QT)
 #define FEAT_WAK
 EXTERN char_u	*p_wak;		/* 'winaltkeys' */
 #endif

@@ -236,3 +236,9 @@ bool MainWindow::keepTabbar()
 	return m_keepTabbar;
 }
 
+
+void MainWindow::setEnableMenuMnemonics(bool enabled)
+{
+	emit menuMnemonicsEnabled(enabled);
+}
+

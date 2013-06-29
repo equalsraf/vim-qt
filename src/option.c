@@ -5939,6 +5939,11 @@ did_set_string_option(opt_idx, varp, new_value_alloced, oldval, errbuf,
 #   ifdef FEAT_GUI_GTK
 	else if (gui.in_use)
 	    gui_gtk_set_mnemonics(p_wak[0] == 'y' || p_wak[0] == 'm');
+#   else
+#    ifdef FEAT_GUI_QT
+	else if (gui.in_use)
+	    gui_qt_set_mnemonics(p_wak[0] == 'y' || p_wak[0] == 'm');
+#    endif
 #   endif
 #  endif
 # endif

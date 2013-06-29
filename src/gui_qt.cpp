@@ -12,10 +12,12 @@
 #include <QFileDialog>
 #include <QPushButton>
 #include <QTimer>
+#include <QShortcut>
 
 #include "qvimshell.h"
 #include "mainwindow.h"
 #include "vimaction.h"
+#include "vimqtmenu.h"
 #include "vimscrollbar.h"
 #include "fontdialog.h"
 
@@ -1142,6 +1144,18 @@ gui_mch_toggle_tearoffs(int enable)
 	toggle_tearoffs(mb, enable != 0);
 }
 
+/*
+ * Enable or disable mnemonics for the toplevel menus.
+ */
+void
+gui_qt_set_mnemonics(int enable)
+{
+	if ( window ) {
+		window->setEnableMenuMnemonics(enable);
+	}
+}
+
+
 /**
  * Called after all menus are set,
  */
@@ -1223,9 +1237,11 @@ gui_mch_add_menu(vimmenu_T *menu, int idx)
 			before = actions.at(idx);
 		}
 
-		QMenu *m = new QMenu(VimWrapper::convertFrom(menu->name), window);
+		QMenu *m = new VimQtMenu(menu, window);
 		window->menuBar()->insertMenu( before, m);
 		menu->qmenu = m;
+		QObject::connect( window, SIGNAL(menuMnemonicsEnabled(bool)),
+				m, SLOT(setEnableMnemonic(bool)));
 	} else if ( menu->parent && menu->parent->qmenu ) {
 		QMenu *parent = (QMenu*)menu->parent->qmenu;
 		QList<QAction*> actions = parent->actions();

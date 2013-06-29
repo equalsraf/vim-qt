@@ -34,6 +34,10 @@ public slots:
 	void closeTab(int idx);
 	void setKeepTabbar(bool);
 	void openNewTab();
+	void setEnableMenuMnemonics(bool enabled);
+
+signals:
+	void menuMnemonicsEnabled(bool);
 
 protected:
 	virtual void closeEvent( QCloseEvent *);
