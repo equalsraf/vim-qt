@@ -1,5 +1,11 @@
 #include "qvimshell.moc"
 
+
+#ifdef scroll
+#undef scroll
+#undef timeout
+#endif
+
 #include <QResizeEvent>
 #include <QPainter>
 #include <QApplication>

@@ -8233,6 +8233,10 @@ $as_echo "auto - Carbon GUI is outdated - disable GUI support" >&6; }
 		SKIP_CARBON=YES ;;
     carbon)	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Carbon GUI support" >&5
 $as_echo "Carbon GUI support" >&6; } ;;
+    qt)        { $as_echo "$as_me:${as_lineno-$LINENO}: result: Qt GUI support" >&5
+$as_echo "Qt GUI support" >&6; }
+       SKIP_CARBON=YES
+       SKIP_QT=;;
     *)		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Sorry, $enable_gui GUI is not supported" >&5
 $as_echo "Sorry, $enable_gui GUI is not supported" >&6; }
 		SKIP_CARBON=YES ;;

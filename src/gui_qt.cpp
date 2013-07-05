@@ -819,6 +819,7 @@ gui_mch_init_check()
 
 /* Clipboard */
 
+#if defined(MACOSX)
 /**
  * Own the selection and return OK if it worked.
  * 
@@ -828,7 +829,9 @@ clip_mch_own_selection(VimClipboard *cbd)
 {
 	return OK;
 }
+#endif
 
+#if defined(MACOSX)
 /**
  * Disown the selection.
  */
@@ -836,7 +839,9 @@ void
 clip_mch_lose_selection(VimClipboard *cbd)
 {
 }
+#endif
 
+#if defined(MACOSX)
 /**
  * Send the current selection to the clipboard
  */
@@ -863,7 +868,9 @@ clip_mch_set_selection(VimClipboard *cbd)
 
 	vim_free(str);
 }
+#endif
 
+#if defined(MACOSX)
 /**
  * Get selection from clipboard
  *
@@ -896,6 +903,7 @@ clip_mch_request_selection(VimClipboard *cbd)
 	clip_yank_selection(MAUTO, buffer, text.size(), cbd);
 	vim_free(buffer);
 }
+#endif
 
 /**
  * Open the GUI window which was created by a call to gui_mch_init().
@@ -1470,14 +1478,14 @@ gui_mch_browse(int saving, char_u *title, char_u *dflt, char_u *ext, char_u *ini
 		dir = VimWrapper::convertFrom(initdir);
 	}
 
-	window->setEnabled(false);
+	//window->setEnabled(false);
 	QString file;
 	if ( saving ) {
 		file = QFileDialog::getSaveFileName(window, VimWrapper::convertFrom(title), dir, filterstr);
 	} else {
 		file = QFileDialog::getOpenFileName(window, VimWrapper::convertFrom(title), dir, filterstr);
 	}
-	window->setEnabled(true);
+	//window->setEnabled(true);
 	vimshell->setFocus();
 
 	if ( file.isEmpty() ) {
@@ -1542,12 +1550,12 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 		}
 	}
 
-	window->setEnabled(false);
+	//window->setEnabled(false);
 	msgBox.setEnabled(true);
 
 	msgBox.exec();
 
-	window->setEnabled(true);
+	//window->setEnabled(true);
 	vimshell->setFocus();
 
 	if ( msgBox.clickedButton() == 0 ) {
@@ -1644,7 +1652,7 @@ gui_mch_font_dialog(char_u *oldval)
 		dialog->selectCurrentFont(*oldfont);
 	}
 
-	window->setEnabled(false);
+	//window->setEnabled(false);
 	dialog->setEnabled(true);
 	if ( dialog->exec() == QDialog::Accepted ) {
 		QFont f =  dialog->selectedFont();
@@ -1665,7 +1673,7 @@ gui_mch_font_dialog(char_u *oldval)
 	}
 
 out:
-	window->setEnabled(true);
+	//window->setEnabled(true);
 	vimshell->setFocus();
 
 	return rval;
