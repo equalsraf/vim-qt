@@ -200,6 +200,15 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 		add_to_input_buf((char_u *) str, len);
 	} else if ( !ev->text().isEmpty() ) {
 
+		int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
+		if ( vmod ) {
+			char_u str[3];
+			str[0] = (char)CSI;
+			str[1] = (char)KS_MODIFIER;
+			str[2] = (char)vmod;
+			add_to_input_buf(str, 3);
+		}
+
 		if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
 			char_u str[2];
 			str[0] = ev->text().data()[0].toAscii() |0x80;
