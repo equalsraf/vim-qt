@@ -143,12 +143,7 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 				str[start++] = K_SECOND(key_char);
 				str[start++] = K_THIRD(key_char);
 			} else {
-				// FIXME: this seems unnecessary -> just push key_char
-				QByteArray key = VimWrapper::convertTo(ev->text());
-				int j;
-				for (j=0; j<key.size(); j++) {
-					str[start++] = key[j];
-				}
+				str[start++] = key_char;
 			}
 
 			*len = start;
