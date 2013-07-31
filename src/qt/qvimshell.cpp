@@ -196,13 +196,11 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 
 	if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
-	} else if ( !ev->text().isEmpty() ) {
-		QByteArray utf8 = VimWrapper::convertTo(ev->text());
+	} else if ( ev->text().size() == 1 ) {
 		int vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
+		QByteArray utf8 = VimWrapper::convertTo(ev->text());
 
-		if ( utf8.size() == 1 ) {
-			// One byte, i.e. ASCII
-
+		if ( utf8.size() == 1 ) { // Key compression is OFF
 			vmod &= ~MOD_MASK_ALT; // We deal w/ ALT at the end
 
 			// Some special chars already include Ctrl
@@ -222,7 +220,7 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 
 			if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
 				char_u str[2];
-				str[0] = ev->text().data()[0].toAscii() |0x80;
+				str[0] = utf8.data()[0] |0x80;
 				str[1] = str[0] & 0xbf;
 				str[0] = ((unsigned)str[0] >> 6) + 0xc0;
 				add_to_input_buf_csi( (char_u *) str, 2);
@@ -233,6 +231,8 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 			// Everything else goes here  - e.g. multibyte chars
 			add_to_input_buf( (char_u *) utf8.data(), utf8.size() );
 		}
+	} else if ( !ev->text().isEmpty() ) {
+		qDebug() << "KeyEvent length != 1" << ev->text();
 	}
 
 	// mousehide - conceal mouse pointer when typing
