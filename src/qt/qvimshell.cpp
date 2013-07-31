@@ -42,7 +42,7 @@ QVimShell::QVimShell(QWidget *parent)
 	m_tooltip->setAutoFillBackground(true);
 
 	// Widget Attributes
-	setAttribute(Qt::WA_KeyCompression, true);
+	setAttribute(Qt::WA_KeyCompression, false);
 	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 	setAttribute(Qt::WA_StaticContents, true);
@@ -143,6 +143,7 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 				str[start++] = K_SECOND(key_char);
 				str[start++] = K_THIRD(key_char);
 			} else {
+				// FIXME: this seems unnecessary -> just push key_char
 				QByteArray key = VimWrapper::convertTo(ev->text());
 				int j;
 				for (j=0; j<key.size(); j++) {
@@ -191,6 +192,8 @@ int_u QVimShell::vimMouseModifiers(Qt::KeyboardModifiers mod)
 	return vim;
 }
 
+
+
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
 	char str[20];
@@ -199,25 +202,41 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 	if ( specialKey( ev, str, &len)) {
 		add_to_input_buf((char_u *) str, len);
 	} else if ( !ev->text().isEmpty() ) {
+		QByteArray utf8 = VimWrapper::convertTo(ev->text());
+		int vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
 
-		int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
-		if ( vmod ) {
-			char_u str[3];
-			str[0] = (char)CSI;
-			str[1] = (char)KS_MODIFIER;
-			str[2] = (char)vmod;
-			add_to_input_buf(str, 3);
-		}
+		if ( utf8.size() == 1 ) {
+			// One byte, i.e. ASCII
 
-		if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
-			char_u str[2];
-			str[0] = ev->text().data()[0].toAscii() |0x80;
-			str[1] = str[0] & 0xbf;
-			str[0] = ((unsigned)str[0] >> 6) + 0xc0;
-			add_to_input_buf_csi( (char_u *) str, 2);
+			vmod &= ~MOD_MASK_ALT; // We deal w/ ALT at the end
+
+			// Some special chars already include Ctrl
+			// no point in passing the control modifier
+			if ( vmod & MOD_MASK_CTRL &&
+				utf8.data()[0] < 0x20 ) {
+				vmod &= ~MOD_MASK_CTRL;
+			}
+
+			if ( vmod ) {
+				char_u str[3];
+				str[0] = (char)CSI;
+				str[1] = (char)KS_MODIFIER;
+				str[2] = (char)vmod;
+				add_to_input_buf(str, 3);
+			}
+
+			if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
+				char_u str[2];
+				str[0] = ev->text().data()[0].toAscii() |0x80;
+				str[1] = str[0] & 0xbf;
+				str[0] = ((unsigned)str[0] >> 6) + 0xc0;
+				add_to_input_buf_csi( (char_u *) str, 2);
+			} else {
+				add_to_input_buf_csi( (char_u *) utf8.data(), 1);
+			}
 		} else {
-			QByteArray t = VimWrapper::convertTo(ev->text());
-			add_to_input_buf( (char_u *) t.data(), t.size() );
+			// Everything else goes here  - e.g. multibyte chars
+			add_to_input_buf( (char_u *) utf8.data(), utf8.size() );
 		}
 	}
 
