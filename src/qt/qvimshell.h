@@ -170,6 +170,8 @@ static const struct special_key special_keys[] =
     {Qt::Key_Backtab,	TAB, NUL},
     {Qt::Key_Escape,	ESC, NUL},
     {Qt::Key_Return,	'\r', NUL}, 	// We do this here to avoid the Control-sequences
+    {Qt::Key_Enter,	'\r', NUL},
+    {Qt::Key_Space,	' ', NUL},
 
 
     /* End of list marker: */

@@ -132,6 +132,12 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 				key_char = K_CSI;
 			}
 
+			bool encode_meta = false;
+			if ( !IS_SPECIAL(key_char) && vmod & MOD_MASK_ALT ) {
+				vmod &= ~MOD_MASK_ALT;
+				encode_meta = true;
+			}
+
 			if ( vmod ) {
 				str[start++] = (char)CSI;
 				str[start++] = (char)KS_MODIFIER;
@@ -143,7 +149,15 @@ bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
 				str[start++] = K_SECOND(key_char);
 				str[start++] = K_THIRD(key_char);
 			} else {
-				str[start++] = key_char;
+				if (encode_meta) {
+					char_u s0 = key_char | 0x80;
+					char_u s1 = s0 & 0xbf;
+					s0 = ((unsigned) s0 >> 6) + 0xC0;
+					str[start++] = s0;
+					str[start++] = s1;
+				} else {
+					str[start++] = key_char;
+				}
 			}
 
 			*len = start;
@@ -201,22 +215,6 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 		QByteArray utf8 = VimWrapper::convertTo(ev->text());
 
 		if ( utf8.size() == 1 ) { // Key compression is OFF
-			vmod &= ~MOD_MASK_ALT; // We deal w/ ALT at the end
-
-			// Some special chars already include Ctrl
-			// no point in passing the control modifier
-			if ( vmod & MOD_MASK_CTRL &&
-				utf8.data()[0] < 0x20 ) {
-				vmod &= ~MOD_MASK_CTRL;
-			}
-
-			if ( vmod ) {
-				char_u str[3];
-				str[0] = (char)CSI;
-				str[1] = (char)KS_MODIFIER;
-				str[2] = (char)vmod;
-				add_to_input_buf(str, 3);
-			}
 
 			if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
 				char_u str[2];
