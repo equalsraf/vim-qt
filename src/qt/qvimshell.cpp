@@ -105,68 +105,6 @@ void QVimShell::resizeEvent(QResizeEvent *ev)
 	postGuiResizeShell(ev->size().width(), ev->size().height());
 }
 
-/**
- * Encode special keys into something we can pass
- * Vim through add_to_input_buf.
- *
- */
-bool QVimShell::specialKey(QKeyEvent *ev, char* str, int *len)
-{
-	int i;
-	int start = *len;
-	for ( i=0; special_keys[i].key_sym != 0; i++ ) {
-		if ( special_keys[i].key_sym == ev->key() ) {
-
-			// Modifiers
-			int_u vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
-
-			int key_char;
-			if (special_keys[i].code1 == NUL) {
-				key_char = special_keys[i].code0;
-			} else {
-				key_char = TO_SPECIAL(special_keys[i].code0, special_keys[i].code1);
-			}
-
-			key_char = simplify_key(key_char, (int *)&vmod);
-			if (key_char == CSI) {
-				key_char = K_CSI;
-			}
-
-			bool encode_meta = false;
-			if ( !IS_SPECIAL(key_char) && vmod & MOD_MASK_ALT ) {
-				vmod &= ~MOD_MASK_ALT;
-				encode_meta = true;
-			}
-
-			if ( vmod ) {
-				str[start++] = (char)CSI;
-				str[start++] = (char)KS_MODIFIER;
-				str[start++] = (char)vmod;
-			}
-
-			if (IS_SPECIAL(key_char)) {
-				str[start++] = (char)CSI;
-				str[start++] = K_SECOND(key_char);
-				str[start++] = K_THIRD(key_char);
-			} else {
-				if (encode_meta) {
-					char_u s0 = key_char | 0x80;
-					char_u s1 = s0 & 0xbf;
-					s0 = ((unsigned) s0 >> 6) + 0xC0;
-					str[start++] = s0;
-					str[start++] = s1;
-				} else {
-					str[start++] = key_char;
-				}
-			}
-
-			*len = start;
-			return true;
-		}
-	}
-	return false;
-}
-
 int_u QVimShell::vimKeyboardModifiers(Qt::KeyboardModifiers mod)
 {
 	int_u vim = 0x00;
@@ -205,39 +143,89 @@ int_u QVimShell::vimMouseModifiers(Qt::KeyboardModifiers mod)
 
 void QVimShell::keyPressEvent ( QKeyEvent *ev)
 {
-	char str[20];
-	int len=0;
-
-	if ( specialKey( ev, str, &len)) {
-		add_to_input_buf((char_u *) str, len);
-	} else if ( ev->text().size() == 1 ) {
-		int vmod = vimKeyboardModifiers(QApplication::keyboardModifiers());
-		QByteArray utf8 = VimWrapper::convertTo(ev->text());
-
-		if ( utf8.size() == 1 ) { // Key compression is OFF
-
-			if ( QApplication::keyboardModifiers() == Qt::AltModifier ) {
-				char_u str[2];
-				str[0] = utf8.data()[0] |0x80;
-				str[1] = str[0] & 0xbf;
-				str[0] = ((unsigned)str[0] >> 6) + 0xc0;
-				add_to_input_buf_csi( (char_u *) str, 2);
-			} else {
-				add_to_input_buf_csi( (char_u *) utf8.data(), 1);
-			}
-		} else {
-			// Everything else goes here  - e.g. multibyte chars
-			add_to_input_buf( (char_u *) utf8.data(), utf8.size() );
-		}
-	} else if ( !ev->text().isEmpty() ) {
-		qDebug() << "KeyEvent length != 1" << ev->text();
-	}
-
 	// mousehide - conceal mouse pointer when typing
 	if (p_mh && !m_mouseHidden ) {
 		QApplication::setOverrideCursor(Qt::BlankCursor);
 		m_mouseHidden = true;
 	}
+
+	int key_char = 0;
+	int vimModifiers = vimKeyboardModifiers(QApplication::keyboardModifiers());
+	if ( !ev->text().isEmpty() ) {
+		key_char = ev->text()[0].unicode(); // key compression is off
+	}
+
+	/* Find the special key */
+	int i;
+	bool isSpecial = false;
+	for (i = 0; special_keys[i].key_sym != 0; ++i) {
+		if (special_keys[i].key_sym == ev->key())
+		{
+
+			if (special_keys[i].code1 == NUL) {
+				key_char = special_keys[i].code0;
+			} else {
+				key_char = TO_SPECIAL(special_keys[i].code0, special_keys[i].code1);
+				key_char = simplify_key(key_char,
+					(int *)&vimModifiers);
+				isSpecial = TRUE;
+			}
+			break;
+		}
+	}
+
+	if ( key_char == 0 ) {
+		return;
+	}
+
+	/* TODO: Intercept CMD-. and CTRL-c ?*/
+
+	if (!isSpecial)
+	{
+		/* remove SHIFT for keys that are already shifted, e.g.,
+		 * '(' and '*' */
+		if (key_char < 0x100 && !isalpha(key_char) && isprint(key_char))
+			vimModifiers &= ~MOD_MASK_SHIFT;
+
+		/* remove CTRL from keys that already have it */
+		if (key_char < 0x20)
+			vimModifiers &= ~MOD_MASK_CTRL;
+
+		/* don't process unicode characters here */
+		if (!IS_SPECIAL(key_char))
+		{
+			/* Following code to simplify and consolidate vimModifiers
+			 * taken liberally from gui_w48.c */
+			key_char = simplify_key(key_char, (int *)&vimModifiers);
+
+			/* Interpret META, include SHIFT, etc. */
+			key_char = extract_modifiers(key_char, (int *)&vimModifiers);
+			if (key_char == CSI)
+				key_char = K_CSI;
+
+			if (IS_SPECIAL(key_char))
+				isSpecial = TRUE;
+		}
+	}
+
+	char_u result[3];
+	if (vimModifiers) {
+		result[0] = CSI;
+		result[1] = KS_MODIFIER;
+		result[2] = vimModifiers;
+		add_to_input_buf(result, 3);
+	}
+
+	if (isSpecial && IS_SPECIAL(key_char)) {
+		result[0] = CSI;
+		result[1] = K_SECOND(key_char);
+		result[2] = K_THIRD(key_char);
+		add_to_input_buf(result, 3);
+	} else {
+		QByteArray utf8 = QString(QChar(key_char)).toUtf8();
+		add_to_input_buf_csi( (char_u *) utf8.data(), utf8.size());
+	}
+
 }
 
 void QVimShell::close()

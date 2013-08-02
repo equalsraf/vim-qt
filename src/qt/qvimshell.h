@@ -74,7 +74,6 @@ protected:
 	virtual void focusInEvent(QFocusEvent *);
 	virtual void focusOutEvent(QFocusEvent *);
 
-	bool specialKey(QKeyEvent *, char*, int*);
 	virtual void paintEvent( QPaintEvent *);
 
 	QFont fixPainterFont(const QFont &);
@@ -137,45 +136,49 @@ struct special_key
 
 static const struct special_key special_keys[] =
 {
-	{Qt::Key_Up,	'k', 'u'},
-	{Qt::Key_Down,	'k', 'd'},
-	{Qt::Key_Left,	'k', 'l'},
-    	{Qt::Key_Right,	'k', 'r'},
+	{Qt::Key_Up,		'k', 'u'},
+	{Qt::Key_Down,		'k', 'd'},
+	{Qt::Key_Left,		'k', 'l'},
+    	{Qt::Key_Right,		'k', 'r'},
 
-    {Qt::Key_F1,	'k', '1'},
-    {Qt::Key_F2,	'k', '2'},
-    {Qt::Key_F3,	'k', '3'},
-    {Qt::Key_F4,	'k', '4'},
-    {Qt::Key_F5,	'k', '5'},
-    {Qt::Key_F6,	'k', '6'},
-    {Qt::Key_F7,	'k', '7'},
-    {Qt::Key_F8,	'k', '8'},
-    {Qt::Key_F9,	'k', '9'},
-    {Qt::Key_F10,	'k', ';'},
-    {Qt::Key_F11,	'F', '1'},
-    {Qt::Key_F12,	'F', '2'},
-    {Qt::Key_F13,	'F', '3'},
-    {Qt::Key_F14,	'F', '4'},
-    {Qt::Key_Backspace,	'k', 'b'},
+	{Qt::Key_F1,		'k', '1'},
+	{Qt::Key_F2,		'k', '2'},
+	{Qt::Key_F3,		'k', '3'},
+	{Qt::Key_F4,		'k', '4'},
+	{Qt::Key_F5,		'k', '5'},
+	{Qt::Key_F6,		'k', '6'},
+	{Qt::Key_F7,		'k', '7'},
+	{Qt::Key_F8,		'k', '8'},
+	{Qt::Key_F9,		'k', '9'},
+	{Qt::Key_F10,		'k', ';'},
+	{Qt::Key_F11,		'F', '1'},
+	{Qt::Key_F12,		'F', '2'},
+	{Qt::Key_F13,		'F', '3'},
+	{Qt::Key_F14,		'F', '4'},
+	{Qt::Key_Backspace,	'k', 'b'},
 
-    {Qt::Key_Delete,	'k', 'D'},
-    {Qt::Key_Insert,	'k', 'I'},
-    {Qt::Key_Home,	'k', 'h'},
-    {Qt::Key_End,	'@', '7'},
-    {Qt::Key_PageUp,	'k', 'P'},
-    {Qt::Key_PageDown,	'k', 'N'},
+	{Qt::Key_Delete,	'k', 'D'},
+	{Qt::Key_Insert,	'k', 'I'},
+	{Qt::Key_Home,		'k', 'h'},
+	{Qt::Key_End,		'@', '7'},
+	{Qt::Key_PageUp,	'k', 'P'},
+	{Qt::Key_PageDown,	'k', 'N'},
 
-    {Qt::Key_Print,	'%', '9'},
-    {Qt::Key_Tab,	TAB, NUL},
-    {Qt::Key_Backtab,	TAB, NUL},
-    {Qt::Key_Escape,	ESC, NUL},
-    {Qt::Key_Return,	'\r', NUL}, 	// We do this here to avoid the Control-sequences
-    {Qt::Key_Enter,	'\r', NUL},
-    {Qt::Key_Space,	' ', NUL},
+	{Qt::Key_Print,		'%', '9'},
 
+	// The following are not really **special** but this
+	// allows to use these keys with any keyboard modifier while
+	// bypassing some of Qt's unwanted behaviour in the text()
+	//
+	{Qt::Key_Tab,		TAB, NUL},
+	{Qt::Key_Backtab,	TAB, NUL},
+	{Qt::Key_Escape,	ESC, NUL},
+	{Qt::Key_Return,	CAR, NUL},
+	{Qt::Key_Enter,		CAR, NUL},
+	{Qt::Key_Space,		' ', NUL},
 
-    /* End of list marker: */
-    {0, 0, 0}
+	/* End of list marker: */
+	{0, 0, 0}
 };
 
 #endif
