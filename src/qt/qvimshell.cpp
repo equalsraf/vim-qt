@@ -180,31 +180,39 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 
 	/* TODO: Intercept CMD-. and CTRL-c ?*/
 
+	//
+	// For the most part this is same code as the one found in gui_mac.c, plus our
+	// additional special keys bits, I've also kept the original comments because I
+	// find them informative and slightly amusing
+	//
 	if (!isSpecial)
 	{
 		/* remove SHIFT for keys that are already shifted, e.g.,
 		 * '(' and '*' */
-		if (key_char < 0x100 && !isalpha(key_char) && isprint(key_char))
+		if (key_char < 0x100 && !isalpha(key_char) && isprint(key_char)) {
 			vimModifiers &= ~MOD_MASK_SHIFT;
+		}
 
 		/* remove CTRL from keys that already have it */
-		if (key_char < 0x20)
+		if (key_char < 0x20) {
 			vimModifiers &= ~MOD_MASK_CTRL;
+		}
 
 		/* don't process unicode characters here */
-		if (!IS_SPECIAL(key_char))
-		{
+		if (!IS_SPECIAL(key_char)) {
 			/* Following code to simplify and consolidate vimModifiers
 			 * taken liberally from gui_w48.c */
 			key_char = simplify_key(key_char, (int *)&vimModifiers);
 
 			/* Interpret META, include SHIFT, etc. */
 			key_char = extract_modifiers(key_char, (int *)&vimModifiers);
-			if (key_char == CSI)
+			if (key_char == CSI) {
 				key_char = K_CSI;
+			}
 
-			if (IS_SPECIAL(key_char))
+			if (IS_SPECIAL(key_char)) {
 				isSpecial = TRUE;
+			}
 		}
 	}
 
@@ -225,7 +233,6 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 		QByteArray utf8 = QString(QChar(key_char)).toUtf8();
 		add_to_input_buf_csi( (char_u *) utf8.data(), utf8.size());
 	}
-
 }
 
 void QVimShell::close()
