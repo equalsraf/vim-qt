@@ -1700,13 +1700,13 @@ getcmdline(firstc, count, indent)
 	 * We come here if we have a normal character.
 	 */
 
-	if (do_abbr && (IS_SPECIAL(c) || !vim_iswordc(c)) && ccheck_abbr(
+	if (do_abbr && (IS_SPECIAL(c) || !vim_iswordc(c)) && (ccheck_abbr(
 #ifdef FEAT_MBYTE
 			/* Add ABBR_OFF for characters above 0x100, this is
 			 * what check_abbr() expects. */
 			(has_mbyte && c >= 0x100) ? (c + ABBR_OFF) :
 #endif
-									c))
+							 c) || c == Ctrl_RSB))
 	    goto cmdline_changed;
 
 	/*
@@ -3729,6 +3729,7 @@ ExpandInit(xp)
 #if defined(FEAT_USR_CMDS) && defined(FEAT_EVAL) && defined(FEAT_CMDL_COMPL)
     xp->xp_arg = NULL;
 #endif
+    xp->xp_line = NULL;
 }
 
 /*
@@ -4408,6 +4409,11 @@ set_cmd_context(xp, str, len, col)
 	while (nextcomm != NULL)
 	    nextcomm = set_one_cmd_context(xp, nextcomm);
 
+    /* Store the string here so that call_user_expand_func() can get to them
+     * easily. */
+    xp->xp_line = str;
+    xp->xp_col = col;
+
     str[col] = old_char;
 }
 
@@ -4674,6 +4680,9 @@ ExpandFromContext(xp, pat, num_file, file, options)
 #ifdef FEAT_SYN_HL
 	    {EXPAND_SYNTAX, get_syntax_name, TRUE, TRUE},
 #endif
+#ifdef FEAT_PROFILE
+	    {EXPAND_SYNTIME, get_syntime_arg, TRUE, TRUE},
+#endif
 	    {EXPAND_HIGHLIGHT, get_highlight_name, TRUE, TRUE},
 #ifdef FEAT_AUTOCMD
 	    {EXPAND_EVENTS, get_event_name, TRUE, TRUE},
@@ -4714,7 +4723,7 @@ ExpandFromContext(xp, pat, num_file, file, options)
 	    }
     }
 
-    vim_free(regmatch.regprog);
+    vim_regfree(regmatch.regprog);
 
     return ret;
 #endif /* FEAT_CMDL_COMPL */
@@ -4942,34 +4951,27 @@ call_user_expand_func(user_expand_func, xp, num_file, file)
     int		*num_file;
     char_u	***file;
 {
-    char_u	keep;
+    int		keep = 0;
     char_u	num[50];
     char_u	*args[3];
     int		save_current_SID = current_SID;
     void	*ret;
     struct cmdline_info	    save_ccline;
 
-    if (xp->xp_arg == NULL || xp->xp_arg[0] == '\0')
+    if (xp->xp_arg == NULL || xp->xp_arg[0] == '\0' || xp->xp_line == NULL)
 	return NULL;
     *num_file = 0;
     *file = NULL;
 
-    if (ccline.cmdbuff == NULL)
+    if (ccline.cmdbuff != NULL)
     {
-	/* Completion from Insert mode, pass fake arguments. */
-	keep = 0;
-	sprintf((char *)num, "%d", (int)STRLEN(xp->xp_pattern));
-	args[1] = xp->xp_pattern;
-    }
-    else
-    {
-	/* Completion on the command line, pass real arguments. */
 	keep = ccline.cmdbuff[ccline.cmdlen];
 	ccline.cmdbuff[ccline.cmdlen] = 0;
-	sprintf((char *)num, "%d", ccline.cmdpos);
-	args[1] = ccline.cmdbuff;
     }
+
     args[0] = vim_strnsave(xp->xp_pattern, xp->xp_pattern_len);
+    args[1] = xp->xp_line;
+    sprintf((char *)num, "%d", xp->xp_col);
     args[2] = num;
 
     /* Save the cmdline, we don't know what the function may do. */
@@ -5782,7 +5784,7 @@ del_history_entry(histype, str)
 	if (history[histype][idx].hisstr == NULL)
 	    hisidx[histype] = -1;
     }
-    vim_free(regmatch.regprog);
+    vim_regfree(regmatch.regprog);
     return found;
 }
 
@@ -6000,6 +6002,9 @@ ex_history(eap)
 #endif
 
 #if (defined(FEAT_VIMINFO) && defined(FEAT_CMDHIST)) || defined(PROTO)
+/*
+ * Buffers for history read from a viminfo file.  Only valid while reading.
+ */
 static char_u **viminfo_history[HIST_COUNT] = {NULL, NULL, NULL, NULL};
 static int	viminfo_hisidx[HIST_COUNT] = {0, 0, 0, 0};
 static int	viminfo_hislen[HIST_COUNT] = {0, 0, 0, 0};
@@ -6177,12 +6182,20 @@ finish_viminfo_history()
 	}
 	vim_free(viminfo_history[type]);
 	viminfo_history[type] = NULL;
+	viminfo_hisidx[type] = 0;
     }
 }
 
+/*
+ * Write history to viminfo file in "fp".
+ * When "merge" is TRUE merge history lines with a previously read viminfo
+ * file, data is in viminfo_history[].
+ * When "merge" is FALSE just write all history lines.  Used for ":wviminfo!".
+ */
     void
-write_viminfo_history(fp)
+write_viminfo_history(fp, merge)
     FILE    *fp;
+    int	    merge;
 {
     int	    i;
     int	    type;
@@ -6216,14 +6229,25 @@ write_viminfo_history(fp)
 	 */
 	for (round = 1; round <= 2; ++round)
 	{
-	    i = round == 1 ? hisidx[type] : 0;
+	    if (round == 1)
+		/* start at newest entry, somewhere in the list */
+		i = hisidx[type];
+	    else if (viminfo_hisidx[type] > 0)
+		/* start at newest entry, first in the list */
+		i = 0;
+	    else
+		/* empty list */
+		i = -1;
 	    if (i >= 0)
 		while (num_saved > 0
 			&& !(round == 2 && i >= viminfo_hisidx[type]))
 		{
 		    p = round == 1 ? history[type][i].hisstr
+				   : viminfo_history[type] == NULL ? NULL
 						   : viminfo_history[type][i];
-		    if (p != NULL && (round == 2 || !history[type][i].viminfo))
+		    if (p != NULL && (round == 2
+				       || !merge
+				       || !history[type][i].viminfo))
 		    {
 			--num_saved;
 			fputc(hist_type2char(type, TRUE), fp);
@@ -6253,9 +6277,11 @@ write_viminfo_history(fp)
 		}
 	}
 	for (i = 0; i < viminfo_hisidx[type]; ++i)
-	    vim_free(viminfo_history[type][i]);
+	    if (viminfo_history[type] != NULL)
+		vim_free(viminfo_history[type][i]);
 	vim_free(viminfo_history[type]);
 	viminfo_history[type] = NULL;
+	viminfo_hisidx[type] = 0;
     }
 }
 #endif /* FEAT_VIMINFO */

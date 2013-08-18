@@ -101,6 +101,9 @@
 # endif
 # ifndef FEAT_CLIPBOARD
 #  define FEAT_CLIPBOARD
+#  if defined(FEAT_SMALL) && !defined(FEAT_MOUSE)
+#   define FEAT_MOUSE
+#  endif
 # endif
 #endif
 #if defined(MACOS_X) || defined(MACOS_CLASSIC)
@@ -783,6 +786,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EXPAND_LOCALES		40
 #define EXPAND_HISTORY		41
 #define EXPAND_USER		42
+#define EXPAND_SYNTIME		43
 
 /* Values for exmode_active (0 is no exmode) */
 #define EXMODE_NORMAL		1
@@ -2176,10 +2180,6 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
   /* Borland has the structure stati64 but not _stati64 */
 #  define _stati64 stati64
 # endif
-
-# include <EXTERN.h>
-# include <perl.h>
-# include <XSUB.h>
 #endif
 
 /* values for vim_handle_signal() that are not a signal */
@@ -2229,5 +2229,21 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 #define FILEINFO_ENC_FAIL    1	/* enc_to_utf16() failed */
 #define FILEINFO_READ_FAIL   2	/* CreateFile() failed */
 #define FILEINFO_INFO_FAIL   3	/* GetFileInformationByHandle() failed */
+
+/* Return value from get_option_value_strict */
+#define SOPT_BOOL	0x01	/* Boolean option */
+#define SOPT_NUM	0x02	/* Number option */
+#define SOPT_STRING	0x04	/* String option */
+#define SOPT_GLOBAL	0x08	/* Option has global value */
+#define SOPT_WIN	0x10	/* Option has window-local value */
+#define SOPT_BUF	0x20	/* Option has buffer-local value */
+#define SOPT_UNSET	0x40	/* Option does not have local value set */
+
+#define SREQ_GLOBAL	0	/* Request global option */
+#define SREQ_WIN	1	/* Request window-local option */
+#define SREQ_BUF	2	/* Request buffer-local option */
+
+/* Character used as separated in autoload function/variable names. */
+#define AUTOLOAD_CHAR '#'
 
 #endif /* VIM__H */

@@ -57,14 +57,11 @@
 
 #define FEAT_SHORTCUT		/* resolve shortcuts */
 
-#if !defined(__MINGW32__) \
-	&& !defined(__CYGWIN__) \
-	&& (!defined(__BORLANDC__) || __BORLANDC__ >= 0x550) \
+#if (!defined(__BORLANDC__) || __BORLANDC__ >= 0x550) \
 	&& (!defined(_MSC_VER) || _MSC_VER > 1020)
 /*
  * Access Control List (actually security info).
- * Mingw and Cygwin don't have the acl stuff.
- * Borland only in version 5.5 and later.
+ * Borland has the acl stuff only in version 5.5 and later.
  * MSVC in 5.0, not in 4.2, don't know about 4.3.
  */
 # define HAVE_ACL
@@ -80,7 +77,6 @@
 #ifndef FEAT_GUI_W32		/* GUI works different */
 # define BREAKCHECK_SKIP    1	/* call mch_breakcheck() each time, it's fast */
 #endif
-#define HAVE_AVAIL_MEM
 
 #define HAVE_PUTENV		/* at least Bcc 5.2 and MSC have it */
 
@@ -106,6 +102,9 @@
 #endif
 #ifndef PROTO
 # include <windows.h>
+# ifndef SM_CXPADDEDBORDER
+#  define SM_CXPADDEDBORDER     92
+# endif
 #endif
 
 /*
@@ -201,7 +200,7 @@ Trace(char *pszFormat, ...);
 
 #ifndef PROTO
 
-/* Enable common dialogs input unicode from IME if posible. */
+/* Enable common dialogs input unicode from IME if possible. */
 #ifdef FEAT_MBYTE
     /* The variables are defined in os_win32.c. */
 extern LRESULT (WINAPI *pDispatchMessage)(CONST MSG *);

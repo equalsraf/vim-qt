@@ -1134,7 +1134,7 @@ free_all_mem()
     /* Free some global vars. */
     vim_free(username);
 # ifdef FEAT_CLIPBOARD
-    vim_free(clip_exclude_prog);
+    vim_regfree(clip_exclude_prog);
 # endif
     vim_free(last_cmdline);
 # ifdef FEAT_CMDHIST
@@ -2907,7 +2907,7 @@ extract_modifiers(key, modp)
     int	modifiers = *modp;
 
 #ifdef MACOS
-    /* Command-key really special, No fancynest */
+    /* Command-key really special, no fancynest */
     if (!(modifiers & MOD_MASK_CMD))
 #endif
     if ((modifiers & MOD_MASK_SHIFT) && ASCII_ISALPHA(key))
@@ -2934,7 +2934,7 @@ extract_modifiers(key, modp)
 	    key = K_ZERO;
     }
 #ifdef MACOS
-    /* Command-key really special, No fancynest */
+    /* Command-key really special, no fancynest */
     if (!(modifiers & MOD_MASK_CMD))
 #endif
     if ((modifiers & MOD_MASK_ALT) && key < 0x80
@@ -4679,8 +4679,60 @@ vim_findfile_init(path, filename, stopdirs, level, free_visited, find_what,
     }
     STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
     add_pathsep(ff_expand_buffer);
-    STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
-    add_pathsep(ff_expand_buffer);
+    {
+	int    eb_len = (int)STRLEN(ff_expand_buffer);
+	char_u *buf = alloc(eb_len
+				+ (int)STRLEN(search_ctx->ffsc_fix_path) + 1);
+
+	STRCPY(buf, ff_expand_buffer);
+	STRCPY(buf + eb_len, search_ctx->ffsc_fix_path);
+	if (mch_isdir(buf))
+	{
+	    STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
+	    add_pathsep(ff_expand_buffer);
+	}
+#ifdef FEAT_PATH_EXTRA
+	else
+	{
+	    char_u *p =  gettail(search_ctx->ffsc_fix_path);
+	    char_u *wc_path = NUL;
+	    char_u *temp = NUL;
+	    int    len = 0;
+
+	    if (p > search_ctx->ffsc_fix_path)
+	    {
+		len = (int)(p - search_ctx->ffsc_fix_path) - 1;
+		STRNCAT(ff_expand_buffer, search_ctx->ffsc_fix_path, len);
+		add_pathsep(ff_expand_buffer);
+	    }
+	    else
+		len = (int)STRLEN(search_ctx->ffsc_fix_path);
+
+	    if (search_ctx->ffsc_wc_path != NULL)
+	    {
+		wc_path = vim_strsave(search_ctx->ffsc_wc_path);
+		temp = alloc((int)(STRLEN(search_ctx->ffsc_wc_path)
+				 + STRLEN(search_ctx->ffsc_fix_path + len)
+				 + 1));
+	    }
+
+	    if (temp == NULL || wc_path == NULL)
+	    {
+		vim_free(buf);
+		vim_free(temp);
+		vim_free(wc_path);
+		goto error_return;
+	    }
+
+	    STRCPY(temp, search_ctx->ffsc_fix_path + len);
+	    STRCAT(temp, search_ctx->ffsc_wc_path);
+	    vim_free(search_ctx->ffsc_wc_path);
+	    vim_free(wc_path);
+	    search_ctx->ffsc_wc_path = temp;
+	}
+#endif
+	vim_free(buf);
+    }
 
     sptr = ff_create_stack_element(ff_expand_buffer,
 #ifdef FEAT_PATH_EXTRA
@@ -5008,8 +5060,8 @@ vim_findfile(search_ctx_arg)
 #endif
 		{
 		    /*
-		     * we don't have further wildcards to expand, so we have to
-		     * check for the final file now
+		     * We don't have further wildcards to expand, so we have to
+		     * check for the final file now.
 		     */
 		    for (i = stackp->ffs_filearray_cur;
 					  i < stackp->ffs_filearray_size; ++i)

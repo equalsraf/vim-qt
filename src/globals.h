@@ -180,6 +180,8 @@ EXTERN int	emsg_skip INIT(= 0);	    /* don't display errors for
 EXTERN int	emsg_severe INIT(= FALSE);   /* use message of next of several
 					       emsg() calls for throw */
 EXTERN int	did_endif INIT(= FALSE);    /* just had ":endif" */
+EXTERN dict_T	vimvardict;		    /* Dictionary with v: variables */
+EXTERN dict_T	globvardict;		    /* Dictionary with g: variables */
 #endif
 EXTERN int	did_emsg;		    /* set by emsg() when the message
 					       is displayed or thrown */
@@ -914,6 +916,10 @@ EXTERN int no_zero_mapping INIT(= 0);	/* mapping zero not allowed */
 EXTERN int allow_keys INIT(= FALSE);	/* allow key codes when no_mapping
 					 * is set */
 EXTERN int no_u_sync INIT(= 0);		/* Don't call u_sync() */
+#ifdef FEAT_EVAL
+EXTERN int u_sync_once INIT(= 0);	/* Call u_sync() once when evaluating
+					   an expression. */
+#endif
 
 EXTERN int restart_edit INIT(= 0);	/* call edit when next cmd finished */
 EXTERN int arrow_used;			/* Normally FALSE, set to TRUE after

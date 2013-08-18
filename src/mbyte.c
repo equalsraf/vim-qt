@@ -903,7 +903,7 @@ dbcs_class(lead, trail)
 {
     switch (enc_dbcs)
     {
-	/* please add classfy routine for your language in here */
+	/* please add classify routine for your language in here */
 
 	case DBCS_JPNU:	/* ? */
 	case DBCS_JPN:
@@ -1003,7 +1003,7 @@ dbcs_class(lead, trail)
 		 * 26 : Box Drawings
 		 * 27 : Unit Symbols
 		 * 28 : Circled/Parenthesized Letter
-		 * 29 : Hirigana/Katakana
+		 * 29 : Hiragana/Katakana
 		 * 30 : Cyrillic Letter
 		 */
 
@@ -1054,7 +1054,7 @@ dbcs_class(lead, trail)
 			    return 28;
 		    case 0xAA:
 		    case 0xAB:
-			/* Hirigana/Katakana */
+			/* Hiragana/Katakana */
 			return 29;
 		    case 0xAC:
 			/* Cyrillic Letter */
@@ -4108,7 +4108,7 @@ encname2codepage(name)
 	p += 6;
 
     if (p[0] == 'c' && p[1] == 'p')
-	cp = atoi(p + 2);
+	cp = atoi((char *)p + 2);
     else if ((idx = enc_canon_search(p)) >= 0)
 	cp = enc_canon_table[idx].codepage;
     else
@@ -4447,7 +4447,7 @@ im_set_active(int active)
 {
     int was_active;
 
-    was_active = !!im_is_active;
+    was_active = !!im_get_status();
     im_is_active = (active && !p_imdisable);
 
     if (im_is_active != was_active)
@@ -4599,7 +4599,7 @@ im_commit_cb(GtkIMContext *context UNUSED,
     }
 
     /* The thing which setting "preedit_start_col" to MAXCOL means that
-     * "preedit_start_col" will be set forcely when calling
+     * "preedit_start_col" will be set forcedly when calling
      * preedit_changed_cb() next time.
      * "preedit_start_col" should not reset with MAXCOL on this part. Vim
      * is simulating the preediting by using add_to_input_str(). when
@@ -5071,44 +5071,28 @@ xim_reset(void)
 {
     if (xic != NULL)
     {
-	/*
-	 * The third-party imhangul module (and maybe others too) ignores
-	 * gtk_im_context_reset() or at least doesn't reset the active state.
-	 * Thus sending imactivatekey would turn it off if it was on before,
-	 * which is clearly not what we want.  Fortunately we can work around
-	 * that for imhangul by sending GDK_Escape, but I don't know if it
-	 * works with all IM modules that support an activation key :/
-	 *
-	 * An alternative approach would be to destroy the IM context and
-	 * recreate it.  But that means loading/unloading the IM module on
-	 * every mode switch, which causes a quite noticeable delay even on
-	 * my rather fast box...
-	 * *
-	 * Moreover, there are some XIM which cannot respond to
-	 * im_synthesize_keypress(). we hope that they reset by
-	 * xim_shutdown().
-	 */
-	if (im_activatekey_keyval != GDK_VoidSymbol && im_is_active)
-	    im_synthesize_keypress(GDK_Escape, 0U);
-
 	gtk_im_context_reset(xic);
-
-	/*
-	 * HACK for Ami: This sequence of function calls makes Ami handle
-	 * the IM reset graciously, without breaking loads of other stuff.
-	 * It seems to force English mode as well, which is exactly what we
-	 * want because it makes the Ami status display work reliably.
-	 */
-	gtk_im_context_set_use_preedit(xic, FALSE);
 
 	if (p_imdisable)
 	    im_shutdown();
 	else
 	{
-	    gtk_im_context_set_use_preedit(xic, TRUE);
 	    xim_set_focus(gui.in_focus);
 
-	    if (im_activatekey_keyval != GDK_VoidSymbol)
+#  ifdef FEAT_EVAL
+	    if (p_imaf[0] != NUL)
+	    {
+		char_u *argv[1];
+
+		if (im_is_active)
+		    argv[0] = (char_u *)"1";
+		else
+		    argv[0] = (char_u *)"0";
+		(void)call_func_retnr(p_imaf, 1, argv, FALSE);
+	    }
+	    else
+#  endif
+		if (im_activatekey_keyval != GDK_VoidSymbol)
 	    {
 		if (im_is_active)
 		{
@@ -5268,6 +5252,26 @@ xim_queue_key_press_event(GdkEventKey *event, int down)
     int
 im_get_status(void)
 {
+#  ifdef FEAT_EVAL
+    if (p_imsf[0] != NUL)
+    {
+	int is_active;
+
+	/* FIXME: Don't execute user function in unsafe situation. */
+	if (exiting
+#   ifdef FEAT_AUTOCMD
+		|| is_autocmd_blocked()
+#   endif
+		)
+	    return FALSE;
+	/* FIXME: :py print 'xxx' is shown duplicate result.
+	 * Use silent to avoid it. */
+	++msg_silent;
+	is_active = call_func_retnr(p_imsf, 0, NULL, FALSE);
+	--msg_silent;
+	return (is_active > 0);
+    }
+#  endif
     return im_is_active;
 }
 

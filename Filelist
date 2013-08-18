@@ -57,6 +57,7 @@ SRC_ALL =	\
 		src/popupmnu.c \
 		src/quickfix.c \
 		src/regexp.c \
+		src/regexp_nfa.c \
 		src/regexp.h \
 		src/screen.c \
 		src/search.c \
@@ -83,6 +84,15 @@ SRC_ALL =	\
 		src/testdir/test49.vim \
 		src/testdir/test60.vim \
 		src/testdir/test83-tags? \
+		src/testdir/python2/*.py \
+		src/testdir/python3/*.py \
+		src/testdir/pythonx/*.py \
+		src/testdir/pythonx/topmodule/__init__.py \
+		src/testdir/pythonx/topmodule/submodule/__init__.py \
+		src/testdir/pythonx/topmodule/submodule/subsubmodule/__init__.py \
+		src/testdir/pythonx/topmodule/submodule/subsubmodule/subsubsubmodule.py \
+		src/testdir/python_after/*.py \
+		src/testdir/python_before/*.py \
 		src/proto.h \
 		src/proto/blowfish.pro \
 		src/proto/buffer.pro \
@@ -684,6 +694,7 @@ LANG_GEN = \
 		runtime/doc/*-fr.UTF-8.1 \
 		runtime/doc/*-it.1 \
 		runtime/doc/*-it.UTF-8.1 \
+		runtime/doc/*-ja.UTF-8.1 \
 		runtime/doc/*-pl.1 \
 		runtime/doc/*-pl.UTF-8.1 \
 		runtime/doc/*-ru.1 \

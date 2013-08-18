@@ -1,8 +1,11 @@
-Some tests for setting 'number' and 'relativenumber'
+- Some tests for setting 'number' and 'relativenumber'
+  This is not all that useful now that the options are no longer reset when
+  setting the other.
+- Some tests for findfile() function
 
 STARTTEST
 :so small.vim
-:set hidden nocp nu rnu
+:set hidden nocp nu rnu viminfo+=nviminfo
 :redir @a | set nu? rnu? | redir END
 :e! xx
 :redir @b | set nu? rnu? | redir END
@@ -47,6 +50,21 @@ STARTTEST
 :$put g
 :$put h
 :"
+:let cwd=getcwd()
+:cd ..
+:" Tests may be run from a shadow directory, so an extra cd needs to be done to
+:" get above src/
+:if fnamemodify(getcwd(), ':t') != 'src' | cd ../.. | else | cd .. | endif
+:$put =''
+:$put ='Testing findfile'
+:$put =''
+:set ssl
+:$put =findfile('test19.in','src/test*')
+:exe "cd" cwd
+:cd ..
+:$put =findfile('test19.in','test*')
+:$put =findfile('test19.in','testdir')
+:exe "cd" cwd
 :/^results/,$w! test.out
 :q!
 ENDTEST

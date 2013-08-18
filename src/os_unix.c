@@ -1559,7 +1559,7 @@ x_IOerror_check(dpy)
 {
     /* This function should not return, it causes exit().  Longjump instead. */
     LONGJMP(lc_jump_env, 1);
-#  ifdef VMS
+#  if defined(VMS) || defined(__CYGWIN__) || defined(__CYGWIN32__)
     return 0;  /* avoid the compiler complains about missing return value */
 #  endif
 }
@@ -1581,7 +1581,7 @@ x_IOerror_handler(dpy)
 
     /* This function should not return, it causes exit().  Longjump instead. */
     LONGJMP(x_jump_env, 1);
-# ifdef VMS
+# if defined(VMS) || defined(__CYGWIN__) || defined(__CYGWIN32__)
     return 0;  /* avoid the compiler complains about missing return value */
 # endif
 }
@@ -3493,13 +3493,14 @@ mch_setmouse(on)
 	     *	  4 = Windows Cross Hair
 	     *	  5 = Windows UP Arrow
 	     */
-#ifdef JSBTERM_MOUSE_NONADVANCED /* Disables full feedback of pointer movements */
+#  ifdef JSBTERM_MOUSE_NONADVANCED
+	    /* Disables full feedback of pointer movements */
 	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK1Q\033\\",
 					 ESC_STR "[0~ZwLMRK1Q" ESC_STR "\\"));
-#else
+#  else
 	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK+1Q\033\\",
 					ESC_STR "[0~ZwLMRK+1Q" ESC_STR "\\"));
-#endif
+#  endif
 	    ison = TRUE;
 	}
 	else
@@ -3776,6 +3777,7 @@ mch_get_shellsize()
 
     Rows = rows;
     Columns = columns;
+    limit_screen_size();
     return OK;
 }
 
@@ -5928,7 +5930,7 @@ mch_expand_wildcards(num_pat, pat, num_file, file, flags)
 # if defined(__CYGWIN__) || defined(__CYGWIN32__)
     /* Translate <CR><NL> into <NL>.  Caution, buffer may contain NUL. */
     p = buffer;
-    for (i = 0; i < len; ++i)
+    for (i = 0; i < (int)len; ++i)
 	if (!(buffer[i] == CAR && buffer[i + 1] == NL))
 	    *p++ = buffer[i];
     len = p - buffer;
@@ -6126,7 +6128,6 @@ save_patterns(num_pat, pat, num_file, file)
     return OK;
 }
 #endif
-
 
 /*
  * Return TRUE if the string "p" contains a wildcard that mch_expandpath() can

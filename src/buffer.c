@@ -648,6 +648,9 @@ free_buffer(buf)
     buf_T	*buf;
 {
     free_buffer_stuff(buf, TRUE);
+#ifdef FEAT_EVAL
+    unref_var_dict(buf->b_vars);
+#endif
 #ifdef FEAT_LUA
     lua_buffer_free(buf);
 #endif
@@ -689,8 +692,8 @@ free_buffer_stuff(buf, free_options)
 #endif
     }
 #ifdef FEAT_EVAL
-    vars_clear(&buf->b_vars.dv_hashtab); /* free all internal variables */
-    hash_init(&buf->b_vars.dv_hashtab);
+    vars_clear(&buf->b_vars->dv_hashtab); /* free all internal variables */
+    hash_init(&buf->b_vars->dv_hashtab);
 #endif
 #ifdef FEAT_USR_CMDS
     uc_clear(&buf->b_ucmds);		/* clear local user commands */
@@ -981,6 +984,10 @@ do_bufdel(command, arg, addr_count, start_bnr, end_bnr, forceit)
 
     return errormsg;
 }
+#endif /* FEAT_LISTCMDS */
+
+#if defined(FEAT_LISTCMDS) || defined(FEAT_PYTHON) \
+	|| defined(FEAT_PYTHON3) || defined(PROTO)
 
 /*
  * Implementation of the commands for the buffer list.
@@ -1361,8 +1368,7 @@ do_buffer(action, start, dir, count, forceit)
 
     return OK;
 }
-
-#endif /* FEAT_LISTCMDS */
+#endif
 
 /*
  * Set current buffer to "buf".  Executes autocommands and closes current
@@ -1694,6 +1700,17 @@ buflist_new(ffname, sfname, lnum, flags)
 	    vim_free(ffname);
 	    return NULL;
 	}
+#ifdef FEAT_EVAL
+	/* init b: variables */
+	buf->b_vars = dict_alloc();
+	if (buf->b_vars == NULL)
+	{
+	    vim_free(ffname);
+	    vim_free(buf);
+	    return NULL;
+	}
+	init_var_dict(buf->b_vars, &buf->b_bufvar, VAR_SCOPE);
+#endif
     }
 
     if (ffname != NULL)
@@ -1778,10 +1795,6 @@ buflist_new(ffname, sfname, lnum, flags)
     buf->b_wininfo->wi_fpos.lnum = lnum;
     buf->b_wininfo->wi_win = curwin;
 
-#ifdef FEAT_EVAL
-    /* init b: variables */
-    init_var_dict(&buf->b_vars, &buf->b_bufvar, VAR_SCOPE);
-#endif
 #ifdef FEAT_SYN_HL
     hash_init(&buf->b_s.b_keywtab);
     hash_init(&buf->b_s.b_keywtab_ic);
@@ -1888,7 +1901,7 @@ free_buf_options(buf, free_p_ff)
 #ifdef FEAT_SPELL
     clear_string_option(&buf->b_s.b_p_spc);
     clear_string_option(&buf->b_s.b_p_spf);
-    vim_free(buf->b_s.b_cap_prog);
+    vim_regfree(buf->b_s.b_cap_prog);
     buf->b_s.b_cap_prog = NULL;
     clear_string_option(&buf->b_s.b_p_spl);
 #endif
@@ -1995,7 +2008,7 @@ buflist_getfile(n, lnum, options, forceit)
 	 * "buf" if one exists */
 	if (swb_flags & SWB_USEOPEN)
 	    wp = buf_jump_open_win(buf);
-	/* If 'switchbuf' contians "usetab": jump to first window in any tab
+	/* If 'switchbuf' contains "usetab": jump to first window in any tab
 	 * page containing "buf" if one exists */
 	if (wp == NULL && (swb_flags & SWB_USETAB))
 	    wp = buf_jump_open_tab(buf);
@@ -2236,7 +2249,7 @@ buflist_findpat(pattern, pattern_end, unlisted, diffmode, curtab_only)
 			match = buf->b_fnum;	/* remember first match */
 		    }
 
-		vim_free(prog);
+		vim_regfree(prog);
 		if (match >= 0)			/* found one match */
 		    break;
 	    }
@@ -2345,14 +2358,14 @@ ExpandBufnames(pat, num_file, file, options)
 		*file = (char_u **)alloc((unsigned)(count * sizeof(char_u *)));
 		if (*file == NULL)
 		{
-		    vim_free(prog);
+		    vim_regfree(prog);
 		    if (patc != pat)
 			vim_free(patc);
 		    return FAIL;
 		}
 	    }
 	}
-	vim_free(prog);
+	vim_regfree(prog);
 	if (count)		/* match(es) found, break here */
 	    break;
     }
@@ -3129,7 +3142,7 @@ fileinfo(fullname, shorthelp, dont_truncate)
 #endif
 					? _("[New file]") : "",
 	    (curbuf->b_flags & BF_READERR) ? _("[Read errors]") : "",
-	    curbuf->b_p_ro ? (shortmess(SHM_RO) ? "[RO]"
+	    curbuf->b_p_ro ? (shortmess(SHM_RO) ? _("[RO]")
 						      : _("[readonly]")) : "",
 	    (curbufIsChanged() || (curbuf->b_flags & BF_WRITE_MASK)
 							  || curbuf->b_p_ro) ?
@@ -3496,7 +3509,7 @@ build_stl_str_hl(wp, out, outlen, fmt, use_sandbox, fillchar,
     char_u	*p;
     char_u	*s;
     char_u	*t;
-    char_u	*linecont;
+    int		byteval;
 #ifdef FEAT_EVAL
     win_T	*o_curwin;
     buf_T	*o_curbuf;
@@ -3563,12 +3576,21 @@ build_stl_str_hl(wp, out, outlen, fmt, use_sandbox, fillchar,
 	fillchar = '-';
 #endif
 
-    /*
-     * Get line & check if empty (cursorpos will show "0-1").
-     * If inversion is possible we use it. Else '=' characters are used.
-     */
-    linecont = ml_get_buf(wp->w_buffer, wp->w_cursor.lnum, FALSE);
-    empty_line = (*linecont == NUL);
+    /* Get line & check if empty (cursorpos will show "0-1").  Note that
+     * p will become invalid when getting another buffer line. */
+    p = ml_get_buf(wp->w_buffer, wp->w_cursor.lnum, FALSE);
+    empty_line = (*p == NUL);
+
+    /* Get the byte value now, in case we need it below. This is more
+     * efficient than making a copy of the line. */
+    if (wp->w_cursor.col > (colnr_T)STRLEN(p))
+	byteval = 0;
+    else
+#ifdef FEAT_MBYTE
+	byteval = (*mb_ptr2char)(p + wp->w_cursor.col);
+#else
+	byteval = p[wp->w_cursor.col];
+#endif
 
     groupdepth = 0;
     p = out;
@@ -3946,16 +3968,7 @@ build_stl_str_hl(wp, out, outlen, fmt, use_sandbox, fillchar,
 	case STL_BYTEVAL_X:
 	    base = 'X';
 	case STL_BYTEVAL:
-	    if (wp->w_cursor.col > (colnr_T)STRLEN(linecont))
-		num = 0;
-	    else
-	    {
-#ifdef FEAT_MBYTE
-		num = (*mb_ptr2char)(linecont + wp->w_cursor.col);
-#else
-		num = linecont[wp->w_cursor.col];
-#endif
-	    }
+	    num = byteval;
 	    if (num == NL)
 		num = 0;
 	    else if (num == CAR && get_fileformat(wp->w_buffer) == EOL_MAC)
@@ -3966,7 +3979,7 @@ build_stl_str_hl(wp, out, outlen, fmt, use_sandbox, fillchar,
 	case STL_ROFLAG_ALT:
 	    itemisflag = TRUE;
 	    if (wp->w_buffer->b_p_ro)
-		str = (char_u *)((opt == STL_ROFLAG_ALT) ? ",RO" : "[RO]");
+		str = (char_u *)((opt == STL_ROFLAG_ALT) ? ",RO" : _("[RO]"));
 	    break;
 
 	case STL_HELPFLAG:
@@ -4541,7 +4554,7 @@ do_arg_all(count, forceit, keep_tabs)
      * When the ":tab" modifier was used do this for all tab pages.
      */
     if (had_tab > 0)
-	goto_tabpage_tp(first_tabpage, TRUE);
+	goto_tabpage_tp(first_tabpage, TRUE, TRUE);
     for (;;)
     {
 	tpnext = curtab->tp_next;
@@ -4653,7 +4666,7 @@ do_arg_all(count, forceit, keep_tabs)
 	if (!valid_tabpage(tpnext))
 	    tpnext = first_tabpage;	/* start all over...*/
 # endif
-	goto_tabpage_tp(tpnext, TRUE);
+	goto_tabpage_tp(tpnext, TRUE, TRUE);
     }
 
     /*
@@ -4757,13 +4770,13 @@ do_arg_all(count, forceit, keep_tabs)
     if (last_curtab != new_curtab)
     {
 	if (valid_tabpage(last_curtab))
-	    goto_tabpage_tp(last_curtab, TRUE);
+	    goto_tabpage_tp(last_curtab, TRUE, TRUE);
 	if (win_valid(last_curwin))
 	    win_enter(last_curwin, FALSE);
     }
     /* to window with first arg */
     if (valid_tabpage(new_curtab))
-	goto_tabpage_tp(new_curtab, TRUE);
+	goto_tabpage_tp(new_curtab, TRUE, TRUE);
     if (win_valid(new_curwin))
 	win_enter(new_curwin, FALSE);
 
@@ -4815,7 +4828,7 @@ ex_buffer_all(eap)
      */
 #ifdef FEAT_WINDOWS
     if (had_tab > 0)
-	goto_tabpage_tp(first_tabpage, TRUE);
+	goto_tabpage_tp(first_tabpage, TRUE, TRUE);
     for (;;)
     {
 #endif
@@ -4855,7 +4868,7 @@ ex_buffer_all(eap)
 	/* Without the ":tab" modifier only do the current tab page. */
 	if (had_tab == 0 || tpnext == NULL)
 	    break;
-	goto_tabpage_tp(tpnext, TRUE);
+	goto_tabpage_tp(tpnext, TRUE, TRUE);
     }
 #endif
 
@@ -5083,7 +5096,8 @@ chk_modeline(lnum, flags)
 	    if ((prev != -1 && STRNCMP(s, "ex:", (size_t)3) == 0)
 		    || STRNCMP(s, "vi:", (size_t)3) == 0)
 		break;
-	    if (STRNCMP(s, "vim", 3) == 0)
+	    /* Accept both "vim" and "Vim". */
+	    if ((s[0] == 'v' || s[0] == 'V') && s[1] == 'i' && s[2] == 'm')
 	    {
 		if (s[3] == '<' || s[3] == '=' || s[3] == '>')
 		    e = s + 4;
@@ -5091,6 +5105,8 @@ chk_modeline(lnum, flags)
 		    e = s + 3;
 		vers = getdigits(&e);
 		if (*e == ':'
+			&& (s[0] != 'V'
+				  || STRNCMP(skipwhite(e + 1), "set", 3) == 0)
 			&& (s[3] == ':'
 			    || (VIM_VERSION_100 >= vers && isdigit(s[3]))
 			    || (VIM_VERSION_100 < vers && s[3] == '<')
@@ -5297,18 +5313,14 @@ buf_spname(buf)
 #if defined(FEAT_QUICKFIX) && defined(FEAT_WINDOWS)
     if (bt_quickfix(buf))
     {
-	win_T	    *win = NULL;
+	win_T	    *win;
 	tabpage_T   *tp;
 
 	/*
 	 * For location list window, w_llist_ref points to the location list.
 	 * For quickfix window, w_llist_ref is NULL.
 	 */
-	FOR_ALL_TAB_WINDOWS(tp, win)
-	    if (win->w_buffer == buf)
-		goto win_found;
-win_found:
-	if (win != NULL && win->w_llist_ref != NULL)
+	if (find_win_for_buf(buf, &win, &tp) == OK && win->w_llist_ref != NULL)
 	    return (char_u *)_(msg_loclist);
 	else
 	    return (char_u *)_(msg_qflist);
@@ -5329,6 +5341,28 @@ win_found:
     return NULL;
 }
 
+#if (defined(FEAT_QUICKFIX) && defined(FEAT_WINDOWS)) \
+	|| defined(FEAT_PYTHON) || defined(FEAT_PYTHON3) \
+	|| defined(PROTO)
+/*
+ * Find a window for buffer "buf".
+ * If found OK is returned and "wp" and "tp" are set to the window and tabpage.
+ * If not found FAIL is returned.
+ */
+    int
+find_win_for_buf(buf, wp, tp)
+    buf_T     *buf;
+    win_T     **wp;
+    tabpage_T **tp;
+{
+    FOR_ALL_TAB_WINDOWS(*tp, *wp)
+	if ((*wp)->w_buffer == buf)
+	    goto win_found;
+    return FAIL;
+win_found:
+    return OK;
+}
+#endif
 
 #if defined(FEAT_SIGNS) || defined(PROTO)
 /*

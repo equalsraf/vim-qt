@@ -106,6 +106,14 @@ static char_u *tgetent_error __ARGS((char_u *, char_u *));
 char		*tgetstr __ARGS((char *, char **));
 
 # ifdef FEAT_TERMRESPONSE
+    /* Change this to "if 1" to debug what happens with termresponse. */
+#  if 0
+#   define DEBUG_TERMRESPONSE
+    static void log_tr(char *msg);
+#   define LOG_TR(msg) log_tr(msg)
+#  else
+#   define LOG_TR(msg)
+#  endif
 /* Request Terminal Version status: */
 #  define CRV_GET	1	/* send T_CRV when switched to RAW mode */
 #  define CRV_SENT	2	/* did send T_CRV, waiting for answer */
@@ -1936,6 +1944,7 @@ set_termname(term)
     full_screen = TRUE;		/* we can use termcap codes from now on */
     set_term_defaults();	/* use current values as defaults */
 #ifdef FEAT_TERMRESPONSE
+    LOG_TR("setting crv_status to CRV_GET");
     crv_status = CRV_GET;	/* Get terminal version later */
 #endif
 
@@ -2947,8 +2956,10 @@ get_bytes_from_buf(buf, bytes, num_bytes)
 		return -1;
 	    if (buf[len++] == (int)KS_ZERO)
 		c = NUL;
-	    ++len;	/* skip KE_FILLER */
-	    /* else it should be KS_SPECIAL, and c already equals K_SPECIAL */
+	    /* else it should be KS_SPECIAL; when followed by KE_FILLER c is
+	     * K_SPECIAL, or followed by KE_CSI and c must be CSI. */
+	    if (buf[len++] == (int)KE_CSI)
+		c = CSI;
 	}
 	else if (c == CSI && buf[len] == KS_EXTRA
 					       && buf[len + 1] == (int)KE_CSI)
@@ -2962,15 +2973,29 @@ get_bytes_from_buf(buf, bytes, num_bytes)
 #endif
 
 /*
- * Check if the new shell size is valid, correct it if it's too small.
+ * Check if the new shell size is valid, correct it if it's too small or way
+ * too big.
  */
     void
 check_shellsize()
 {
-    if (Columns < MIN_COLUMNS)
-	Columns = MIN_COLUMNS;
     if (Rows < min_rows())	/* need room for one window and command line */
 	Rows = min_rows();
+    limit_screen_size();
+}
+
+/*
+ * Limit Rows and Columns to avoid an overflow in Rows * Columns.
+ */
+    void
+limit_screen_size()
+{
+    if (Columns < MIN_COLUMNS)
+	Columns = MIN_COLUMNS;
+    else if (Columns > 10000)
+	Columns = 10000;
+    if (Rows > 1000)
+	Rows = 1000;
 }
 
 /*
@@ -3253,9 +3278,19 @@ stoptermcap()
 	if (!gui.in_use && !gui.starting)
 # endif
 	{
-	    /* May need to check for T_CRV response. */
+	    /* May need to discard T_CRV or T_U7 response. */
 	    if (crv_status == CRV_SENT || u7_status == U7_SENT)
-		(void)vpeekc_nomap();
+	    {
+# ifdef UNIX
+		/* Give the terminal a chance to respond. */
+		mch_delay(100L, FALSE);
+# endif
+# ifdef TCIFLUSH
+		/* Discard data received but not read. */
+		if (exiting)
+		    tcflush(fileno(stdin), TCIFLUSH);
+# endif
+	    }
 	    /* Check for termcodes first, otherwise an external program may
 	     * get them. */
 	    check_for_codes_from_term();
@@ -3300,6 +3335,7 @@ may_req_termresponse()
 # endif
 	    && *T_CRV != NUL)
     {
+	LOG_TR("Sending CRV");
 	out_str(T_CRV);
 	crv_status = CRV_SENT;
 	/* check for the characters now, otherwise they might be eaten by
@@ -3312,10 +3348,10 @@ may_req_termresponse()
 # if defined(FEAT_MBYTE) || defined(PROTO)
 /*
  * Check how the terminal treats ambiguous character width (UAX #11).
- * First, we move the cursor to (0, 0) and print a test ambiguous character
+ * First, we move the cursor to (1, 0) and print a test ambiguous character
  * \u25bd (WHITE DOWN-POINTING TRIANGLE) and query current cursor position.
- * If the terminal treats \u25bd as single width, the position is (0, 1),
- * or if it is treated as double width, that will be (0, 2).
+ * If the terminal treats \u25bd as single width, the position is (1, 1),
+ * or if it is treated as double width, that will be (1, 2).
  * This function has the side effect that changes cursor position, so
  * it must be called immediately after entering termcap mode.
  */
@@ -3335,7 +3371,10 @@ may_req_ambiguous_character_width()
     {
 	 char_u	buf[16];
 
-	 term_windgoto(0, 0);
+	 LOG_TR("Sending U7 request");
+	 /* Do this in the second row.  In the first row the returned sequence
+	  * may be CSI 1;2R, which is the same as <S-F3>. */
+	 term_windgoto(1, 0);
 	 buf[mb_char2bytes(0x25bd, buf)] = 0;
 	 out_str(buf);
 	 out_str(T_U7);
@@ -3348,6 +3387,29 @@ may_req_ambiguous_character_width()
 	 out_flush();
 	 (void)vpeekc_nomap();
     }
+}
+# endif
+
+# ifdef DEBUG_TERMRESPONSE
+    static void
+log_tr(char *msg)
+{
+    static FILE *fd_tr = NULL;
+    static proftime_T start;
+    proftime_T now;
+
+    if (fd_tr == NULL)
+    {
+	fd_tr = fopen("termresponse.log", "w");
+	profile_start(&start);
+    }
+    now = start;
+    profile_end(&now);
+    fprintf(fd_tr, "%s: %s %s\n",
+	    profile_msg(&now),
+	    must_redraw == NOT_VALID ? "NV"
+					 : must_redraw == CLEAR ? "CL" : "  ",
+	    msg);
 }
 # endif
 #endif
@@ -3821,6 +3883,7 @@ switch_to_8bit()
 	need_gather = TRUE;		/* need to fill termleader[] */
     }
     detected_8bit = TRUE;
+    LOG_TR("Switching to 8 bit");
 }
 #endif
 
@@ -4116,9 +4179,11 @@ check_termcode(max_offset, buf, bufsize, buflen)
 	     *   The final byte is 'R'. now it is only used for checking for
 	     *   ambiguous-width character state.
 	     */
+	    p = tp[0] == CSI ? tp + 1 : tp + 2;
 	    if ((*T_CRV != NUL || *T_U7 != NUL)
 			&& ((tp[0] == ESC && tp[1] == '[' && len >= 3)
-			    || (tp[0] == CSI && len >= 2)))
+			    || (tp[0] == CSI && len >= 2))
+			&& (VIM_ISDIGIT(*p) || *p == '>' || *p == '?'))
 	    {
 		j = 0;
 		extra = 0;
@@ -4126,26 +4191,50 @@ check_termcode(max_offset, buf, bufsize, buflen)
 				&& !(tp[i] >= '{' && tp[i] <= '~')
 				&& !ASCII_ISALPHA(tp[i]); ++i)
 		    if (tp[i] == ';' && ++j == 1)
-			extra = atoi((char *)tp + i + 1);
+			extra = i + 1;
 		if (i == len)
-		    return -1;		/* not enough characters */
+		{
+		    LOG_TR("Not enough characters for CRV");
+		    return -1;
+		}
 
 #ifdef FEAT_MBYTE
-		/* eat it when it has 2 arguments and ends in 'R' */
-		if (j == 1 && tp[i] == 'R')
+		/* Eat it when it has 2 arguments and ends in 'R'. Ignore it
+		 * when u7_status is not "sent", <S-F3> sends something
+		 * similar. */
+		if (j == 1 && tp[i] == 'R' && u7_status == U7_SENT)
 		{
 		    char *aw = NULL;
 
+		    LOG_TR("Received U7 status");
 		    u7_status = U7_GOT;
 # ifdef FEAT_AUTOCMD
 		    did_cursorhold = TRUE;
 # endif
+		    if (extra > 0)
+			extra = atoi((char *)tp + extra);
 		    if (extra == 2)
 			aw = "single";
 		    else if (extra == 3)
 			aw = "double";
-		    if (aw != NULL)
+		    if (aw != NULL && STRCMP(aw, p_ambw) != 0)
+		    {
+			/* Setting the option causes a screen redraw. Do that
+			 * right away if possible, keeping any messages. */
 			set_option_value((char_u *)"ambw", 0L, (char_u *)aw, 0);
+#ifdef DEBUG_TERMRESPONSE
+			{
+			    char buf[100];
+			    int  r = redraw_asap(CLEAR);
+
+			    sprintf(buf, "set 'ambiwidth', redraw_asap(): %d",
+									   r);
+			    log_tr(buf);
+			}
+#else
+			redraw_asap(CLEAR);
+#endif
+		    }
 		    key_name[0] = (int)KS_EXTRA;
 		    key_name[1] = (int)KE_IGNORE;
 		    slen = i + 1;
@@ -4155,6 +4244,7 @@ check_termcode(max_offset, buf, bufsize, buflen)
 		/* eat it when at least one digit and ending in 'c' */
 		if (*T_CRV != NUL && i > 2 + (tp[0] != CSI) && tp[i] == 'c')
 		{
+		    LOG_TR("Received CRV");
 		    crv_status = CRV_GOT;
 # ifdef FEAT_AUTOCMD
 		    did_cursorhold = TRUE;
@@ -4168,6 +4258,8 @@ check_termcode(max_offset, buf, bufsize, buflen)
 		    /* rxvt sends its version number: "20703" is 2.7.3.
 		     * Ignore it for when the user has set 'term' to xterm,
 		     * even though it's an rxvt. */
+		    if (extra > 0)
+			extra = atoi((char *)tp + extra);
 		    if (extra > 20000)
 			extra = 0;
 
@@ -4192,6 +4284,7 @@ check_termcode(max_offset, buf, bufsize, buflen)
 			/* if xterm version >= 141 try to get termcap codes */
 			if (extra >= 141)
 			{
+			    LOG_TR("Enable checking for XT codes");
 			    check_for_codes = TRUE;
 			    need_gather = TRUE;
 			    req_codes_from_term();
@@ -4230,7 +4323,10 @@ check_termcode(max_offset, buf, bufsize, buflen)
 		    }
 
 		if (i == len)
+		{
+		    LOG_TR("not enough characters for XT");
 		    return -1;		/* not enough characters */
+		}
 	    }
 	}
 #endif
@@ -5175,6 +5271,10 @@ check_termcode(max_offset, buf, bufsize, buflen)
 	return retval == 0 ? (len + extra + offset) : retval;
     }
 
+#ifdef FEAT_TERMRESPONSE
+    LOG_TR("normal character");
+#endif
+
     return 0;			    /* no match found */
 }
 
@@ -5629,6 +5729,13 @@ req_more_codes_from_term()
      * many, there can be a buffer overflow somewhere. */
     while (xt_index_out < xt_index_in + 10 && key_names[xt_index_out] != NULL)
     {
+# ifdef DEBUG_TERMRESPONSE
+	char dbuf[100];
+
+	sprintf(dbuf, "Requesting XT %d: %s",
+				       xt_index_out, key_names[xt_index_out]);
+	log_tr(dbuf);
+# endif
 	sprintf(buf, "\033P+q%02x%02x\033\\",
 		      key_names[xt_index_out][0], key_names[xt_index_out][1]);
 	out_str_nf((char_u *)buf);
@@ -5675,6 +5782,14 @@ got_code_from_term(code, len)
 		break;
 	    }
 	}
+# ifdef DEBUG_TERMRESPONSE
+	{
+	    char buf[100];
+
+	    sprintf(buf, "Received XT %d: %s", xt_index_in, (char *)name);
+	    log_tr(buf);
+	}
+# endif
 	if (key_names[i] != NULL)
 	{
 	    for (i = 8; (c = hexhex2nr(code + i)) >= 0; i += 2)
@@ -5693,7 +5808,17 @@ got_code_from_term(code, len)
 		    set_keep_msg_from_hist();
 		    set_color_count(i);
 		    init_highlight(TRUE, FALSE);
-		    redraw_later(CLEAR);
+#ifdef DEBUG_TERMRESPONSE
+		    {
+			char buf[100];
+			int  r = redraw_asap(CLEAR);
+
+			sprintf(buf, "Received t_Co, redraw_asap(): %d", r);
+			log_tr(buf);
+		    }
+#else
+		    redraw_asap(CLEAR);
+#endif
 		}
 	    }
 	    else

@@ -1,4 +1,4 @@
-*autocmd.txt*   For Vim version 7.3.  Last change: 2013 Mar 19
+*autocmd.txt*   For Vim version 7.4.  Last change: 2013 Aug 04
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -513,9 +513,9 @@ CursorHold			When the user doesn't press a key for the time
 CursorHoldI			Just like CursorHold, but in Insert mode.
 
 							*CursorMoved*
-CursorMoved			After the cursor was moved in Normal mode.
-				Also when the text of the cursor line has been
-				changed, e.g., with "x", "rx" or "p".
+CursorMoved			After the cursor was moved in Normal or Visual
+				mode.  Also when the text of the cursor line
+				has been changed, e.g., with "x", "rx" or "p".
 				Not triggered when there is typeahead or when
 				an operator is pending.
 				For an example see |match-parens|.
@@ -691,8 +691,11 @@ InsertCharPre			When a character is typed in Insert mode,
 InsertEnter			Just before starting Insert mode.  Also for
 				Replace mode and Virtual Replace mode.  The
 				|v:insertmode| variable indicates the mode.
-				Be careful not to move the cursor or do
-				anything else that the user does not expect.
+				Be careful not to do anything else that the
+				user does not expect.
+				The cursor is restored afterwards.  If you do
+				not want that set |v:char| to a non-empty
+				string.
 							*InsertLeave*
 InsertLeave			When leaving Insert mode.  Also when using
 				CTRL-O |i_CTRL-O|.  But not for |i_CTRL-C|.
@@ -949,7 +952,8 @@ the autocommand is executed.  This is different from the command!
 
 							*file-pattern*
 The pattern is interpreted like mostly used in file names:
-	*	matches any sequence of characters
+	*	matches any sequence of characters; Unusual: includes path
+		separators
 	?	matches any single character
 	\?	matches a '?'
 	.	matches a '.'
@@ -958,6 +962,9 @@ The pattern is interpreted like mostly used in file names:
 	\,	matches a ','
 	{ }	like \( \) in a |pattern|
 	,	inside { }: like \| in a |pattern|
+	\}	literal }
+	\{	literal {
+	\\\{n,m\}  like \{n,m} in a |pattern|
 	\	special meaning like in a |pattern|
 	[ch]	matches 'c' or 'h'
 	[^ch]   match any character but 'c' and 'h'

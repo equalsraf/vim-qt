@@ -1425,6 +1425,15 @@ static struct vimoption
     {"ignorecase",  "ic",   P_BOOL|P_VI_DEF,
 			    (char_u *)&p_ic, PV_NONE,
 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
+    {"imactivatefunc","imaf",P_STRING|P_VI_DEF|P_SECURE,
+# if defined(FEAT_EVAL) && defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
+			    (char_u *)&p_imaf, PV_NONE,
+			    {(char_u *)"", (char_u *)NULL}
+# else
+			    (char_u *)NULL, PV_NONE,
+			    {(char_u *)NULL, (char_u *)0L}
+# endif
+			    SCRIPTID_INIT},
     {"imactivatekey","imak",P_STRING|P_VI_DEF,
 #if defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
 			    (char_u *)&p_imak, PV_NONE,
@@ -1466,6 +1475,15 @@ static struct vimoption
 #else
 			    {(char_u *)B_IMODE_NONE, (char_u *)0L}
 #endif
+			    SCRIPTID_INIT},
+    {"imstatusfunc","imsf",P_STRING|P_VI_DEF|P_SECURE,
+# if defined(FEAT_EVAL) && defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
+			    (char_u *)&p_imsf, PV_NONE,
+			    {(char_u *)"", (char_u *)NULL}
+# else
+			    (char_u *)NULL, PV_NONE,
+			    {(char_u *)NULL, (char_u *)0L}
+# endif
 			    SCRIPTID_INIT},
     {"include",	    "inc",  P_STRING|P_ALLOCED|P_VI_DEF,
 #ifdef FEAT_FIND_ID
@@ -2077,6 +2095,9 @@ static struct vimoption
 			    (char_u *)NULL, PV_NONE,
 #endif
 			    {(char_u *)2000L, (char_u *)0L} SCRIPTID_INIT},
+    {"regexpengine", "re",  P_NUM|P_VI_DEF,
+			    (char_u *)&p_re, PV_NONE,
+			    {(char_u *)0L, (char_u *)0L} SCRIPTID_INIT},
     {"relativenumber", "rnu", P_BOOL|P_VI_DEF|P_RWIN,
 			    (char_u *)VAR_WIN, PV_RNU,
 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
@@ -3015,7 +3036,7 @@ static long_u *insecure_flag __ARGS((int opt_idx, int opt_flags));
 # define insecure_flag(opt_idx, opt_flags) (&options[opt_idx].flags)
 #endif
 static void set_string_option_global __ARGS((int opt_idx, char_u **varp));
-static void set_string_option __ARGS((int opt_idx, char_u *value, int opt_flags));
+static char_u *set_string_option __ARGS((int opt_idx, char_u *value, int opt_flags));
 static char_u *did_set_string_option __ARGS((int opt_idx, char_u **varp, int new_value_alloced, char_u *oldval, char_u *errbuf, int opt_flags));
 static char_u *set_chars_option __ARGS((char_u **varp));
 #ifdef FEAT_SYN_HL
@@ -3178,7 +3199,7 @@ set_init_1()
 	    if (opt_idx >= 0)
 	    {
 #if !defined(HAVE_AVAIL_MEM) && !defined(HAVE_TOTAL_MEM)
-		if ((long)options[opt_idx].def_val[VI_DEFAULT] > n
+		if ((long)options[opt_idx].def_val[VI_DEFAULT] > (long)n
 			|| (long)options[opt_idx].def_val[VI_DEFAULT] == 0L)
 #endif
 		    options[opt_idx].def_val[VI_DEFAULT] = (char_u *)n;
@@ -5597,8 +5618,10 @@ set_string_option_global(opt_idx, varp)
 
 /*
  * Set a string option to a new value, and handle the effects.
+ *
+ * Returns NULL on success or error message on error.
  */
-    static void
+    static char_u *
 set_string_option(opt_idx, value, opt_flags)
     int		opt_idx;
     char_u	*value;
@@ -5607,9 +5630,10 @@ set_string_option(opt_idx, value, opt_flags)
     char_u	*s;
     char_u	**varp;
     char_u	*oldval;
+    char_u	*r = NULL;
 
     if (options[opt_idx].var == NULL)	/* don't set hidden option */
-	return;
+	return NULL;
 
     s = vim_strsave(value);
     if (s != NULL)
@@ -5621,10 +5645,11 @@ set_string_option(opt_idx, value, opt_flags)
 		    : opt_flags);
 	oldval = *varp;
 	*varp = s;
-	if (did_set_string_option(opt_idx, varp, TRUE, oldval, NULL,
-							   opt_flags) == NULL)
+	if ((r = did_set_string_option(opt_idx, varp, TRUE, oldval, NULL,
+							   opt_flags)) == NULL)
 	    did_set_option(opt_idx, opt_flags, TRUE);
     }
+    return r;
 }
 
 /*
@@ -7484,7 +7509,7 @@ check_clipboard_option()
 	clip_autoselect_plus = new_autoselect_plus;
 	clip_autoselectml = new_autoselectml;
 	clip_html = new_html;
-	vim_free(clip_exclude_prog);
+	vim_regfree(clip_exclude_prog);
 	clip_exclude_prog = new_exclude_prog;
 #ifdef FEAT_GUI_GTK
 	if (gui.in_use)
@@ -7495,7 +7520,7 @@ check_clipboard_option()
 #endif
     }
     else
-	vim_free(new_exclude_prog);
+	vim_regfree(new_exclude_prog);
 
     return errmsg;
 }
@@ -7522,16 +7547,16 @@ compile_cap_prog(synblock)
 	if (re != NULL)
 	{
 	    synblock->b_cap_prog = vim_regcomp(re, RE_MAGIC);
+	    vim_free(re);
 	    if (synblock->b_cap_prog == NULL)
 	    {
 		synblock->b_cap_prog = rp; /* restore the previous program */
 		return e_invarg;
 	    }
-	    vim_free(re);
 	}
     }
 
-    vim_free(rp);
+    vim_regfree(rp);
     return NULL;
 }
 #endif
@@ -7639,35 +7664,6 @@ set_bool_option(opt_idx, varp, value, opt_flags)
 	}
     }
 #endif
-
-    /* If 'number' is set, reset 'relativenumber'. */
-    /* If 'relativenumber' is set, reset 'number'. */
-    else if ((int *)varp == &curwin->w_p_nu && curwin->w_p_nu)
-    {
-	curwin->w_p_rnu = FALSE;
-
-	/* Only reset the global value if the own value is set globally. */
-	if (((opt_flags & (OPT_LOCAL | OPT_GLOBAL)) == 0))
-	    curwin->w_allbuf_opt.wo_rnu = FALSE;
-    }
-    else if ((int *)varp == &curwin->w_p_rnu && curwin->w_p_rnu)
-    {
-	curwin->w_p_nu = FALSE;
-
-	/* Only reset the global value if the own value is set globally. */
-	if (((opt_flags & (OPT_LOCAL | OPT_GLOBAL)) == 0))
-	    curwin->w_allbuf_opt.wo_nu = FALSE;
-    }
-    else if ((int *)varp == &curwin->w_allbuf_opt.wo_nu
-						&& curwin->w_allbuf_opt.wo_nu)
-    {
-        curwin->w_allbuf_opt.wo_rnu = FALSE;
-    }
-    else if ((int *)varp == &curwin->w_allbuf_opt.wo_rnu
-					       && curwin->w_allbuf_opt.wo_rnu)
-    {
-        curwin->w_allbuf_opt.wo_nu = FALSE;
-    }
 
     else if ((int *)varp == &curbuf->b_p_ro)
     {
@@ -7805,7 +7801,10 @@ set_bool_option(opt_idx, varp, value, opt_flags)
     else if ((int *)varp == &curwin->w_p_scb)
     {
 	if (curwin->w_p_scb)
+	{
 	    do_check_scrollbind(FALSE);
+	    curwin->w_scbind_pos = curwin->w_topline;
+	}
     }
 #endif
 
@@ -8532,11 +8531,7 @@ set_num_option(opt_idx, varp, value, errbuf, errbuflen, opt_flags)
 	}
 	Columns = MIN_COLUMNS;
     }
-    /* Limit the values to avoid an overflow in Rows * Columns. */
-    if (Columns > 10000)
-	Columns = 10000;
-    if (Rows > 1000)
-	Rows = 1000;
+    limit_screen_size();
 
 #ifdef DJGPP
     /* avoid a crash by checking for a too large value of 'columns' */
@@ -8603,6 +8598,11 @@ set_num_option(opt_idx, varp, value, errbuf, errbuflen, opt_flags)
     {
 	errmsg = e_positive;
 	p_hi = 0;
+    }
+    if (p_re < 0 || p_re > 2)
+    {
+	errmsg = e_invarg;
+	p_re = 0;
     }
     if (p_report < 0)
     {
@@ -8820,11 +8820,151 @@ get_option_value(name, numval, stringval, opt_flags)
 }
 #endif
 
+#if defined(FEAT_PYTHON) || defined(FEAT_PYTHON3)
+/*
+ * Returns the option attributes and its value. Unlike the above function it
+ * will return either global value or local value of the option depending on
+ * what was requested, but it will never return global value if it was
+ * requested to return local one and vice versa. Neither it will return
+ * buffer-local value if it was requested to return window-local one.
+ *
+ * Pretends that option is absent if it is not present in the requested scope
+ * (i.e. has no global, window-local or buffer-local value depending on
+ * opt_type). Uses
+ *
+ * Returned flags:
+ *       0 hidden or unknown option
+ *  see SOPT_* in vim.h for other flags
+ *
+ * Possible opt_type values: see SREQ_* in vim.h
+ */
+    int
+get_option_value_strict(name, numval, stringval, opt_type, from)
+    char_u	*name;
+    long	*numval;
+    char_u	**stringval;	    /* NULL when only obtaining attributes */
+    int		opt_type;
+    void	*from;
+{
+    int		opt_idx;
+    char_u	*varp = NULL;
+    struct vimoption *p;
+    int		r = 0;
+
+    opt_idx = findoption(name);
+    if (opt_idx < 0)
+	return 0;
+
+    p = &(options[opt_idx]);
+
+    /* Hidden option */
+    if (p->var == NULL)
+	return 0;
+
+    if (p->flags & P_BOOL)
+	r |= SOPT_BOOL;
+    else if (p->flags & P_NUM)
+	r |= SOPT_NUM;
+    else if (p->flags & P_STRING)
+	r |= SOPT_STRING;
+
+    if (p->indir == PV_NONE)
+    {
+	if (opt_type == SREQ_GLOBAL)
+	    r |= SOPT_GLOBAL;
+	else
+	    return 0; /* Did not request global-only option */
+    }
+    else
+    {
+	if (p->indir & PV_BOTH)
+	    r |= SOPT_GLOBAL;
+	else if (opt_type == SREQ_GLOBAL)
+	    return 0; /* Requested global option */
+
+	if (p->indir & PV_WIN)
+	{
+	    if (opt_type == SREQ_BUF)
+		return 0; /* Did not request window-local option */
+	    else
+		r |= SOPT_WIN;
+	}
+	else if (p->indir & PV_BUF)
+	{
+	    if (opt_type == SREQ_WIN)
+		return 0; /* Did not request buffer-local option */
+	    else
+		r |= SOPT_BUF;
+	}
+    }
+
+    if (stringval == NULL)
+	return r;
+
+    if (opt_type == SREQ_GLOBAL)
+	varp = p->var;
+    else
+    {
+	if (opt_type == SREQ_BUF)
+	{
+	    /* Special case: 'modified' is b_changed, but we also want to
+	     * consider it set when 'ff' or 'fenc' changed. */
+	    if (p->indir == PV_MOD)
+	    {
+		*numval = bufIsChanged((buf_T *) from);
+		varp = NULL;
+	    }
+#ifdef FEAT_CRYPT
+	    else if (p->indir == PV_KEY)
+	    {
+		/* never return the value of the crypt key */
+		*stringval = NULL;
+		varp = NULL;
+	    }
+#endif
+	    else
+	    {
+		aco_save_T	aco;
+		aucmd_prepbuf(&aco, (buf_T *) from);
+		varp = get_varp(p);
+		aucmd_restbuf(&aco);
+	    }
+	}
+	else if (opt_type == SREQ_WIN)
+	{
+	    win_T	*save_curwin;
+	    save_curwin = curwin;
+	    curwin = (win_T *) from;
+	    curbuf = curwin->w_buffer;
+	    varp = get_varp(p);
+	    curwin = save_curwin;
+	    curbuf = curwin->w_buffer;
+	}
+	if (varp == p->var)
+	    return (r | SOPT_UNSET);
+    }
+
+    if (varp != NULL)
+    {
+	if (p->flags & P_STRING)
+	    *stringval = vim_strsave(*(char_u **)(varp));
+	else if (p->flags & P_NUM)
+	    *numval = *(long *) varp;
+	else
+	    *numval = *(int *)varp;
+    }
+
+    return r;
+}
+#endif
+
 /*
  * Set the value of option "name".
  * Use "string" for string options, use "number" for other options.
+ *
+ * Returns NULL on success or error message on error.
  */
-    void
+    char_u *
 set_option_value(name, number, string, opt_flags)
     char_u	*name;
     long	number;
@@ -8846,11 +8986,11 @@ set_option_value(name, number, string, opt_flags)
 	if (sandbox > 0 && (flags & P_SECURE))
 	{
 	    EMSG(_(e_sandbox));
-	    return;
+	    return NULL;
 	}
 #endif
 	if (flags & P_STRING)
-	    set_string_option(opt_idx, string, opt_flags);
+	    return set_string_option(opt_idx, string, opt_flags);
 	else
 	{
 	    varp = get_varp_scope(&(options[opt_idx]), opt_flags);
@@ -8871,19 +9011,20 @@ set_option_value(name, number, string, opt_flags)
 			 * num option using a string. */
 			EMSG3(_("E521: Number required: &%s = '%s'"),
 								name, string);
-			return;     /* do nothing as we hit an error */
+			return NULL;     /* do nothing as we hit an error */
 
 		    }
 		}
 		if (flags & P_NUM)
-		    (void)set_num_option(opt_idx, varp, number,
+		    return set_num_option(opt_idx, varp, number,
 							  NULL, 0, opt_flags);
 		else
-		    (void)set_bool_option(opt_idx, varp, (int)number,
+		    return set_bool_option(opt_idx, varp, (int)number,
 								   opt_flags);
 	    }
 	}
     }
+    return NULL;
 }
 
 /*
@@ -9557,6 +9698,85 @@ comp_col()
 }
 
 /*
+ * Unset local option value, similar to ":set opt<".
+ */
+
+    void
+unset_global_local_option(name, from)
+    char_u	*name;
+    void	*from;
+{
+    struct vimoption *p;
+    int		opt_idx;
+    buf_T	*buf = (buf_T *)from;
+
+    opt_idx = findoption(name);
+    p = &(options[opt_idx]);
+
+    switch ((int)p->indir)
+    {
+	/* global option with local value: use local value if it's been set */
+	case PV_EP:
+	    clear_string_option(&buf->b_p_ep);
+	    break;
+	case PV_KP:
+	    clear_string_option(&buf->b_p_kp);
+	    break;
+	case PV_PATH:
+	    clear_string_option(&buf->b_p_path);
+	    break;
+	case PV_AR:
+	    buf->b_p_ar = -1;
+	    break;
+	case PV_TAGS:
+	    clear_string_option(&buf->b_p_tags);
+	    break;
+#ifdef FEAT_FIND_ID
+	case PV_DEF:
+	    clear_string_option(&buf->b_p_def);
+	    break;
+	case PV_INC:
+	    clear_string_option(&buf->b_p_inc);
+	    break;
+#endif
+#ifdef FEAT_INS_EXPAND
+	case PV_DICT:
+	    clear_string_option(&buf->b_p_dict);
+	    break;
+	case PV_TSR:
+	    clear_string_option(&buf->b_p_tsr);
+	    break;
+#endif
+#ifdef FEAT_QUICKFIX
+	case PV_EFM:
+	    clear_string_option(&buf->b_p_efm);
+	    break;
+	case PV_GP:
+	    clear_string_option(&buf->b_p_gp);
+	    break;
+	case PV_MP:
+	    clear_string_option(&buf->b_p_mp);
+	    break;
+#endif
+#if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
+	case PV_BEXPR:
+	    clear_string_option(&buf->b_p_bexpr);
+	    break;
+#endif
+#if defined(FEAT_CRYPT)
+	case PV_CM:
+	    clear_string_option(&buf->b_p_cm);
+	    break;
+#endif
+#ifdef FEAT_STL_OPT
+	case PV_STL:
+	    clear_string_option(&((win_T *)from)->w_p_stl);
+	    break;
+#endif
+    }
+}
+
+/*
  * Get pointer to option variable, depending on local or global scope.
  */
     static char_u *
@@ -9901,14 +10121,19 @@ copy_winopt(from, to)
     to->wo_stl = vim_strsave(from->wo_stl);
 #endif
     to->wo_wrap = from->wo_wrap;
+#ifdef FEAT_DIFF
+    to->wo_wrap_save = from->wo_wrap_save;
+#endif
 #ifdef FEAT_LINEBREAK
     to->wo_lbr = from->wo_lbr;
 #endif
 #ifdef FEAT_SCROLLBIND
     to->wo_scb = from->wo_scb;
+    to->wo_scb_save = from->wo_scb_save;
 #endif
 #ifdef FEAT_CURSORBIND
     to->wo_crb = from->wo_crb;
+    to->wo_crb_save = from->wo_crb_save;
 #endif
 #ifdef FEAT_SPELL
     to->wo_spell = from->wo_spell;
@@ -9920,6 +10145,7 @@ copy_winopt(from, to)
 #endif
 #ifdef FEAT_DIFF
     to->wo_diff = from->wo_diff;
+    to->wo_diff_saved = from->wo_diff_saved;
 #endif
 #ifdef FEAT_CONCEAL
     to->wo_cocu = vim_strsave(from->wo_cocu);
@@ -9927,11 +10153,16 @@ copy_winopt(from, to)
 #endif
 #ifdef FEAT_FOLDING
     to->wo_fdc = from->wo_fdc;
+    to->wo_fdc_save = from->wo_fdc_save;
     to->wo_fen = from->wo_fen;
+    to->wo_fen_save = from->wo_fen_save;
     to->wo_fdi = vim_strsave(from->wo_fdi);
     to->wo_fml = from->wo_fml;
     to->wo_fdl = from->wo_fdl;
+    to->wo_fdl_save = from->wo_fdl_save;
     to->wo_fdm = vim_strsave(from->wo_fdm);
+    to->wo_fdm_save = from->wo_diff_saved
+			      ? vim_strsave(from->wo_fdm_save) : empty_option;
     to->wo_fdn = from->wo_fdn;
 # ifdef FEAT_EVAL
     to->wo_fde = vim_strsave(from->wo_fde);
@@ -9963,6 +10194,7 @@ check_winopt(wop)
 #ifdef FEAT_FOLDING
     check_string_option(&wop->wo_fdi);
     check_string_option(&wop->wo_fdm);
+    check_string_option(&wop->wo_fdm_save);
 # ifdef FEAT_EVAL
     check_string_option(&wop->wo_fde);
     check_string_option(&wop->wo_fdt);
@@ -9993,6 +10225,7 @@ clear_winopt(wop)
 #ifdef FEAT_FOLDING
     clear_string_option(&wop->wo_fdi);
     clear_string_option(&wop->wo_fdm);
+    clear_string_option(&wop->wo_fdm_save);
 # ifdef FEAT_EVAL
     clear_string_option(&wop->wo_fde);
     clear_string_option(&wop->wo_fdt);
@@ -11219,6 +11452,7 @@ change_compatible(on)
 
 /*
  * Return TRUE when option "name" has been set.
+ * Only works correctly for global options.
  */
     int
 option_was_set(name)
