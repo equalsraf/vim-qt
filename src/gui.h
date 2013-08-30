@@ -247,9 +247,9 @@ typedef long	    guicolor_T;	/* handle for a GUI color; for X11 this should
 #   ifdef FEAT_GUI_QT
   struct QFont;
   typedef struct QFont*	GuiFont;
-  typedef void*		GuiFontSet;
+  typedef void*		GuiFontset;
 #  define NOFONT	(GuiFont)NULL
-#  define NOFONTSET	(GuiFontSet)NULL
+#  define NOFONTSET	(GuiFontset)NULL
 #   else
   typedef long_u	GuiFont;	/* handle for a GUI font */
   typedef long_u	GuiFontset;	/* handle for a GUI fontset */
