@@ -190,7 +190,7 @@ WideCharToMultiByte_alloc(UINT cp, DWORD flags,
 
 #endif /* FEAT_MBYTE */
 
-#ifdef FEAT_CLIPBOARD
+#if defined(FEAT_CLIPBOARD) && !defined(FEAT_GUI_QT)
 /*
  * Clipboard stuff, for cutting and pasting text to other windows.
  */
@@ -643,7 +643,7 @@ clip_mch_set_selection(VimClipboard *cbd)
 	GlobalFree(hMemVim);
 }
 
-#endif /* FEAT_CLIPBOARD */
+#endif /* FEAT_CLIPBOARD && !FEAT_GUI_QT */
 
 #if defined(FEAT_MBYTE) || defined(PROTO)
 /*

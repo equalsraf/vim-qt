@@ -510,7 +510,7 @@ EXTERN int	gui_win_y INIT(= -1);
 
 #ifdef FEAT_CLIPBOARD
 EXTERN VimClipboard clip_star;	/* PRIMARY selection in X11 */
-# ifdef FEAT_X11
+# if defined(FEAT_X11) || defined(FEAT_GUI_QT)
 EXTERN VimClipboard clip_plus;	/* CLIPBOARD selection in X11 */
 # else
 #  define clip_plus clip_star	/* there is only one clipboard */
@@ -1414,7 +1414,7 @@ EXTERN char_u e_failed[]	INIT(= N_("E472: Command failed"));
 EXTERN char_u e_fontset[]	INIT(= N_("E234: Unknown fontset: %s"));
 #endif
 #if defined(FEAT_GUI_X11) || defined(FEAT_GUI_GTK) || defined(MACOS) \
-	|| defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MSWIN)
+	|| defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_QT)
 EXTERN char_u e_font[]		INIT(= N_("E235: Unknown font: %s"));
 #endif
 #if defined(FEAT_GUI_X11) && !defined(FEAT_GUI_GTK)

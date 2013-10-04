@@ -480,6 +480,10 @@ EXTERN char_u	*p_fp;		/* 'formatprg' */
 #ifdef HAVE_FSYNC
 EXTERN int	p_fs;		/* 'fsync' */
 #endif
+#ifdef FEAT_FULLSCREEN
+EXTERN int	p_fullscreen;	/* fullscreen gui window */
+EXTERN char_u	*p_fuoptions;	/* fullscreen options */
+#endif
 EXTERN int	p_gd;		/* 'gdefault' */
 #ifdef FEAT_PRINTER
 EXTERN char_u	*p_pdev;	/* 'printdevice' */

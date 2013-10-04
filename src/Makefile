@@ -1246,6 +1246,39 @@ NEXTAW_MAN_TARGETS = yes
 NEXTAW_TESTTARGET = gui
 NEXTAW_BUNDLE	=
 
+### Qt
+# We use the following to build
+# - QT_MOC
+# - QT_LIBS
+# - QT_INCPATH
+MOC		= $(QT_MOC)
+QT_LIBS1	= $(QT_LIBS)
+QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
+			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/scrollarea.cpp \
+			qt/fontdialog.cpp \
+			qt/colortable.cpp \
+			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp \
+			qt/vimevents.cpp
+QT_OBJ	= objects/gui.o objects/gui_qt.o \
+			objects/pty.o objects/gui_beval.o \
+			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
+			objects/colortable.o \
+			objects/scrollarea.o objects/fontdialog.o objects/vimwrapper.o \
+			objects/vimevents.o \
+			objects/tabbar.o objects/vimscrollbar.o
+
+QT_DEFS	= -DFEAT_GUI_QT $(NARROW_PROTO) -Iqt -I. $(QT_INCPATH)
+QT_IPATH	= $(GUI_INC_LOC)
+QT_LIBS_DIR = $(GUI_LIB_LOC)
+
+QT_INSTALL  = install_normal install_gui_extra
+
+# Qt needs to be linked using the c++ compiler
+ifdef QT_LIBS
+	CClink=$(CXX)
+endif
+
+
 ### (J)  Sun OpenWindows 3.2 (SunOS 4.1.x) or earlier that produce these ld
 #	 errors:  ld: Undefined symbol
 #		      _get_wmShellWidgetClass
@@ -1290,7 +1323,7 @@ APPDIR = $(VIMNAME).app
 CARBONGUI_TESTARG = VIMPROG=../$(APPDIR)/Contents/MacOS/$(VIMTARGET)
 
 # All GUI files
-ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c
+ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_athena.c gui_gtk_x11.c gui_x11.c gui_at_sb.c gui_at_fs.c pty.c gui_qt_cpp qt/qvimshell.cpp qt/mainwindow.cpp qt/vimgui.cpp qt/fontdialog.cpp qt/colortable.cpp
 ALL_GUI_PRO  = gui.pro gui_gtk.pro gui_motif.pro gui_xmdlg.pro gui_athena.pro gui_gtk_x11.pro gui_x11.pro gui_w16.pro gui_w32.pro gui_photon.pro
 
 # }}}
@@ -1338,7 +1371,7 @@ SHELL = /bin/sh
 PRE_DEFS = -Iproto $(DEFS) $(GUI_DEFS) $(GUI_IPATH) $(CPPFLAGS) $(EXTRA_IPATHS)
 POST_DEFS = $(X_CFLAGS) $(MZSCHEME_CFLAGS) $(TCL_CFLAGS) $(EXTRA_DEFS)
 
-ALL_CFLAGS = $(PRE_DEFS) $(CFLAGS) $(PROFILE_CFLAGS) $(LEAK_CFLAGS) $(POST_DEFS)
+ALL_CFLAGS = $(PRE_DEFS) $(CFLAGS) $(PROFILE_CFLAGS) $(LEAK_CFLAGS) $(POST_DEFS) ${QT_CFLAGS}
 
 # Exclude $CFLAGS for osdef.sh, for Mac 10.4 some flags don't work together
 # with "-E".
@@ -1487,7 +1520,7 @@ SRC =	$(BASIC_SRC) \
 	$(WORKSHOP_SRC) \
 	$(WSDEBUG_SRC)
 
-TAGS_SRC = *.c *.cpp if_perl.xs
+TAGS_SRC = *.c *.cpp if_perl.xs qt/*.cpp
 
 EXTRA_SRC = hangulin.c if_lua.c if_mzsch.c auto/if_perl.c if_perlsfio.c \
 	    if_python.c if_python3.c if_tcl.c if_ruby.c if_sniff.c \
@@ -2546,6 +2579,56 @@ objects/gui_at_sb.o: gui_at_sb.c
 
 objects/gui_athena.o: gui_athena.c
 	$(CCC) -o $@ gui_athena.c
+
+## Qt objects
+objects/gui_qt.o: gui_qt.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c gui_qt.cpp
+
+objects/mainwindow.o: qt/mainwindow.cpp
+	$(MOC) qt/mainwindow.h > mainwindow.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/mainwindow.cpp
+
+objects/qvimshell.o: qt/qvimshell.cpp
+	$(MOC) qt/qvimshell.h > qvimshell.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/qvimshell.cpp
+
+objects/colortable.o: qt/colortable.cpp
+	$(MOC) qt/colortable.h > colortable.moc
+	$(CXX) $(ALL_CFLAGS) -O0 -o $@ -c qt/colortable.cpp # -O0 is needed here
+
+objects/vimaction.o: qt/vimaction.cpp
+	$(MOC) qt/vimaction.h > vimaction.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimaction.cpp
+
+objects/qtresources.o: qt/icons.qrc
+	rcc -no-compress qt/icons.qrc -o qtresources.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qtresources.cpp
+
+objects/vimscrollbar.o: qt/vimscrollbar.cpp
+	$(MOC) qt/vimscrollbar.h > vimscrollbar.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimscrollbar.cpp
+
+objects/scrollarea.o: qt/scrollarea.cpp
+	$(MOC) qt/scrollarea.h > scrollarea.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/scrollarea.cpp
+
+objects/vimgui.o: qt/vimgui.cpp
+	$(MOC) qt/vimgui.h > vimgui.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimgui.cpp
+
+objects/fontdialog.o: qt/fontdialog.cpp
+	$(MOC) qt/fontdialog.h > fontdialog.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/fontdialog.cpp
+
+objects/vimwrapper.o: qt/vimwrapper.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimwrapper.cpp
+
+objects/vimevents.o: qt/vimevents.cpp
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/vimevents.cpp
+
+objects/tabbar.o: qt/tabbar.cpp
+	$(MOC) qt/tabbar.h > tabbar.moc
+	$(CXX) $(ALL_CFLAGS) -o $@ -c qt/tabbar.cpp
 
 objects/gui_beval.o: gui_beval.c
 	$(CCC) -o $@ gui_beval.c

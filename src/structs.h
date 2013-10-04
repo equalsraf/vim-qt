@@ -2356,6 +2356,10 @@ typedef struct cursor_entry
 
 typedef struct VimMenu vimmenu_T;
 
+#ifdef FEAT_GUI_QT
+struct QMenu;
+#endif
+
 struct VimMenu
 {
     int		modes;		    /* Which modes is this menu visible for? */
@@ -2427,6 +2431,10 @@ struct VimMenu
 #ifdef FEAT_GUI_PHOTON
     PtWidget_t	*id;
     PtWidget_t	*submenu_id;
+#endif
+#ifdef FEAT_GUI_QT
+    struct QWidget	*qmenu;
+    struct QAction	*qaction;
 #endif
 };
 #else
