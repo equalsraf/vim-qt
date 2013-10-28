@@ -45,8 +45,14 @@ QVimShell::QVimShell(QWidget *parent)
 	setAttribute(Qt::WA_KeyCompression, true);
 	setAttribute(Qt::WA_InputMethodEnabled, true);
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
+	setAttribute(Qt::WA_StaticContents, true);
 	setAcceptDrops(true);
 	setMouseTracking(true);
+
+	PaintOperation op;
+	op.type = CLEARALL;
+	op.color = background();
+	queuePaintOp(op);
 }
 
 void QVimShell::setBackground(const QColor color)
@@ -73,23 +79,23 @@ QColor QVimShell::background()
 
 void QVimShell::resizeEvent(QResizeEvent *ev)
 {
-	if ( canvas.isNull() ) {
-		QPixmap newCanvas = QPixmap( ev->size() );
-		newCanvas.fill(background());
-		canvas = newCanvas;
-	} else {
-		// Keep old contents
-		QPixmap old = canvas.copy(QRect(QPoint(0,0), ev->size()));
-		canvas = QPixmap( ev->size() );
-		canvas.fill(background()); // FIXME: please optimise me
+	PaintOperation op;
+	op.type = FILLRECT;
+	op.color = background();
 
-		{
-		QPainter p(&canvas);
-		p.drawPixmap(QPoint(0,0), old);
-		}
+	int dWidth = ev->size().width() - ev->oldSize().width();
+	if (dWidth > 0)
+	{
+		op.rect = QRect(ev->oldSize().width(), 0, dWidth, ev->size().height());
+		queuePaintOp(op);
 	}
 
-	update();
+	int dHeight = ev->size().height() - ev->oldSize().height();
+	if (dHeight > 0)
+	{
+		op.rect = QRect(0, ev->oldSize().height(), ev->size().width(), dHeight);
+		queuePaintOp(op);
+	}
 
 	//
 	// Vim might trigger another resize, postpone the call
@@ -311,16 +317,16 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 	painter.drawText( op.pos, op.str);
 }
 
-void QVimShell::flushPaintOps()
+void QVimShell::paintEvent ( QPaintEvent *ev )
 {
-	QPainter painter(&canvas);
+	QPainter painter(this);
 	while ( !paintOps.isEmpty() ) {
 		painter.save();
 
 		PaintOperation op = paintOps.dequeue();
 		switch( op.type ) {
 		case CLEARALL:
-			painter.fillRect(canvas.rect(), op.color);
+			painter.fillRect(this->rect(), op.color);
 			break;
 		case FILLRECT:
 			painter.fillRect(op.rect, op.color);
@@ -372,27 +378,26 @@ void QVimShell::flushPaintOps()
 			painter.restore();
 			painter.end();
 
-			QRegion exposed;
-			canvas.scroll(op.pos.x(), op.pos.y(),
-					op.rect, &exposed);
+			this->scroll(op.pos.x(), op.pos.y(), op.rect);
 
-			painter.begin(&canvas);
-			painter.fillRect(exposed.boundingRect(), op.color);
+			painter.begin(this);
+
+			// Repaint exposed background. Vim won't redraw areas exposed by
+			// scroll if it considers them empty because it assumes we already
+			// cleared that area of the screen.
+			QRect rect;
+			rect.setWidth(op.rect.width());
+			rect.setHeight(abs(op.pos.y()));
+			if (op.pos.y() > 0)
+				rect.moveTopLeft(op.rect.topLeft());
+			else
+				rect.moveBottomRight(op.rect.bottomRight());
+			painter.fillRect(rect, op.color);
+
 			continue; // exception, skip painter restore
 		}
 
 		painter.restore();
-	}
-}
-
-
-void QVimShell::paintEvent ( QPaintEvent *ev )
-{
-	flushPaintOps();
-
-	QPainter realpainter(this);
-	foreach(const QRect r, ev->region().rects()) {
-		realpainter.drawPixmap(r, canvas, r);
 	}
 }
 

@@ -64,8 +64,6 @@ signals:
 	void backgroundColorChanged(const QColor&);
 
 protected:
-	void flushPaintOps();
-
 	void resizeEvent(QResizeEvent *);
 	void keyPressEvent ( QKeyEvent *);
 	virtual void mouseMoveEvent(QMouseEvent *event);
@@ -121,7 +119,6 @@ private:
 	bool m_encoding_utf8;
 
 	QQueue<PaintOperation> paintOps;
-	QPixmap canvas;
 
 	QTime m_lastClick;
 	int m_lastClickEvent;
