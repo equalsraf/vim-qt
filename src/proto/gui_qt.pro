@@ -79,4 +79,5 @@ void gui_mch_leave_fullscreen __ARGS((void));
 void* gui_mch_register_sign __ARGS((char_u *signfile));
 void gui_mch_destroy_sign __ARGS((void *sign));
 void gui_mch_drawsign __ARGS((int row, int col, int typenr));
+void gui_mch_update_fuoptions __ARGS((char_u *optstr));
 
