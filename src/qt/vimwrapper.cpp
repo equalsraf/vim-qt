@@ -2,9 +2,6 @@
 #include <QStyle>
 #include <QMetaType>
 #include <QTime>
-#include <QTimer>
-#include <QTimer>
-#include <QTime>
 #include "vimwrapper.h"
 
 extern "C" {

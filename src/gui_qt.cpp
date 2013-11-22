@@ -11,7 +11,6 @@
 #include <QToolBar>
 #include <QFileDialog>
 #include <QPushButton>
-#include <QTimer>
 
 #include "qvimshell.h"
 #include "mainwindow.h"
