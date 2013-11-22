@@ -58,7 +58,6 @@ serverGetVimNames(void)
 	if ( !dir.exists() ) {
 		return NULL;
 	}
-	qDebug() << __func__;
 	QStringList files = dir.entryList();
 	QString socketList = files.join("\n");
 
@@ -84,7 +83,6 @@ void
 serverInitMessaging(void)
 {
 	// Nothing to do
-	qDebug() << __func__;
 	serverSocket = CommandServer::getInstance();
 }
 
