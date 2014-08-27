@@ -155,7 +155,7 @@ extern DWORD g_PlatformId;
 extern char g_szOrigTitle[];
 #endif
 
-#ifdef FEAT_GUI
+#if defined(FEAT_GUI) && !defined(FEAT_GUI_QT)
 extern HWND s_hwnd;
 #else
 static HWND s_hwnd = 0;	    /* console window handle, set by GetConsoleHwnd() */

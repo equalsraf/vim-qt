@@ -1254,6 +1254,28 @@ static struct vimoption
 			    {(char_u *)FALSE, (char_u *)0L}
 #endif
 			    SCRIPTID_INIT},
+
+    {"fullscreen",    "fu", P_BOOL|P_NO_MKRC,
+#ifdef FEAT_FULLSCREEN
+			    (char_u *)&p_fullscreen, PV_NONE,
+			    {(char_u *)FALSE, (char_u *)0L}
+#else
+			    (char_u *)NULL, PV_NONE,
+			    {(char_u *)FALSE, (char_u *)0L}
+#endif
+			    SCRIPTID_INIT},
+
+    {"fuoptions",  "fuopt", P_STRING|P_COMMA|P_NODUP|P_VI_DEF,
+#ifdef FEAT_FULLSCREEN
+			    (char_u *)&p_fuoptions, PV_NONE,
+			    {(char_u *)"", (char_u *)0L}
+#else
+			    (char_u *)NULL, PV_NONE,
+			    {(char_u *)NULL, (char_u *)0L}
+#endif
+			    SCRIPTID_INIT},
+
+
     {"gdefault",    "gd",   P_BOOL|P_VI_DEF|P_VIM,
 			    (char_u *)&p_gd, PV_NONE,
 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
@@ -6436,7 +6458,7 @@ did_set_string_option(opt_idx, varp, new_value_alloced, oldval, errbuf,
 	if (gui.in_use)
 	{
 	    p = p_guifont;
-# if defined(FEAT_GUI_GTK)
+# if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
 	    /*
 	     * Put up a font dialog and let the user select a new value.
 	     * If this is cancelled go back to the old value but don't
@@ -6966,6 +6988,14 @@ did_set_string_option(opt_idx, varp, new_value_alloced, oldval, errbuf,
     {
 	if (foldmethodIsIndent(curwin))
 	    foldUpdateAll(curwin);
+    }
+#endif
+
+#ifdef FEAT_FULLSCREEN
+    /* 'fuoptions' */
+    else if (varp == &p_fuoptions)
+    {
+        gui_mch_update_fuoptions(p_fuoptions);
     }
 #endif
 
@@ -7873,6 +7903,18 @@ set_bool_option(opt_idx, varp, value, opt_flags)
 	set_fileformat(curbuf->b_p_tx ? EOL_DOS : EOL_UNIX, opt_flags);
     }
 
+#ifdef FEAT_FULLSCREEN
+    else if ((int *)varp == &p_fullscreen && (gui.in_use || gui.starting))
+    {
+	if ( p_fullscreen && !old_value )
+	{
+	    gui_mch_enter_fullscreen();
+	} else if ( !p_fullscreen && old_value ) {
+	    gui_mch_leave_fullscreen();
+	}
+    }
+#endif
+
     /* when 'textauto' is set or reset also change 'fileformats' */
     else if ((int *)varp == &p_ta)
 	set_string_option_direct((char_u *)"ffs", -1,
@@ -7968,7 +8010,7 @@ set_bool_option(opt_idx, varp, value, opt_flags)
 	p_wiv = (*T_XS != NUL);
     }
 
-#ifdef FEAT_BEVAL
+#if defined(FEAT_BEVAL) && !defined(FEAT_GUI_QT) 
     else if ((int *)varp == &p_beval)
     {
 	if (p_beval && !old_value)
