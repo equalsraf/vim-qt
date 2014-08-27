@@ -558,6 +558,51 @@ clip_copy_selection(clip)
 }
 
 /*
+ * Save and restore clip_unnamed before doing possibly many changes. This
+ * prevents accessing the clipboard very often which might slow down Vim
+ * considerably.
+ */
+
+/*
+ * Save clip_unnamed and reset it.
+ */
+    void
+start_global_changes()
+{
+    clip_unnamed_saved = clip_unnamed;
+
+    if (clip_did_set_selection)
+    {
+	clip_unnamed = FALSE;
+	clip_did_set_selection = FALSE;
+    }
+}
+
+/*
+ * Restore clip_unnamed and set the selection when needed.
+ */
+    void
+end_global_changes()
+{
+    if (!clip_did_set_selection)
+    {
+	clip_did_set_selection = TRUE;
+	clip_unnamed = clip_unnamed_saved;
+	if (clip_unnamed & CLIP_UNNAMED)
+	{
+	    clip_own_selection(&clip_star);
+	    clip_gen_set_selection(&clip_star);
+	}
+	if (clip_unnamed & CLIP_UNNAMED_PLUS)
+	{
+	    clip_own_selection(&clip_plus);
+	    clip_gen_set_selection(&clip_plus);
+	}
+    }
+    clip_unnamed_saved = FALSE;
+}
+
+/*
  * Called when Visual mode is ended: update the selection.
  */
     void
@@ -1428,6 +1473,15 @@ clip_gen_lose_selection(cbd)
 clip_gen_set_selection(cbd)
     VimClipboard	*cbd;
 {
+    if (!clip_did_set_selection)
+    {
+	/* Updating postponed, so that accessing the system clipboard won't
+	 * hang Vim when accessing it many times (e.g. on a :g comand). */
+	if (cbd == &clip_plus && (clip_unnamed_saved & CLIP_UNNAMED_PLUS))
+	    return;
+	else if (cbd == &clip_star && (clip_unnamed_saved & CLIP_UNNAMED))
+	    return;
+    }
 #ifdef FEAT_XCLIPBOARD
 # ifdef FEAT_GUI
     if (gui.in_use)
@@ -2324,7 +2378,7 @@ clip_x11_convert_selection_cb(w, sel_atom, target, type, value, length, format)
     if (       *target != XA_STRING
 #ifdef FEAT_MBYTE
 	    && *target != vimenc_atom
-	    && *target != utf8_atom
+	    && (*target != utf8_atom || !enc_utf8)
 #endif
 	    && *target != vim_atom
 	    && *target != text_atom
@@ -2610,13 +2664,11 @@ retnomove:
 	if (on_sep_line)
 	    return IN_SEP_LINE;
 #endif
-#ifdef FEAT_VISUAL
 	if (flags & MOUSE_MAY_STOP_VIS)
 	{
 	    end_visual_mode();
 	    redraw_curbuf_later(INVERTED);	/* delete the inversion */
 	}
-#endif
 #if defined(FEAT_CMDWIN) && defined(FEAT_CLIPBOARD)
 	/* Continue a modeless selection in another window. */
 	if (cmdwin_type != 0 && row < W_WINROW(curwin))
@@ -2686,32 +2738,30 @@ retnomove:
 	}
 #endif
 
-#ifdef FEAT_VISUAL
 	/* Before jumping to another buffer, or moving the cursor for a left
 	 * click, stop Visual mode. */
 	if (VIsual_active
 		&& (wp->w_buffer != curwin->w_buffer
 		    || (!on_status_line
-# ifdef FEAT_VERTSPLIT
+#ifdef FEAT_VERTSPLIT
 			&& !on_sep_line
-# endif
-# ifdef FEAT_FOLDING
+#endif
+#ifdef FEAT_FOLDING
 			&& (
-#  ifdef FEAT_RIGHTLEFT
+# ifdef FEAT_RIGHTLEFT
 			    wp->w_p_rl ? col < W_WIDTH(wp) - wp->w_p_fdc :
-#  endif
-			    col >= wp->w_p_fdc
-#  ifdef FEAT_CMDWIN
-				  + (cmdwin_type == 0 && wp == curwin ? 0 : 1)
-#  endif
-			    )
 # endif
+			    col >= wp->w_p_fdc
+# ifdef FEAT_CMDWIN
+				  + (cmdwin_type == 0 && wp == curwin ? 0 : 1)
+# endif
+			    )
+#endif
 			&& (flags & MOUSE_MAY_STOP_VIS))))
 	{
 	    end_visual_mode();
 	    redraw_curbuf_later(INVERTED);	/* delete the inversion */
 	}
-#endif
 #ifdef FEAT_CMDWIN
 	if (cmdwin_type != 0 && wp != curwin)
 	{
@@ -2801,14 +2851,12 @@ retnomove:
 #endif
     else /* keep_window_focus must be TRUE */
     {
-#ifdef FEAT_VISUAL
 	/* before moving the cursor for a left click, stop Visual mode */
 	if (flags & MOUSE_MAY_STOP_VIS)
 	{
 	    end_visual_mode();
 	    redraw_curbuf_later(INVERTED);	/* delete the inversion */
 	}
-#endif
 
 #if defined(FEAT_CMDWIN) && defined(FEAT_CLIPBOARD)
 	/* Continue a modeless selection in another window. */
@@ -2933,7 +2981,6 @@ retnomove:
     if (mouse_comp_pos(curwin, &row, &col, &curwin->w_cursor.lnum))
 	mouse_past_bottom = TRUE;
 
-#ifdef FEAT_VISUAL
     /* Start Visual mode before coladvance(), for when 'sel' != "old" */
     if ((flags & MOUSE_MAY_VIS) && !VIsual_active)
     {
@@ -2947,7 +2994,6 @@ retnomove:
 	if (p_smd && msg_silent == 0)
 	    redraw_cmdline = TRUE;	/* show visual mode later */
     }
-#endif
 
     curwin->w_curswant = col;
     curwin->w_set_curswant = FALSE;	/* May still have been TRUE */
@@ -3170,15 +3216,15 @@ vcol2col(wp, lnum, vcol)
     /* try to advance to the specified column */
     int		count = 0;
     char_u	*ptr;
-    char_u	*start;
+    char_u	*line;
 
-    start = ptr = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    line = ptr = ml_get_buf(wp->w_buffer, lnum, FALSE);
     while (count < vcol && *ptr != NUL)
     {
-	count += win_lbr_chartabsize(wp, ptr, count, NULL);
+	count += win_lbr_chartabsize(wp, line, ptr, count, NULL);
 	mb_ptr_adv(ptr);
     }
-    return (int)(ptr - start);
+    return (int)(ptr - line);
 }
 #endif
 

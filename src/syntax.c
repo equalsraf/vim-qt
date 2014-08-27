@@ -6837,10 +6837,8 @@ static char *(highlight_init_light[]) =
 	CENT("SignColumn term=standout ctermbg=Grey ctermfg=DarkBlue",
 	     "SignColumn term=standout ctermbg=Grey ctermfg=DarkBlue guibg=Grey guifg=DarkBlue"),
 #endif
-#ifdef FEAT_VISUAL
 	CENT("Visual term=reverse",
 	     "Visual term=reverse guibg=LightGrey"),
-#endif
 #ifdef FEAT_DIFF
 	CENT("DiffAdd term=bold ctermbg=LightBlue",
 	     "DiffAdd term=bold ctermbg=LightBlue guibg=LightBlue"),
@@ -6927,10 +6925,8 @@ static char *(highlight_init_dark[]) =
 	CENT("SignColumn term=standout ctermbg=DarkGrey ctermfg=Cyan",
 	     "SignColumn term=standout ctermbg=DarkGrey ctermfg=Cyan guibg=Grey guifg=Cyan"),
 #endif
-#ifdef FEAT_VISUAL
 	CENT("Visual term=reverse",
 	     "Visual term=reverse guibg=DarkGrey"),
-#endif
 #ifdef FEAT_DIFF
 	CENT("DiffAdd term=bold ctermbg=DarkBlue",
 	     "DiffAdd term=bold ctermbg=DarkBlue guibg=DarkBlue"),
@@ -7071,7 +7067,7 @@ load_colors(name)
 	retval = source_runtime(buf, FALSE);
 	vim_free(buf);
 #ifdef FEAT_AUTOCMD
-	apply_autocmds(EVENT_COLORSCHEME, NULL, NULL, FALSE, curbuf);
+	apply_autocmds(EVENT_COLORSCHEME, name, curbuf->b_fname, FALSE, curbuf);
 #endif
     }
     recursive = FALSE;
@@ -8047,8 +8043,14 @@ hl_has_settings(idx, check_link)
 {
     return (   HL_TABLE()[idx].sg_term_attr != 0
 	    || HL_TABLE()[idx].sg_cterm_attr != 0
+	    || HL_TABLE()[idx].sg_cterm_fg != 0
+	    || HL_TABLE()[idx].sg_cterm_bg != 0
 #ifdef FEAT_GUI
 	    || HL_TABLE()[idx].sg_gui_attr != 0
+	    || HL_TABLE()[idx].sg_gui_fg_name != NULL
+	    || HL_TABLE()[idx].sg_gui_bg_name != NULL
+	    || HL_TABLE()[idx].sg_gui_sp_name != NULL
+	    || HL_TABLE()[idx].sg_font_name != NUL
 #endif
 	    || (check_link && (HL_TABLE()[idx].sg_set & SG_LINK)));
 }

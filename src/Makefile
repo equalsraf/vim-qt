@@ -546,6 +546,7 @@ CClink = $(CC)
 # again.
 #CC = cc
 #CC = gcc
+#CC = clang
 
 # COMPILER FLAGS - change as you please. Either before running {{{1
 # configure or afterwards. For examples see below.
@@ -584,6 +585,9 @@ CClink = $(CC)
 # On FreeBSD you might need to enlarge the number of mmaps allowed.  Do this
 # as root: sysctl -w vm.max_proc_mmap=30000
 #EXTRA_LIBS = /usr/local/lib/libefence.a
+
+# Autoconf binary.
+AUTOCONF = autoconf
 
 # PURIFY - remove the # to use the "purify" program (hoi Nia++!)
 #PURIFY = purify
@@ -1427,6 +1431,8 @@ BASIC_SRC = \
 	blowfish.c \
 	buffer.c \
 	charset.c \
+	crypt.c \
+	crypt_zip.c \
 	diff.c \
 	digraph.c \
 	edit.c \
@@ -1516,6 +1522,8 @@ OBJ_COMMON = \
 	objects/buffer.o \
 	objects/blowfish.o \
 	objects/charset.o \
+	objects/crypt.o \
+	objects/crypt_zip.o \
 	objects/diff.o \
 	objects/digraph.o \
 	objects/edit.o \
@@ -1585,6 +1593,8 @@ PRO_AUTO = \
 	blowfish.pro \
 	buffer.pro \
 	charset.pro \
+	crypt.pro \
+	crypt_zip.pro \
 	diff.pro \
 	digraph.pro \
 	edit.pro \
@@ -1660,13 +1670,16 @@ tools: $(TOOLS)
 # auto/config.h isn't updated.  The dependency on auto/config.mk should make
 # sure configure is run when it's needed.
 #
+# Remove the config.cache every time, once in a while it causes problems that
+# are very hard to figure out.
+#
 config auto/config.mk: auto/configure config.mk.in config.h.in
-	if test -f auto/config.cache && \
-	    grep '^ac_cv_env_CFLAGS_value=' auto/config.cache > /dev/null && \
-	    ! grep -x -F 'ac_cv_env_CFLAGS_value=$(CFLAGS)' auto/config.cache > /dev/null; then \
-		rm auto/config.cache; \
-	fi
-	GUI_INC_LOC="$(GUI_INC_LOC)" GUI_LIB_LOC="$(GUI_LIB_LOC)" \
+	-rm -f auto/config.cache
+	if test "X$(MAKECMDGOALS)" != "Xclean" \
+		-a "X$(MAKECMDGOALS)" != "Xdistclean" \
+		-a "X$(MAKECMDGOALS)" != "Xautoconf" \
+		-a "X$(MAKECMDGOALS)" != "Xreconfig"; then \
+	    GUI_INC_LOC="$(GUI_INC_LOC)" GUI_LIB_LOC="$(GUI_LIB_LOC)" \
 		CC="$(CC)" CPPFLAGS="$(CPPFLAGS)" CFLAGS="$(CFLAGS)" \
 		LDFLAGS="$(LDFLAGS)" $(CONF_SHELL) srcdir="$(srcdir)" \
 		./configure $(CONF_OPT_GUI) $(CONF_OPT_X) $(CONF_OPT_XSMP) \
@@ -1679,7 +1692,8 @@ config auto/config.mk: auto/configure config.mk.in config.h.in
 		$(CONF_OPT_COMPBY) $(CONF_OPT_ACL)  $(CONF_OPT_NETBEANS) \
 		$(CONF_ARGS) $(CONF_OPT_MZSCHEME) $(CONF_OPT_PLTHOME) \
 		$(CONF_OPT_LUA) $(CONF_OPT_LUA_PREFIX) \
-		$(CONF_OPT_SYSMOUSE)
+		$(CONF_OPT_SYSMOUSE); \
+	fi
 
 # Use "make reconfig" to rerun configure without cached values.
 # When config.h changes, most things will be recompiled automatically.
@@ -1710,7 +1724,7 @@ reconfig: scratch clean
 # - Uses ">config.log" instead of "./config.log".
 autoconf:
 	if test ! -f configure.save; then mv configure configure.save; fi
-	autoconf
+	$(AUTOCONF)
 	sed -e 's+>config.log+>auto/config.log+' -e 's+\./config.log+auto/config.log+' configure > auto/configure
 	chmod 755 auto/configure
 	mv -f configure.save configure
@@ -1745,10 +1759,11 @@ xxd/xxd$(EXEEXT): xxd/xxd.c
 languages:
 	@if test -n "$(MAKEMO)" -a -f $(PODIR)/Makefile; then \
 		cd $(PODIR); \
-		CC="$(CC)" $(MAKE) prefix=$(DESTDIR)$(prefix); \
+		  CC="$(CC)" $(MAKE) prefix=$(DESTDIR)$(prefix); \
 	fi
 	-@if test -n "$(MAKEMO)" -a -f $(PODIR)/Makefile; then \
-		cd $(PODIR); CC="$(CC)" $(MAKE) prefix=$(DESTDIR)$(prefix) converted; \
+		cd $(PODIR); \
+		  CC="$(CC)" $(MAKE) prefix=$(DESTDIR)$(prefix) converted; \
 	fi
 
 # Update the *.po files for changes in the sources.  Only run manually.
@@ -1861,7 +1876,7 @@ test check:
 	-if test $(VIMTARGET) != vim -a ! -r vim; then \
 		ln -s $(VIMTARGET) vim; \
 	fi
-	cd testdir; $(MAKE) -f Makefile $(GUI_TESTTARGET) VIMPROG=../$(VIMTARGET) $(GUI_TESTARG)
+	cd testdir; $(MAKE) -f Makefile $(GUI_TESTTARGET) VIMPROG=../$(VIMTARGET) $(GUI_TESTARG) SCRIPTSOURCE=../$(SCRIPTSOURCE)
 	$(MAKE) -f Makefile unittest
 
 unittesttargets:
@@ -1874,6 +1889,15 @@ unittest unittests: $(UNITTEST_TARGETS)
 
 # Run individual test, assuming that Vim was already compiled.
 test1 test2 test3 test4 test5 test6 test7 test8 test9 \
+	test_autoformat_join \
+	test_breakindent \
+	test_changelist \
+	test_eval \
+	test_insertcount \
+	test_listlbr \
+	test_listlbr_utf8 \
+	test_options \
+	test_qf_title \
 	test10 test11 test12 test13 test14 test15 test16 test17 test18 test19 \
 	test20 test21 test22 test23 test24 test25 test26 test27 test28 test29 \
 	test30 test31 test32 test33 test34 test35 test36 test37 test38 test39 \
@@ -1882,8 +1906,9 @@ test1 test2 test3 test4 test5 test6 test7 test8 test9 \
 	test60 test61 test62 test63 test64 test65 test66 test67 test68 test69 \
 	test70 test71 test72 test73 test74 test75 test76 test77 test78 test79 \
 	test80 test81 test82 test83 test84 test85 test86 test87 test88 test89 \
-	test90 test91 test92 test93 test94 test95 test96 test97 test98 test99:
-	cd testdir; rm $@.out; $(MAKE) -f Makefile $@.out VIMPROG=../$(VIMTARGET)
+	test90 test91 test92 test93 test94 test95 test96 test97 test98 test99 \
+	test100 test101 test102 test103 test104 test105 test106 test107:
+	cd testdir; rm $@.out; $(MAKE) -f Makefile $@.out VIMPROG=../$(VIMTARGET) $(GUI_TESTARG) SCRIPTSOURCE=../$(SCRIPTSOURCE)
 
 testclean:
 	cd testdir; $(MAKE) -f Makefile clean
@@ -2380,6 +2405,7 @@ shadow:	runtime pixmaps
 				 ../../testdir/*.in \
 				 ../../testdir/*.vim \
 				 ../../testdir/python* \
+				 ../../testdir/sautest \
 				 ../../testdir/test83-tags? \
 				 ../../testdir/*.ok .
 
@@ -2451,7 +2477,7 @@ lintinstall:
 
 auto/if_perl.c: if_perl.xs
 	$(PERL) -e 'unless ( $$] >= 5.005 ) { for (qw(na defgv errgv)) { print "#define PL_$$_ $$_\n" }}' > $@
-	$(PERL) $(PERLLIB)/ExtUtils/xsubpp -prototypes -typemap \
+	$(PERL) $(PERL_XSUBPP) -prototypes -typemap \
 	    $(PERLLIB)/ExtUtils/typemap if_perl.xs >> $@
 
 auto/osdef.h: auto/config.h osdef.sh osdef1.h.in osdef2.h.in
@@ -2492,6 +2518,12 @@ objects/buffer.o: buffer.c
 
 objects/charset.o: charset.c
 	$(CCC) -o $@ charset.c
+
+objects/crypt.o: crypt.c
+	$(CCC) -o $@ crypt.c
+
+objects/crypt_zip.o: crypt_zip.c
+	$(CCC) -o $@ crypt_zip.c
 
 objects/diff.o: diff.c
 	$(CCC) -o $@ diff.c
@@ -2842,6 +2874,14 @@ objects/charset.o: charset.c vim.h auto/config.h feature.h os_unix.h auto/osdef.
  ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
  gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
  arabic.h
+objects/crypt.o: crypt.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+ ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+ gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+ arabic.h
+objects/crypt_zip.o: crypt_zip.c vim.h auto/config.h feature.h os_unix.h \
+ auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+ regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+ globals.h farsi.h arabic.h
 objects/diff.o: diff.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
  ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
  gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \

@@ -105,10 +105,6 @@ EXTERN int	exec_from_reg INIT(= FALSE);	/* executing register */
 
 EXTERN int	screen_cleared INIT(= FALSE);	/* screen has been cleared */
 
-#ifdef FEAT_CRYPT
-EXTERN int      use_crypt_method INIT(= 0);
-#endif
-
 /*
  * When '$' is included in 'cpoptions' option set:
  * When a change command is given that deletes only part of a line, a dollar
@@ -386,6 +382,13 @@ EXTERN int	keep_filetype INIT(= FALSE);	/* value for did_filetype when
 /* When deleting the current buffer, another one must be loaded.  If we know
  * which one is preferred, au_new_curbuf is set to it */
 EXTERN buf_T	*au_new_curbuf INIT(= NULL);
+
+/* When deleting a buffer/window and autocmd_busy is TRUE, do not free the
+ * buffer/window. but link it in the list starting with
+ * au_pending_free_buf/ap_pending_free_win, using b_next/w_next.
+ * Free the buffer/window when autocmd_busy is being set to FALSE. */
+EXTERN buf_T	*au_pending_free_buf INIT(= NULL);
+EXTERN win_T	*au_pending_free_win INIT(= NULL);
 #endif
 
 #ifdef FEAT_MOUSE
@@ -526,6 +529,8 @@ EXTERN int	clip_autoselect_plus INIT(= FALSE);
 EXTERN int	clip_autoselectml INIT(= FALSE);
 EXTERN int	clip_html INIT(= FALSE);
 EXTERN regprog_T *clip_exclude_prog INIT(= NULL);
+EXTERN int	clip_did_set_selection INIT(= TRUE);
+EXTERN int	clip_unnamed_saved INIT(= 0);
 #endif
 
 /*
@@ -596,6 +601,7 @@ EXTERN int	mf_dont_release INIT(= FALSE);	/* don't release blocks */
  * to this when the window is using the global argument list.
  */
 EXTERN alist_T	global_alist;	/* global argument list */
+EXTERN int	max_alist_id INIT(= 0);	    /* the previous argument list id */
 EXTERN int	arg_had_last INIT(= FALSE); /* accessed last file in
 					       global_alist */
 
@@ -662,7 +668,6 @@ EXTERN int	silent_mode INIT(= FALSE);
 				/* set to TRUE when "-s" commandline argument
 				 * used for ex */
 
-#ifdef FEAT_VISUAL
 EXTERN pos_T	VIsual;		/* start position of active Visual selection */
 EXTERN int	VIsual_active INIT(= FALSE);
 				/* whether Visual mode is active */
@@ -677,7 +682,6 @@ EXTERN int	VIsual_mode INIT(= 'v');
 
 EXTERN int	redo_VIsual_busy INIT(= FALSE);
 				/* TRUE when redoing Visual */
-#endif
 
 #ifdef FEAT_MOUSE
 /*
@@ -752,6 +756,12 @@ EXTERN pos_T	saved_cursor		/* w_cursor before formatting text. */
  */
 EXTERN pos_T	Insstart;		/* This is where the latest
 					 * insert/append mode started. */
+
+/* This is where the latest insert/append mode started. In contrast to
+ * Insstart, this won't be reset by certain keys and is needed for
+ * op_insert(), to detect correctly where inserting by the user started. */
+EXTERN pos_T	Insstart_orig;
+
 #ifdef FEAT_VREPLACE
 /*
  * Stuff for VREPLACE mode.
@@ -979,11 +989,6 @@ EXTERN int	RedrawingDisabled INIT(= 0);
 EXTERN int	readonlymode INIT(= FALSE); /* Set to TRUE for "view" */
 EXTERN int	recoverymode INIT(= FALSE); /* Set to TRUE for "-r" option */
 
-EXTERN struct buffheader stuffbuff	/* stuff buffer */
-#ifdef DO_INIT
-		    = {{NULL, {NUL}}, NULL, 0, 0}
-#endif
-		    ;
 EXTERN typebuf_T typebuf		/* typeahead buffer */
 #ifdef DO_INIT
 		    = {NULL, NULL, 0, 0, 0, 0, 0, 0, 0}
@@ -1177,11 +1182,9 @@ EXTERN int	fill_fold INIT(= '-');
 EXTERN int	fill_diff INIT(= '-');
 #endif
 
-#ifdef FEAT_VISUAL
 /* Whether 'keymodel' contains "stopsel" and "startsel". */
 EXTERN int	km_stopsel INIT(= FALSE);
 EXTERN int	km_startsel INIT(= FALSE);
-#endif
 
 #ifdef FEAT_CMDWIN
 EXTERN int	cedit_key INIT(= -1);	/* key value of 'cedit' option */
@@ -1490,6 +1493,7 @@ EXTERN char_u e_notmp[]		INIT(= N_("E483: Can't get temp file name"));
 EXTERN char_u e_notopen[]	INIT(= N_("E484: Can't open file %s"));
 EXTERN char_u e_notread[]	INIT(= N_("E485: Can't read file %s"));
 EXTERN char_u e_nowrtmsg[]	INIT(= N_("E37: No write since last change (add ! to override)"));
+EXTERN char_u e_nowrtmsg_nobang[]   INIT(= N_("E37: No write since last change"));
 EXTERN char_u e_null[]		INIT(= N_("E38: Null argument"));
 #ifdef FEAT_DIGRAPHS
 EXTERN char_u e_number_exp[]	INIT(= N_("E39: Number expected"));

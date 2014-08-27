@@ -3,6 +3,7 @@
 
 # source files for all source archives
 SRC_ALL =	\
+		.hgignore \
 		src/README.txt \
 		src/arabic.c \
 		src/arabic.h \
@@ -10,6 +11,8 @@ SRC_ALL =	\
 		src/blowfish.c \
 		src/buffer.c \
 		src/charset.c \
+		src/crypt.c \
+		src/crypt_zip.c \
 		src/diff.c \
 		src/digraph.c \
 		src/edit.c \
@@ -80,10 +83,15 @@ SRC_ALL =	\
 		src/main.aap \
 		src/testdir/main.aap \
 		src/testdir/*.in \
+		src/testdir/sautest/autoload/*.vim \
 		src/testdir/test[0-9]*.ok \
+		src/testdir/test[0-9]*a.ok \
+		src/testdir/test_[a-z]*.ok \
 		src/testdir/test49.vim \
 		src/testdir/test60.vim \
 		src/testdir/test83-tags? \
+		src/testdir/test77a.com \
+		src/testdir/test_*.vim \
 		src/testdir/python2/*.py \
 		src/testdir/python3/*.py \
 		src/testdir/pythonx/*.py \
@@ -97,6 +105,8 @@ SRC_ALL =	\
 		src/proto/blowfish.pro \
 		src/proto/buffer.pro \
 		src/proto/charset.pro \
+		src/proto/crypt.pro \
+		src/proto/crypt_zip.pro \
 		src/proto/diff.pro \
 		src/proto/digraph.pro \
 		src/proto/edit.pro \
@@ -283,6 +293,8 @@ SRC_DOS =	\
 		src/dosinst.h \
 		src/glbl_ime.cpp \
 		src/glbl_ime.h \
+		src/gui_dwrite.cpp \
+		src/gui_dwrite.h \
 		src/gui_w16.c \
 		src/gui_w32.c \
 		src/gui_w48.c \

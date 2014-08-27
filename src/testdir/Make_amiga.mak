@@ -33,7 +33,19 @@ SCRIPTS = test1.out test3.out test4.out test5.out test6.out \
 		test76.out test77.out test78.out test79.out test80.out \
 		test81.out test82.out test83.out test84.out test88.out \
 		test89.out test90.out test91.out test92.out test93.out \
-		test94.out test95.out test96.out test97.out test98.out
+		test94.out test95.out test96.out test97.out test98.out \
+		test99.out test100.out test101.out test102.out test103.out \
+		test104.out test105.out test106.out test107.out \
+		test_autoformat_join.out \
+		test_breakindent.out \
+		test_changelist.out \
+		test_eval.out \
+		test_insertcount.out \
+		test_listlbr.out \
+		test_listlbr_utf8.out \
+		test_options.out \
+		test_qf_title.out \
+		test_utf8.out
 
 .SUFFIXES: .in .out
 
@@ -148,3 +160,22 @@ test95.out: test95.in
 test96.out: test96.in
 test97.out: test97.in
 test98.out: test98.in
+test99.out: test99.in
+test100.out: test100.in
+test101.out: test101.in
+test102.out: test102.in
+test103.out: test103.in
+test104.out: test104.in
+test105.out: test105.in
+test106.out: test106.in
+test107.out: test107.in
+test_autoformat_join.out: test_autoformat_join.in
+test_breakindent.out: test_breakindent.in
+test_changelist.out: test_changelist.in
+test_eval.out: test_eval.in
+test_insertcount.out: test_insertcount.in
+test_listlbr.out: test_listlbr.in
+test_listlbr_utf8.out: test_listlbr_utf8.in
+test_options.out: test_options.in
+test_qf_title.out: test_qf_title.in
+test_utf8.out: test_utf8.in

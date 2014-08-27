@@ -282,6 +282,13 @@ let l = [0, 1, 2, 3]
 :    $put =ps
 :  endfor
 :endfor
+:" :lockvar/islocked() triggering script autoloading
+:set rtp+=./sautest
+:lockvar g:footest#x
+:unlockvar g:footest#x
+:$put ='locked g:footest#x:'.islocked('g:footest#x')
+:$put ='exists g:footest#x:'.exists('g:footest#x')
+:$put ='g:footest#x: '.g:footest#x
 :"
 :" a:000 function argument
 :" first the tests that should fail
@@ -316,13 +323,21 @@ let l = [0, 1, 2, 3]
 :  $put ='caught ' . v:exception
 :endtry
 :"
-:" reverse() and sort()
-:let l = ['-0', 'A11', 2, 'xaaa', 4, 'foo', 'foo6', [0, 1, 2], 'x8']
+:" reverse(), sort(), uniq()
+:let l = ['-0', 'A11', 2, 2, 'xaaa', 4, 'foo', 'foo6', 'foo', [0, 1, 2], 'x8', [0, 1, 2], 1.5]
+:$put =string(uniq(copy(l)))
 :$put =string(reverse(l))
 :$put =string(reverse(reverse(l)))
 :$put =string(sort(l))
 :$put =string(reverse(sort(l)))
 :$put =string(sort(reverse(sort(l))))
+:$put =string(uniq(sort(l)))
+:let l=[7, 9, 'one', 18, 12, 22, 'two', 10.0e-16, -1, 'three', 0xff, 0.22, 'four']
+:$put =string(sort(copy(l), 'n'))
+:let l=[7, 9, 18, 12, 22, 10.0e-16, -1, 0xff, 0, -0, 0.22, 'bar', 'BAR', 'Bar', 'Foo', 'FOO', 'foo', 'FOOBAR', {}, []]
+:$put =string(sort(copy(l), 1))
+:$put =string(sort(copy(l), 'i'))
+:$put =string(sort(copy(l)))
 :"
 :" splitting a string to a List
 :$put =string(split('  aa  bb '))

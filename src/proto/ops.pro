@@ -37,7 +37,7 @@ void adjust_cursor_eol __ARGS((void));
 int preprocs_left __ARGS((void));
 int get_register_name __ARGS((int num));
 void ex_display __ARGS((exarg_T *eap));
-int do_join __ARGS((long count, int insert_space, int save_undo, int use_formatoptions));
+int do_join __ARGS((long count, int insert_space, int save_undo, int use_formatoptions, int setmark));
 void op_format __ARGS((oparg_T *oap, int keep_cursor));
 void op_formatexpr __ARGS((oparg_T *oap));
 int fex_format __ARGS((linenr_T lnum, long count, int c));
@@ -53,9 +53,10 @@ void clip_yank_selection __ARGS((int type, char_u *str, long len, VimClipboard *
 int clip_convert_selection __ARGS((char_u **str, long_u *len, VimClipboard *cbd));
 void dnd_yank_drag_data __ARGS((char_u *str, long len));
 char_u get_reg_type __ARGS((int regname, long *reglen));
-char_u *get_reg_contents __ARGS((int regname, int allowexpr, int expr_src));
+char_u *get_reg_contents __ARGS((int regname, int flags));
 void write_reg_contents __ARGS((int name, char_u *str, int maxlen, int must_append));
 void write_reg_contents_ex __ARGS((int name, char_u *str, int maxlen, int must_append, int yank_type, long block_len));
+void write_reg_contents_lst __ARGS((int name, char_u **strings, int maxlen, int must_append, int yank_type, long block_len));
 void clear_oparg __ARGS((oparg_T *oap));
 void cursor_pos_info __ARGS((void));
 /* vim: set ft=c : */

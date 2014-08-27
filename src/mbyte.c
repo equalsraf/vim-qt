@@ -83,10 +83,18 @@
 # ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
 # endif
-# include <windows.h>
+# if defined(FEAT_GUI) || defined(FEAT_XCLIPBOARD)
+#  include <X11/Xwindows.h>
+#  define WINBYTE wBYTE
+# else
+#  include <windows.h>
+#  define WINBYTE BYTE
+# endif
 # ifdef WIN32
 #  undef WIN32	    /* Some windows.h define WIN32, we don't want that here. */
 # endif
+#else
+# define WINBYTE BYTE
 #endif
 
 #if (defined(WIN3264) || defined(WIN32UNIX)) && !defined(__MINGW32__)
@@ -698,9 +706,9 @@ codepage_invalid:
 	    /* enc_dbcs is set by setting 'fileencoding'.  It becomes a Windows
 	     * CodePage identifier, which we can pass directly in to Windows
 	     * API */
-	    n = IsDBCSLeadByteEx(enc_dbcs, (BYTE)i) ? 2 : 1;
+	    n = IsDBCSLeadByteEx(enc_dbcs, (WINBYTE)i) ? 2 : 1;
 #else
-# if defined(MACOS) || defined(__amigaos4__)
+# if defined(MACOS) || defined(__amigaos4__) || defined(__ANDROID__)
 	    /*
 	     * if mblen() is not available, character which MSB is turned on
 	     * are treated as leading byte character. (note : This assumption
@@ -947,8 +955,8 @@ dbcs_class(lead, trail)
 		{
 		    case 0x2121: /* ZENKAKU space */
 			return 0;
-		    case 0x2122: /* KU-TEN (Japanese comma) */
-		    case 0x2123: /* TOU-TEN (Japanese period) */
+		    case 0x2122: /* TOU-TEN (Japanese comma) */
+		    case 0x2123: /* KU-TEN (Japanese period) */
 		    case 0x2124: /* ZENKAKU comma */
 		    case 0x2125: /* ZENKAKU period */
 			return 1;
@@ -2477,9 +2485,9 @@ utf_class(c)
     /* sorted list of non-overlapping intervals */
     static struct clinterval
     {
-	unsigned short first;
-	unsigned short last;
-	unsigned short class;
+	unsigned int first;
+	unsigned int last;
+	unsigned int class;
     } classes[] =
     {
 	{0x037e, 0x037e, 1},		/* Greek question mark */
@@ -2544,6 +2552,10 @@ utf_class(c)
 	{0xff1a, 0xff20, 1},		/* half/fullwidth ASCII */
 	{0xff3b, 0xff40, 1},		/* half/fullwidth ASCII */
 	{0xff5b, 0xff65, 1},		/* half/fullwidth ASCII */
+	{0x20000, 0x2a6df, 0x4e00},	/* CJK Ideographs */
+	{0x2a700, 0x2b73f, 0x4e00},	/* CJK Ideographs */
+	{0x2b740, 0x2b81f, 0x4e00},	/* CJK Ideographs */
+	{0x2f800, 0x2fa1f, 0x4e00},	/* CJK Ideographs */
     };
     int bot = 0;
     int top = sizeof(classes) / sizeof(struct clinterval) - 1;
@@ -2563,9 +2575,9 @@ utf_class(c)
     while (top >= bot)
     {
 	mid = (bot + top) / 2;
-	if (classes[mid].last < c)
+	if (classes[mid].last < (unsigned int)c)
 	    bot = mid + 1;
-	else if (classes[mid].first > c)
+	else if (classes[mid].first > (unsigned int)c)
 	    top = mid - 1;
 	else
 	    return (int)classes[mid].class;

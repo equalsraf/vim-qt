@@ -622,6 +622,7 @@ diff_redraw(dofold)
 		    wp->w_topfill = (n < 0 ? 0 : n);
 		else if (n > 0 && n > wp->w_topfill)
 		    wp->w_topfill = n;
+		check_topfill(wp, FALSE);
 	    }
 	}
 }
@@ -1203,7 +1204,7 @@ ex_diffoff(eap)
 
     for (wp = firstwin; wp != NULL; wp = wp->w_next)
     {
-	if (wp == curwin || (eap->forceit && wp->w_p_diff))
+	if (eap->forceit ? wp->w_p_diff : wp == curwin)
 	{
 	    /* Set 'diff', 'scrollbind' off and 'wrap' on. If option values
 	     * were saved in diff_win_options() restore them. */

@@ -1,4 +1,4 @@
-*version7.txt*  For Vim version 7.4.  Last change: 2013 Aug 10
+*version7.txt*  For Vim version 7.4.  Last change: 2013 Nov 18
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -942,6 +942,7 @@ New and extended functions: ~
 |tagfiles()|		List with tags file names
 |taglist()|		get list of matching tags (Yegappan Lakshmanan)
 |tr()|			translate characters (Ron Aaron)
+|uniq()|		remove copies of repeated adjacent list items
 |values()|		get List of Dictionary values
 |winnr()|		takes an argument: what window to use
 |winrestview()|		restore the view of the current window
@@ -2395,7 +2396,7 @@ with special attributes were redrawn.  Now only do this for characters that
 actually are bold.  Speeds up displaying considerably.
 
 When only highlighting changes and the text is scrolled at the same time
-everything is redraw instead of using a scroll and updating the changed text.
+everything is redrawn instead of using a scroll and updating the changed text.
 E.g., when using ":match" to highlight a paren that the cursor landed on.
 Added SOME_VALID: Redraw the whole window but also try to scroll to minimize
 redrawing.
@@ -7188,7 +7189,7 @@ More encryption					*new-more-encryption*
 ---------------
 
 Support for Blowfish encryption.  Added the 'cryptmethod' option.
-Mostly by Moshin Ahmed.
+Mostly by Mohsin Ahmed.
 
 Also encrypt the text in the swap file and the undo file.
 
@@ -10293,7 +10294,7 @@ Functions:
 	Added special |expand()| argument that expands to the current line 
 	number.
 
-	Made it possible to force |char2nr()| always give unicode codepoints 
+	Made it possible to force |char2nr()| to always give unicode codepoints 
 	regardless of current encoding. (Yasuhiro Matsumoto)
 
 	Made it possible for functions generating file list generate |List| 

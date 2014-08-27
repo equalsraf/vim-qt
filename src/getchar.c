@@ -40,13 +40,13 @@
 
 #define MINIMAL_SIZE 20			/* minimal size for b_str */
 
-static struct buffheader redobuff = {{NULL, {NUL}}, NULL, 0, 0};
-static struct buffheader old_redobuff = {{NULL, {NUL}}, NULL, 0, 0};
+static buffheader_T redobuff = {{NULL, {NUL}}, NULL, 0, 0};
+static buffheader_T old_redobuff = {{NULL, {NUL}}, NULL, 0, 0};
 #if defined(FEAT_AUTOCMD) || defined(FEAT_EVAL) || defined(PROTO)
-static struct buffheader save_redobuff = {{NULL, {NUL}}, NULL, 0, 0};
-static struct buffheader save_old_redobuff = {{NULL, {NUL}}, NULL, 0, 0};
+static buffheader_T save_redobuff = {{NULL, {NUL}}, NULL, 0, 0};
+static buffheader_T save_old_redobuff = {{NULL, {NUL}}, NULL, 0, 0};
 #endif
-static struct buffheader recordbuff = {{NULL, {NUL}}, NULL, 0, 0};
+static buffheader_T recordbuff = {{NULL, {NUL}}, NULL, 0, 0};
 
 static int typeahead_char = 0;		/* typeahead char that's not flushed */
 
@@ -112,11 +112,12 @@ static char_u	noremapbuf_init[TYPELEN_INIT];	/* initial typebuf.tb_noremap */
 
 static int	last_recorded_len = 0;	/* number of last recorded chars */
 
-static char_u	*get_buffcont __ARGS((struct buffheader *, int));
-static void	add_buff __ARGS((struct buffheader *, char_u *, long n));
-static void	add_num_buff __ARGS((struct buffheader *, long));
-static void	add_char_buff __ARGS((struct buffheader *, int));
-static int	read_stuff __ARGS((int advance));
+static char_u	*get_buffcont __ARGS((buffheader_T *, int));
+static void	add_buff __ARGS((buffheader_T *, char_u *, long n));
+static void	add_num_buff __ARGS((buffheader_T *, long));
+static void	add_char_buff __ARGS((buffheader_T *, int));
+static int	read_readbuffers __ARGS((int advance));
+static int	read_readbuf __ARGS((buffheader_T *buf, int advance));
 static void	start_stuff __ARGS((void));
 static int	read_redo __ARGS((int, int));
 static void	copy_redo __ARGS((int));
@@ -137,9 +138,9 @@ static char_u	*eval_map_expr __ARGS((char_u *str, int c));
  */
     void
 free_buff(buf)
-    struct buffheader	*buf;
+    buffheader_T	*buf;
 {
-    struct buffblock	*p, *np;
+    buffblock_T	*p, *np;
 
     for (p = buf->bh_first.b_next; p != NULL; p = np)
     {
@@ -155,14 +156,14 @@ free_buff(buf)
  */
     static char_u *
 get_buffcont(buffer, dozero)
-    struct buffheader	*buffer;
+    buffheader_T	*buffer;
     int			dozero;	    /* count == zero is not an error */
 {
     long_u	    count = 0;
     char_u	    *p = NULL;
     char_u	    *p2;
     char_u	    *str;
-    struct buffblock *bp;
+    buffblock_T *bp;
 
     /* compute the total length of the string */
     for (bp = buffer->bh_first.b_next; bp != NULL; bp = bp->b_next)
@@ -230,11 +231,11 @@ get_inserted()
  */
     static void
 add_buff(buf, s, slen)
-    struct buffheader	*buf;
+    buffheader_T	*buf;
     char_u		*s;
     long		slen;	/* length of "s" or -1 */
 {
-    struct buffblock *p;
+    buffblock_T *p;
     long_u	    len;
 
     if (slen < 0)
@@ -270,7 +271,7 @@ add_buff(buf, s, slen)
 	    len = MINIMAL_SIZE;
 	else
 	    len = slen;
-	p = (struct buffblock *)lalloc((long_u)(sizeof(struct buffblock) + len),
+	p = (buffblock_T *)lalloc((long_u)(sizeof(buffblock_T) + len),
 									TRUE);
 	if (p == NULL)
 	    return; /* no space, just forget it */
@@ -289,7 +290,7 @@ add_buff(buf, s, slen)
  */
     static void
 add_num_buff(buf, n)
-    struct buffheader *buf;
+    buffheader_T *buf;
     long	      n;
 {
     char_u	number[32];
@@ -304,7 +305,7 @@ add_num_buff(buf, n)
  */
     static void
 add_char_buff(buf, c)
-    struct buffheader	*buf;
+    buffheader_T	*buf;
     int			c;
 {
 #ifdef FEAT_MBYTE
@@ -354,46 +355,71 @@ add_char_buff(buf, c)
 #endif
 }
 
+/* First read ahead buffer. Used for translated commands. */
+static buffheader_T readbuf1 = {{NULL, {NUL}}, NULL, 0, 0};
+
+/* Second read ahead buffer. Used for redo. */
+static buffheader_T readbuf2 = {{NULL, {NUL}}, NULL, 0, 0};
+
 /*
- * Get one byte from the stuff buffer.
+ * Get one byte from the read buffers.  Use readbuf1 one first, use readbuf2
+ * if that one is empty.
  * If advance == TRUE go to the next char.
  * No translation is done K_SPECIAL and CSI are escaped.
  */
     static int
-read_stuff(advance)
+read_readbuffers(advance)
     int		advance;
 {
-    char_u		c;
-    struct buffblock	*curr;
+    int c;
 
-    if (stuffbuff.bh_first.b_next == NULL)  /* buffer is empty */
+    c = read_readbuf(&readbuf1, advance);
+    if (c == NUL)
+	c = read_readbuf(&readbuf2, advance);
+    return c;
+}
+
+    static int
+read_readbuf(buf, advance)
+    buffheader_T    *buf;
+    int		    advance;
+{
+    char_u	c;
+    buffblock_T	*curr;
+
+    if (buf->bh_first.b_next == NULL)  /* buffer is empty */
 	return NUL;
 
-    curr = stuffbuff.bh_first.b_next;
-    c = curr->b_str[stuffbuff.bh_index];
+    curr = buf->bh_first.b_next;
+    c = curr->b_str[buf->bh_index];
 
     if (advance)
     {
-	if (curr->b_str[++stuffbuff.bh_index] == NUL)
+	if (curr->b_str[++buf->bh_index] == NUL)
 	{
-	    stuffbuff.bh_first.b_next = curr->b_next;
+	    buf->bh_first.b_next = curr->b_next;
 	    vim_free(curr);
-	    stuffbuff.bh_index = 0;
+	    buf->bh_index = 0;
 	}
     }
     return c;
 }
 
 /*
- * Prepare the stuff buffer for reading (if it contains something).
+ * Prepare the read buffers for reading (if they contain something).
  */
     static void
 start_stuff()
 {
-    if (stuffbuff.bh_first.b_next != NULL)
+    if (readbuf1.bh_first.b_next != NULL)
     {
-	stuffbuff.bh_curr = &(stuffbuff.bh_first);
-	stuffbuff.bh_space = 0;
+	readbuf1.bh_curr = &(readbuf1.bh_first);
+	readbuf1.bh_space = 0;
+    }
+    if (readbuf2.bh_first.b_next != NULL)
+    {
+	readbuf2.bh_curr = &(readbuf2.bh_first);
+	readbuf2.bh_space = 0;
     }
 }
 
@@ -403,7 +429,18 @@ start_stuff()
     int
 stuff_empty()
 {
-    return (stuffbuff.bh_first.b_next == NULL);
+    return (readbuf1.bh_first.b_next == NULL
+	 && readbuf2.bh_first.b_next == NULL);
+}
+
+/*
+ * Return TRUE if readbuf1 is empty.  There may still be redo characters in
+ * redbuf2.
+ */
+    int
+readbuf1_empty()
+{
+    return (readbuf1.bh_first.b_next == NULL);
 }
 
 /*
@@ -428,7 +465,7 @@ flush_buffers(flush_typeahead)
     init_typebuf();
 
     start_stuff();
-    while (read_stuff(TRUE) != NUL)
+    while (read_readbuffers(TRUE) != NUL)
 	;
 
     if (flush_typeahead)	    /* remove all typeahead */
@@ -483,7 +520,7 @@ CancelRedo()
 	redobuff = old_redobuff;
 	old_redobuff.bh_first.b_next = NULL;
 	start_stuff();
-	while (read_stuff(TRUE) != NUL)
+	while (read_readbuffers(TRUE) != NUL)
 	    ;
     }
 }
@@ -638,7 +675,18 @@ AppendNumberToRedobuff(n)
 stuffReadbuff(s)
     char_u	*s;
 {
-    add_buff(&stuffbuff, s, -1L);
+    add_buff(&readbuf1, s, -1L);
+}
+
+/*
+ * Append string "s" to the redo stuff buffer.
+ * CSI and K_SPECIAL must already have been escaped.
+ */
+    void
+stuffRedoReadbuff(s)
+    char_u	*s;
+{
+    add_buff(&readbuf2, s, -1L);
 }
 
     void
@@ -646,7 +694,7 @@ stuffReadbuffLen(s, len)
     char_u	*s;
     long	len;
 {
-    add_buff(&stuffbuff, s, len);
+    add_buff(&readbuf1, s, len);
 }
 
 #if defined(FEAT_EVAL) || defined(PROTO)
@@ -692,7 +740,7 @@ stuffReadbuffSpec(s)
 stuffcharReadbuff(c)
     int		   c;
 {
-    add_char_buff(&stuffbuff, c);
+    add_char_buff(&readbuf1, c);
 }
 
 /*
@@ -702,7 +750,7 @@ stuffcharReadbuff(c)
 stuffnumReadbuff(n)
     long    n;
 {
-    add_num_buff(&stuffbuff, n);
+    add_num_buff(&readbuf1, n);
 }
 
 /*
@@ -718,13 +766,13 @@ read_redo(init, old_redo)
     int		init;
     int		old_redo;
 {
-    static struct buffblock	*bp;
-    static char_u		*p;
-    int				c;
+    static buffblock_T	*bp;
+    static char_u	*p;
+    int			c;
 #ifdef FEAT_MBYTE
-    int				n;
-    char_u			buf[MB_MAXBYTES + 1];
-    int				i;
+    int			n;
+    char_u		buf[MB_MAXBYTES + 1];
+    int			i;
 #endif
 
     if (init)
@@ -795,11 +843,11 @@ copy_redo(old_redo)
     int	    c;
 
     while ((c = read_redo(FALSE, old_redo)) != NUL)
-	stuffcharReadbuff(c);
+	add_char_buff(&readbuf2, c);
 }
 
 /*
- * Stuff the redo buffer into the stuffbuff.
+ * Stuff the redo buffer into readbuf2.
  * Insert the redo count into the command.
  * If "old_redo" is TRUE, the last but one command is repeated
  * instead of the last command (inserting text). This is used for
@@ -823,17 +871,16 @@ start_redo(count, old_redo)
     /* copy the buffer name, if present */
     if (c == '"')
     {
-	add_buff(&stuffbuff, (char_u *)"\"", 1L);
+	add_buff(&readbuf2, (char_u *)"\"", 1L);
 	c = read_redo(FALSE, old_redo);
 
 	/* if a numbered buffer is used, increment the number */
 	if (c >= '1' && c < '9')
 	    ++c;
-	add_char_buff(&stuffbuff, c);
+	add_char_buff(&readbuf2, c);
 	c = read_redo(FALSE, old_redo);
     }
 
-#ifdef FEAT_VISUAL
     if (c == 'v')   /* redo Visual */
     {
 	VIsual = curwin->w_cursor;
@@ -843,25 +890,24 @@ start_redo(count, old_redo)
 	redo_VIsual_busy = TRUE;
 	c = read_redo(FALSE, old_redo);
     }
-#endif
 
     /* try to enter the count (in place of a previous count) */
     if (count)
     {
 	while (VIM_ISDIGIT(c))	/* skip "old" count */
 	    c = read_redo(FALSE, old_redo);
-	add_num_buff(&stuffbuff, count);
+	add_num_buff(&readbuf2, count);
     }
 
     /* copy from the redo buffer into the stuff buffer */
-    add_char_buff(&stuffbuff, c);
+    add_char_buff(&readbuf2, c);
     copy_redo(old_redo);
     return OK;
 }
 
 /*
  * Repeat the last insert (R, o, O, a, A, i or I command) by stuffing
- * the redo buffer into the stuffbuff.
+ * the redo buffer into readbuf2.
  * return FAIL for failure, OK otherwise
  */
     int
@@ -879,7 +925,7 @@ start_redo_ins()
 	if (vim_strchr((char_u *)"AaIiRrOo", c) != NULL)
 	{
 	    if (c == 'O' || c == 'o')
-		stuffReadbuff(NL_STR);
+		add_buff(&readbuf2, NL_STR, -1L);
 	    break;
 	}
     }
@@ -1125,7 +1171,6 @@ typebuf_typed()
     return typebuf.tb_maplen == 0;
 }
 
-#if defined(FEAT_VISUAL) || defined(PROTO)
 /*
  * Return the number of characters that are mapped (or not typed).
  */
@@ -1134,7 +1179,6 @@ typebuf_maplen()
 {
     return typebuf.tb_maplen;
 }
-#endif
 
 /*
  * remove "len" characters from typebuf.tb_buf[typebuf.tb_off + offset]
@@ -1360,8 +1404,10 @@ save_typeahead(tp)
     tp->old_mod_mask = old_mod_mask;
     old_char = -1;
 
-    tp->save_stuffbuff = stuffbuff;
-    stuffbuff.bh_first.b_next = NULL;
+    tp->save_readbuf1 = readbuf1;
+    readbuf1.bh_first.b_next = NULL;
+    tp->save_readbuf2 = readbuf2;
+    readbuf2.bh_first.b_next = NULL;
 # ifdef USE_INPUT_BUF
     tp->save_inputbuf = get_input_buf();
 # endif
@@ -1384,8 +1430,10 @@ restore_typeahead(tp)
     old_char = tp->old_char;
     old_mod_mask = tp->old_mod_mask;
 
-    free_buff(&stuffbuff);
-    stuffbuff = tp->save_stuffbuff;
+    free_buff(&readbuf1);
+    readbuf1 = tp->save_readbuf1;
+    free_buff(&readbuf2);
+    readbuf2 = tp->save_readbuf2;
 # ifdef USE_INPUT_BUF
     set_input_buf(tp->save_inputbuf);
 # endif
@@ -1846,7 +1894,7 @@ vpeekc_nomap()
 }
 #endif
 
-#if defined(FEAT_INS_EXPAND) || defined(PROTO)
+#if defined(FEAT_INS_EXPAND) || defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Check if any character is available, also half an escape sequence.
  * Trick: when no typeahead found, but there is something in the typeahead
@@ -1992,7 +2040,7 @@ vgetorpeek(advance)
 		typeahead_char = 0;
 	}
 	else
-	    c = read_stuff(advance);
+	    c = read_readbuffers(advance);
 	if (c != NUL && !got_int)
 	{
 	    if (advance)
@@ -2165,10 +2213,16 @@ vgetorpeek(advance)
 #ifdef FEAT_MBYTE
 				/* Don't allow mapping the first byte(s) of a
 				 * multi-byte char.  Happens when mapping
-				 * <M-a> and then changing 'encoding'. */
-				if (has_mbyte && MB_BYTE2LEN(c1)
-						  > (*mb_ptr2len)(mp->m_keys))
-				    mlen = 0;
+				 * <M-a> and then changing 'encoding'. Beware
+				 * that 0x80 is escaped. */
+				{
+				    char_u *p1 = mp->m_keys;
+				    char_u *p2 = mb_unescape(&p1);
+
+				    if (has_mbyte && p2 != NULL
+					  && MB_BYTE2LEN(c1) > MB_PTR2LEN(p2))
+					mlen = 0;
+				}
 #endif
 				/*
 				 * Check an entry whether it matches.
@@ -2261,6 +2315,10 @@ vgetorpeek(advance)
 				msg_row = Rows - 1;
 				msg_clr_eos();		/* clear ruler */
 			    }
+#ifdef FEAT_WINDOWS
+			    status_redraw_all();
+			    redraw_statuslines();
+#endif
 			    showmode();
 			    setcursor();
 			    continue;
@@ -2392,7 +2450,6 @@ vgetorpeek(advance)
 				idx = get_menu_index(current_menu, local_State);
 				if (idx != MENU_INDEX_INVALID)
 				{
-# ifdef FEAT_VISUAL
 				    /*
 				     * In Select mode and a Visual mode menu
 				     * is used:  Switch to Visual mode
@@ -2406,7 +2463,6 @@ vgetorpeek(advance)
 					(void)ins_typebuf(K_SELECT_STRING,
 						  REMAP_NONE, 0, TRUE, FALSE);
 				    }
-# endif
 				    ins_typebuf(current_menu->strings[idx],
 						current_menu->noremap[idx],
 						0, TRUE,
@@ -2465,7 +2521,6 @@ vgetorpeek(advance)
 			    break;
 			}
 
-#ifdef FEAT_VISUAL
 			/*
 			 * In Select mode and a Visual mode mapping is used:
 			 * Switch to Visual mode temporarily.  Append K_SELECT
@@ -2478,7 +2533,6 @@ vgetorpeek(advance)
 			    (void)ins_typebuf(K_SELECT_STRING, REMAP_NONE,
 							      0, TRUE, FALSE);
 			}
-#endif
 
 #ifdef FEAT_EVAL
 			/* Copy the values from *mp that are used, because
@@ -2632,7 +2686,7 @@ vgetorpeek(advance)
 				{
 				    if (!vim_iswhite(ptr[col]))
 					curwin->w_wcol = vcol;
-				    vcol += lbr_chartabsize(ptr + col,
+				    vcol += lbr_chartabsize(ptr, ptr + col,
 							       (colnr_T)vcol);
 #ifdef FEAT_MBYTE
 				    if (has_mbyte)
@@ -2688,6 +2742,11 @@ vgetorpeek(advance)
 		}
 		if (c < 0)
 		    continue;	/* end of input script reached */
+
+		/* Allow mapping for just typed characters. When we get here c
+		 * is the number of extra bytes and typebuf.tb_len is 1. */
+		for (n = 1; n <= c; ++n)
+		    typebuf.tb_noremap[typebuf.tb_off + n] = RM_YES;
 		typebuf.tb_len += c;
 
 		/* buffer full, don't map */

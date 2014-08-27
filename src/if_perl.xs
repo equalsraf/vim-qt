@@ -14,7 +14,8 @@
 #define IN_PERL_FILE	/* don't include if_perl.pro from proto.h */
 
 /*
- * Currently 32-bit version of ActivePerl is built with VC6.
+ * Currently 32-bit version of ActivePerl is built with VC6 (or MinGW since
+ * ActivePerl 5.18).
  * (http://community.activestate.com/faq/windows-compilers-perl-modules)
  * It means that time_t should be 32-bit. However the default size of
  * time_t is 64-bit since VC8. So we have to define _USE_32BIT_TIME_T.
@@ -23,7 +24,30 @@
 # define _USE_32BIT_TIME_T
 #endif
 
+/*
+ * Prevent including winsock.h.  perl.h tries to detect whether winsock.h is
+ * already included before including winsock2.h, because winsock2.h isn't
+ * compatible with winsock.h.  However the detection doesn't work with some
+ * versions of MinGW.  If WIN32_LEAN_AND_MEAN is defined, windows.h will not
+ * include winsock.h.
+ */
+#ifdef WIN32
+# define WIN32_LEAN_AND_MEAN
+#endif
+
 #include "vim.h"
+
+/* Work around for perl-5.18.
+ * Don't include "perl\lib\CORE\inline.h" for now,
+ * include it after Perl_sv_free2 is defined. */
+#ifdef DYNAMIC_PERL
+# define PERL_NO_INLINE_FUNCTIONS
+#endif
+
+/* Work around for using MSVC and ActivePerl 5.18. */
+#ifdef _MSC_VER
+# define __inline__ __inline
+#endif
 
 #include <EXTERN.h>
 #include <perl.h>
@@ -81,10 +105,6 @@
 # define PERL5101_OR_LATER
 #endif
 
-#if (PERL_REVISION == 5) && (PERL_VERSION >= 18)
-# define PERL5180_OR_LATER
-#endif
-
 #ifndef pTHX
 #    define pTHX void
 #    define pTHX_
@@ -118,6 +138,8 @@ typedef int HANDLE;
 #endif
 typedef int XSINIT_t;
 typedef int XSUBADDR_t;
+#endif
+#ifndef USE_ITHREADS
 typedef int perl_key;
 #endif
 
@@ -145,10 +167,8 @@ typedef int perl_key;
 # define perl_free dll_perl_free
 # define Perl_get_context dll_Perl_get_context
 # define Perl_croak dll_Perl_croak
-# ifndef PERL5180_OR_LATER
 # ifdef PERL5101_OR_LATER
 #  define Perl_croak_xs_usage dll_Perl_croak_xs_usage
-# endif
 # endif
 # ifndef PROTO
 #  define Perl_croak_nocontext dll_Perl_croak_nocontext
@@ -171,6 +191,9 @@ typedef int perl_key;
 # define Perl_pop_scope dll_Perl_pop_scope
 # define Perl_push_scope dll_Perl_push_scope
 # define Perl_save_int dll_Perl_save_int
+# if (PERL_REVISION == 5) && (PERL_VERSION >= 20)
+#  define Perl_save_strlen dll_Perl_save_strlen
+# endif
 # define Perl_stack_grow dll_Perl_stack_grow
 # define Perl_set_context dll_Perl_set_context
 # if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
@@ -246,7 +269,9 @@ typedef int perl_key;
 # define Perl_Iscopestack_ix_ptr dll_Perl_Iscopestack_ix_ptr
 # define Perl_Iunitcheckav_ptr dll_Perl_Iunitcheckav_ptr
 # if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
-#  define PL_thr_key *dll_PL_thr_key
+#  ifdef USE_ITHREADS
+#   define PL_thr_key *dll_PL_thr_key
+#  endif
 # endif
 
 /*
@@ -262,10 +287,13 @@ static int (*perl_run)(PerlInterpreter*);
 static int (*perl_parse)(PerlInterpreter*, XSINIT_t, int, char**, char**);
 static void* (*Perl_get_context)(void);
 static void (*Perl_croak)(pTHX_ const char*, ...);
-#ifndef PERL5180_OR_LATER
 #ifdef PERL5101_OR_LATER
+/* Perl-5.18 has a different Perl_croak_xs_usage signature. */
+# if (PERL_REVISION == 5) && (PERL_VERSION >= 18)
+static void (*Perl_croak_xs_usage)(const CV *const, const char *const params);
+# else
 static void (*Perl_croak_xs_usage)(pTHX_ const CV *const, const char *const params);
-#endif
+# endif
 #endif
 static void (*Perl_croak_nocontext)(const char*, ...);
 static I32 (*Perl_dowantarray)(pTHX);
@@ -286,6 +314,9 @@ static SV* (*Perl_call_method)(pTHX_ const char*, I32);
 static void (*Perl_pop_scope)(pTHX);
 static void (*Perl_push_scope)(pTHX);
 static void (*Perl_save_int)(pTHX_ int*);
+#if (PERL_REVISION == 5) && (PERL_VERSION >= 20)
+static void (*Perl_save_strlen)(pTHX_ STRLEN* ptr);
+#endif
 static SV** (*Perl_stack_grow)(pTHX_ SV**, SV**p, int);
 static SV** (*Perl_set_context)(void*);
 #if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
@@ -337,7 +368,12 @@ static SV** (*Perl_TSv_ptr)(register PerlInterpreter*);
 static XPV** (*Perl_TXpv_ptr)(register PerlInterpreter*);
 static STRLEN* (*Perl_Tna_ptr)(register PerlInterpreter*);
 #else
+/* Perl-5.18 has a different Perl_sv_free2 signature. */
+# if (PERL_REVISION == 5) && (PERL_VERSION >= 18)
+static void (*Perl_sv_free2)(pTHX_ SV*, const U32);
+# else
 static void (*Perl_sv_free2)(pTHX_ SV*);
+# endif
 static void (*Perl_sys_init)(int* argc, char*** argv);
 static void (*Perl_sys_term)(void);
 static void (*Perl_call_list)(pTHX_ I32, AV*);
@@ -360,7 +396,9 @@ static AV** (*Perl_Iunitcheckav_ptr)(register PerlInterpreter*);
 #endif
 
 #if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
+# ifdef USE_ITHREADS
 static perl_key* dll_PL_thr_key;
+# endif
 #else
 static GV** (*Perl_Idefgv_ptr)(register PerlInterpreter*);
 static GV** (*Perl_Ierrgv_ptr)(register PerlInterpreter*);
@@ -384,12 +422,12 @@ static struct {
     {"perl_parse", (PERL_PROC*)&perl_parse},
     {"Perl_get_context", (PERL_PROC*)&Perl_get_context},
     {"Perl_croak", (PERL_PROC*)&Perl_croak},
-#ifndef PERL5180_OR_LATER
 #ifdef PERL5101_OR_LATER
     {"Perl_croak_xs_usage", (PERL_PROC*)&Perl_croak_xs_usage},
 #endif
-#endif
+#ifdef PERL_IMPLICIT_CONTEXT
     {"Perl_croak_nocontext", (PERL_PROC*)&Perl_croak_nocontext},
+#endif
     {"Perl_dowantarray", (PERL_PROC*)&Perl_dowantarray},
     {"Perl_free_tmps", (PERL_PROC*)&Perl_free_tmps},
     {"Perl_gv_stashpv", (PERL_PROC*)&Perl_gv_stashpv},
@@ -408,6 +446,9 @@ static struct {
     {"Perl_pop_scope", (PERL_PROC*)&Perl_pop_scope},
     {"Perl_push_scope", (PERL_PROC*)&Perl_push_scope},
     {"Perl_save_int", (PERL_PROC*)&Perl_save_int},
+#if (PERL_REVISION == 5) && (PERL_VERSION >= 20)
+    {"Perl_save_strlen", (PERL_PROC*)&Perl_save_strlen},
+#endif
     {"Perl_stack_grow", (PERL_PROC*)&Perl_stack_grow},
     {"Perl_set_context", (PERL_PROC*)&Perl_set_context},
 #if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
@@ -481,7 +522,9 @@ static struct {
 # endif
 #endif
 #if (PERL_REVISION == 5) && (PERL_VERSION >= 14)
+#  ifdef USE_ITHREADS
     {"PL_thr_key", (PERL_PROC*)&dll_PL_thr_key},
+#  endif
 #else
     {"Perl_Idefgv_ptr", (PERL_PROC*)&Perl_Idefgv_ptr},
     {"Perl_Ierrgv_ptr", (PERL_PROC*)&Perl_Ierrgv_ptr},
@@ -491,6 +534,14 @@ static struct {
     {"boot_DynaLoader", (PERL_PROC*)&boot_DynaLoader},
     {"", NULL},
 };
+
+/* Work around for perl-5.18.
+ * The definitions of S_SvREFCNT_inc and S_SvREFCNT_dec are needed, so include
+ * "perl\lib\CORE\inline.h", after Perl_sv_free2 is defined.
+ * The linker won't complain about undefined __impl_Perl_sv_free2. */
+#if (PERL_REVISION == 5) && (PERL_VERSION >= 18)
+# include <inline.h>
+#endif
 
 /*
  * Make all runtime-links of perl.

@@ -107,6 +107,7 @@ struct efm_S
 };
 
 static int	qf_init_ext __ARGS((qf_info_T *qi, char_u *efile, buf_T *buf, typval_T *tv, char_u *errorformat, int newlist, linenr_T lnumfirst, linenr_T lnumlast, char_u *qf_title));
+static void	qf_store_title __ARGS((qf_info_T *qi, char_u *title));
 static void	qf_new_list __ARGS((qf_info_T *qi, char_u *qf_title));
 static void	ll_free_all __ARGS((qf_info_T **pqi));
 static int	qf_add_entry __ARGS((qf_info_T *qi, qfline_T **prevp, char_u *dir, char_u *fname, int bufnum, char_u *mesg, long lnum, int col, int vis_col, char_u *pattern, int nr, int type, int valid));
@@ -126,7 +127,7 @@ static int	is_qf_win __ARGS((win_T *win, qf_info_T *qi));
 static win_T	*qf_find_win __ARGS((qf_info_T *qi));
 static buf_T	*qf_find_buf __ARGS((qf_info_T *qi));
 static void	qf_update_buffer __ARGS((qf_info_T *qi));
-static void	qf_set_title __ARGS((qf_info_T *qi));
+static void	qf_set_title_var __ARGS((qf_info_T *qi));
 static void	qf_fill_buffer __ARGS((qf_info_T *qi));
 #endif
 static char_u	*get_mef_name __ARGS((void));
@@ -751,7 +752,10 @@ restofline:
 		fmt_start = fmt_ptr;
 
 	    if (vim_strchr((char_u *)"AEWI", idx) != NULL)
+	    {
 		multiline = TRUE;	/* start of a multi-line message */
+		multiignore = FALSE;	/* reset continuation */
+	    }
 	    else if (vim_strchr((char_u *)"CZ", idx) != NULL)
 	    {				/* continuation of multi-line msg */
 		if (qfprev == NULL)
@@ -881,6 +885,21 @@ qf_init_end:
     return retval;
 }
 
+    static void
+qf_store_title(qi, title)
+    qf_info_T	*qi;
+    char_u	*title;
+{
+    if (title != NULL)
+    {
+	char_u *p = alloc((int)STRLEN(title) + 2);
+
+	qi->qf_lists[qi->qf_curlist].qf_title = p;
+	if (p != NULL)
+	    sprintf((char *)p, ":%s", (char *)title);
+    }
+}
+
 /*
  * Prepare for adding a new quickfix list.
  */
@@ -892,7 +911,7 @@ qf_new_list(qi, qf_title)
     int		i;
 
     /*
-     * If the current entry is not the last entry, delete entries below
+     * If the current entry is not the last entry, delete entries beyond
      * the current entry.  This makes it possible to browse in a tree-like
      * way with ":grep'.
      */
@@ -913,14 +932,7 @@ qf_new_list(qi, qf_title)
     else
 	qi->qf_curlist = qi->qf_listcount++;
     vim_memset(&qi->qf_lists[qi->qf_curlist], 0, (size_t)(sizeof(qf_list_T)));
-    if (qf_title != NULL)
-    {
-	char_u *p = alloc((int)STRLEN(qf_title) + 2);
-
-	qi->qf_lists[qi->qf_curlist].qf_title = p;
-	if (p != NULL)
-	    sprintf((char *)p, ":%s", (char *)qf_title);
-    }
+    qf_store_title(qi, qf_title);
 }
 
 /*
@@ -2161,6 +2173,7 @@ qf_free(qi, idx)
     }
     vim_free(qi->qf_lists[idx].qf_title);
     qi->qf_lists[idx].qf_title = NULL;
+    qi->qf_lists[idx].qf_index = 0;
 }
 
 /*
@@ -2344,9 +2357,7 @@ ex_copen(eap)
     else
 	height = QF_WINHEIGHT;
 
-#ifdef FEAT_VISUAL
     reset_VIsual_and_resel();			/* stop Visual mode */
-#endif
 #ifdef FEAT_GUI
     need_mouse_correct = TRUE;
 #endif
@@ -2357,7 +2368,22 @@ ex_copen(eap)
     win = qf_find_win(qi);
 
     if (win != NULL && cmdmod.tab == 0)
+    {
 	win_goto(win);
+	if (eap->addr_count != 0)
+	{
+#ifdef FEAT_VERTSPLIT
+	    if (cmdmod.split & WSP_VERT)
+	    {
+		if (height != W_WIDTH(win))
+		    win_setwidth(height);
+	    }
+	    else
+#endif
+	    if (height != win->w_height)
+		win_setheight(height);
+	}
+    }
     else
     {
 	qf_buf = qf_find_buf(qi);
@@ -2428,7 +2454,7 @@ ex_copen(eap)
     qf_fill_buffer(qi);
 
     if (qi->qf_lists[qi->qf_curlist].qf_title != NULL)
-	qf_set_title(qi);
+	qf_set_title_var(qi);
 
     curwin->w_cursor.lnum = qi->qf_lists[qi->qf_curlist].qf_index;
     curwin->w_cursor.col = 0;
@@ -2583,7 +2609,7 @@ qf_update_buffer(qi)
 	{
 	    curwin_save = curwin;
 	    curwin = win;
-	    qf_set_title(qi);
+	    qf_set_title_var(qi);
 	    curwin = curwin_save;
 
 	}
@@ -2596,7 +2622,7 @@ qf_update_buffer(qi)
 }
 
     static void
-qf_set_title(qi)
+qf_set_title_var(qi)
     qf_info_T	*qi;
 {
     set_internal_string_var((char_u *)"w:quickfix_title",
@@ -3829,7 +3855,10 @@ set_errorlist(wp, list, action, title)
 	     prevp->qf_next != prevp; prevp = prevp->qf_next)
 	    ;
     else if (action == 'r')
+    {
 	qf_free(qi, qi->qf_curlist);
+	qf_store_title(qi, title);
+    }
 
     for (li = list->lv_first; li != NULL; li = li->li_next)
     {

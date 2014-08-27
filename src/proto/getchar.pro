@@ -1,8 +1,9 @@
 /* getchar.c */
-void free_buff __ARGS((struct buffheader *buf));
+void free_buff __ARGS((buffheader_T *buf));
 char_u *get_recorded __ARGS((void));
 char_u *get_inserted __ARGS((void));
 int stuff_empty __ARGS((void));
+int readbuf1_empty __ARGS((void));
 void typeahead_noflush __ARGS((int c));
 void flush_buffers __ARGS((int flush_typeahead));
 void ResetRedobuff __ARGS((void));
@@ -14,6 +15,7 @@ void AppendToRedobuffLit __ARGS((char_u *str, int len));
 void AppendCharToRedobuff __ARGS((int c));
 void AppendNumberToRedobuff __ARGS((long n));
 void stuffReadbuff __ARGS((char_u *s));
+void stuffRedoReadbuff __ARGS((char_u *s));
 void stuffReadbuffLen __ARGS((char_u *s, long len));
 void stuffReadbuffSpec __ARGS((char_u *s));
 void stuffcharReadbuff __ARGS((int c));

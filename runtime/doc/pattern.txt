@@ -1,4 +1,4 @@
-*pattern.txt*   For Vim version 7.4.  Last change: 2013 Jul 06
+*pattern.txt*   For Vim version 7.4.  Last change: 2014 Jul 30
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -192,10 +192,10 @@ affected.
 An example of how to search for matches with a pattern and change the match
 with another word: >
 	/foo<CR>	find "foo"
-	c//e		change until end of match
+	c//e<CR>	change until end of match
 	bar<Esc>	type replacement
 	//<CR>		go to start of next match
-	c//e		change until end of match
+	c//e<CR>	change until end of match
 	beep<Esc>	type another replacement
 			etc.
 <
@@ -545,6 +545,7 @@ Character classes {not in Vi}:				*/character-classes*
 |/\%u|	\%u	\%u	match specified multibyte character (eg \%u20ac)
 |/\%U|	\%U	\%U	match specified large multibyte character (eg
 			\%U12345678)
+|/\%C|	\%C	\%C	match any composing characters
 
 Example			matches ~
 \<\I\i*		or
@@ -705,11 +706,18 @@ overview.
 	But to limit the time needed, only the line where what follows matches
 	is searched, and one line before that (if there is one).  This should
 	be sufficient to match most things and not be too slow.
-	The part of the pattern after "\@<=" and "\@<!" are checked for a
-	match first, thus things like "\1" don't work to reference \(\) inside
-	the preceding atom.  It does work the other way around:
-	Example			matches ~
-	\1\@<=,\([a-z]\+\)	",abc" in "abc,abc"
+
+	In the old regexp engine the part of the pattern after "\@<=" and
+	"\@<!" are checked for a match first, thus things like "\1" don't work
+	to reference \(\) inside the preceding atom.  It does work the other
+	way around:
+	Bad example			matches ~
+	\%#=1\1\@<=,\([a-z]\+\)		",abc" in "abc,abc"
+
+	However, the new regexp engine works differently, it is better to not
+	rely on this behavior, do not use \@<= if it can be avoided:
+	Example				matches ~
+	\([a-z]\+\)\zs,\1		",abc" in "abc,abc"
 
 \@123<=
 	Like "\@<=" but only look back 123 bytes. This avoids trying lots
@@ -1207,12 +1215,18 @@ will probably never match.
 8. Composing characters					*patterns-composing*
 
 							*/\Z*
-When "\Z" appears anywhere in the pattern, composing characters are ignored.
-Thus only the base characters need to match, the composing characters may be
-different and the number of composing characters may differ.  Only relevant
-when 'encoding' is "utf-8".
+When "\Z" appears anywhere in the pattern, all composing characters are
+ignored.  Thus only the base characters need to match, the composing
+characters may be different and the number of composing characters may differ.
+Only relevant when 'encoding' is "utf-8".
 Exception: If the pattern starts with one or more composing characters, these
 must match.
+							*/\%C*
+Use "\%C" to skip any composing characters.  For example, the pattern "a" does
+not match in "càt" (where the a has the composing character 0x0300), but
+"a\%C" does.  Note that this does not match "cát" (where the á is character
+0xe1, it does not have a compositing character).  It does match "cat" (where
+the a is just an a).
 
 When a composing character appears at the start of the pattern of after an
 item that doesn't include the composing character, a match is found at any
@@ -1325,7 +1339,7 @@ Finally, these constructs are unique to Perl:
 		patterns defined by both |matchadd()| and |:match|.
 
 		Highlighting matches using |:match| are limited to three
-		matches (aside from |:match|, |:2match| and |:3match|are
+		matches (aside from |:match|, |:2match| and |:3match| are
 		available). |matchadd()| does not have this limitation and in
 		addition makes it possible to prioritize matches.
 

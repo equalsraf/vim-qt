@@ -1,6 +1,7 @@
 #
 # Makefile for VIM on Win32, using Cygnus gcc
-# Last updated by Dan Sharp.  Last Change: 2013 Apr 22
+# Updated by Dan Sharp.
+# Last Change: 2014 Aug 10
 #
 # Also read INSTALLpc.txt!
 #
@@ -8,6 +9,7 @@
 # Cygwin application use the Makefile (just like on Unix).
 #
 # GUI		no or yes: set to yes if you want the GUI version (yes)
+# DIRECTX	no or yes: set to yes if you want use DirectWrite (no)
 # PERL		define to path to Perl dir to get Perl support (not defined)
 #   PERL_VER	  define to version of Perl being used (56)
 #   DYNAMIC_PERL  no or yes: set to yes to load the Perl DLL dynamically (yes)
@@ -88,6 +90,10 @@ ifndef ARCH
 ARCH = i386
 endif
 
+ifndef DIRECTX
+DIRECTX = no
+endif
+
 ifndef WINVER
 WINVER = 0x0500
 endif
@@ -155,7 +161,7 @@ endif
 ifeq (yes, $(DYNAMIC_PERL))
 DEFINES += -DDYNAMIC_PERL -DDYNAMIC_PERL_DLL=\"perl$(PERL_VER).dll\"
 else
-EXTRA_LIBS += $(PERL)/lib/CORE/perl$(PERL_VER).lib
+EXTRA_LIBS += -L$(PERL)/lib/CORE -lperl$(PERL_VER)
 endif
 endif
 
@@ -272,7 +278,7 @@ ifeq (yes, $(DYNAMIC_RUBY))
 DEFINES += -DDYNAMIC_RUBY -DDYNAMIC_RUBY_DLL=\"$(RUBY_INSTALL_NAME).dll\"
 DEFINES += -DDYNAMIC_RUBY_VER=$(RUBY_VER)
 else
-EXTRA_LIBS += $(RUBY)/lib/$(RUBY_INSTALL_NAME).lib
+EXTRA_LIBS += $(RUBY)/lib/$(RUBY_INSTALL_NAME)
 endif
 endif
 
@@ -439,8 +445,6 @@ endif
 ##############################
 ifeq (yes, $(USEDLL))
 DEFINES += -D_MAX_PATH=256 -D__CYGWIN__
-else
-INCLUDES += -mno-cygwin
 endif
 
 ##############################
@@ -472,6 +476,15 @@ endif
 endif
 
 ##############################
+ifeq (yes, $(DIRECTX))
+# Only allow DIRECTX for a GUI build.
+DEFINES += -DFEAT_DIRECTX -DDYNAMIC_DIRECTX
+EXTRA_OBJS += $(OUTDIR)/gui_dwrite.o
+EXTRA_LIBS += -ld2d1 -ldwrite
+USE_STDCPLUS = yes
+endif
+
+##############################
 ifdef XPM
 # Only allow XPM for a GUI build.
 DEFINES += -DFEAT_XPM_W32
@@ -497,11 +510,7 @@ ifeq (yes, $(OLE))
 DEFINES += -DFEAT_OLE
 EXTRA_OBJS += $(OUTDIR)/if_ole.o
 EXTRA_LIBS += -loleaut32
-ifeq (yes, $(STATIC_STDCPLUS))
-EXTRA_LIBS += -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
-else
-EXTRA_LIBS += -lstdc++
-endif
+USE_STDCPLUS = yes
 endif
 
 ##############################
@@ -513,6 +522,15 @@ else
 DEL = del
 MKDIR = mkdir
 DIRSLASH = \\
+endif
+
+##############################
+ifeq (yes, $(USE_STDCPLUS))
+ifeq (yes, $(STATIC_STDCPLUS))
+EXTRA_LIBS += -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+else
+EXTRA_LIBS += -lstdc++
+endif
 endif
 
 #>>>>> end of choices
@@ -529,6 +547,8 @@ OBJ = \
 	$(OUTDIR)/blowfish.o \
 	$(OUTDIR)/buffer.o \
 	$(OUTDIR)/charset.o \
+	$(OUTDIR)/crypt.o \
+	$(OUTDIR)/crypt_zip.o \
 	$(OUTDIR)/diff.o \
 	$(OUTDIR)/digraph.o \
 	$(OUTDIR)/edit.o \
@@ -644,6 +664,9 @@ $(OUTDIR)/ex_eval.o:	ex_eval.c $(INCL) ex_cmds.h
 
 $(OUTDIR)/gui_w32.o:	gui_w32.c gui_w48.c $(INCL)
 	$(CC) -c $(CFLAGS) gui_w32.c -o $(OUTDIR)/gui_w32.o
+
+$(OUTDIR)/gui_dwrite.o:	gui_dwrite.cpp $(INCL) gui_dwrite.h
+	$(CC) -c $(CFLAGS) gui_dwrite.cpp -o $(OUTDIR)/gui_dwrite.o
 
 $(OUTDIR)/if_cscope.o:	if_cscope.c $(INCL) if_cscope.h
 	$(CC) -c $(CFLAGS) if_cscope.c -o $(OUTDIR)/if_cscope.o

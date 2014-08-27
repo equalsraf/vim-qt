@@ -342,6 +342,13 @@ getcmdline(firstc, count, indent)
     do_digraph(-1);		/* init digraph typeahead */
 #endif
 
+    /* If something above caused an error, reset the flags, we do want to type
+     * and execute commands. Display may be messed up a bit. */
+    if (did_emsg)
+	redrawcmd();
+    did_emsg = FALSE;
+    got_int = FALSE;
+
     /*
      * Collect the command string, handling editing keys.
      */
@@ -2188,6 +2195,7 @@ getexmodeline(promptc, cookie, indent)
     int		vcol = 0;
     char_u	*p;
     int		prev_char;
+    int		len;
 
     /* Switch cursor on now.  This avoids that it happens after the "\n", which
      * confuses the system function that computes tabstops. */
@@ -2264,7 +2272,17 @@ getexmodeline(promptc, cookie, indent)
 	    {
 		if (line_ga.ga_len > 0)
 		{
-		    --line_ga.ga_len;
+#ifdef FEAT_MBYTE
+		    if (has_mbyte)
+		    {
+			p = (char_u *)line_ga.ga_data;
+			p[line_ga.ga_len] = NUL;
+			len = (*mb_head_off)(p, p + line_ga.ga_len - 1) + 1;
+			line_ga.ga_len -= len;
+		    }
+		    else
+#endif
+			--line_ga.ga_len;
 		    goto redraw;
 		}
 		continue;
@@ -2280,14 +2298,14 @@ getexmodeline(promptc, cookie, indent)
 
 	    if (c1 == Ctrl_T)
 	    {
-		long        sw = get_sw_value();
+		long	    sw = get_sw_value(curbuf);
 
 		p = (char_u *)line_ga.ga_data;
 		p[line_ga.ga_len] = NUL;
-		indent = get_indent_str(p, 8);
+		indent = get_indent_str(p, 8, FALSE);
 		indent += sw - indent % sw;
 add_indent:
-		while (get_indent_str(p, 8) < indent)
+		while (get_indent_str(p, 8, FALSE) < indent)
 		{
 		    char_u *s = skipwhite(p);
 
@@ -2300,8 +2318,9 @@ redraw:
 		/* redraw the line */
 		msg_col = startcol;
 		vcol = 0;
-		for (p = (char_u *)line_ga.ga_data;
-			  p < (char_u *)line_ga.ga_data + line_ga.ga_len; ++p)
+		p = (char_u *)line_ga.ga_data;
+		p[line_ga.ga_len] = NUL;
+		while (p < (char_u *)line_ga.ga_data + line_ga.ga_len)
 		{
 		    if (*p == TAB)
 		    {
@@ -2309,11 +2328,14 @@ redraw:
 			{
 			    msg_putchar(' ');
 			} while (++vcol % 8);
+			++p;
 		    }
 		    else
 		    {
-			msg_outtrans_len(p, 1);
-			vcol += char2cells(*p);
+			len = MB_PTR2LEN(p);
+			msg_outtrans_len(p, len);
+			vcol += ptr2cells(p);
+			p += len;
 		    }
 		}
 		msg_clr_eos();
@@ -2335,11 +2357,11 @@ redraw:
 		else
 		{
 		    p[line_ga.ga_len] = NUL;
-		    indent = get_indent_str(p, 8);
+		    indent = get_indent_str(p, 8, FALSE);
 		    --indent;
-		    indent -= indent % get_sw_value();
+		    indent -= indent % get_sw_value(curbuf);
 		}
-		while (get_indent_str(p, 8) > indent)
+		while (get_indent_str(p, 8, FALSE) > indent)
 		{
 		    char_u *s = skipwhite(p);
 
@@ -2362,7 +2384,16 @@ redraw:
 
 	if (IS_SPECIAL(c1))
 	    c1 = '?';
-	((char_u *)line_ga.ga_data)[line_ga.ga_len] = c1;
+#ifdef FEAT_MBYTE
+	if (has_mbyte)
+	    len = (*mb_char2bytes)(c1,
+				  (char_u *)line_ga.ga_data + line_ga.ga_len);
+	else
+#endif
+	{
+	    len = 1;
+	    ((char_u *)line_ga.ga_data)[line_ga.ga_len] = c1;
+	}
 	if (c1 == '\n')
 	    msg_putchar('\n');
 	else if (c1 == TAB)
@@ -2376,10 +2407,10 @@ redraw:
 	else
 	{
 	    msg_outtrans_len(
-		     ((char_u *)line_ga.ga_data) + line_ga.ga_len, 1);
+		     ((char_u *)line_ga.ga_data) + line_ga.ga_len, len);
 	    vcol += char2cells(c1);
 	}
-	++line_ga.ga_len;
+	line_ga.ga_len += len;
 	escaped = FALSE;
 
 	windgoto(msg_row, msg_col);
@@ -3852,9 +3883,9 @@ vim_strsave_fnameescape(fname, shell)
     char_u	buf[20];
     int		j = 0;
 
-    /* Don't escape '[' and '{' if they are in 'isfname'. */
+    /* Don't escape '[', '{' and '!' if they are in 'isfname'. */
     for (p = PATH_ESC_CHARS; *p != NUL; ++p)
-	if ((*p != '[' && *p != '{') || !vim_isfilec(*p))
+	if ((*p != '[' && *p != '{' && *p != '!') || !vim_isfilec(*p))
 	    buf[j++] = *p;
     buf[j] = NUL;
     p = vim_strsave_escaped(fname, buf);
@@ -4178,7 +4209,7 @@ expand_showtail(xp)
 /*
  * Prepare a string for expansion.
  * When expanding file names: The string will be used with expand_wildcards().
- * Copy the file name into allocated memory and add a '*' at the end.
+ * Copy "fname[len]" into allocated memory and add a '*' at the end.
  * When expanding other names: The string will be used with regcomp().  Copy
  * the name into allocated memory and prepend "^".
  */
@@ -5095,9 +5126,9 @@ ExpandRTDir(pat, num_file, file, dirnames)
     char_u	***file;
     char	*dirnames[];
 {
-    char_u	*matches;
     char_u	*s;
     char_u	*e;
+    char_u	*match;
     garray_T	ga;
     int		i;
     int		pat_len;
@@ -5116,33 +5147,27 @@ ExpandRTDir(pat, num_file, file, dirnames)
 	    return FAIL;
 	}
 	sprintf((char *)s, "%s/%s*.vim", dirnames[i], pat);
-	matches = globpath(p_rtp, s, 0);
+	globpath(p_rtp, s, &ga, 0);
 	vim_free(s);
-	if (matches == NULL)
-	    continue;
-
-	for (s = matches; *s != NUL; s = e)
-	{
-	    e = vim_strchr(s, '\n');
-	    if (e == NULL)
-		e = s + STRLEN(s);
-	    if (ga_grow(&ga, 1) == FAIL)
-		break;
-	    if (e - 4 > s && STRNICMP(e - 4, ".vim", 4) == 0)
-	    {
-		for (s = e - 4; s > matches; mb_ptr_back(matches, s))
-		    if (*s == '\n' || vim_ispathsep(*s))
-			break;
-		++s;
-		((char_u **)ga.ga_data)[ga.ga_len] =
-					    vim_strnsave(s, (int)(e - s - 4));
-		++ga.ga_len;
-	    }
-	    if (*e != NUL)
-		++e;
-	}
-	vim_free(matches);
     }
+
+    for (i = 0; i < ga.ga_len; ++i)
+    {
+	match = ((char_u **)ga.ga_data)[i];
+	s = match;
+	e = s + STRLEN(s);
+	if (e - 4 > s && STRNICMP(e - 4, ".vim", 4) == 0)
+	{
+	    e -= 4;
+	    for (s = e; s > match; mb_ptr_back(match, s))
+		if (s < match || vim_ispathsep(*s))
+		    break;
+	    ++s;
+	    *e = NUL;
+	    mch_memmove(match, s, e - s + 1);
+	}
+    }
+
     if (ga.ga_len == 0)
 	return FAIL;
 
@@ -5160,32 +5185,27 @@ ExpandRTDir(pat, num_file, file, dirnames)
 #if defined(FEAT_CMDL_COMPL) || defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Expand "file" for all comma-separated directories in "path".
- * Returns an allocated string with all matches concatenated, separated by
- * newlines.  Returns NULL for an error or no matches.
+ * Adds the matches to "ga".  Caller must init "ga".
  */
-    char_u *
-globpath(path, file, expand_options)
+    void
+globpath(path, file, ga, expand_options)
     char_u	*path;
     char_u	*file;
+    garray_T	*ga;
     int		expand_options;
 {
     expand_T	xpc;
     char_u	*buf;
-    garray_T	ga;
     int		i;
-    int		len;
     int		num_p;
     char_u	**p;
-    char_u	*cur = NULL;
 
     buf = alloc(MAXPATHL);
     if (buf == NULL)
-	return NULL;
+	return;
 
     ExpandInit(&xpc);
     xpc.xp_context = EXPAND_FILES;
-
-    ga_init2(&ga, 1, 100);
 
     /* Loop over all entries in {path}. */
     while (*path != NUL)
@@ -5207,30 +5227,23 @@ globpath(path, file, expand_options)
 			     WILD_SILENT|expand_options) != FAIL && num_p > 0)
 	    {
 		ExpandEscape(&xpc, buf, num_p, p, WILD_SILENT|expand_options);
-		for (len = 0, i = 0; i < num_p; ++i)
-		    len += (int)STRLEN(p[i]) + 1;
 
-		/* Concatenate new results to previous ones. */
-		if (ga_grow(&ga, len) == OK)
+		if (ga_grow(ga, num_p) == OK)
 		{
-		    cur = (char_u *)ga.ga_data + ga.ga_len;
 		    for (i = 0; i < num_p; ++i)
 		    {
-			STRCPY(cur, p[i]);
-			cur += STRLEN(p[i]);
-			*cur++ = '\n';
+			((char_u **)ga->ga_data)[ga->ga_len] =
+					vim_strnsave(p[i], (int)STRLEN(p[i]));
+			++ga->ga_len;
 		    }
-		    ga.ga_len += len;
 		}
+
 		FreeWild(num_p, p);
 	    }
 	}
     }
-    if (cur != NULL)
-	*--cur = 0; /* Replace trailing newline with NUL */
 
     vim_free(buf);
-    return (char_u *)ga.ga_data;
 }
 
 #endif
@@ -5496,6 +5509,9 @@ add_to_history(histype, new_entry, in_map, sep)
     int		len;
 
     if (hislen == 0)		/* no history */
+	return;
+
+    if (cmdmod.keeppatterns && histype == HIST_SEARCH)
 	return;
 
     /*
@@ -6347,6 +6363,9 @@ ex_window()
 #ifdef FEAT_RIGHTLEFT
     int			save_cmdmsg_rl = cmdmsg_rl;
 #endif
+#ifdef FEAT_FOLDING
+    int			save_KeyTyped;
+#endif
 
     /* Can't do this recursively.  Can't do it when typing a password. */
     if (cmdwin_type != 0
@@ -6481,8 +6500,19 @@ ex_window()
     RedrawingDisabled = i;
 
 # ifdef FEAT_AUTOCMD
+
+#  ifdef FEAT_FOLDING
+    save_KeyTyped = KeyTyped;
+#  endif
+
     /* Trigger CmdwinLeave autocommands. */
     apply_autocmds(EVENT_CMDWINLEAVE, typestr, typestr, FALSE, curbuf);
+
+#  ifdef FEAT_FOLDING
+    /* Restore KeyTyped in case it is modified by autocommands */
+    KeyTyped = save_KeyTyped;
+#  endif
+
 # endif
 
     /* Restore the command line info. */

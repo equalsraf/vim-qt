@@ -130,9 +130,7 @@ do_window(nchar, Prenum, xchar)
     case Ctrl_S:
     case 's':
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 #ifdef FEAT_QUICKFIX
 		/* When splitting the quickfix window open a new buffer in it,
 		 * don't replicate the quickfix buffer. */
@@ -150,9 +148,7 @@ do_window(nchar, Prenum, xchar)
     case Ctrl_V:
     case 'v':
 		CHECK_CMDWIN
-# ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-# endif
 # ifdef FEAT_QUICKFIX
 		/* When splitting the quickfix window open a new buffer in it,
 		 * don't replicate the quickfix buffer. */
@@ -170,9 +166,7 @@ do_window(nchar, Prenum, xchar)
     case Ctrl_HAT:
     case '^':
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		STRCPY(cbuf, "split #");
 		if (Prenum)
 		    vim_snprintf((char *)cbuf + 7, sizeof(cbuf) - 7,
@@ -184,9 +178,7 @@ do_window(nchar, Prenum, xchar)
     case Ctrl_N:
     case 'n':
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 #ifdef FEAT_QUICKFIX
 newwindow:
 #endif
@@ -206,18 +198,14 @@ newwindow:
 /* quit current window */
     case Ctrl_Q:
     case 'q':
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		do_cmdline_cmd((char_u *)"quit");
 		break;
 
 /* close current window */
     case Ctrl_C:
     case 'c':
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		do_cmdline_cmd((char_u *)"close");
 		break;
 
@@ -226,9 +214,7 @@ newwindow:
     case Ctrl_Z:
     case 'z':
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		do_cmdline_cmd((char_u *)"pclose");
 		break;
 
@@ -248,9 +234,7 @@ newwindow:
     case Ctrl_O:
     case 'o':
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		do_cmdline_cmd((char_u *)"only");
 		break;
 
@@ -399,18 +383,14 @@ newwindow:
     case Ctrl_R:
     case 'r':
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		win_rotate(FALSE, (int)Prenum1);    /* downwards */
 		break;
 
 /* rotate windows upwards */
     case 'R':
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		win_rotate(TRUE, (int)Prenum1);	    /* upwards */
 		break;
 
@@ -499,9 +479,7 @@ newwindow:
     case ']':
     case Ctrl_RSB:
 		CHECK_CMDWIN
-#ifdef FEAT_VISUAL
 		reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 		if (Prenum)
 		    postponed_split = Prenum;
 		else
@@ -612,9 +590,7 @@ wingotofile:
 #endif
 		    case ']':
 		    case Ctrl_RSB:
-#ifdef FEAT_VISUAL
 			reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 			if (Prenum)
 			    postponed_split = Prenum;
 			else
@@ -708,8 +684,10 @@ win_split_ins(size, flags, new_wp, dir)
     int		available;
     int		oldwin_height = 0;
     int		layout;
-    frame_T	*frp, *curfrp;
+    frame_T	*frp, *curfrp, *frp2, *prevfrp;
     int		before;
+    int		minheight;
+    int		wmh1;
 
     if (flags & WSP_TOP)
 	oldwin = firstwin;
@@ -738,22 +716,49 @@ win_split_ins(size, flags, new_wp, dir)
 #ifdef FEAT_VERTSPLIT
     if (flags & WSP_VERT)
     {
+	int	wmw1;
+	int	minwidth;
+
 	layout = FR_ROW;
 
 	/*
 	 * Check if we are able to split the current window and compute its
 	 * width.
 	 */
-	needed = p_wmw + 1;
+	/* Current window requires at least 1 space. */
+	wmw1 = (p_wmw == 0 ? 1 : p_wmw);
+	needed = wmw1 + 1;
 	if (flags & WSP_ROOM)
-	    needed += p_wiw - p_wmw;
-	if (p_ea || (flags & (WSP_BOT | WSP_TOP)))
+	    needed += p_wiw - wmw1;
+	if (flags & (WSP_BOT | WSP_TOP))
 	{
+	    minwidth = frame_minwidth(topframe, NOWIN);
 	    available = topframe->fr_width;
-	    needed += frame_minwidth(topframe, NULL);
+	    needed += minwidth;
+	}
+	else if (p_ea)
+	{
+	    minwidth = frame_minwidth(oldwin->w_frame, NOWIN);
+	    prevfrp = oldwin->w_frame;
+	    for (frp = oldwin->w_frame->fr_parent; frp != NULL;
+							frp = frp->fr_parent)
+	    {
+		if (frp->fr_layout == FR_ROW)
+		    for (frp2 = frp->fr_child; frp2 != NULL;
+							frp2 = frp2->fr_next)
+			if (frp2 != prevfrp)
+			    minwidth += frame_minwidth(frp2, NOWIN);
+		prevfrp = frp;
+	    }
+	    available = topframe->fr_width;
+	    needed += minwidth;
 	}
 	else
-	    available = oldwin->w_width;
+	{
+	    minwidth = frame_minwidth(oldwin->w_frame, NOWIN);
+	    available = oldwin->w_frame->fr_width;
+	    needed += minwidth;
+	}
 	if (available < needed && new_wp == NULL)
 	{
 	    EMSG(_(e_noroom));
@@ -761,10 +766,10 @@ win_split_ins(size, flags, new_wp, dir)
 	}
 	if (new_size == 0)
 	    new_size = oldwin->w_width / 2;
-	if (new_size > oldwin->w_width - p_wmw - 1)
-	    new_size = oldwin->w_width - p_wmw - 1;
-	if (new_size < p_wmw)
-	    new_size = p_wmw;
+	if (new_size > available - minwidth - 1)
+	    new_size = available - minwidth - 1;
+	if (new_size < wmw1)
+	    new_size = wmw1;
 
 	/* if it doesn't fit in the current window, need win_equal() */
 	if (oldwin->w_width - new_size - 1 < p_wmw)
@@ -805,18 +810,39 @@ win_split_ins(size, flags, new_wp, dir)
 	 * Check if we are able to split the current window and compute its
 	 * height.
 	 */
-	needed = p_wmh + STATUS_HEIGHT + need_status;
+	/* Current window requires at least 1 space. */
+	wmh1 = (p_wmh == 0 ? 1 : p_wmh);
+	needed = wmh1 + STATUS_HEIGHT;
 	if (flags & WSP_ROOM)
-	    needed += p_wh - p_wmh;
-	if (p_ea || (flags & (WSP_BOT | WSP_TOP)))
+	    needed += p_wh - wmh1;
+	if (flags & (WSP_BOT | WSP_TOP))
 	{
+	    minheight = frame_minheight(topframe, NOWIN) + need_status;
 	    available = topframe->fr_height;
-	    needed += frame_minheight(topframe, NULL);
+	    needed += minheight;
+	}
+	else if (p_ea)
+	{
+	    minheight = frame_minheight(oldwin->w_frame, NOWIN) + need_status;
+	    prevfrp = oldwin->w_frame;
+	    for (frp = oldwin->w_frame->fr_parent; frp != NULL;
+							frp = frp->fr_parent)
+	    {
+		if (frp->fr_layout == FR_COL)
+		    for (frp2 = frp->fr_child; frp2 != NULL;
+							frp2 = frp2->fr_next)
+			if (frp2 != prevfrp)
+			    minheight += frame_minheight(frp2, NOWIN);
+		prevfrp = frp;
+	    }
+	    available = topframe->fr_height;
+	    needed += minheight;
 	}
 	else
 	{
-	    available = oldwin->w_height;
-	    needed += p_wmh;
+	    minheight = frame_minheight(oldwin->w_frame, NOWIN) + need_status;
+	    available = oldwin->w_frame->fr_height;
+	    needed += minheight;
 	}
 	if (available < needed && new_wp == NULL)
 	{
@@ -831,11 +857,10 @@ win_split_ins(size, flags, new_wp, dir)
 	}
 	if (new_size == 0)
 	    new_size = oldwin_height / 2;
-
-	if (new_size > oldwin_height - p_wmh - STATUS_HEIGHT)
-	    new_size = oldwin_height - p_wmh - STATUS_HEIGHT;
-	if (new_size < p_wmh)
-	    new_size = p_wmh;
+	if (new_size > available - minheight - STATUS_HEIGHT)
+	    new_size = available - minheight - STATUS_HEIGHT;
+	if (new_size < wmh1)
+	    new_size = wmh1;
 
 	/* if it doesn't fit in the current window, need win_equal() */
 	if (oldwin_height - new_size - STATUS_HEIGHT < p_wmh)
@@ -1153,6 +1178,11 @@ win_split_ins(size, flags, new_wp, dir)
 	    p_wh = size;
     }
 
+#ifdef FEAT_JUMPLIST
+    /* Keep same changelist position in new window. */
+    wp->w_changelistidx = oldwin->w_changelistidx;
+#endif
+
     /*
      * make the new window the current window
      */
@@ -1216,8 +1246,8 @@ win_init(newp, oldp, flags)
     else
 	copy_loclist(oldp, newp);
 #endif
-    if (oldp->w_localdir != NULL)
-	newp->w_localdir = vim_strsave(oldp->w_localdir);
+    newp->w_localdir = (oldp->w_localdir == NULL)
+				    ? NULL : vim_strsave(oldp->w_localdir);
 
     /* copy tagstack and folds */
     for (i = 0; i < oldp->w_tagstacklen; i++)
@@ -2172,8 +2202,9 @@ close_last_window_tabpage(win, free_buf, prev_curtab)
  * If "free_buf" is TRUE related buffer may be unloaded.
  *
  * Called by :quit, :close, :xit, :wq and findtag().
+ * Returns FAIL when the window was not closed.
  */
-    void
+    int
 win_close(win, free_buf)
     win_T	*win;
     int		free_buf;
@@ -2190,21 +2221,21 @@ win_close(win, free_buf)
     if (last_window())
     {
 	EMSG(_("E444: Cannot close last window"));
-	return;
+	return FAIL;
     }
 
 #ifdef FEAT_AUTOCMD
     if (win->w_closing || (win->w_buffer != NULL && win->w_buffer->b_closing))
-	return; /* window is already being closed */
+	return FAIL; /* window is already being closed */
     if (win == aucmd_win)
     {
 	EMSG(_("E813: Cannot close autocmd window"));
-	return;
+	return FAIL;
     }
     if ((firstwin == aucmd_win || lastwin == aucmd_win) && one_window())
     {
 	EMSG(_("E814: Cannot close window, only autocmd window would remain"));
-	return;
+	return FAIL;
     }
 #endif
 
@@ -2212,7 +2243,7 @@ win_close(win, free_buf)
      * and then close the window and the tab page to avoid that curwin and
      * curtab are invalid while we are freeing memory. */
     if (close_last_window_tabpage(win, free_buf, prev_curtab))
-      return;
+      return FAIL;
 
     /* When closing the help window, try restoring a snapshot after closing
      * the window.  Otherwise clear the snapshot, it's now invalid. */
@@ -2240,22 +2271,22 @@ win_close(win, free_buf)
 	    win->w_closing = TRUE;
 	    apply_autocmds(EVENT_BUFLEAVE, NULL, NULL, FALSE, curbuf);
 	    if (!win_valid(win))
-		return;
+		return FAIL;
 	    win->w_closing = FALSE;
 	    if (last_window())
-		return;
+		return FAIL;
 	}
 	win->w_closing = TRUE;
 	apply_autocmds(EVENT_WINLEAVE, NULL, NULL, FALSE, curbuf);
 	if (!win_valid(win))
-	    return;
+	    return FAIL;
 	win->w_closing = FALSE;
 	if (last_window())
-	    return;
+	    return FAIL;
 # ifdef FEAT_EVAL
 	/* autocmds may abort script processing */
 	if (aborting())
-	    return;
+	    return FAIL;
 # endif
     }
 #endif
@@ -2303,7 +2334,7 @@ win_close(win, free_buf)
      * other window or moved to another tab page. */
     else if (!win_valid(win) || last_window() || curtab != prev_curtab
 	    || close_last_window_tabpage(win, free_buf, prev_curtab))
-	return;
+	return FAIL;
 
     /* Free the memory used for the window and get the window that received
      * the screen space. */
@@ -2383,6 +2414,7 @@ win_close(win, free_buf)
 #endif
 
     redraw_all_later(NOT_VALID);
+    return OK;
 }
 
 /*
@@ -2499,6 +2531,10 @@ win_free_all()
 
     while (firstwin != NULL)
 	(void)win_free_mem(firstwin, &dummy, NULL);
+
+    /* No window should be used after this. Set curwin to NULL to crash
+     * instead of using freed memory. */
+    curwin = NULL;
 }
 #endif
 
@@ -3724,9 +3760,7 @@ leave_tabpage(new_curbuf, trigger_leave_autocmds)
 {
     tabpage_T	*tp = curtab;
 
-#ifdef FEAT_VISUAL
     reset_VIsual_and_resel();	/* stop Visual mode */
-#endif
 #ifdef FEAT_AUTOCMD
     if (trigger_leave_autocmds)
     {
@@ -4027,12 +4061,10 @@ win_goto(wp)
 	return;
 #endif
 
-#ifdef FEAT_VISUAL
     if (wp->w_buffer != curbuf)
 	reset_VIsual_and_resel();
     else if (VIsual_active)
 	wp->w_cursor = curwin->w_cursor;
-#endif
 
 #ifdef FEAT_GUI
     need_mouse_correct = TRUE;
@@ -4276,6 +4308,11 @@ win_enter_ext(wp, undo_sync, curwin_invalid, trigger_enter_autocmds, trigger_lea
     /* sync undo before leaving the current buffer */
     if (undo_sync && curbuf != wp->w_buffer)
 	u_sync(FALSE);
+
+    /* Might need to scroll the old window before switching, e.g., when the
+     * cursor was moved. */
+    update_topline();
+
     /* may have to copy the buffer options when 'cpo' contains 'S' */
     if (wp->w_buffer != curbuf)
 	buf_copy_options(wp->w_buffer, BCO_ENTER | BCO_NOHELP);
@@ -4623,7 +4660,15 @@ win_free(wp, tp)
     if (wp != aucmd_win)
 #endif
 	win_remove(wp, tp);
-    vim_free(wp);
+#ifdef FEAT_AUTOCMD
+    if (autocmd_busy)
+    {
+	wp->w_next = au_pending_free_win;
+	au_pending_free_win = wp;
+    }
+    else
+#endif
+	vim_free(wp);
 
 #ifdef FEAT_AUTOCMD
     unblock_autocmds();
@@ -4747,8 +4792,12 @@ win_alloc_lines(wp)
 win_free_lsize(wp)
     win_T	*wp;
 {
-    vim_free(wp->w_lines);
-    wp->w_lines = NULL;
+    /* TODO: why would wp be NULL here? */
+    if (wp != NULL)
+    {
+	vim_free(wp->w_lines);
+	wp->w_lines = NULL;
+    }
 }
 
 /*
@@ -4845,15 +4894,20 @@ win_size_restore(gap)
     garray_T	*gap;
 {
     win_T	*wp;
-    int		i;
+    int		i, j;
 
     if (win_count() * 2 == gap->ga_len)
     {
-	i = 0;
-	for (wp = firstwin; wp != NULL; wp = wp->w_next)
+	/* The order matters, because frames contain other frames, but it's
+	 * difficult to get right. The easy way out is to do it twice. */
+	for (j = 0; j < 2; ++j)
 	{
-	    frame_setwidth(wp->w_frame, ((int *)gap->ga_data)[i++]);
-	    win_setheight_win(((int *)gap->ga_data)[i++], wp);
+	    i = 0;
+	    for (wp = firstwin; wp != NULL; wp = wp->w_next)
+	    {
+		frame_setwidth(wp->w_frame, ((int *)gap->ga_data)[i++]);
+		win_setheight_win(((int *)gap->ga_data)[i++], wp);
+	    }
 	}
 	/* recompute the window positions */
 	(void)win_comp_pos();
@@ -5649,7 +5703,7 @@ set_fraction(wp)
     win_T	*wp;
 {
     wp->w_fraction = ((long)wp->w_wrow * FRACTION_MULT
-				    + FRACTION_MULT / 2) / (long)wp->w_height;
+				    + wp->w_height / 2) / (long)wp->w_height;
 }
 
 /*
@@ -5664,6 +5718,7 @@ win_new_height(wp, height)
 {
     linenr_T	lnum;
     int		sline, line_size;
+    int		prev_height = wp->w_height;
 
     /* Don't want a negative height.  Happens when splitting a tiny window.
      * Will equalize heights soon to fix it. */
@@ -5672,8 +5727,18 @@ win_new_height(wp, height)
     if (wp->w_height == height)
 	return;	    /* nothing to do */
 
-    if (wp->w_wrow != wp->w_prev_fraction_row && wp->w_height > 0)
-	set_fraction(wp);
+    if (wp->w_height > 0)
+    {
+	if (wp == curwin)
+	    /* w_wrow needs to be valid. When setting 'laststatus' this may
+	     * call win_new_height() recursively. */
+	    validate_cursor();
+	if (wp->w_height != prev_height)
+	    return;  /* Recursive call already changed the size, bail out here
+			to avoid the following to mess things up. */
+	if (wp->w_wrow != wp->w_prev_fraction_row)
+	    set_fraction(wp);
+    }
 
     wp->w_height = height;
     wp->w_skipcol = 0;
@@ -5693,7 +5758,8 @@ win_new_height(wp, height)
 	lnum = wp->w_cursor.lnum;
 	if (lnum < 1)		/* can happen when starting up */
 	    lnum = 1;
-	wp->w_wrow = ((long)wp->w_fraction * (long)height - 1L) / FRACTION_MULT;
+	wp->w_wrow = ((long)wp->w_fraction * (long)height - 1L
+					 + FRACTION_MULT / 2) / FRACTION_MULT;
 	line_size = plines_win_col(wp, lnum, (long)(wp->w_cursor.col)) - 1;
 	sline = wp->w_wrow - line_size;
 
@@ -5729,8 +5795,9 @@ win_new_height(wp, height)
 		    --wp->w_wrow;
 		}
 	    }
+	    set_topline(wp, lnum);
 	}
-	else
+	else if (sline > 0)
 	{
 	    while (sline > 0 && lnum > 1)
 	    {
@@ -5773,8 +5840,9 @@ win_new_height(wp, height)
 		lnum = 1;
 		wp->w_wrow -= sline;
 	    }
+
+	    set_topline(wp, lnum);
 	}
-	set_topline(wp, lnum);
     }
 
     if (wp == curwin)
@@ -5783,7 +5851,8 @@ win_new_height(wp, height)
 	    update_topline();
 	curs_columns(FALSE);	/* validate w_wrow */
     }
-    wp->w_prev_fraction_row = wp->w_wrow;
+    if (prev_height > 0)
+	wp->w_prev_fraction_row = wp->w_wrow;
 
     win_comp_scroll(wp);
     redraw_win_later(wp, SOME_VALID);
@@ -6035,7 +6104,6 @@ grab_file_name(count, file_lnum)
     long	count;
     linenr_T	*file_lnum;
 {
-# ifdef FEAT_VISUAL
     if (VIsual_active)
     {
 	int	len;
@@ -6046,7 +6114,6 @@ grab_file_name(count, file_lnum)
 	return find_file_name_in_path(ptr, len,
 		     FNAME_MESS|FNAME_EXP|FNAME_REL, count, curbuf->b_ffname);
     }
-# endif
     return file_name_at_cursor(FNAME_MESS|FNAME_HYP|FNAME_EXP|FNAME_REL, count,
 			       file_lnum);
 
@@ -6747,20 +6814,22 @@ win_hasvertsplit()
  * Return ID of added match, -1 on failure.
  */
     int
-match_add(wp, grp, pat, prio, id)
+match_add(wp, grp, pat, prio, id, pos_list)
     win_T	*wp;
     char_u	*grp;
     char_u	*pat;
     int		prio;
     int		id;
+    list_T	*pos_list;
 {
-    matchitem_T *cur;
-    matchitem_T *prev;
-    matchitem_T *m;
+    matchitem_T	*cur;
+    matchitem_T	*prev;
+    matchitem_T	*m;
     int		hlg_id;
-    regprog_T	*regprog;
+    regprog_T	*regprog = NULL;
+    int		rtype = SOME_VALID;
 
-    if (*grp == NUL || *pat == NUL)
+    if (*grp == NUL || (pat != NULL && *pat == NUL))
 	return -1;
     if (id < -1 || id == 0)
     {
@@ -6785,7 +6854,7 @@ match_add(wp, grp, pat, prio, id)
 	EMSG2(_(e_nogroup), grp);
 	return -1;
     }
-    if ((regprog = vim_regcomp(pat, RE_MAGIC)) == NULL)
+    if (pat != NULL && (regprog = vim_regcomp(pat, RE_MAGIC)) == NULL)
     {
 	EMSG2(_(e_invarg2), pat);
 	return -1;
@@ -6803,14 +6872,111 @@ match_add(wp, grp, pat, prio, id)
     }
 
     /* Build new match. */
-    m = (matchitem_T *)alloc(sizeof(matchitem_T));
+    m = (matchitem_T *)alloc_clear(sizeof(matchitem_T));
     m->id = id;
     m->priority = prio;
-    m->pattern = vim_strsave(pat);
+    m->pattern = pat == NULL ? NULL : vim_strsave(pat);
     m->hlg_id = hlg_id;
     m->match.regprog = regprog;
     m->match.rmm_ic = FALSE;
     m->match.rmm_maxcol = 0;
+
+    /* Set up position matches */
+    if (pos_list != NULL)
+    {
+	linenr_T	toplnum = 0;
+	linenr_T	botlnum = 0;
+	listitem_T	*li;
+	int		i;
+
+	for (i = 0, li = pos_list->lv_first; li != NULL && i < MAXPOSMATCH;
+							i++, li = li->li_next)
+	{
+	    linenr_T	lnum = 0;
+	    colnr_T	col = 0;
+	    int		len = 1;
+	    list_T	*subl;
+	    listitem_T	*subli;
+	    int		error = FALSE;
+
+	    if (li->li_tv.v_type == VAR_LIST)
+	    {
+		subl = li->li_tv.vval.v_list;
+		if (subl == NULL)
+		    goto fail;
+		subli = subl->lv_first;
+		if (subli == NULL)
+		    goto fail;
+		lnum = get_tv_number_chk(&subli->li_tv, &error);
+		if (error == TRUE)
+		    goto fail;
+		if (lnum == 0)
+		{
+		    --i;
+		    continue;
+		}
+		m->pos.pos[i].lnum = lnum;
+		subli = subli->li_next;
+		if (subli != NULL)
+		{
+		    col = get_tv_number_chk(&subli->li_tv, &error);
+		    if (error == TRUE)
+			goto fail;
+		    subli = subli->li_next;
+		    if (subli != NULL)
+		    {
+			len = get_tv_number_chk(&subli->li_tv, &error);
+			if (error == TRUE)
+			    goto fail;
+		    }
+		}
+		m->pos.pos[i].col = col;
+		m->pos.pos[i].len = len;
+	    }
+	    else if (li->li_tv.v_type == VAR_NUMBER)
+	    {
+		if (li->li_tv.vval.v_number == 0)
+		{
+		    --i;
+		    continue;
+		}
+		m->pos.pos[i].lnum = li->li_tv.vval.v_number;
+		m->pos.pos[i].col = 0;
+		m->pos.pos[i].len = 0;
+	    }
+	    else
+	    {
+		EMSG(_("List or number required"));
+		goto fail;
+	    }
+	    if (toplnum == 0 || lnum < toplnum)
+		toplnum = lnum;
+	    if (botlnum == 0 || lnum >= botlnum)
+		botlnum = lnum + 1;
+	}
+
+	/* Calculate top and bottom lines for redrawing area */
+	if (toplnum != 0)
+	{
+	    if (wp->w_buffer->b_mod_set)
+	    {
+		if (wp->w_buffer->b_mod_top > toplnum)
+		    wp->w_buffer->b_mod_top = toplnum;
+		if (wp->w_buffer->b_mod_bot < botlnum)
+		    wp->w_buffer->b_mod_bot = botlnum;
+	    }
+	    else
+	    {
+		wp->w_buffer->b_mod_set = TRUE;
+		wp->w_buffer->b_mod_top = toplnum;
+		wp->w_buffer->b_mod_bot = botlnum;
+		wp->w_buffer->b_mod_xlines = 0;
+	    }
+	    m->pos.toplnum = toplnum;
+	    m->pos.botlnum = botlnum;
+	    rtype = VALID;
+	}
+    }
 
     /* Insert new match.  The match list is in ascending order with regard to
      * the match priorities. */
@@ -6827,8 +6993,12 @@ match_add(wp, grp, pat, prio, id)
 	prev->next = m;
     m->next = cur;
 
-    redraw_later(SOME_VALID);
+    redraw_later(rtype);
     return id;
+
+fail:
+    vim_free(m);
+    return -1;
 }
 
 /*
@@ -6841,8 +7011,9 @@ match_delete(wp, id, perr)
     int		id;
     int		perr;
 {
-    matchitem_T *cur = wp->w_match_head;
-    matchitem_T *prev = cur;
+    matchitem_T	*cur = wp->w_match_head;
+    matchitem_T	*prev = cur;
+    int		rtype = SOME_VALID;
 
     if (id < 1)
     {
@@ -6868,8 +7039,26 @@ match_delete(wp, id, perr)
 	prev->next = cur->next;
     vim_regfree(cur->match.regprog);
     vim_free(cur->pattern);
+    if (cur->pos.toplnum != 0)
+    {
+	if (wp->w_buffer->b_mod_set)
+	{
+	    if (wp->w_buffer->b_mod_top > cur->pos.toplnum)
+		wp->w_buffer->b_mod_top = cur->pos.toplnum;
+	    if (wp->w_buffer->b_mod_bot < cur->pos.botlnum)
+		wp->w_buffer->b_mod_bot = cur->pos.botlnum;
+	}
+	else
+	{
+	    wp->w_buffer->b_mod_set = TRUE;
+	    wp->w_buffer->b_mod_top = cur->pos.toplnum;
+	    wp->w_buffer->b_mod_bot = cur->pos.botlnum;
+	    wp->w_buffer->b_mod_xlines = 0;
+	}
+	rtype = VALID;
+    }
     vim_free(cur);
-    redraw_later(SOME_VALID);
+    redraw_later(rtype);
     return 0;
 }
 

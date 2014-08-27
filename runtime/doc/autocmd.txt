@@ -1,4 +1,4 @@
-*autocmd.txt*   For Vim version 7.4.  Last change: 2013 Aug 04
+*autocmd.txt*   For Vim version 7.4.  Last change: 2014 Aug 22
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -278,6 +278,7 @@ Name			triggered by ~
 |ShellCmdPost|		after executing a shell command
 |ShellFilterPost|	after filtering with a shell command
 
+|CmdUndefined|		a user command is used but it isn't defined
 |FuncUndefined|		a user function is used but it isn't defined
 |SpellFileMissing|	a spell file is used but it can't be found
 |SourcePre|		before sourcing a Vim script
@@ -303,6 +304,9 @@ Name			triggered by ~
 |InsertLeave|		when leaving Insert mode
 |InsertCharPre|		when a character was typed in Insert mode, before
 			inserting it
+
+|TextChanged|		after a change was made to the text in Normal mode
+|TextChangedI|		after a change was made to the text in Insert mode
 
 |ColorScheme|		after loading a color scheme
 
@@ -462,6 +466,16 @@ BufWriteCmd			Before writing the whole buffer to a file.
 							*BufWritePost*
 BufWritePost			After writing the whole buffer to a file
 				(should undo the commands for BufWritePre).
+							*CmdUndefined*
+CmdUndefined			When a user command is used but it isn't
+				defined.  Useful for defining a command only
+				when it's used.  The pattern is matched
+				against the command name.  Both <amatch> and
+				<afile> are set to the name of the command.
+				NOTE: Autocompletion won't work until the
+				command is defined.  An alternative is to
+				always define the user command and have it
+				invoke an autoloaded function.  See |autoload|.
 							*CmdwinEnter*
 CmdwinEnter			After entering the command-line window.
 				Useful for setting options specifically for
@@ -480,6 +494,12 @@ CmdwinLeave			Before leaving the command-line window.
 				|cmdwin-char|
 							*ColorScheme*
 ColorScheme			After loading a color scheme. |:colorscheme|
+				The pattern is matched against the
+				colorscheme name. <afile> can be used for the
+				name of the actual file where this option was
+				set, and <amatch> for the new colorscheme
+				name.
+
 
 							*CompleteDone*
 CompleteDone			After Insert mode completion is done.  Either
@@ -553,11 +573,15 @@ FileChangedRO			Before making the first change to a read-only
 				It is not allowed to change to another buffer
 				here.  You can reload the buffer but not edit
 				another one.
+							*E881*
+				If the number of lines changes saving for undo
+				may fail and the change will be aborted.
 							*FileChangedShell*
 FileChangedShell		When Vim notices that the modification time of
 				a file has changed since editing started.
 				Also when the file attributes of the file
-				change. |timestamp|
+				change or when the size of the file changes.
+				|timestamp|
 				Mostly triggered after executing a shell
 				command, but also with a |:checktime| command
 				or when Gvim regains input focus.
@@ -657,6 +681,8 @@ FuncUndefined			When a user function is used but it isn't
 				when it's used.  The pattern is matched
 				against the function name.  Both <amatch> and
 				<afile> are set to the name of the function.
+				NOTE: When writing Vim scripts a better
+				alternative is to use an autoloaded function.
 				See |autoload-functions|.
 							*GUIEnter*
 GUIEnter			After starting the GUI successfully, and after
@@ -731,7 +757,7 @@ QuickFixCmdPost			Like QuickFixCmdPre, but after a quickfix
 				command is run, before jumping to the first
 				location. For |:cfile| and |:lfile| commands
 				it is run after error file is read and before
-				moving to the first error. 
+				moving to the first error.
 				See |QuickFixCmdPost-example|.
 							*QuitPre*
 QuitPre				When using `:quit`, `:wq` or `:qall`, before

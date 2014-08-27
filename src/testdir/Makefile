@@ -3,6 +3,7 @@
 #
 
 VIMPROG = ../vim
+SCRIPTSOURCE = ../../runtime
 
 # Uncomment this line to use valgrind for memory leaks and extra warnings.
 #   The output goes into a file "valgrind.testN"
@@ -29,7 +30,19 @@ SCRIPTS = test1.out test2.out test3.out test4.out test5.out test6.out \
 		test79.out test80.out test81.out test82.out test83.out \
 		test84.out test85.out test86.out test87.out test88.out \
 		test89.out test90.out test91.out test92.out test93.out \
-		test94.out test95.out test96.out test97.out test98.out
+		test94.out test95.out test96.out test97.out test98.out \
+		test99.out test100.out test101.out test102.out test103.out \
+		test104.out test105.out test106.out test107.out \
+		test_autoformat_join.out \
+		test_breakindent.out \
+		test_changelist.out \
+		test_eval.out \
+		test_insertcount.out \
+		test_listlbr.out \
+		test_listlbr_utf8.out \
+		test_options.out \
+		test_qf_title.out \
+		test_utf8.out
 
 SCRIPTS_GUI = test16.out
 
@@ -51,15 +64,19 @@ $(SCRIPTS) $(SCRIPTS_GUI): $(VIMPROG)
 
 RM_ON_RUN = test.out X* viminfo
 RM_ON_START = tiny.vim small.vim mbyte.vim mzscheme.vim lua.vim test.ok
-RUN_VIM = $(VALGRIND) $(VIMPROG) -u unix.vim -U NONE --noplugin -s dotest.in
+RUN_VIM = VIMRUNTIME=$(SCRIPTSOURCE); export VIMRUNTIME; $(VALGRIND) $(VIMPROG) -u unix.vim -U NONE --noplugin -s dotest.in
 
 clean:
 	-rm -rf *.out *.failed *.rej *.orig test.log $(RM_ON_RUN) $(RM_ON_START) valgrind.*
 
 test1.out: test1.in
-	-rm -rf $*.failed $(RM_ON_RUN) $(RM_ON_START)
+	-rm -rf $*.failed $(RM_ON_RUN) $(RM_ON_START) wrongtermsize
 	$(RUN_VIM) $*.in
-	@/bin/sh -c "if diff test.out $*.ok; \
+	@/bin/sh -c "if test -f wrongtermsize; \
+		then echo; \
+		echo test1 FAILED - terminal size must be 80x24 or larger; \
+		echo; exit 1; \
+		elif diff test.out $*.ok; \
 		then mv -f test.out $*.out; \
 		else echo; \
 		echo test1 FAILED - Something basic is wrong; \
