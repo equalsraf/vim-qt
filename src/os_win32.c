@@ -2058,9 +2058,9 @@ mch_init(void)
     if (!executable_exists("findstr.exe", NULL))
 	set_option_value((char_u *)"grepprg", 0, (char_u *)"grep -n", 0);
 
-#ifdef FEAT_CLIPBOARD
+#if defined(FEAT_CLIPBOARD) && !defined(FEAT_GUI_QT)
     win_clip_init();
-#endif
+#endif /* FEAT_CLIPBOARD && !FEAT_GUI_QT */
 }
 
 
@@ -2544,9 +2544,9 @@ mch_init(void)
     g_fMouseAvail = GetSystemMetrics(SM_MOUSEPRESENT);
 #endif
 
-#ifdef FEAT_CLIPBOARD
+#if defined(FEAT_CLIPBOARD) && !defined(FEAT_GUI_QT)
     win_clip_init();
-#endif
+#endif /* FEAT_CLIPBOARD && !FEAT_GUI_QT */
 
     /* This will be NULL on anything but NT 4.0 */
     s_pfnGetConsoleKeyboardLayoutName =

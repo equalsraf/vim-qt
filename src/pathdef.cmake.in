@@ -1,0 +1,7 @@
+#include "vim.h"
+char_u *default_vim_dir = (char_u *)"${CMAKE_INSTALL_PREFIX}/share/vim/current";
+char_u *default_vimruntime_dir = (char_u *)"";
+char_u *all_cflags = (char_u *)"gcc -c -I. -Iproto -DHAVE_CONFIG_H -DFEAT_GUI_ATHENA -DFUNCPROTO=15 -DNARROWPROTO    -g -O2 -D_FORTIFY_SOURCE=1      ";
+char_u *all_lflags = (char_u *)"gcc   -L/usr/local/lib -o vim -lXaw -lXmu -lXext -lXt -lSM -lICE -lXpm -lXt -lX11 -lXdmcp -lSM -lICE -ldl -lm -lncurses -lnsl  -lacl -lattr -lgpm          ";
+char_u *compiled_user = (char_u *)"raf-r";
+char_u *compiled_sys = (char_u *)"${SITE_NAME}";

@@ -40,6 +40,10 @@
  * When +small is used, +tiny is also included.  +normal implies +small, etc.
  */
 
+#ifdef FEAT_GUI_QT
+#include <qt_features.h>
+#endif
+
 /*
  * Uncomment one of these to override the default.  For unix use a configure
  * argument, see Makefile.
@@ -624,7 +628,7 @@
  * Disabled for EBCDIC:
  * Multibyte support doesn't work on z/OS Unix currently.
  */
-#if (defined(FEAT_NORMAL) || defined(FEAT_GUI_GTK) || defined(FEAT_ARABIC)) \
+#if (defined(FEAT_NORMAL) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT) || defined(FEAT_ARABIC)) \
 	&& !defined(FEAT_MBYTE) && !defined(WIN16) \
 	&& VIM_SIZEOF_INT >= 4 && !defined(EBCDIC)
 # define FEAT_MBYTE
@@ -804,7 +808,8 @@
 	|| defined(FEAT_GUI_GTK) \
 	|| defined(FEAT_GUI_PHOTON) \
 	|| defined(FEAT_GUI_MSWIN) \
-	|| defined(FEAT_GUI_MAC)
+	|| defined(FEAT_GUI_MAC) \
+	|| defined(FEAT_GUI_QT)
 #  define FEAT_CON_DIALOG
 #  define FEAT_GUI_DIALOG
 # else
