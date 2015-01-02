@@ -759,11 +759,14 @@ getcmdline(firstc, count, indent)
 #ifdef FEAT_CMDWIN
 	if (c == cedit_key || c == K_CMDWIN)
 	{
-	    /*
-	     * Open a window to edit the command line (and history).
-	     */
-	    c = ex_window();
-	    some_key_typed = TRUE;
+	    if (ex_normal_busy == 0 && got_int == FALSE)
+	    {
+		/*
+		 * Open a window to edit the command line (and history).
+		 */
+		c = ex_window();
+		some_key_typed = TRUE;
+	    }
 	}
 # ifdef FEAT_DIGRAPHS
 	else
@@ -4694,6 +4697,7 @@ ExpandFromContext(xp, pat, num_file, file, options)
 #endif
 #ifdef FEAT_USR_CMDS
 	    {EXPAND_USER_COMMANDS, get_user_commands, FALSE, TRUE},
+	    {EXPAND_USER_ADDR_TYPE, get_user_cmd_addr_type, FALSE, TRUE},
 	    {EXPAND_USER_CMD_FLAGS, get_user_cmd_flags, FALSE, TRUE},
 	    {EXPAND_USER_NARGS, get_user_cmd_nargs, FALSE, TRUE},
 	    {EXPAND_USER_COMPLETE, get_user_cmd_complete, FALSE, TRUE},

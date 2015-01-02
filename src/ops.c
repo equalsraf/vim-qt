@@ -612,20 +612,20 @@ block_insert(oap, s, b_insert, bdp)
 #ifdef FEAT_MBYTE
 	if (has_mbyte && spaces > 0)
 	{
+	    int off;
+
 	    /* Avoid starting halfway a multi-byte character. */
 	    if (b_insert)
 	    {
-		int off = (*mb_head_off)(oldp, oldp + offset + spaces);
-		spaces -= off;
-		count -= off;
+		off = (*mb_head_off)(oldp, oldp + offset + spaces);
 	    }
 	    else
 	    {
-		int off = (*mb_off_next)(oldp, oldp + offset);
+		off = (*mb_off_next)(oldp, oldp + offset);
 		offset += off;
-		spaces = 0;
-		count = 0;
 	    }
+	    spaces -= off;
+	    count -= off;
 	}
 #endif
 
@@ -3831,6 +3831,9 @@ do_put(regname, dir, count, flags)
 		    lnum++;
 	    } while (VIsual_active && lnum <= curbuf->b_visual.vi_end.lnum);
 
+	    if (VIsual_active) /* reset lnum to the last visual line */
+		lnum--;
+
 	    curbuf->b_op_end = curwin->w_cursor;
 	    /* For "CTRL-O p" in Insert mode, put cursor after last char */
 	    if (totlen && (restart_edit != 0 || (flags & PUT_CURSEND)))
@@ -5660,6 +5663,8 @@ read_viminfo_register(virp, force)
     int		set_prev = FALSE;
     char_u	*str;
     char_u	**array = NULL;
+    int		new_type;
+    colnr_T	new_width;
 
     /* We only get here (hopefully) if line[0] == '"' */
     str = virp->vir_line + 1;
@@ -5692,21 +5697,25 @@ read_viminfo_register(virp, force)
     limit = 100;	/* Optimized for registers containing <= 100 lines */
     if (do_it)
     {
+	/*
+	 * Build the new register in array[].
+	 * y_array is kept as-is until done.
+	 * The "do_it" flag is reset when something is wrong, in which case
+	 * array[] needs to be freed.
+	 */
 	if (set_prev)
 	    y_previous = y_current;
-	vim_free(y_current->y_array);
-	array = y_current->y_array =
-		       (char_u **)alloc((unsigned)(limit * sizeof(char_u *)));
+	array = (char_u **)alloc((unsigned)(limit * sizeof(char_u *)));
 	str = skipwhite(skiptowhite(str));
 	if (STRNCMP(str, "CHAR", 4) == 0)
-	    y_current->y_type = MCHAR;
+	    new_type = MCHAR;
 	else if (STRNCMP(str, "BLOCK", 5) == 0)
-	    y_current->y_type = MBLOCK;
+	    new_type = MBLOCK;
 	else
-	    y_current->y_type = MLINE;
+	    new_type = MLINE;
 	/* get the block width; if it's missing we get a zero, which is OK */
 	str = skipwhite(skiptowhite(str));
-	y_current->y_width = getdigits(&str);
+	new_width = getdigits(&str);
     }
 
     while (!(eof = viminfo_readline(virp))
@@ -5714,40 +5723,66 @@ read_viminfo_register(virp, force)
     {
 	if (do_it)
 	{
-	    if (size >= limit)
+	    if (size == limit)
 	    {
-		y_current->y_array = (char_u **)
+		char_u **new_array = (char_u **)
 			      alloc((unsigned)(limit * 2 * sizeof(char_u *)));
+
+		if (new_array == NULL)
+		{
+		    do_it = FALSE;
+		    break;
+		}
 		for (i = 0; i < limit; i++)
-		    y_current->y_array[i] = array[i];
+		    new_array[i] = array[i];
 		vim_free(array);
+		array = new_array;
 		limit *= 2;
-		array = y_current->y_array;
 	    }
 	    str = viminfo_readstring(virp, 1, TRUE);
 	    if (str != NULL)
 		array[size++] = str;
 	    else
+		/* error, don't store the result */
 		do_it = FALSE;
 	}
     }
     if (do_it)
     {
+	/* free y_array[] */
+	for (i = 0; i < y_current->y_size; i++)
+	    vim_free(y_current->y_array[i]);
+	vim_free(y_current->y_array);
+
+	y_current->y_type = new_type;
+	y_current->y_width = new_width;
+	y_current->y_size = size;
 	if (size == 0)
 	{
-	    vim_free(array);
 	    y_current->y_array = NULL;
 	}
-	else if (size < limit)
+	else
 	{
+	    /* Move the lines from array[] to y_array[]. */
 	    y_current->y_array =
 			(char_u **)alloc((unsigned)(size * sizeof(char_u *)));
 	    for (i = 0; i < size; i++)
-		y_current->y_array[i] = array[i];
-	    vim_free(array);
+	    {
+		if (y_current->y_array == NULL)
+		    vim_free(array[i]);
+		else
+		    y_current->y_array[i] = array[i];
+	    }
 	}
-	y_current->y_size = size;
     }
+    else
+    {
+	/* Free array[] if it was filled. */
+	for (i = 0; i < size; i++)
+	    vim_free(array[i]);
+    }
+    vim_free(array);
+
     return eof;
 }
 

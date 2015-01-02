@@ -1380,6 +1380,9 @@ do_pending_operator(cap, old_col, gui_yank)
     pos_T	old_cursor;
     int		empty_region_error;
     int		restart_edit_save;
+#ifdef FEAT_LINEBREAK
+    int		lbr_saved = curwin->w_p_lbr;
+#endif
 
     /* The visual area is remembered for redo */
     static int	    redo_VIsual_mode = NUL; /* 'v', 'V', or Ctrl-V */
@@ -1390,6 +1393,10 @@ do_pending_operator(cap, old_col, gui_yank)
     int		    include_line_break = FALSE;
 #endif
 
+#ifdef FEAT_LINEBREAK
+    curwin->w_p_lbr = FALSE;	/* Avoid a problem with unwanted linebreaks in
+				 * block mode. */
+#endif
 #if defined(FEAT_CLIPBOARD)
     /*
      * Yank the visual area into the GUI selection register before we operate
@@ -2136,6 +2143,9 @@ do_pending_operator(cap, old_col, gui_yank)
 	oap->block_mode = FALSE;
 	clearop(oap);
     }
+#ifdef FEAT_LINEBREAK
+    curwin->w_p_lbr = lbr_saved;
+#endif
 }
 
 /*
@@ -4509,13 +4519,21 @@ nv_screengo(oap, dir, dist)
 #if defined(FEAT_LINEBREAK) || defined(FEAT_MBYTE)
     if (curwin->w_cursor.col > 0 && curwin->w_p_wrap)
     {
+	colnr_T virtcol;
+
 	/*
 	 * Check for landing on a character that got split at the end of the
 	 * last line.  We want to advance a screenline, not end up in the same
 	 * screenline or move two screenlines.
 	 */
 	validate_virtcol();
-	if (curwin->w_virtcol > curwin->w_curswant
+	virtcol = curwin->w_virtcol;
+# if defined(FEAT_LINEBREAK)
+	if (virtcol > (colnr_T)width1 && *p_sbr != NUL)
+	    virtcol -= vim_strsize(p_sbr);
+# endif
+
+	if (virtcol > curwin->w_curswant
 		&& (curwin->w_curswant < (colnr_T)width1
 		    ? (curwin->w_curswant > (colnr_T)width1 / 2)
 		    : ((curwin->w_curswant - width1) % width2
@@ -9266,7 +9284,7 @@ nv_put(cap)
 	if (cap->oap->op_type == OP_DELETE && cap->cmdchar == 'p')
 	{
 	    clearop(cap->oap);
-	    nv_diffgetput(TRUE);
+	    nv_diffgetput(TRUE, cap->opcount);
 	}
 	else
 #endif
@@ -9389,7 +9407,7 @@ nv_open(cap)
     if (cap->oap->op_type == OP_DELETE && cap->cmdchar == 'o')
     {
 	clearop(cap->oap);
-	nv_diffgetput(FALSE);
+	nv_diffgetput(FALSE, cap->opcount);
     }
     else
 #endif

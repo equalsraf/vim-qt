@@ -392,6 +392,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 'kp'	options.txt	/*'kp'*
 'langmap'	options.txt	/*'langmap'*
 'langmenu'	options.txt	/*'langmenu'*
+'langnoremap'	options.txt	/*'langnoremap'*
 'laststatus'	options.txt	/*'laststatus'*
 'lazyredraw'	options.txt	/*'lazyredraw'*
 'lbr'	options.txt	/*'lbr'*
@@ -405,6 +406,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 'listchars'	options.txt	/*'listchars'*
 'lm'	options.txt	/*'lm'*
 'lmap'	options.txt	/*'lmap'*
+'lnr'	options.txt	/*'lnr'*
 'loadplugins'	options.txt	/*'loadplugins'*
 'lpl'	options.txt	/*'lpl'*
 'ls'	options.txt	/*'ls'*
@@ -2055,6 +2057,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 :comc	map.txt	/*:comc*
 :comclear	map.txt	/*:comclear*
 :command	map.txt	/*:command*
+:command-addr	map.txt	/*:command-addr*
 :command-bang	map.txt	/*:command-bang*
 :command-bar	map.txt	/*:command-bar*
 :command-buffer	map.txt	/*:command-buffer*
@@ -2248,6 +2251,8 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 :ha	print.txt	/*:ha*
 :hardcopy	print.txt	/*:hardcopy*
 :help	helphelp.txt	/*:help*
+:helpc	helphelp.txt	/*:helpc*
+:helpclose	helphelp.txt	/*:helpclose*
 :helpf	helphelp.txt	/*:helpf*
 :helpfind	helphelp.txt	/*:helpfind*
 :helpg	helphelp.txt	/*:helpg*
@@ -3132,6 +3137,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 <CSI>	intro.txt	/*<CSI>*
 <Char->	map.txt	/*<Char->*
 <Char>	map.txt	/*<Char>*
+<CursorHold>	autocmd.txt	/*<CursorHold>*
 <D-	intro.txt	/*<D-*
 <Del>	change.txt	/*<Del>*
 <Down>	motion.txt	/*<Down>*
@@ -4329,6 +4335,8 @@ E884	eval.txt	/*E884*
 E885	sign.txt	/*E885*
 E886	starting.txt	/*E886*
 E887	if_pyth.txt	/*E887*
+E888	pattern.txt	/*E888*
+E889	map.txt	/*E889*
 E89	message.txt	/*E89*
 E90	message.txt	/*E90*
 E91	options.txt	/*E91*
@@ -5469,6 +5477,7 @@ edit-dialogs	editing.txt	/*edit-dialogs*
 edit-files	editing.txt	/*edit-files*
 edit-intro	editing.txt	/*edit-intro*
 edit-no-break	usr_25.txt	/*edit-no-break*
+edit-paragraph-join	usr_25.txt	/*edit-paragraph-join*
 editing.txt	editing.txt	/*editing.txt*
 efm-%>	quickfix.txt	/*efm-%>*
 efm-entries	quickfix.txt	/*efm-entries*
@@ -6080,6 +6089,8 @@ g:tex_isk	syntax.txt	/*g:tex_isk*
 g:tex_no_error	syntax.txt	/*g:tex_no_error*
 g:tex_nospell	syntax.txt	/*g:tex_nospell*
 g:tex_stylish	syntax.txt	/*g:tex_stylish*
+g:tex_subscripts	syntax.txt	/*g:tex_subscripts*
+g:tex_superscripts	syntax.txt	/*g:tex_superscripts*
 g:tex_verbspell	syntax.txt	/*g:tex_verbspell*
 g:var	eval.txt	/*g:var*
 g:vimball_home	pi_vimball.txt	/*g:vimball_home*
@@ -7822,6 +7833,7 @@ spell-FLAG	spell.txt	/*spell-FLAG*
 spell-FOL	spell.txt	/*spell-FOL*
 spell-FORBIDDENWORD	spell.txt	/*spell-FORBIDDENWORD*
 spell-HOME	spell.txt	/*spell-HOME*
+spell-IGNOREEXTRA	spell.txt	/*spell-IGNOREEXTRA*
 spell-KEEPCASE	spell.txt	/*spell-KEEPCASE*
 spell-KEY	spell.txt	/*spell-KEY*
 spell-LANG	spell.txt	/*spell-LANG*
@@ -8299,6 +8311,7 @@ tex-runon	syntax.txt	/*tex-runon*
 tex-slow	syntax.txt	/*tex-slow*
 tex-stopzone	syntax.txt	/*tex-stopzone*
 tex-style	syntax.txt	/*tex-style*
+tex-supersub	syntax.txt	/*tex-supersub*
 tex-sync	syntax.txt	/*tex-sync*
 tex-verb	syntax.txt	/*tex-verb*
 tex.vim	syntax.txt	/*tex.vim*
@@ -8774,6 +8787,7 @@ window-variable	eval.txt	/*window-variable*
 windowid-variable	eval.txt	/*windowid-variable*
 windows	windows.txt	/*windows*
 windows-3.1	os_win32.txt	/*windows-3.1*
+windows-icon	os_win32.txt	/*windows-icon*
 windows-intro	windows.txt	/*windows-intro*
 windows-starting	windows.txt	/*windows-starting*
 windows.txt	windows.txt	/*windows.txt*

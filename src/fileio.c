@@ -2958,6 +2958,7 @@ check_for_cryptkey(cryptkey, ptr, sizep, filesizep, newfile, fname, did_ask)
 		 * Happens when retrying to detect encoding. */
 		smsg((char_u *)_(need_key_msg), fname);
 		msg_scroll = TRUE;
+		crypt_check_method(method);
 		cryptkey = crypt_get_key(newfile, FALSE);
 		*did_ask = TRUE;
 
@@ -3149,6 +3150,7 @@ buf_write(buf, fname, sfname, start, end, eap, append, forceit,
     int		    write_undo_file = FALSE;
     context_sha256_T sha_ctx;
 #endif
+    unsigned int    bkc = get_bkc_value(buf);
 
     if (fname == NULL || *fname == NUL)	/* safety check */
 	return FAIL;
@@ -3647,10 +3649,10 @@ buf_write(buf, fname, sfname, start, end, eap, append, forceit,
 	struct stat st;
 #endif
 
-	if ((bkc_flags & BKC_YES) || append)	/* "yes" */
+	if ((bkc & BKC_YES) || append)	/* "yes" */
 	    backup_copy = TRUE;
 #if defined(UNIX) || defined(WIN32)
-	else if ((bkc_flags & BKC_AUTO))	/* "auto" */
+	else if ((bkc & BKC_AUTO))	/* "auto" */
 	{
 	    int		i;
 
@@ -3738,7 +3740,7 @@ buf_write(buf, fname, sfname, start, end, eap, append, forceit,
 	/*
 	 * Break symlinks and/or hardlinks if we've been asked to.
 	 */
-	if ((bkc_flags & BKC_BREAKSYMLINK) || (bkc_flags & BKC_BREAKHARDLINK))
+	if ((bkc & BKC_BREAKSYMLINK) || (bkc & BKC_BREAKHARDLINK))
 	{
 # ifdef UNIX
 	    int	lstat_res;
@@ -3746,24 +3748,24 @@ buf_write(buf, fname, sfname, start, end, eap, append, forceit,
 	    lstat_res = mch_lstat((char *)fname, &st);
 
 	    /* Symlinks. */
-	    if ((bkc_flags & BKC_BREAKSYMLINK)
+	    if ((bkc & BKC_BREAKSYMLINK)
 		    && lstat_res == 0
 		    && st.st_ino != st_old.st_ino)
 		backup_copy = FALSE;
 
 	    /* Hardlinks. */
-	    if ((bkc_flags & BKC_BREAKHARDLINK)
+	    if ((bkc & BKC_BREAKHARDLINK)
 		    && st_old.st_nlink > 1
 		    && (lstat_res != 0 || st.st_ino == st_old.st_ino))
 		backup_copy = FALSE;
 # else
 #  if defined(WIN32)
 	    /* Symlinks. */
-	    if ((bkc_flags & BKC_BREAKSYMLINK) && mch_is_symbolic_link(fname))
+	    if ((bkc & BKC_BREAKSYMLINK) && mch_is_symbolic_link(fname))
 		backup_copy = FALSE;
 
 	    /* Hardlinks. */
-	    if ((bkc_flags & BKC_BREAKHARDLINK) && mch_is_hard_link(fname))
+	    if ((bkc & BKC_BREAKHARDLINK) && mch_is_hard_link(fname))
 		backup_copy = FALSE;
 #  endif
 # endif
@@ -4876,6 +4878,13 @@ restore_backup:
 	    )
     {
 	unchanged(buf, TRUE);
+#ifdef FEAT_AUTOCMD
+	/* buf->b_changedtick is always incremented in unchanged() but that
+	 * should not trigger a TextChanged event. */
+	if (last_changedtick + 1 == buf->b_changedtick
+					       && last_changedtick_buf == buf)
+	    last_changedtick = buf->b_changedtick;
+#endif
 	u_unchanged(buf);
 	u_update_save_nr(buf);
     }
@@ -7763,6 +7772,9 @@ static int au_get_grouparg __ARGS((char_u **argp));
 static int do_autocmd_event __ARGS((event_T event, char_u *pat, int nested, char_u *cmd, int forceit, int group));
 static int apply_autocmds_group __ARGS((event_T event, char_u *fname, char_u *fname_io, int force, int group, buf_T *buf, exarg_T *eap));
 static void auto_next_pat __ARGS((AutoPatCmd *apc, int stop_at_last));
+#if defined(FEAT_AUTOCMD) || defined(FEAT_WILDIGN)
+static int match_file_pat __ARGS((char_u *pattern, regprog_T **prog, char_u *fname, char_u *sfname, char_u *tail, int allow_dirs));
+#endif
 
 
 static event_T	last_event;
@@ -9009,6 +9021,9 @@ win_found:
 
 	    curwin = aco->save_curwin;
 	    curbuf = curwin->w_buffer;
+	    /* In case the autocommand move the cursor to a position that that
+	     * not exist in curbuf. */
+	    check_cursor();
 	}
     }
 }
@@ -9628,7 +9643,7 @@ auto_next_pat(apc, stop_at_last)
 	{
 	    /* execution-condition */
 	    if (ap->buflocal_nr == 0
-		    ? (match_file_pat(NULL, ap->reg_prog, apc->fname,
+		    ? (match_file_pat(NULL, &ap->reg_prog, apc->fname,
 				      apc->sfname, apc->tail, ap->allow_dirs))
 		    : ap->buflocal_nr == apc->arg_bufnr)
 	    {
@@ -9762,7 +9777,7 @@ has_autocmd(event, sfname, buf)
     for (ap = first_autopat[(int)event]; ap != NULL; ap = ap->next)
 	if (ap->pat != NULL && ap->cmds != NULL
 	      && (ap->buflocal_nr == 0
-		? match_file_pat(NULL, ap->reg_prog,
+		? match_file_pat(NULL, &ap->reg_prog,
 					  fname, sfname, tail, ap->allow_dirs)
 		: buf != NULL && ap->buflocal_nr == buf->b_fnum
 	   ))
@@ -10023,10 +10038,10 @@ aucmd_restbuf(aco)
  * Used for autocommands and 'wildignore'.
  * Returns TRUE if there is a match, FALSE otherwise.
  */
-    int
+    static int
 match_file_pat(pattern, prog, fname, sfname, tail, allow_dirs)
     char_u	*pattern;		/* pattern to match with */
-    regprog_T	*prog;			/* pre-compiled regprog or NULL */
+    regprog_T	**prog;			/* pre-compiled regprog or NULL */
     char_u	*fname;			/* full path of file name */
     char_u	*sfname;		/* short file name or NULL */
     char_u	*tail;			/* tail of path */
@@ -10081,7 +10096,7 @@ match_file_pat(pattern, prog, fname, sfname, tail, allow_dirs)
 #endif
     {
 	if (prog != NULL)
-	    regmatch.regprog = prog;
+	    regmatch.regprog = *prog;
 	else
 	    regmatch.regprog = vim_regcomp(pattern, RE_MAGIC);
     }
@@ -10107,7 +10122,9 @@ match_file_pat(pattern, prog, fname, sfname, tail, allow_dirs)
 		 || (!allow_dirs && vim_regexec(&regmatch, tail, (colnr_T)0)))))
 	result = TRUE;
 
-    if (prog == NULL)
+    if (prog != NULL)
+	*prog = regmatch.regprog;
+    else
 	vim_regfree(regmatch.regprog);
     return result;
 }

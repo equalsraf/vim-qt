@@ -1,4 +1,4 @@
-*options.txt*	For Vim version 7.4.  Last change: 2014 Aug 09
+*options.txt*	For Vim version 7.4.  Last change: 2014 Nov 05
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -921,7 +921,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 
 						*'backupcopy'* *'bkc'*
 'backupcopy' 'bkc'	string	(Vi default for Unix: "yes", otherwise: "auto")
-			global
+			global or local to buffer |global-local|
 			{not in Vi}
 	When writing a file and a backup is made, this option tells how it's
 	done.  This is a comma separated list of words.
@@ -2221,7 +2221,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 
 
 						*'cryptmethod'* *'cm'*
-'cryptmethod'		string	(default "zip")
+'cryptmethod' 'cm'	string	(default "zip")
 			global or local to buffer |global-local|
 			{not in Vi}
 	Method used for encryption when the buffer is written to a file:
@@ -3369,7 +3369,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	NOTE: This option is reset when 'compatible' is set.
 
 						*'grepformat'* *'gfm'*
-'grepformat' 'gfm'	string	(default "%f:%l%m,%f  %l%m")
+'grepformat' 'gfm'	string	(default "%f:%l:%m,%f:%l%m,%f  %l%m")
 			global
 			{not in Vi}
 	Format to recognize for the ":grep" command output.
@@ -4009,6 +4009,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	When Vim was compiled with HAVE_X11 defined, the original icon will be
 	restored if possible |X11|.  See |X11-icon| for changing the icon on
 	X11.
+	For MS-Windows the icon can be changed, see |windows-icon|.
 
 						*'iconstring'*
 'iconstring'		string	(default "")
@@ -4533,6 +4534,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	be able to execute Normal mode commands.
 	This is the opposite of the 'keymap' option, where characters are
 	mapped in Insert mode.
+	Also consider setting 'langnoremap' to avoid 'langmap' applies to
+	characters resulting from a mapping.
 	This option cannot be set from a |modeline| or in the |sandbox|, for
 	security reasons.
 
@@ -4587,6 +4590,18 @@ A jump table for the options with a short description can be found at |Q_op|.
 		:set langmenu=de_DE.ISO_8859-1
 		:source $VIMRUNTIME/menu.vim
 <	Warning: This deletes all menus that you defined yourself!
+
+					*'langnoremap'* *'lnr'*
+'langnoremap' 'lnr'	boolean (default off)
+			global
+			{not in Vi}
+			{only available when compiled with the |+langmap|
+			feature}
+	When on, setting 'langmap' does not apply to characters resulting from
+	a mapping.  This basically means, if you noticed that setting
+	'langmap' disables some of your mappings, try setting this option.
+	This option defaults to off for backwards compatibility.  Set it on if
+	that works for you to avoid mappings to break.
 
 					*'laststatus'* *'ls'*
 'laststatus' 'ls'	number	(default 1)
@@ -5625,6 +5640,10 @@ A jump table for the options with a short description can be found at |Q_op|.
 	Note that when using the NFA engine and the pattern contains something
 	that is not supported the pattern will not match.  This is only useful
 	for debugging the regexp engine.
+	Using automatic selection enables Vim to switch the engine, if the
+	default engine becomes too costly.  E.g., when the NFA engine uses too
+	many states.  This should prevent Vim from hanging on a combination of
+	a complex pattern with long text.
 
 		*'relativenumber'* *'rnu'* *'norelativenumber'* *'nornu'*
 'relativenumber' 'rnu'	boolean	(default off)
@@ -7743,6 +7762,9 @@ A jump table for the options with a short description can be found at |Q_op|.
 	current buffer: >
 		setlocal ul=-1
 <	This helps when you run out of memory for a single change.
+
+	The local value is set to -123456 when the global value is to be used.
+
 	Also see |clear-undo|.
 
 						*'undoreload'* *'ur'*
@@ -7850,6 +7872,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 			fold options
 	   options	options and mappings local to a window or buffer (not
 			global values for local options)
+	   localoptions same as "options"
 	   slash	backslashes in file names replaced with forward
 			slashes
 	   unix		with Unix end-of-line format (single <NL>), even when

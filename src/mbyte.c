@@ -405,6 +405,7 @@ enc_alias_table[] =
     {"unix-jis",	IDX_EUC_JP},
     {"ujis",		IDX_EUC_JP},
     {"shift-jis",	IDX_SJIS},
+    {"pck",		IDX_SJIS},	/* Sun: PCK */
     {"euckr",		IDX_EUC_KR},
     {"5601",		IDX_EUC_KR},	/* Sun: KS C 5601 */
     {"euccn",		IDX_EUC_CN},
@@ -2537,6 +2538,7 @@ utf_class(c)
 	{0x2900, 0x2998, 1},		/* arrows, brackets, etc. */
 	{0x29d8, 0x29db, 1},
 	{0x29fc, 0x29fd, 1},
+	{0x2e00, 0x2e7f, 1},		/* supplemental punctuation */
 	{0x3000, 0x3000, 0},		/* ideographic space */
 	{0x3001, 0x3020, 1},		/* ideographic punctuation */
 	{0x3030, 0x3030, 1},

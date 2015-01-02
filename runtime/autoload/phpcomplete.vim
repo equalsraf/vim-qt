@@ -3,7 +3,7 @@
 " Maintainer:	Dávid Szabó ( complex857 AT gmail DOT com )
 " Previous Maintainer:	Mikolaj Machowski ( mikmach AT wp DOT pl )
 " URL: https://github.com/shawncplus/phpcomplete.vim
-" Last Change:  2014 Jul 24
+" Last Change:  2014 Dec 01
 "
 "	OPTIONS:
 "
@@ -94,9 +94,9 @@ function! phpcomplete#CompletePHP(findstart, base) " {{{
 		" Check if we are inside of PHP markup
 		let pos = getpos('.')
 		let phpbegin = searchpairpos('<?', '', '?>', 'bWn',
-				\ 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string\|comment"')
+				\ 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string\\|comment"')
 		let phpend = searchpairpos('<?', '', '?>', 'Wn',
-				\ 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string\|comment"')
+				\ 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string\\|comment"')
 
 		if phpbegin == [0,0] && phpend == [0,0]
 			" We are outside of any PHP markup. Complete HTML
@@ -803,7 +803,7 @@ function! phpcomplete#CompleteClassName(base, kinds, current_namespace, imports)
 			endif
 			let relative_name = namespace_part.tag.name
 			" match base without the namespace part for namespaced base but not namespaced tags, for tagfiles with old ctags
-			if !has_key(tag, 'namespace') && index(kinds, tag.kind) != -1 && stridx(tag.name, base[len(namespace_part):]) == 0
+			if !has_key(tag, 'namespace') && index(kinds, tag.kind) != -1 && stridx(tolower(tag.name), tolower(base[len(namespace_part):])) == 0
 				call add(no_namespace_matches, {'word': leading_slash.relative_name, 'kind': tag.kind, 'menu': tag.filename, 'info': tag.filename })
 			endif
 			if has_key(tag, 'namespace') && index(kinds, tag.kind) != -1 && tag.namespace ==? namespace_for_class
@@ -1172,11 +1172,11 @@ function! phpcomplete#GetCurrentInstruction(line_number, col_number, phpbegin) "
 			" break if we are on a "naked" stop_char (operators, colon, openparent...)
 			if index(stop_chars, current_char) != -1
 				let do_break = 1
-				" dont break does not look like a "->"
+				" dont break if it does look like a "->"
 				if (prev_char == '-' && current_char == '>') || (current_char == '-' && next_char == '>')
 					let do_break = 0
 				endif
-				" dont break if its looks like a "::"
+				" dont break if it does look like a "::"
 				if (prev_char == ':' && current_char == ':') || (current_char == ':' && next_char == ':')
 					let do_break = 0
 				endif
@@ -1356,8 +1356,12 @@ function! phpcomplete#GetCallChainReturnType(classname_candidate, class_candidat
 						endif
 						" make @return self, static, $this the same way
 						" (not exactly what php means by these)
-						if returnclass == 'self' || returnclass == 'static' || returnclass == '$this'
-							let classname_candidate = a:classname_candidate
+						if returnclass == 'self' || returnclass == 'static' || returnclass == '$this' || returnclass == 'self[]' || returnclass == 'static[]' || returnclass == '$this[]'
+							if returnclass =~ '\[\]$'
+								let classname_candidate = a:classname_candidate.'[]'
+							else
+								let classname_candidate = a:classname_candidate
+							endif
 							let class_candidate_namespace = a:class_candidate_namespace
 						else
 							let [classname_candidate, class_candidate_namespace] = phpcomplete#ExpandClassName(returnclass, fullnamespace, a:imports)
@@ -1527,7 +1531,7 @@ function! phpcomplete#GetClassName(start_line, context, current_namespace, impor
 		let function_boundary = phpcomplete#GetCurrentFunctionBoundaries()
 		let search_end_line = max([1, function_boundary[0][0]])
 		" -1 makes us ignore the current line (where the completion was invoked
-		let lines = reverse(getline(search_end_line, line('.') - 1))
+		let lines = reverse(getline(search_end_line, a:start_line - 1))
 
 		" check Constant lookup
 		let constant_object = matchstr(a:context, '\zs'.class_name_pattern.'\ze::')
@@ -1607,6 +1611,7 @@ function! phpcomplete#GetClassName(start_line, context, current_namespace, impor
 				for arg in args
 					if arg =~# object.'\(,\|$\)'
 						let classname_candidate = matchstr(arg, '\s*\zs'.class_name_pattern.'\ze\s\+'.object)
+						let [classname_candidate, class_candidate_namespace] = phpcomplete#ExpandClassName(classname_candidate, a:current_namespace, a:imports)
 						break
 					endif
 				endfor
@@ -1625,6 +1630,7 @@ function! phpcomplete#GetClassName(start_line, context, current_namespace, impor
 					for param in docblock.params
 						if param.name =~? object
 							let classname_candidate = matchstr(param.type, class_name_pattern.'\(\[\]\)\?')
+							let [classname_candidate, class_candidate_namespace] = phpcomplete#ExpandClassName(classname_candidate, a:current_namespace, a:imports)
 							break
 						endif
 					endfor
@@ -1636,9 +1642,32 @@ function! phpcomplete#GetClassName(start_line, context, current_namespace, impor
 
 			" assignment for the variable in question with a variable on the right hand side
 			if line =~# '^\s*'.object.'\s*=&\?\s*'.variable_name_pattern
-				let tailing_semicolon = match(line, ';\s*$')
-				let tailing_semicolon = tailing_semicolon != -1 ? tailing_semicolon : strlen(getline(a:start_line - i))
-				let prev_context = phpcomplete#GetCurrentInstruction(a:start_line - i, tailing_semicolon - 1, b:phpbegin)
+
+				" try to find the next non-comment or string ";" char
+				let start_col = match(line, '^\s*'.object.'\C\s*=\zs&\?\s*'.variable_name_pattern)
+				let filelines = reverse(lines)
+				let [pos, char] = s:getNextCharWithPos(filelines, [a:start_line - i - 1, start_col])
+				let chars_read = 1
+				" read while end of the file
+				while char != 'EOF' && chars_read < 1000
+					let last_pos = pos
+					let [pos, char] = s:getNextCharWithPos(filelines, pos)
+					let chars_read += 1
+					" we got a candidate
+					if char == ';'
+						let synIDName = synIDattr(synID(pos[0] + 1, pos[1] + 1, 0), 'name')
+						" it's not a comment or string, end search
+						if synIDName !~? 'comment\|string'
+							break
+						endif
+					endif
+				endwhile
+
+				let prev_context = phpcomplete#GetCurrentInstruction(last_pos[0] + 1, last_pos[1], b:phpbegin)
+				if prev_context == ''
+					" cannot get previous context give up
+					return
+				endif
 				let prev_class = phpcomplete#GetClassName(a:start_line - i, prev_context, a:current_namespace, a:imports)
 
 				if stridx(prev_class, '\') != -1
@@ -1654,9 +1683,32 @@ function! phpcomplete#GetClassName(start_line, context, current_namespace, impor
 
 			" assignment for the variable in question with a function on the right hand side
 			if line =~# '^\s*'.object.'\s*=&\?\s*'.function_invocation_pattern
-				let tailing_semicolon = match(line, ';\s*$')
-				let tailing_semicolon = tailing_semicolon != -1 ? tailing_semicolon : strlen(getline(a:start_line - i))
-				let prev_context = phpcomplete#GetCurrentInstruction(a:start_line - i, tailing_semicolon - 1, b:phpbegin)
+
+				" try to find the next non-comment or string ";" char
+				let start_col = match(line, '\C^\s*'.object.'\s*=\zs&\?\s*'.function_invocation_pattern)
+				let filelines = reverse(lines)
+				let [pos, char] = s:getNextCharWithPos(filelines, [a:start_line - i - 1, start_col])
+				let chars_read = 1
+				" read while end of the file
+				while char != 'EOF' && chars_read < 1000
+					let last_pos = pos
+					let [pos, char] = s:getNextCharWithPos(filelines, pos)
+					let chars_read += 1
+					" we got a candidate
+					if char == ';'
+						let synIDName = synIDattr(synID(pos[0] + 1, pos[1] + 1, 0), 'name')
+						" it's not a comment or string, end search
+						if synIDName !~? 'comment\|string'
+							break
+						endif
+					endif
+				endwhile
+
+				let prev_context = phpcomplete#GetCurrentInstruction(last_pos[0] + 1, last_pos[1], b:phpbegin)
+				if prev_context == ''
+					" cannot get previous context give up
+					return
+				endif
 
 				let function_name = matchstr(prev_context, '^'.function_invocation_pattern.'\ze')
 				let function_name = matchstr(function_name, '^\zs.\+\ze\s*($') " strip the trailing (
@@ -1934,7 +1986,7 @@ function! phpcomplete#GetClassContentsStructure(file_path, file_lines, class_nam
 	call search('{')
 	let endline = line('.')
 
-	let content = join(getline(cfline, endline),"\n")
+	let content = join(getline(cfline, endline), "\n")
 	" Catch extends
 	if content =~? 'extends'
 		let extends_class = matchstr(content, 'class\_s\+'.a:class_name.'\_s\+extends\_s\+\zs'.class_name_pattern.'\ze')
@@ -2341,6 +2393,9 @@ function! phpcomplete#GetCurrentNameSpace(file_lines) " {{{
 							endif
 						endfor
 					endif
+				endif
+				if exists('no_namespace_candidate')
+					unlet no_namespace_candidate
 				endif
 			endfor
 		endif

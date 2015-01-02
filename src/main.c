@@ -178,6 +178,14 @@ main
      */
     mch_early_init();
 
+#if defined(WIN32) && defined(FEAT_MBYTE)
+    /*
+     * MingW expands command line arguments, which confuses our code to
+     * convert when 'encoding' changes.  Get the unexpanded arguments.
+     */
+    argc = get_cmd_argsW(&argv);
+#endif
+
     /* Many variables are in "params" so that we can pass them to invoked
      * functions without a lot of arguments.  "argc" and "argv" are also
      * copied, so that they can be changed. */
@@ -846,6 +854,7 @@ vim_main2(int argc UNUSED, char **argv UNUSED)
 #ifdef FEAT_CRYPT
     if (params.ask_for_key)
     {
+	crypt_check_current_method();
 	(void)crypt_get_key(TRUE, TRUE);
 	TIME_MSG("getting crypt key");
     }
@@ -950,8 +959,17 @@ vim_main2(int argc UNUSED, char **argv UNUSED)
     if (p_im)
 	need_start_insertmode = TRUE;
 
+#ifdef FEAT_CLIPBOARD
+    if (clip_unnamed)
+       /* do not overwrite system clipboard while starting up */
+       clip_did_set_selection = -1;
+#endif
 #ifdef FEAT_AUTOCMD
     apply_autocmds(EVENT_VIMENTER, NULL, NULL, FALSE, curbuf);
+# ifdef FEAT_CLIPBOARD
+    if (clip_did_set_selection < 0)
+       clip_did_set_selection = TRUE;
+# endif
     TIME_MSG("VimEnter autocommands");
 #endif
 
@@ -1241,9 +1259,9 @@ main_loop(cmdwin, noexmode)
 		char_u *p;
 
 		/* msg_attr_keep() will set keep_msg to NULL, must free the
-		 * string here. */
+		 * string here. Don't reset keep_msg, msg_attr_keep() uses it
+		 * to check for duplicates. */
 		p = keep_msg;
-		keep_msg = NULL;
 		msg_attr(p, keep_msg_attr);
 		vim_free(p);
 	    }
@@ -1495,6 +1513,9 @@ getout(exitval)
 #ifdef FEAT_EVAL
     if (garbage_collect_at_exit)
 	garbage_collect();
+#endif
+#if defined(WIN32) && defined(FEAT_MBYTE)
+    free_cmd_argsW();
 #endif
 
     mch_exit(exitval);

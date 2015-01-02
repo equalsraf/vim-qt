@@ -1040,7 +1040,8 @@ free_all_mem()
     entered = TRUE;
 
 # ifdef FEAT_AUTOCMD
-    block_autocmds();	    /* don't want to trigger autocommands here */
+    /* Don't want to trigger autocommands from here on. */
+    block_autocmds();
 # endif
 
 # ifdef FEAT_WINDOWS
@@ -2470,6 +2471,7 @@ static struct key_name_entry
     {K_SNR,		(char_u *)"SNR"},
 #endif
     {K_PLUG,		(char_u *)"Plug"},
+    {K_CURSORHOLD,	(char_u *)"CursorHold"},
     {0,			NULL}
 };
 

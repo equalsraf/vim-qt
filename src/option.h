@@ -327,7 +327,7 @@ EXTERN char_u	*p_bs;		/* 'backspace' */
 EXTERN char_u	*p_bg;		/* 'background' */
 EXTERN int	p_bk;		/* 'backup' */
 EXTERN char_u	*p_bkc;		/* 'backupcopy' */
-EXTERN unsigned	bkc_flags;
+EXTERN unsigned	bkc_flags;	/* flags from 'backupcopy' */
 #ifdef IN_OPTION_C
 static char *(p_bkc_values[]) = {"yes", "auto", "no", "breaksymlink", "breakhardlink", NULL};
 #endif
@@ -576,6 +576,7 @@ EXTERN char_u	*p_kp;		/* 'keywordprg' */
 EXTERN char_u	*p_km;		/* 'keymodel' */
 #ifdef FEAT_LANGMAP
 EXTERN char_u	*p_langmap;	/* 'langmap'*/
+EXTERN int	p_lnr;		/* 'langnoremap' */
 #endif
 #if defined(FEAT_MENU) && defined(FEAT_MULTI_LANG)
 EXTERN char_u	*p_lm;		/* 'langmenu' */
@@ -918,6 +919,9 @@ enum
     , BV_AR
 #ifdef FEAT_QUICKFIX
     , BV_BH
+#endif
+    , BV_BKC
+#ifdef FEAT_QUICKFIX
     , BV_BT
     , BV_EFM
     , BV_GP

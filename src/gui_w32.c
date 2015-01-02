@@ -29,12 +29,14 @@
 # include "gui_dwrite.h"
 #endif
 
-#if defined(FEAT_DIRECTX) || defined(PROTO)
+#if defined(FEAT_DIRECTX)
 static DWriteContext *s_dwc = NULL;
 static int s_directx_enabled = 0;
 static int s_directx_load_attempted = 0;
 # define IS_ENABLE_DIRECTX() (s_directx_enabled && s_dwc != NULL)
+#endif
 
+#if defined(FEAT_DIRECTX) || defined(PROTO)
     int
 directx_enabled(void)
 {
@@ -533,10 +535,6 @@ static void dyn_imm_load(void);
 # define pImmSetCompositionWindow ImmSetCompositionWindow
 # define pImmGetConversionStatus  ImmGetConversionStatus
 # define pImmSetConversionStatus  ImmSetConversionStatus
-#endif
-
-#ifndef ETO_IGNORELANGUAGE
-# define ETO_IGNORELANGUAGE  0x1000
 #endif
 
 /* multi monitor support */
@@ -1666,6 +1664,14 @@ gui_mch_init(void)
     if (s_textArea == NULL)
 	return FAIL;
 
+    /* Try loading an icon from $RUNTIMEPATH/bitmaps/vim.ico. */
+    {
+	HANDLE	hIcon = NULL;
+
+	if (mch_icon_load(&hIcon) == OK && hIcon != NULL)
+	    SendMessage(s_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+    }
+
 #ifdef FEAT_MENU
     s_menuBar = CreateMenu();
 #endif
@@ -2500,12 +2506,6 @@ gui_mch_draw_string(
 		padding[i] = gui.char_width;
     }
 
-    /* On NT, tell the font renderer not to "help" us with Hebrew and Arabic
-     * text.  This doesn't work in 9x, so we have to deal with it manually on
-     * those systems. */
-    if (os_version.dwPlatformId == VER_PLATFORM_WIN32_NT)
-	foptions |= ETO_IGNORELANGUAGE;
-
     /*
      * We have to provide the padding argument because italic and bold versions
      * of fixed-width fonts are often one pixel or so wider than their normal
@@ -2641,10 +2641,9 @@ gui_mch_draw_string(
 #endif
     {
 #ifdef FEAT_RIGHTLEFT
-	/* If we can't use ETO_IGNORELANGUAGE, we can't tell Windows not to
-	 * mess up RL text, so we have to draw it character-by-character.
-	 * Only do this if RL is on, since it's slow. */
-	if (curwin->w_p_rl && !(foptions & ETO_IGNORELANGUAGE))
+	/* Windows will mess up RL text, so we have to draw it character by
+	 * character.  Only do this if RL is on, since it's slow. */
+	if (curwin->w_p_rl)
 	    RevOut(s_hdc, TEXT_X(col), TEXT_Y(row),
 			 foptions, pcliprect, (char *)text, len, padding);
 	else
