@@ -168,8 +168,8 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 				key_char = TO_SPECIAL(special_keys[i].code0, special_keys[i].code1);
 				key_char = simplify_key(key_char,
 					(int *)&vimModifiers);
-				isSpecial = TRUE;
 			}
+			isSpecial = TRUE;
 			break;
 		}
 	}
