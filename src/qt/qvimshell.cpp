@@ -169,7 +169,9 @@ void QVimShell::keyPressEvent ( QKeyEvent *ev)
 				key_char = simplify_key(key_char,
 					(int *)&vimModifiers);
 			}
-			isSpecial = TRUE;
+			if (ev->key() != Qt::Key_Backtab) {
+				isSpecial = TRUE;
+			}
 			break;
 		}
 	}
