@@ -100,7 +100,7 @@ static void	nv_end __ARGS((cmdarg_T *cap));
 static void	nv_dollar __ARGS((cmdarg_T *cap));
 static void	nv_search __ARGS((cmdarg_T *cap));
 static void	nv_next __ARGS((cmdarg_T *cap));
-static void	normal_search __ARGS((cmdarg_T *cap, int dir, char_u *pat, int opt));
+static int	normal_search __ARGS((cmdarg_T *cap, int dir, char_u *pat, int opt));
 static void	nv_csearch __ARGS((cmdarg_T *cap));
 static void	nv_brackets __ARGS((cmdarg_T *cap));
 static void	nv_percent __ARGS((cmdarg_T *cap));
@@ -1393,10 +1393,6 @@ do_pending_operator(cap, old_col, gui_yank)
     int		    include_line_break = FALSE;
 #endif
 
-#ifdef FEAT_LINEBREAK
-    curwin->w_p_lbr = FALSE;	/* Avoid a problem with unwanted linebreaks in
-				 * block mode. */
-#endif
 #if defined(FEAT_CLIPBOARD)
     /*
      * Yank the visual area into the GUI selection register before we operate
@@ -1420,6 +1416,10 @@ do_pending_operator(cap, old_col, gui_yank)
      */
     if ((finish_op || VIsual_active) && oap->op_type != OP_NOP)
     {
+#ifdef FEAT_LINEBREAK
+	/* Avoid a problem with unwanted linebreaks in block mode. */
+	curwin->w_p_lbr = FALSE;
+#endif
 	oap->is_VIsual = VIsual_active;
 	if (oap->motion_force == 'V')
 	    oap->motion_type = MLINE;
@@ -1819,7 +1819,13 @@ do_pending_operator(cap, old_col, gui_yank)
 			    || oap->op_type == OP_FUNCTION
 			    || oap->op_type == OP_FILTER)
 			&& oap->motion_force == NUL)
+		{
+#ifdef FEAT_LINEBREAK
+		    /* make sure redrawing is correct */
+		    curwin->w_p_lbr = lbr_saved;
+#endif
 		    redraw_curbuf_later(INVERTED);
+		}
 	    }
 	}
 
@@ -1863,7 +1869,12 @@ do_pending_operator(cap, old_col, gui_yank)
 		    || oap->op_type == OP_FOLD
 #endif
 		    ))
+	{
+#ifdef FEAT_LINEBREAK
+	    curwin->w_p_lbr = lbr_saved;
+#endif
 	    redraw_curbuf_later(INVERTED);
+	}
 
 	/*
 	 * If the end of an operator is in column one while oap->motion_type
@@ -1947,7 +1958,12 @@ do_pending_operator(cap, old_col, gui_yank)
 		}
 	    }
 	    else
+	    {
+#ifdef FEAT_LINEBREAK
+		curwin->w_p_lbr = lbr_saved;
+#endif
 		(void)op_yank(oap, FALSE, !gui_yank);
+	    }
 	    check_cursor_col();
 	    break;
 
@@ -1969,6 +1985,11 @@ do_pending_operator(cap, old_col, gui_yank)
 		else
 		    restart_edit_save = 0;
 		restart_edit = 0;
+#ifdef FEAT_LINEBREAK
+		/* Restore linebreak, so that when the user edits it looks as
+		 * before. */
+		curwin->w_p_lbr = lbr_saved;
+#endif
 		/* Reset finish_op now, don't want it set inside edit(). */
 		finish_op = FALSE;
 		if (op_change(oap))	/* will call edit() */
@@ -2064,8 +2085,16 @@ do_pending_operator(cap, old_col, gui_yank)
 		 * Visual mode.  But do this only once. */
 		restart_edit_save = restart_edit;
 		restart_edit = 0;
-
+#ifdef FEAT_LINEBREAK
+		/* Restore linebreak, so that when the user edits it looks as
+		 * before. */
+		curwin->w_p_lbr = lbr_saved;
+#endif
 		op_insert(oap, cap->count1);
+#ifdef FEAT_LINEBREAK
+		/* Reset linebreak, so that formatting works correctly. */
+		curwin->w_p_lbr = FALSE;
+#endif
 
 		/* TODO: when inserting in several lines, should format all
 		 * the lines. */
@@ -2090,7 +2119,14 @@ do_pending_operator(cap, old_col, gui_yank)
 	    }
 #ifdef FEAT_VISUALEXTRA
 	    else
+	    {
+#ifdef FEAT_LINEBREAK
+		/* Restore linebreak, so that when the user edits it looks as
+		 * before. */
+		curwin->w_p_lbr = lbr_saved;
+#endif
 		op_replace(oap, cap->nchar);
+	    }
 #endif
 	    break;
 
@@ -2134,7 +2170,12 @@ do_pending_operator(cap, old_col, gui_yank)
 	    if (!p_sol && oap->motion_type == MLINE && !oap->end_adjusted
 		    && (oap->op_type == OP_LSHIFT || oap->op_type == OP_RSHIFT
 						|| oap->op_type == OP_DELETE))
+	    {
+#ifdef FEAT_LINEBREAK
+		curwin->w_p_lbr = FALSE;
+#endif
 		coladvance(curwin->w_curswant = old_col);
+	    }
 	}
 	else
 	{
@@ -4416,6 +4457,8 @@ nv_screengo(oap, dir, dist)
     col_off2 = col_off1 - curwin_col_off2();
     width1 = W_WIDTH(curwin) - col_off1;
     width2 = W_WIDTH(curwin) - col_off2;
+    if (width2 == 0)
+	width2 = 1; /* avoid divide by zero */
 
 #ifdef FEAT_VERTSPLIT
     if (curwin->w_width != 0)
@@ -5055,7 +5098,11 @@ dozet:
 
 		/* "zm": fold more */
     case 'm':	if (curwin->w_p_fdl > 0)
-		    --curwin->w_p_fdl;
+		{
+		    curwin->w_p_fdl -= cap->count1;
+		    if (curwin->w_p_fdl < 0)
+			curwin->w_p_fdl = 0;
+		}
 		old_fdl = -1;		/* force an update */
 		curwin->w_p_fen = TRUE;
 		break;
@@ -5067,7 +5114,13 @@ dozet:
 		break;
 
 		/* "zr": reduce folding */
-    case 'r':	++curwin->w_p_fdl;
+    case 'r':	curwin->w_p_fdl += cap->count1;
+		{
+		    int d = getDeepestNesting();
+
+		    if (curwin->w_p_fdl >= d)
+			curwin->w_p_fdl = d;
+		}
 		break;
 
 		/* "zR": open all folds */
@@ -5259,15 +5312,25 @@ handle_tabmenu()
 	    break;
 
 	case TABLINE_MENU_NEW:
-	    vim_snprintf((char *)IObuff, IOSIZE, "%dtabnew",
-				     current_tab > 0 ? current_tab - 1 : 999);
-	    do_cmdline_cmd(IObuff);
+	    if (current_tab == 0)
+		do_cmdline_cmd((char_u *)"$tabnew");
+	    else
+	    {
+		vim_snprintf((char *)IObuff, IOSIZE, "%dtabnew",
+							     current_tab - 1);
+		do_cmdline_cmd(IObuff);
+	    }
 	    break;
 
 	case TABLINE_MENU_OPEN:
-	    vim_snprintf((char *)IObuff, IOSIZE, "browse %dtabnew",
-				     current_tab > 0 ? current_tab - 1 : 999);
-	    do_cmdline_cmd(IObuff);
+	    if (current_tab == 0)
+		do_cmdline_cmd((char_u *)"browse $tabnew");
+	    else
+	    {
+		vim_snprintf((char *)IObuff, IOSIZE, "browse %dtabnew",
+							     current_tab - 1);
+		do_cmdline_cmd(IObuff);
+	    }
 	    break;
     }
 }
@@ -5722,7 +5785,7 @@ nv_ident(cap)
 	init_history();
 	add_to_history(HIST_SEARCH, buf, TRUE, NUL);
 #endif
-	normal_search(cap, cmdchar == '*' ? '/' : '?', buf, 0);
+	(void)normal_search(cap, cmdchar == '*' ? '/' : '?', buf, 0);
     }
     else
 	do_cmdline_cmd(buf);
@@ -6258,7 +6321,7 @@ nv_search(cap)
 	return;
     }
 
-    normal_search(cap, cap->cmdchar, cap->searchbuf,
+    (void)normal_search(cap, cap->cmdchar, cap->searchbuf,
 						(cap->arg ? 0 : SEARCH_MARK));
 }
 
@@ -6270,14 +6333,26 @@ nv_search(cap)
 nv_next(cap)
     cmdarg_T	*cap;
 {
-    normal_search(cap, 0, NULL, SEARCH_MARK | cap->arg);
+    pos_T old = curwin->w_cursor;
+    int   i = normal_search(cap, 0, NULL, SEARCH_MARK | cap->arg);
+
+    if (i == 1 && equalpos(old, curwin->w_cursor))
+    {
+	/* Avoid getting stuck on the current cursor position, which can
+	 * happen when an offset is given and the cursor is on the last char
+	 * in the buffer: Repeat with count + 1. */
+	cap->count1 += 1;
+	(void)normal_search(cap, 0, NULL, SEARCH_MARK | cap->arg);
+	cap->count1 -= 1;
+    }
 }
 
 /*
  * Search for "pat" in direction "dir" ('/' or '?', 0 for repeat).
  * Uses only cap->count1 and cap->oap from "cap".
+ * Return 0 for failure, 1 for found, 2 for found and line offset added.
  */
-    static void
+    static int
 normal_search(cap, dir, pat, opt)
     cmdarg_T	*cap;
     int		dir;
@@ -6311,6 +6386,7 @@ normal_search(cap, dir, pat, opt)
     /* "/$" will put the cursor after the end of the line, may need to
      * correct that here */
     check_cursor();
+    return i;
 }
 
 /*
@@ -9132,6 +9208,14 @@ nv_object(cap)
 		flag = current_block(cap->oap, cap->count1, include, '<', '>');
 		break;
 	case 't': /* "at" = a tag block (xml and html) */
+		/* Do not adjust oap->end in do_pending_operator()
+		 * otherwise there are different results for 'dit'
+		 * (note leading whitespace in last line):
+		 * 1) <b>      2) <b>
+		 *    foobar      foobar
+		 *    </b>            </b>
+		 */
+		cap->retval |= CA_NO_ADJ_OP_END;
 		flag = current_tagblock(cap->oap, cap->count1, include);
 		break;
 	case 'p': /* "ap" = a paragraph */

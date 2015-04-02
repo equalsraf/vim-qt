@@ -2099,6 +2099,10 @@ rewind_retry:
 		/* First try finding a NL, for Dos and Unix */
 		if (try_dos || try_unix)
 		{
+		    /* Reset the carriage return counter. */
+		    if (try_mac)
+			try_mac = 1;
+
 		    for (p = ptr; p < ptr + size; ++p)
 		    {
 			if (*p == NL)
@@ -2110,6 +2114,8 @@ rewind_retry:
 				fileformat = EOL_UNIX;
 			    break;
 			}
+			else if (*p == CAR && try_mac)
+			    try_mac++;
 		    }
 
 		    /* Don't give in to EOL_UNIX if EOL_MAC is more likely */
@@ -2133,6 +2139,10 @@ rewind_retry:
 				fileformat = EOL_MAC;
 			}
 		    }
+		    else if (fileformat == EOL_UNKNOWN && try_mac == 1)
+			/* Looking for CR but found no end-of-line markers at
+			 * all: use the default format. */
+			fileformat = default_fileformat();
 		}
 
 		/* No NL found: may use Mac format */
@@ -2862,7 +2872,7 @@ readfile_charconvert(fname, fenc, fdp)
     char_u	*tmpname;
     char_u	*errmsg = NULL;
 
-    tmpname = vim_tempname('r');
+    tmpname = vim_tempname('r', FALSE);
     if (tmpname == NULL)
 	errmsg = (char_u *)_("Can't find temp file for conversion");
     else
@@ -4278,7 +4288,7 @@ buf_write(buf, fname, sfname, start, end, eap, append, forceit,
 	     */
 	    if (*p_ccv != NUL)
 	    {
-		wfname = vim_tempname('w');
+		wfname = vim_tempname('w', FALSE);
 		if (wfname == NULL)	/* Can't write without a tempfile! */
 		{
 		    errmsg = (char_u *)_("E214: Can't find temp file for writing");
@@ -7334,14 +7344,16 @@ vim_settempdir(tempdir)
 /*
  * vim_tempname(): Return a unique name that can be used for a temp file.
  *
- * The temp file is NOT created.
+ * The temp file is NOT garanteed to be created.  If "keep" is FALSE it is
+ * garanteed to NOT be created.
  *
  * The returned pointer is to allocated memory.
  * The returned pointer is NULL if no valid name was found.
  */
     char_u  *
-vim_tempname(extra_char)
+vim_tempname(extra_char, keep)
     int	    extra_char UNUSED;  /* char to use in the name instead of '?' */
+    int	    keep UNUSED;
 {
 #ifdef USE_TMPNAM
     char_u	itmp[L_tmpnam];	/* use tmpnam() */
@@ -7477,8 +7489,9 @@ vim_tempname(extra_char)
     buf4[2] = extra_char;   /* make it "VIa", "VIb", etc. */
     if (GetTempFileName(szTempFile, buf4, 0, itmp) == 0)
 	return NULL;
-    /* GetTempFileName() will create the file, we don't want that */
-    (void)DeleteFile(itmp);
+    if (!keep)
+	/* GetTempFileName() will create the file, we don't want that */
+	(void)DeleteFile(itmp);
 
     /* Backslashes in a temp file name cause problems when filtering with
      * "sh".  NOTE: This also checks 'shellcmdflag' to help those people who
@@ -8517,21 +8530,22 @@ do_autocmd_event(event, pat, nested, cmd, forceit, group)
 	is_buflocal = FALSE;
 	buflocal_nr = 0;
 
-	if (patlen >= 7 && STRNCMP(pat, "<buffer", 7) == 0
+	if (patlen >= 8 && STRNCMP(pat, "<buffer", 7) == 0
 						    && pat[patlen - 1] == '>')
 	{
-	    /* Error will be printed only for addition. printing and removing
-	     * will proceed silently. */
+	    /* "<buffer...>": Error will be printed only for addition.
+	     * printing and removing will proceed silently. */
 	    is_buflocal = TRUE;
 	    if (patlen == 8)
+		/* "<buffer>" */
 		buflocal_nr = curbuf->b_fnum;
 	    else if (patlen > 9 && pat[7] == '=')
 	    {
-		/* <buffer=abuf> */
-		if (patlen == 13 && STRNICMP(pat, "<buffer=abuf>", 13))
+		if (patlen == 13 && STRNICMP(pat, "<buffer=abuf>", 13) == 0)
+		    /* "<buffer=abuf>" */
 		    buflocal_nr = autocmd_bufnr;
-		/* <buffer=123> */
 		else if (skipdigits(pat + 8) == pat + patlen - 1)
+		    /* "<buffer=123>" */
 		    buflocal_nr = atoi((char *)pat + 8);
 	    }
 	}
@@ -9230,6 +9244,7 @@ apply_autocmds_group(event, fname, fname_io, force, group, buf, eap)
 #ifdef FEAT_PROFILE
     proftime_T	wait_time;
 #endif
+    int		did_save_redobuff = FALSE;
 
     /*
      * Quickly return if there are no autocommands for this event or
@@ -9430,7 +9445,11 @@ apply_autocmds_group(event, fname, fname_io, force, group, buf, eap)
     if (!autocmd_busy)
     {
 	save_search_patterns();
-	saveRedobuff();
+	if (!ins_compl_active())
+	{
+	    saveRedobuff();
+	    did_save_redobuff = TRUE;
+	}
 	did_filetype = keep_filetype;
     }
 
@@ -9530,7 +9549,8 @@ apply_autocmds_group(event, fname, fname_io, force, group, buf, eap)
     if (!autocmd_busy)
     {
 	restore_search_patterns();
-	restoreRedobuff();
+	if (did_save_redobuff)
+	    restoreRedobuff();
 	did_filetype = FALSE;
 	while (au_pending_free_buf != NULL)
 	{
@@ -10049,57 +10069,12 @@ match_file_pat(pattern, prog, fname, sfname, tail, allow_dirs)
 {
     regmatch_T	regmatch;
     int		result = FALSE;
-#ifdef FEAT_OSFILETYPE
-    int		no_pattern = FALSE; /* TRUE if check is filetype only */
-    char_u	*type_start;
-    char_u	c;
-    int		match = FALSE;
-#endif
 
     regmatch.rm_ic = p_fic; /* ignore case if 'fileignorecase' is set */
-#ifdef FEAT_OSFILETYPE
-    if (*pattern == '<')
-    {
-	/* There is a filetype condition specified with this pattern.
-	 * Check the filetype matches first. If not, don't bother with the
-	 * pattern (set regprog to NULL).
-	 * Always use magic for the regexp.
-	 */
-
-	for (type_start = pattern + 1; (c = *pattern); pattern++)
-	{
-	    if ((c == ';' || c == '>') && match == FALSE)
-	    {
-		*pattern = NUL;	    /* Terminate the string */
-		/* TODO: match with 'filetype' of buffer that "fname" comes
-		 * from. */
-		match = mch_check_filetype(fname, type_start);
-		*pattern = c;	    /* Restore the terminator */
-		type_start = pattern + 1;
-	    }
-	    if (c == '>')
-		break;
-	}
-
-	/* (c should never be NUL, but check anyway) */
-	if (match == FALSE || c == NUL)
-	    regmatch.regprog = NULL;	/* Doesn't match - don't check pat. */
-	else if (*pattern == NUL)
-	{
-	    regmatch.regprog = NULL;	/* Vim will try to free regprog later */
-	    no_pattern = TRUE;	/* Always matches - don't check pat. */
-	}
-	else
-	    regmatch.regprog = vim_regcomp(pattern + 1, RE_MAGIC);
-    }
+    if (prog != NULL)
+	regmatch.regprog = *prog;
     else
-#endif
-    {
-	if (prog != NULL)
-	    regmatch.regprog = *prog;
-	else
-	    regmatch.regprog = vim_regcomp(pattern, RE_MAGIC);
-    }
+	regmatch.regprog = vim_regcomp(pattern, RE_MAGIC);
 
     /*
      * Try for a match with the pattern with:
@@ -10107,19 +10082,12 @@ match_file_pat(pattern, prog, fname, sfname, tail, allow_dirs)
      * 2. the short file name, when the pattern has a '/'.
      * 3. the tail of the file name, when the pattern has no '/'.
      */
-    if (
-#ifdef FEAT_OSFILETYPE
-	    /* If the check is for a filetype only and we don't care
-	     * about the path then skip all the regexp stuff.
-	     */
-	    no_pattern ||
-#endif
-	    (regmatch.regprog != NULL
+    if (regmatch.regprog != NULL
 	     && ((allow_dirs
 		     && (vim_regexec(&regmatch, fname, (colnr_T)0)
 			 || (sfname != NULL
 			     && vim_regexec(&regmatch, sfname, (colnr_T)0))))
-		 || (!allow_dirs && vim_regexec(&regmatch, tail, (colnr_T)0)))))
+		 || (!allow_dirs && vim_regexec(&regmatch, tail, (colnr_T)0))))
 	result = TRUE;
 
     if (prog != NULL)
@@ -10176,9 +10144,6 @@ match_file_list(list, sfname, ffname)
  * allow_dirs, otherwise FALSE is put there -- webb.
  * Handle backslashes before special characters, like "\*" and "\ ".
  *
- * If FEAT_OSFILETYPE defined then pass initial <type> through unchanged. Eg:
- * '<html>myfile' becomes '<html>^myfile$' -- leonard.
- *
  * Returns NULL when out of memory.
  */
     char_u *
@@ -10188,53 +10153,18 @@ file_pat_to_reg_pat(pat, pat_end, allow_dirs, no_bslash)
     char	*allow_dirs;	/* Result passed back out in here */
     int		no_bslash UNUSED; /* Don't use a backward slash as pathsep */
 {
-    int		size;
+    int		size = 2; /* '^' at start, '$' at end */
     char_u	*endp;
     char_u	*reg_pat;
     char_u	*p;
     int		i;
     int		nested = 0;
     int		add_dollar = TRUE;
-#ifdef FEAT_OSFILETYPE
-    int		check_length = 0;
-#endif
 
     if (allow_dirs != NULL)
 	*allow_dirs = FALSE;
     if (pat_end == NULL)
 	pat_end = pat + STRLEN(pat);
-
-#ifdef FEAT_OSFILETYPE
-    /* Find out how much of the string is the filetype check */
-    if (*pat == '<')
-    {
-	/* Count chars until the next '>' */
-	for (p = pat + 1; p < pat_end && *p != '>'; p++)
-	    ;
-	if (p < pat_end)
-	{
-	    /* Pattern is of the form <.*>.*  */
-	    check_length = p - pat + 1;
-	    if (p + 1 >= pat_end)
-	    {
-		/* The 'pattern' is a filetype check ONLY */
-		reg_pat = (char_u *)alloc(check_length + 1);
-		if (reg_pat != NULL)
-		{
-		    mch_memmove(reg_pat, pat, (size_t)check_length);
-		    reg_pat[check_length] = NUL;
-		}
-		return reg_pat;
-	    }
-	}
-	/* else: there was no closing '>' - assume it was a normal pattern */
-
-    }
-    pat += check_length;
-    size = 2 + check_length;
-#else
-    size = 2;		/* '^' at start, '$' at end */
-#endif
 
     for (p = pat; p < pat_end; p++)
     {
@@ -10270,14 +10200,7 @@ file_pat_to_reg_pat(pat, pat_end, allow_dirs, no_bslash)
     if (reg_pat == NULL)
 	return NULL;
 
-#ifdef FEAT_OSFILETYPE
-    /* Copy the type check in to the start. */
-    if (check_length)
-	mch_memmove(reg_pat, pat - check_length, (size_t)check_length);
-    i = check_length;
-#else
     i = 0;
-#endif
 
     if (pat[0] == '*')
 	while (pat[0] == '*' && pat < pat_end - 1)

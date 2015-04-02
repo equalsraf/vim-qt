@@ -856,11 +856,12 @@ valid_yank_reg(regname, writing)
     if (       (regname > 0 && ASCII_ISALNUM(regname))
 	    || (!writing && vim_strchr((char_u *)
 #ifdef FEAT_EVAL
-				    "/.%#:="
+				    "/.%:="
 #else
-				    "/.%#:"
+				    "/.%:"
 #endif
 					, regname) != NULL)
+	    || regname == '#'
 	    || regname == '"'
 	    || regname == '-'
 	    || regname == '_'
@@ -2543,6 +2544,7 @@ op_insert(oap, count1)
     char_u		*firstline, *ins_text;
     struct block_def	bd;
     int			i;
+    pos_T		t1;
 
     /* edit() changes this - record it for OP_APPEND */
     bd.is_MAX = (curwin->w_curswant == MAXCOL);
@@ -2616,7 +2618,15 @@ op_insert(oap, count1)
 	}
     }
 
+    t1 = oap->start;
     edit(NUL, FALSE, (linenr_T)count1);
+
+    /* When a tab was inserted, and the characters in front of the tab
+     * have been converted to a tab as well, the column of the cursor
+     * might have actually been reduced, so need to adjust here. */
+    if (t1.lnum == curbuf->b_op_start_orig.lnum
+	    && lt(curbuf->b_op_start_orig, t1))
+	oap->start = curbuf->b_op_start_orig;
 
     /* If user has moved off this line, we don't know what to do, so do
      * nothing.
@@ -2643,10 +2653,11 @@ op_insert(oap, count1)
 #endif
 			)
 	    {
+		int t = getviscol2(curbuf->b_op_start_orig.col,
+					      curbuf->b_op_start_orig.coladd);
 		oap->start.col = curbuf->b_op_start_orig.col;
-		pre_textlen -= getviscol2(oap->start.col, oap->start.coladd)
-							    - oap->start_vcol;
-		oap->start_vcol = getviscol2(oap->start.col, oap->start.coladd);
+		pre_textlen -= t - oap->start_vcol;
+		oap->start_vcol = t;
 	    }
 	    else if (oap->op_type == OP_APPEND
 		      && oap->end.col
@@ -2659,12 +2670,13 @@ op_insert(oap, count1)
 #endif
 			)
 	    {
+		int t = getviscol2(curbuf->b_op_start_orig.col,
+					      curbuf->b_op_start_orig.coladd);
 		oap->start.col = curbuf->b_op_start_orig.col;
 		/* reset pre_textlen to the value of OP_INSERT */
 		pre_textlen += bd.textlen;
-		pre_textlen -= getviscol2(oap->start.col, oap->start.coladd)
-							    - oap->start_vcol;
-		oap->start_vcol = getviscol2(oap->start.col, oap->start.coladd);
+		pre_textlen -= t - oap->start_vcol;
+		oap->start_vcol = t;
 		oap->op_type = OP_INSERT;
 	    }
 	}
@@ -5308,10 +5320,7 @@ block_prep(oap, bdp, lnum, is_del)
 	    {
 		/* Count a tab for what it's worth (if list mode not on) */
 		prev_pend = pend;
-		/* TODO: is passing prev_pend for start of the line OK?
-		 * perhaps it should be "line". */
-		incr = lbr_chartabsize_adv(prev_pend, &pend,
-						      (colnr_T)bdp->end_vcol);
+		incr = lbr_chartabsize_adv(line, &pend, (colnr_T)bdp->end_vcol);
 		bdp->end_vcol += incr;
 	    }
 	    if (bdp->end_vcol <= oap->end_vcol
@@ -5663,8 +5672,8 @@ read_viminfo_register(virp, force)
     int		set_prev = FALSE;
     char_u	*str;
     char_u	**array = NULL;
-    int		new_type;
-    colnr_T	new_width;
+    int		new_type = MCHAR; /* init to shut up compiler */
+    colnr_T	new_width = 0; /* init to shut up compiler */
 
     /* We only get here (hopefully) if line[0] == '"' */
     str = virp->vir_line + 1;
@@ -5747,6 +5756,7 @@ read_viminfo_register(virp, force)
 		do_it = FALSE;
 	}
     }
+
     if (do_it)
     {
 	/* free y_array[] */
@@ -6513,6 +6523,27 @@ write_reg_contents_ex(name, str, maxlen, must_append, yank_type, block_len)
     if (name == '/')
     {
 	set_last_search_pat(str, RE_SEARCH, TRUE, TRUE);
+	return;
+    }
+
+    if (name == '#')
+    {
+	buf_T	*buf;
+
+	if (VIM_ISDIGIT(*str))
+	{
+	    int	num = atoi((char *)str);
+
+	    buf = buflist_findnr(num);
+	    if (buf == NULL)
+		EMSGN(_(e_nobufnr), (long)num);
+	}
+	else
+	    buf = buflist_findnr(buflist_findpat(str, str + STRLEN(str),
+							 TRUE, FALSE, FALSE));
+	if (buf == NULL)
+	    return;
+	curwin->w_alt_fnum = buf->b_fnum;
 	return;
     }
 

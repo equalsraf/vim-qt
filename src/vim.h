@@ -814,15 +814,16 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define WILD_LONGEST		7
 #define WILD_ALL_KEEP		8
 
-#define WILD_LIST_NOTFOUND	1
-#define WILD_HOME_REPLACE	2
-#define WILD_USE_NL		4
-#define WILD_NO_BEEP		8
-#define WILD_ADD_SLASH		16
-#define WILD_KEEP_ALL		32
-#define WILD_SILENT		64
-#define WILD_ESCAPE		128
-#define WILD_ICASE		256
+#define WILD_LIST_NOTFOUND	0x01
+#define WILD_HOME_REPLACE	0x02
+#define WILD_USE_NL		0x04
+#define WILD_NO_BEEP		0x08
+#define WILD_ADD_SLASH		0x10
+#define WILD_KEEP_ALL		0x20
+#define WILD_SILENT		0x40
+#define WILD_ESCAPE		0x80
+#define WILD_ICASE		0x100
+#define WILD_ALLLINKS		0x200
 
 /* Flags for expand_wildcards() */
 #define EW_DIR		0x01	/* include directory names */
@@ -839,6 +840,9 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EW_KEEPDOLLAR	0x800	/* do not escape $, $var is expanded */
 /* Note: mostly EW_NOTFOUND and EW_SILENT are mutually exclusive: EW_NOTFOUND
  * is used when executing commands and EW_SILENT for interactive expanding. */
+#define EW_ALLLINKS	0x1000	/* also links not pointing to existing file */
+#define EW_SHELLCMD	0x2000	/* called from expand_shellcmd(), don't check
+				 * if executable is in $PATH */
 
 /* Flags for find_file_*() functions. */
 #define FINDFILE_FILE	0	/* only files */
@@ -939,6 +943,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define FNAME_INCL	8	/* apply 'includeexpr' */
 #define FNAME_REL	16	/* ".." and "./" are relative to the (current)
 				   file instead of the current directory */
+#define FNAME_UNESC	32	/* remove backslashes used for escaping */
 
 /* Values for buflist_getfile() */
 #define GETF_SETMARK	0x01	/* set pcmark before jumping */
@@ -1020,6 +1025,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define RE_MAGIC	1	/* 'magic' option */
 #define RE_STRING	2	/* match in string instead of buffer text */
 #define RE_STRICT	4	/* don't allow [abc] without ] */
+#define RE_AUTO		8	/* automatic engine selection */
 
 #ifdef FEAT_SYN_HL
 /* values for reg_do_extmatch */
@@ -2043,6 +2049,20 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 #ifdef _MSC_VER
 /* Avoid useless warning "conversion from X to Y of greater size". */
  #pragma warning(disable : 4312)
+/* Avoid warning for old style function declarators */
+ #pragma warning(disable : 4131)
+/* Avoid warning for conversion to type with smaller range */
+ #pragma warning(disable : 4244)
+/* Avoid warning for conversion to larger size */
+ #pragma warning(disable : 4306)
+/* Avoid warning for unreferenced formal parameter */
+ #pragma warning(disable : 4100)
+/* Avoid warning for differs in indirection to slightly different base type */
+ #pragma warning(disable : 4057)
+/* Avoid warning for constant conditional expression */
+ #pragma warning(disable : 4127)
+/* Avoid warning for assignment within conditional */
+ #pragma warning(disable : 4706)
 #endif
 
 /* Note: a NULL argument for vim_realloc() is not portable, don't use it. */

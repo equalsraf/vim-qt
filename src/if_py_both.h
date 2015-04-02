@@ -747,12 +747,14 @@ VimToPython(typval_T *our_tv, int depth, PyObject *lookup_dict)
     else if (our_tv->v_type == VAR_DICT)
     {
 
-	hashtab_T	*ht = &our_tv->vval.v_dict->dv_hashtab;
-	long_u	todo = ht->ht_used;
+	hashtab_T	*ht;
+	long_u		todo;
 	hashitem_T	*hi;
 	dictitem_T	*di;
+
 	if (our_tv->vval.v_dict == NULL)
 	    return NULL;
+	ht = &our_tv->vval.v_dict->dv_hashtab;
 
 	if (!(ret = PyDict_New()))
 	    return NULL;
@@ -763,6 +765,7 @@ VimToPython(typval_T *our_tv, int depth, PyObject *lookup_dict)
 	    return NULL;
 	}
 
+	todo = ht->ht_used;
 	for (hi = ht->ht_array; todo > 0; ++hi)
 	{
 	    if (!HASHITEM_EMPTY(hi))
@@ -5502,34 +5505,41 @@ run_eval(const char *cmd, typval_T *rettv
     PyErr_Clear();
 }
 
-    static void
+    static int
 set_ref_in_py(const int copyID)
 {
     pylinkedlist_T	*cur;
     dict_T	*dd;
     list_T	*ll;
+    int		abort = FALSE;
 
     if (lastdict != NULL)
-	for(cur = lastdict ; cur != NULL ; cur = cur->pll_prev)
+    {
+	for(cur = lastdict ; !abort && cur != NULL ; cur = cur->pll_prev)
 	{
 	    dd = ((DictionaryObject *) (cur->pll_obj))->dict;
 	    if (dd->dv_copyID != copyID)
 	    {
 		dd->dv_copyID = copyID;
-		set_ref_in_ht(&dd->dv_hashtab, copyID);
+		abort = abort || set_ref_in_ht(&dd->dv_hashtab, copyID, NULL);
 	    }
 	}
+    }
 
     if (lastlist != NULL)
-	for(cur = lastlist ; cur != NULL ; cur = cur->pll_prev)
+    {
+	for(cur = lastlist ; !abort && cur != NULL ; cur = cur->pll_prev)
 	{
 	    ll = ((ListObject *) (cur->pll_obj))->list;
 	    if (ll->lv_copyID != copyID)
 	    {
 		ll->lv_copyID = copyID;
-		set_ref_in_list(ll, copyID);
+		abort = abort || set_ref_in_list(ll, copyID, NULL);
 	    }
 	}
+    }
+
+    return abort;
 }
 
     static int

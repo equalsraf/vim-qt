@@ -624,6 +624,110 @@ wingotofile:
     }
 }
 
+/*
+ * Figure out the address type for ":wnncmd".
+ */
+    void
+get_wincmd_addr_type(arg, eap)
+    char_u	*arg;
+    exarg_T	*eap;
+{
+    switch (*arg)
+    {
+    case 'S':
+    case Ctrl_S:
+    case 's':
+    case Ctrl_N:
+    case 'n':
+    case 'j':
+    case Ctrl_J:
+    case 'k':
+    case Ctrl_K:
+    case 'T':
+    case Ctrl_R:
+    case 'r':
+    case 'R':
+    case 'K':
+    case 'J':
+    case '+':
+    case '-':
+    case Ctrl__:
+    case '_':
+    case '|':
+    case ']':
+    case Ctrl_RSB:
+    case 'g':
+    case Ctrl_G:
+#ifdef FEAT_VERTSPLIT
+    case Ctrl_V:
+    case 'v':
+    case 'h':
+    case Ctrl_H:
+    case 'l':
+    case Ctrl_L:
+    case 'H':
+    case 'L':
+    case '>':
+    case '<':
+#endif
+#if defined(FEAT_QUICKFIX)
+    case '}':
+#endif
+#ifdef FEAT_SEARCHPATH
+    case 'f':
+    case 'F':
+    case Ctrl_F:
+#endif
+#ifdef FEAT_FIND_ID
+    case 'i':
+    case Ctrl_I:
+    case 'd':
+    case Ctrl_D:
+#endif
+		/* window size or any count */
+		eap->addr_type = ADDR_LINES;
+		break;
+
+    case Ctrl_HAT:
+    case '^':
+		/* buffer number */
+		eap->addr_type = ADDR_BUFFERS;
+		break;
+
+    case Ctrl_Q:
+    case 'q':
+    case Ctrl_C:
+    case 'c':
+    case Ctrl_O:
+    case 'o':
+    case Ctrl_W:
+    case 'w':
+    case 'W':
+    case 'x':
+    case Ctrl_X:
+		/* window number */
+		eap->addr_type = ADDR_WINDOWS;
+		break;
+
+#if defined(FEAT_QUICKFIX)
+    case Ctrl_Z:
+    case 'z':
+    case 'P':
+#endif
+    case 't':
+    case Ctrl_T:
+    case 'b':
+    case Ctrl_B:
+    case 'p':
+    case Ctrl_P:
+    case '=':
+    case CAR:
+		/* no count */
+		eap->addr_type = 0;
+		break;
+    }
+}
+
     static void
 cmd_with_count(cmd, bufp, bufsize, Prenum)
     char	*cmd;
@@ -6115,6 +6219,8 @@ grab_file_name(count, file_lnum)
     long	count;
     linenr_T	*file_lnum;
 {
+    int options = FNAME_MESS|FNAME_EXP|FNAME_REL|FNAME_UNESC;
+
     if (VIsual_active)
     {
 	int	len;
@@ -6122,11 +6228,10 @@ grab_file_name(count, file_lnum)
 
 	if (get_visual_text(NULL, &ptr, &len) == FAIL)
 	    return NULL;
-	return find_file_name_in_path(ptr, len,
-		     FNAME_MESS|FNAME_EXP|FNAME_REL, count, curbuf->b_ffname);
+	return find_file_name_in_path(ptr, len, options,
+						     count, curbuf->b_ffname);
     }
-    return file_name_at_cursor(FNAME_MESS|FNAME_HYP|FNAME_EXP|FNAME_REL, count,
-			       file_lnum);
+    return file_name_at_cursor(options | FNAME_HYP, count, file_lnum);
 
 }
 
@@ -6206,14 +6311,19 @@ file_name_in_line(line, col, options, count, rel_fname, file_lnum)
      * Also allow "://" when ':' is not in 'isfname'.
      */
     len = 0;
-    while (vim_isfilec(ptr[len])
+    while (vim_isfilec(ptr[len]) || (ptr[len] == '\\' && ptr[len + 1] == ' ')
 			 || ((options & FNAME_HYP) && path_is_url(ptr + len)))
+    {
+	if (ptr[len] == '\\')
+	    /* Skip over the "\" in "\ ". */
+	    ++len;
 #ifdef FEAT_MBYTE
 	if (has_mbyte)
 	    len += (*mb_ptr2len)(ptr + len);
 	else
 #endif
 	    ++len;
+    }
 
     /*
      * If there is trailing punctuation, remove it.

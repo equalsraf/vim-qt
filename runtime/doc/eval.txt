@@ -1,4 +1,4 @@
-*eval.txt*	For Vim version 7.4.  Last change: 2014 Dec 07
+*eval.txt*	For Vim version 7.4.  Last change: 2015 Mar 21
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -956,7 +956,7 @@ Decimal, Hexadecimal (starting with 0x or 0X), or Octal (starting with 0).
 Floating point numbers can be written in two forms:
 
 	[-+]{N}.{M}
-	[-+]{N}.{M}e[-+]{exp}
+	[-+]{N}.{M}[eE][-+]{exp}
 
 {N} and {M} are numbers.  Both {N} and {M} must be present and can only
 contain digits.
@@ -1834,9 +1834,10 @@ getwinposx()			Number	X coord in pixels of GUI Vim window
 getwinposy()			Number	Y coord in pixels of GUI Vim window
 getwinvar( {nr}, {varname} [, {def}])
 				any	variable {varname} in window {nr}
-glob( {expr} [, {nosuf} [, {list}]])
+glob( {expr} [, {nosuf} [, {list} [, {alllinks}]]])
 				any	expand file wildcards in {expr}
-globpath( {path}, {expr} [, {nosuf} [, {list}]])
+glob2regpat( {expr})		String  convert a glob pat into a search pat
+globpath( {path}, {expr} [, {nosuf} [, {list} [, {alllinks}]]])
 				String	do glob({expr}) for all dirs in {path}
 has( {feature})			Number	TRUE if feature {feature} supported
 has_key( {dict}, {key})		Number	TRUE if {dict} has entry {key}
@@ -2965,9 +2966,12 @@ extend({expr1}, {expr2} [, {expr3}])			*extend()*
 
 feedkeys({string} [, {mode}])				*feedkeys()*
 		Characters in {string} are queued for processing as if they
-		come from a mapping or were typed by the user.	They are added
-		to the end of the typeahead buffer, thus if a mapping is still
-		being executed these characters come after them.
+		come from a mapping or were typed by the user.
+		By default the string is added to the end of the typeahead
+		buffer, thus if a mapping is still being executed the
+		characters come after them.  Use the 'i' flag to insert before
+		other characters, they will be executed next, before any
+		characters from a mapping.
 		The function does not wait for processing of keys contained in
 		{string}.
 		To include special keys into {string}, use double-quotes
@@ -2981,6 +2985,7 @@ feedkeys({string} [, {mode}])				*feedkeys()*
 		't'	Handle keys as if typed; otherwise they are handled as
 			if coming from a mapping.  This matters for undo,
 			opening folds, etc.
+		'i'	Insert the string instead of appending (see above).
 		Return value is always 0.
 
 filereadable({file})					*filereadable()*
@@ -3310,7 +3315,7 @@ getchar([expr])						*getchar()*
 			:  endwhile
 			:endfunction
 <
-		You may also receive syntetic characters, such as
+		You may also receive synthetic characters, such as
 		|<CursorHold>|. Often you will want to ignore this and get
 		another character: >
 			:function GetKey()
@@ -3634,7 +3639,7 @@ getwinvar({winnr}, {varname} [, {def}])				*getwinvar()*
 			:let list_is_on = getwinvar(2, '&list')
 			:echo "myvar = " . getwinvar(1, 'myvar')
 <
-glob({expr} [, {nosuf} [, {list}]])				*glob()*
+glob({expr} [, {nosuf} [, {list} [, {alllinks}]]])		*glob()*
 		Expand the file wildcards in {expr}.  See |wildcards| for the
 		use of special characters.
 
@@ -3651,8 +3656,11 @@ glob({expr} [, {nosuf} [, {list}]])				*glob()*
 		matches, they are separated by <NL> characters.
 
 		If the expansion fails, the result is an empty String or List.
+
 		A name for a non-existing file is not included.  A symbolic
 		link is only included if it points to an existing file.
+		However, when the {alllinks} argument is present and it is
+		non-zero then all symbolic links are included.
 
 		For most systems backticks can be used to get files names from
 		any external command.  Example: >
@@ -3664,7 +3672,16 @@ glob({expr} [, {nosuf} [, {list}]])				*glob()*
 		See |expand()| for expanding special Vim variables.  See
 		|system()| for getting the raw output of an external command.
 
-globpath({path}, {expr} [, {nosuf} [, {list}]])			*globpath()*
+glob2regpat({expr})					 *glob2regpat()*
+		Convert a file pattern, as used by glob(), into a search
+		pattern.  The result can be used to match with a string that
+		is a file name.  E.g. >
+			if filename =~ glob2regpat('Make*.mak')
+<		This is equivalent to: >
+			if filename =~ '^Make.*\.mak$'
+<
+								*globpath()*
+globpath({path}, {expr} [, {nosuf} [, {list} [, {allinks}]]])
 		Perform glob() on all directories in {path} and concatenate
 		the results.  Example: >
 			:echo globpath(&rtp, "syntax/c.vim")
@@ -3690,6 +3707,8 @@ globpath({path}, {expr} [, {nosuf} [, {list}]])			*globpath()*
 		they are separated by <NL> characters.  Example: >
 			:echo globpath(&rtp, "syntax/c.vim", 0, 1)
 <
+		{allinks} is used as with |glob()|.
+
 		The "**" item can be used to search in a directory tree.
 		For example, to find all "README.txt" files in the directories
 		in 'runtimepath' and below: >
@@ -4762,6 +4781,7 @@ printf({fmt}, {expr1} ...)				*printf()*
 		s	The text of the String argument is used.  If a
 			precision is specified, no more bytes than the number
 			specified are used.
+							*printf-S*
 		S	The text of the String argument is used.  If a
 			precision is specified, no more display cells than the
 			number specified are used.  Without the |+multi_byte|
@@ -4823,7 +4843,7 @@ py3eval({expr})						*py3eval()*
 		Evaluate Python expression {expr} and return its result
 		converted to Vim data structures.
 		Numbers and strings are returned as they are (strings are 
-		copied though, unicode strings are additionally converted to 
+		copied though, Unicode strings are additionally converted to 
 		'encoding').
 		Lists are represented as Vim |List| type.
 		Dictionaries are represented as Vim |Dictionary| type with 
@@ -5562,7 +5582,7 @@ setwinvar({nr}, {varname}, {val})			*setwinvar()*
 			:call setwinvar(2, "myvar", "foobar")
 
 sha256({string})						*sha256()*
-		Returns a String with 64 hex charactes, which is the SHA256
+		Returns a String with 64 hex characters, which is the SHA256
 		checksum of {string}.
 		{only available when compiled with the |+cryptv| feature}
 
@@ -7371,7 +7391,7 @@ This does NOT work: >
 				:unlet v
 <							*E741*
 			If you try to change a locked variable you get an
-			error message: "E741: Value of {name} is locked"
+			error message: "E741: Value is locked: {name}"
 
 			[depth] is relevant when locking a |List| or
 			|Dictionary|.  It specifies how deep the locking goes:
@@ -8275,7 +8295,7 @@ You can catch all Vim errors by the pattern >
 							*catch-text*
 NOTE: You should never catch the error message text itself: >
 	:catch /No such variable/
-only works in the english locale, but not when the user has selected
+only works in the English locale, but not when the user has selected
 a different language by the |:language| command.  It is however helpful to
 cite the message text in a comment: >
 	:catch /^Vim(\a\+):E108:/   " No such variable

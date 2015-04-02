@@ -1814,18 +1814,22 @@ mch_inchar(
 		if (conv)
 		{
 		    char_u *p = typeahead + typeaheadlen;
-		    char_u *e = typeahead + TYPEAHEADLEN;
 
-		    while (*p && p < e)
+		    if (*p != K_NUL)
 		    {
-			if (*p == K_NUL)
+			char_u *e = typeahead + TYPEAHEADLEN;
+
+			while (*p && p < e)
 			{
+			    if (*p == K_NUL)
+			    {
+				++p;
+				mch_memmove(p + 1, p, ((size_t)(e - p)) - 1);
+				*p = 3;
+				++n;
+			    }
 			    ++p;
-			    mch_memmove(p + 1, p, ((size_t)(e - p)) - 1);
-			    *p = 3;
-			    ++n;
 			}
-			++p;
 		    }
 		}
 
@@ -3374,10 +3378,11 @@ mch_writable(char_u *name)
 
 /*
  * Return 1 if "name" can be executed, 0 if not.
+ * If "use_path" is FALSE only check if "name" is executable.
  * Return -1 if unknown.
  */
     int
-mch_can_exe(char_u *name, char_u **path)
+mch_can_exe(char_u *name, char_u **path, int use_path)
 {
     char_u	buf[_MAX_PATH];
     int		len = (int)STRLEN(name);
@@ -3385,6 +3390,11 @@ mch_can_exe(char_u *name, char_u **path)
 
     if (len >= _MAX_PATH)	/* safety check */
 	return FALSE;
+    if (!use_path)
+    {
+	/* TODO: check if file is really executable. */
+	return mch_getperm(name) != -1 && !mch_isdir(name);
+    }
 
     /* If there already is an extension try using the name directly.  Also do
      * this with a Unix-shell like 'shell'. */
@@ -5252,7 +5262,7 @@ gotoxy(
     static void
 textattr(WORD wAttr)
 {
-    g_attrCurrent = wAttr;
+    g_attrCurrent = wAttr & 0xff;
 
     SetConsoleTextAttribute(g_hConOut, wAttr);
 }
@@ -5261,7 +5271,7 @@ textattr(WORD wAttr)
     static void
 textcolor(WORD wAttr)
 {
-    g_attrCurrent = (g_attrCurrent & 0xf0) + wAttr;
+    g_attrCurrent = (g_attrCurrent & 0xf0) + (wAttr & 0x0f);
 
     SetConsoleTextAttribute(g_hConOut, g_attrCurrent);
 }
@@ -5270,7 +5280,7 @@ textcolor(WORD wAttr)
     static void
 textbackground(WORD wAttr)
 {
-    g_attrCurrent = (g_attrCurrent & 0x0f) + (wAttr << 4);
+    g_attrCurrent = (g_attrCurrent & 0x0f) + ((wAttr & 0x0f) << 4);
 
     SetConsoleTextAttribute(g_hConOut, g_attrCurrent);
 }

@@ -1150,7 +1150,7 @@ do_buffer(action, start, dir, count, forceit)
 	{
 	    /* don't warn when deleting */
 	    if (!unload)
-		EMSGN(_("E86: Buffer %ld does not exist"), count);
+		EMSGN(_(e_nobufnr), count);
 	}
 	else if (dir == FORWARD)
 	    EMSG(_("E87: Cannot go beyond last buffer"));
@@ -1794,7 +1794,6 @@ buflist_new(ffname, sfname, lnum, flags)
 	if (aborting())		/* autocmds may abort script processing */
 	    return NULL;
 #endif
-	/* buf->b_nwindows = 0; why was this here? */
 	free_buffer_stuff(buf, FALSE);	/* delete local variables et al. */
 
 	/* Init the options. */
@@ -1872,6 +1871,9 @@ buflist_new(ffname, sfname, lnum, flags)
 #ifdef FEAT_AUTOCMD
     if (!(flags & BLN_DUMMY))
     {
+	/* Tricky: these autocommands may change the buffer list.  They could
+	 * also split the window with re-using the one empty buffer. This may
+	 * result in unexpectedly losing the empty buffer. */
 	apply_autocmds(EVENT_BUFNEW, NULL, NULL, FALSE, buf);
 	if (!buf_valid(buf))
 	    return NULL;
@@ -4409,6 +4411,8 @@ get_rel_pos(wp, buf, buflen)
     long	above; /* number of lines above window */
     long	below; /* number of lines below window */
 
+    if (buflen < 3) /* need at least 3 chars for writing */
+	return;
     above = wp->w_topline - 1;
 #ifdef FEAT_DIFF
     above += diff_check_fill(wp, wp->w_topline) - wp->w_topfill;
@@ -5469,6 +5473,10 @@ insert_sign(buf, prev, next, id, lnum, typenr)
 
 	    /* first sign in signlist */
 	    buf->b_signlist = newsign;
+#ifdef FEAT_NETBEANS_INTG
+	    if (netbeans_active())
+		buf->b_has_sign_column = TRUE;
+#endif
 	}
 	else
 	    prev->next = newsign;

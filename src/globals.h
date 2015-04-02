@@ -958,7 +958,7 @@ EXTERN char_u	*exe_name;		/* the name of the executable */
 #ifdef USE_ON_FLY_SCROLL
 EXTERN int	dont_scroll INIT(= FALSE);/* don't use scrollbars when TRUE */
 #endif
-EXTERN int	mapped_ctrl_c INIT(= FALSE); /* CTRL-C is mapped */
+EXTERN int	mapped_ctrl_c INIT(= FALSE); /* modes where CTRL-C is mapped */
 EXTERN int	ctrl_c_interrupts INIT(= TRUE);	/* CTRL-C sets got_int */
 
 EXTERN cmdmod_T	cmdmod;			/* Ex command modifiers */
@@ -1167,7 +1167,7 @@ EXTERN int	lcs_tab1 INIT(= NUL);
 EXTERN int	lcs_tab2 INIT(= NUL);
 EXTERN int	lcs_trail INIT(= NUL);
 #ifdef FEAT_CONCEAL
-EXTERN int	lcs_conceal INIT(= '-');
+EXTERN int	lcs_conceal INIT(= ' ');
 #endif
 
 #if defined(FEAT_WINDOWS) || defined(FEAT_WILDMENU) || defined(FEAT_STL_OPT) \
@@ -1571,6 +1571,7 @@ EXTERN char_u e_nbreadonly[]	INIT(= N_("E744: NetBeans does not allow changes in
 EXTERN char_u e_intern2[]	INIT(= N_("E685: Internal error: %s"));
 EXTERN char_u e_maxmempat[]	INIT(= N_("E363: pattern uses more memory than 'maxmempattern'"));
 EXTERN char_u e_emptybuf[]	INIT(= N_("E749: empty buffer"));
+EXTERN char_u e_nobufnr[]	INIT(= N_("E86: Buffer %ld does not exist"));
 
 #ifdef FEAT_EX_EXTRA
 EXTERN char_u e_invalpat[]	INIT(= N_("E682: Invalid search pattern or delimiter"));

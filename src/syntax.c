@@ -311,7 +311,7 @@ typedef struct state_item
 				       but contained groups */
 
 #ifdef FEAT_CONCEAL
-static int next_seqnr = 0;		/* value to use for si_seqnr */
+static int next_seqnr = 1;		/* value to use for si_seqnr */
 #endif
 
 /*
@@ -6537,7 +6537,7 @@ syn_get_foldlevel(wp, lnum)
 }
 #endif
 
-#ifdef FEAT_PROFILE
+#if defined(FEAT_PROFILE) || defined(PROTO)
 /*
  * ":syntime".
  */
@@ -6988,8 +6988,22 @@ init_highlight(both, reset)
      * and 'background' or 't_Co' is changed.
      */
     p = get_var_value((char_u *)"g:colors_name");
-    if (p != NULL && load_colors(p) == OK)
-	return;
+    if (p != NULL)
+    {
+       /* The value of g:colors_name could be freed when sourcing the script,
+	* making "p" invalid, so copy it. */
+       char_u *copy_p = vim_strsave(p);
+       int    r;
+
+       if (copy_p != NULL)
+       {
+	   r = load_colors(copy_p);
+	   vim_free(copy_p);
+	   if (r == OK)
+	       return;
+       }
+    }
+
 #endif
 
     /*

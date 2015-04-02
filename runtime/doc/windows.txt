@@ -1,4 +1,4 @@
-*windows.txt*   For Vim version 7.4.  Last change: 2014 Dec 05
+*windows.txt*   For Vim version 7.4.  Last change: 2015 Jan 31
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -698,8 +698,9 @@ can also get to them with the buffer list commands, like ":bnext".
 8. Do a command in all buffers or windows			*list-repeat*
 
 							*:windo*
-:windo {cmd}		Execute {cmd} in each window.
-			It works like doing this: >
+:[range]windo {cmd}	Execute {cmd} in each window or if [range] is given
+			only in windows for which the window number lies in
+			the [range].  It works like doing this: >
 				CTRL-W t
 				:{cmd}
 				CTRL-W w
@@ -717,8 +718,10 @@ can also get to them with the buffer list commands, like ":bnext".
 			Also see |:tabdo|, |:argdo| and |:bufdo|.
 
 							*:bufdo*
-:bufdo[!] {cmd}		Execute {cmd} in each buffer in the buffer list.
-			It works like doing this: >
+:[range]bufdo[!] {cmd}	Execute {cmd} in each buffer in the buffer list or if
+			[range] is given only for buffers for which their
+			buffer numer is in the [range].  It works like doing
+			this: >
 				:bfirst
 				:{cmd}
 				:bnext
@@ -995,8 +998,8 @@ list of buffers. |unlisted-buffer|
 		(the term "unlisted" is a bit confusing then...).
 
 		Each buffer has a unique number.  That number will not change,
-		so you can always go to a specific buffer with ":buffer N" or
-		"N CTRL-^", where N is the buffer number.
+		thus you can always go to a specific buffer with ":buffer N"
+		or "N CTRL-^", where N is the buffer number.
 
 		Indicators (chars in the same column are mutually exclusive):
 		u	an unlisted buffer (only displayed when [!] is used)

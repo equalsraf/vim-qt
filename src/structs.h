@@ -1223,6 +1223,20 @@ struct dictvar_S
     dict_T	*dv_used_prev;	/* previous dict in used dicts list */
 };
 
+/* structure used for explicit stack while garbage collecting hash tables */
+typedef struct ht_stack_S
+{
+    hashtab_T		*ht;
+    struct ht_stack_S	*prev;
+} ht_stack_T;
+
+/* structure used for explicit stack while garbage collecting lists */
+typedef struct list_stack_S
+{
+    list_T		*list;
+    struct list_stack_S	*prev;
+} list_stack_T;
+
 /* values for b_syn_spell: what to do with toplevel text */
 #define SYNSPL_DEFAULT	0	/* spell check if @Spell not defined */
 #define SYNSPL_TOP	1	/* spell check toplevel text */
@@ -1791,6 +1805,11 @@ struct file_buffer
 
 #ifdef FEAT_SIGNS
     signlist_T	*b_signlist;	/* list of signs to draw */
+# ifdef FEAT_NETBEANS_INTG
+    int		b_has_sign_column; /* Flag that is set when a first sign is
+				    * added and remains set until the end of
+				    * the netbeans session. */
+# endif
 #endif
 
 #ifdef FEAT_NETBEANS_INTG
@@ -1802,6 +1821,7 @@ struct file_buffer
     cryptstate_T *b_cryptstate;	/* Encryption state while reading or writing
 				 * the file. NULL when not using encryption. */
 #endif
+    int		b_mapped_ctrl_c; /* modes where CTRL-C is mapped */
 
 }; /* file_buffer */
 
@@ -2291,6 +2311,7 @@ struct window_S
 #ifdef FEAT_LINEBREAK
     linenr_T	w_nrwidth_line_count;	/* line count when ml_nrwidth_width
 					 * was computed. */
+    long	w_nuw_cached;		/* 'numberwidth' option cached */
     int		w_nrwidth_width;	/* nr of chars to print line count. */
 #endif
 

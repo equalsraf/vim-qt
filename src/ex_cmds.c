@@ -1158,8 +1158,8 @@ do_filter(line1, line2, eap, cmd, do_in, do_out)
     }
     else
 #endif
-	if ((do_in && (itmp = vim_tempname('i')) == NULL)
-		|| (do_out && (otmp = vim_tempname('o')) == NULL))
+	if ((do_in && (itmp = vim_tempname('i', FALSE)) == NULL)
+		|| (do_out && (otmp = vim_tempname('o', FALSE)) == NULL))
 	{
 	    EMSG(_(e_notmp));
 	    goto filterend;
@@ -1963,7 +1963,7 @@ write_viminfo(file, forceit)
 	    if (fp_out == NULL)
 	    {
 		vim_free(tempname);
-		if ((tempname = vim_tempname('o')) != NULL)
+		if ((tempname = vim_tempname('o', TRUE)) != NULL)
 		    fp_out = mch_fopen((char *)tempname, WRITEBIN);
 	    }
 
@@ -3185,7 +3185,7 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 #endif
     int		retval = FAIL;
     long	n;
-    linenr_T	lnum;
+    pos_T	orig_pos;
     linenr_T	topline = 0;
     int		newcol = -1;
     int		solcol = -1;
@@ -3375,7 +3375,6 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 	if (buf->b_ml.ml_mfp == NULL)		/* no memfile yet */
 	{
 	    oldbuf = FALSE;
-	    buf->b_nwindows = 0;
 	}
 	else					/* existing memfile */
 	{
@@ -3408,7 +3407,7 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 	 * Make the (new) buffer the one used by the current window.
 	 * If the old buffer becomes unused, free it if ECMD_HIDE is FALSE.
 	 * If the current buffer was empty and has no file name, curbuf
-	 * is returned by buflist_new().
+	 * is returned by buflist_new(), nothing to do here.
 	 */
 	if (buf != curbuf)
 	{
@@ -3515,8 +3514,6 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 	    au_new_curbuf = NULL;
 #endif
 	}
-	else
-	    ++curbuf->b_nwindows;
 
 	curwin->w_pcmark.lnum = 1;
 	curwin->w_pcmark.col = 0;
@@ -3529,6 +3526,7 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 #endif
 		check_fname() == FAIL)
 	    goto theend;
+
 	oldbuf = (flags & ECMD_OLDBUF);
     }
 
@@ -3680,7 +3678,7 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 	 * Careful: open_buffer() and apply_autocmds() may change the current
 	 * buffer and window.
 	 */
-	lnum = curwin->w_cursor.lnum;
+	orig_pos = curwin->w_cursor;
 	topline = curwin->w_topline;
 	if (!oldbuf)			    /* need to read the file */
 	{
@@ -3721,11 +3719,9 @@ do_ecmd(fnum, ffname, sfname, eap, newlnum, flags, oldwin)
 	check_arg_idx(curwin);
 #endif
 
-	/*
-	 * If autocommands change the cursor position or topline, we should
-	 * keep it.
-	 */
-	if (curwin->w_cursor.lnum != lnum)
+	/* If autocommands change the cursor position or topline, we should
+	 * keep it.  Also when it moves within a line. */
+	if (!equalpos(curwin->w_cursor, orig_pos))
 	{
 	    newlnum = curwin->w_cursor.lnum;
 	    newcol = curwin->w_cursor.col;

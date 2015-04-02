@@ -2130,21 +2130,23 @@ do_one_cmd(cmdlinep, sourcing,
  * is equal to the lower.
  */
 
-    if (ea.cmdidx != CMD_SIZE
-#ifdef FEAT_USR_CMDS
-	&& ea.cmdidx != CMD_USER
-#endif
-       )
-	ea.addr_type = cmdnames[(int)ea.cmdidx].cmd_addr_type;
-    else
-#ifdef FEAT_USR_CMDS
-	if (ea.cmdidx != CMD_USER)
-#endif
-	ea.addr_type = ADDR_LINES;
     /* ea.addr_type for user commands is set by find_ucmd */
-    ea.cmd = cmd;
+    if (!IS_USER_CMDIDX(ea.cmdidx))
+    {
+	if (ea.cmdidx != CMD_SIZE)
+	    ea.addr_type = cmdnames[(int)ea.cmdidx].cmd_addr_type;
+	else
+	    ea.addr_type = ADDR_LINES;
+
+#ifdef FEAT_WINDOWS
+	/* :wincmd range depends on the argument. */
+	if (ea.cmdidx == CMD_wincmd && p != NULL)
+	    get_wincmd_addr_type(skipwhite(p), &ea);
+#endif
+    }
 
     /* repeat for all ',' or ';' separated addresses */
+    ea.cmd = cmd;
     for (;;)
     {
 	ea.line1 = ea.line2;
@@ -2160,6 +2162,8 @@ do_one_cmd(cmdlinep, sourcing,
 		break;
 	    case ADDR_ARGUMENTS:
 		ea.line2 = curwin->w_arg_idx + 1;
+		if (ea.line2 > ARGCOUNT)
+		    ea.line2 = ARGCOUNT;
 		break;
 	    case ADDR_LOADED_BUFFERS:
 	    case ADDR_BUFFERS:
@@ -2178,7 +2182,6 @@ do_one_cmd(cmdlinep, sourcing,
 	{
 	    if (*ea.cmd == '%')		    /* '%' - all lines */
 	    {
-		buf_T	*buf;
 		++ea.cmd;
 		switch (ea.addr_type)
 		{
@@ -2187,15 +2190,20 @@ do_one_cmd(cmdlinep, sourcing,
 			ea.line2 = curbuf->b_ml.ml_line_count;
 			break;
 		    case ADDR_LOADED_BUFFERS:
-			buf = firstbuf;
-			while (buf->b_next != NULL && buf->b_ml.ml_mfp == NULL)
-			    buf = buf->b_next;
-			ea.line1 = buf->b_fnum;
-			buf = lastbuf;
-			while (buf->b_prev != NULL && buf->b_ml.ml_mfp == NULL)
-			    buf = buf->b_prev;
-			ea.line2 = buf->b_fnum;
-			break;
+			{
+			    buf_T	*buf = firstbuf;
+
+			    while (buf->b_next != NULL
+						  && buf->b_ml.ml_mfp == NULL)
+				buf = buf->b_next;
+			    ea.line1 = buf->b_fnum;
+			    buf = lastbuf;
+			    while (buf->b_prev != NULL
+						  && buf->b_ml.ml_mfp == NULL)
+				buf = buf->b_prev;
+			    ea.line2 = buf->b_fnum;
+			    break;
+			}
 		    case ADDR_BUFFERS:
 			ea.line1 = firstbuf->b_fnum;
 			ea.line2 = lastbuf->b_fnum;
@@ -3109,7 +3117,7 @@ find_command(eap, full)
      * Exceptions:
      * - the 'k' command can directly be followed by any character.
      * - the 's' command can be followed directly by 'c', 'g', 'i', 'I' or 'r'
-     *	    but :sre[wind] is another command, as are :scrip[tnames],
+     *	    but :sre[wind] is another command, as are :scr[iptnames],
      *	    :scs[cope], :sim[alt], :sig[ns] and :sil[ent].
      * - the "d" command can directly be followed by 'l' or 'p' flag.
      */
@@ -4397,6 +4405,7 @@ get_address(ptr, addr_type, skip, to_other_file)
 		if (addr_type != ADDR_LINES)
 		{
 		    EMSG(_(e_invaddr));
+		    cmd = NULL;
 		    goto error;
 		}
 		if (skip)
@@ -4428,6 +4437,7 @@ get_address(ptr, addr_type, skip, to_other_file)
 		if (addr_type != ADDR_LINES)
 		{
 		    EMSG(_(e_invaddr));
+		    cmd = NULL;
 		    goto error;
 		}
 		if (skip)	/* skip "/pat/" */
@@ -4476,6 +4486,7 @@ get_address(ptr, addr_type, skip, to_other_file)
 		if (addr_type != ADDR_LINES)
 		{
 		    EMSG(_(e_invaddr));
+		    cmd = NULL;
 		    goto error;
 		}
 		if (*cmd == '&')
@@ -4567,51 +4578,12 @@ get_address(ptr, addr_type, skip, to_other_file)
 		n = getdigits(&cmd);
 	    if (addr_type == ADDR_LOADED_BUFFERS
 		    || addr_type == ADDR_BUFFERS)
-		lnum = compute_buffer_local_count(addr_type, lnum, (i == '-') ? -1 * n : n);
+		lnum = compute_buffer_local_count(
+				    addr_type, lnum, (i == '-') ? -1 * n : n);
 	    else if (i == '-')
 		lnum -= n;
 	    else
 		lnum += n;
-
-	    switch (addr_type)
-	    {
-		case ADDR_LINES:
-		    break;
-		case ADDR_ARGUMENTS:
-		    if (lnum < 0)
-			lnum = 0;
-		    else if (lnum >= ARGCOUNT)
-			lnum = ARGCOUNT;
-		    break;
-		case ADDR_TABS:
-		    if (lnum < 0)
-		    {
-			lnum = 0;
-			break;
-		    }
-		    if (lnum >= LAST_TAB_NR)
-			lnum = LAST_TAB_NR;
-		    break;
-		case ADDR_WINDOWS:
-		    if (lnum < 0)
-		    {
-			lnum = 0;
-			break;
-		    }
-		    if (lnum >= LAST_WIN_NR)
-			lnum = LAST_WIN_NR;
-		    break;
-		case ADDR_LOADED_BUFFERS:
-		case ADDR_BUFFERS:
-		    if (lnum < firstbuf->b_fnum)
-		    {
-			lnum = firstbuf->b_fnum;
-			break;
-		    }
-		    if (lnum > lastbuf->b_fnum)
-			lnum = lastbuf->b_fnum;
-		    break;
-	    }
 	}
     } while (*cmd == '/' || *cmd == '?');
 
@@ -4674,17 +4646,65 @@ ex_script_ni(eap)
 invalid_range(eap)
     exarg_T	*eap;
 {
+    buf_T	*buf;
     if (       eap->line1 < 0
 	    || eap->line2 < 0
-	    || eap->line1 > eap->line2
-	    || ((eap->argt & RANGE)
-		&& !(eap->argt & NOTADR)
-		&& eap->line2 > curbuf->b_ml.ml_line_count
-#ifdef FEAT_DIFF
-			+ (eap->cmdidx == CMD_diffget)
-#endif
-		))
+	    || eap->line1 > eap->line2)
 	return (char_u *)_(e_invrange);
+
+    if (eap->argt & RANGE)
+    {
+	switch(eap->addr_type)
+	{
+	    case ADDR_LINES:
+		if (!(eap->argt & NOTADR)
+			&& eap->line2 > curbuf->b_ml.ml_line_count
+#ifdef FEAT_DIFF
+			    + (eap->cmdidx == CMD_diffget)
+#endif
+		   )
+		    return (char_u *)_(e_invrange);
+		break;
+	    case ADDR_ARGUMENTS:
+		/* add 1 if ARGCOUNT is 0 */
+		if (eap->line2 > ARGCOUNT + (!ARGCOUNT))
+		    return (char_u *)_(e_invrange);
+		break;
+	    case ADDR_BUFFERS:
+		if (eap->line1 < firstbuf->b_fnum
+			|| eap->line2 > lastbuf->b_fnum)
+		    return (char_u *)_(e_invrange);
+		break;
+	    case ADDR_LOADED_BUFFERS:
+		buf = firstbuf;
+		while (buf->b_ml.ml_mfp == NULL)
+		{
+		    if (buf->b_next == NULL)
+			return (char_u *)_(e_invrange);
+		    buf = buf->b_next;
+		}
+		if (eap->line1 < buf->b_fnum)
+		    return (char_u *)_(e_invrange);
+		buf = lastbuf;
+		while (buf->b_ml.ml_mfp == NULL)
+		{
+		    if (buf->b_prev == NULL)
+			return (char_u *)_(e_invrange);
+		    buf = buf->b_prev;
+		}
+		if (eap->line2 > buf->b_fnum)
+		    return (char_u *)_(e_invrange);
+		break;
+	    case ADDR_WINDOWS:
+		if (eap->line2 > LAST_WIN_NR)
+		    return (char_u *)_(e_invrange);
+		break;
+	    case ADDR_TABS:
+		if (eap->line2 > LAST_TAB_NR)
+		    return (char_u *)_(e_invrange);
+		break;
+	}
+    }
     return NULL;
 }
 

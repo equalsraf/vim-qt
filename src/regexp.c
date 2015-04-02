@@ -4782,7 +4782,8 @@ regmatch(scan)
 		    /* When only a composing char is given match at any
 		     * position where that composing char appears. */
 		    status = RA_NOMATCH;
-		    for (i = 0; reginput[i] != NUL; i += utf_char2len(inpc))
+		    for (i = 0; reginput[i] != NUL;
+						i += utf_ptr2len(reginput + i))
 		    {
 			inpc = mb_ptr2char(reginput + i);
 			if (!utf_iscomposing(inpc))
@@ -8081,7 +8082,8 @@ vim_regcomp(expr_arg, re_flags)
      * First try the NFA engine, unless backtracking was requested.
      */
     if (regexp_engine != BACKTRACKING_ENGINE)
-        prog = nfa_regengine.regcomp(expr, re_flags);
+        prog = nfa_regengine.regcomp(expr,
+		re_flags + (regexp_engine == AUTOMATIC_ENGINE ? RE_AUTO : 0));
     else
 	prog = bt_regengine.regcomp(expr, re_flags);
 
@@ -8105,16 +8107,14 @@ vim_regcomp(expr_arg, re_flags)
 #endif
 	/*
 	 * If the NFA engine failed, try the backtracking engine.
-	 * Disabled for now, both engines fail on the same patterns.
-	 * Re-enable when regcomp() fails when the pattern would work better
-	 * with the other engine.
-	 *
+	 * The NFA engine also fails for patterns that it can't handle well
+	 * but are still valid patterns, thus a retry should work.
+	 */
 	if (regexp_engine == AUTOMATIC_ENGINE)
 	{
+	    regexp_engine = BACKTRACKING_ENGINE;
 	    prog = bt_regengine.regcomp(expr, re_flags);
-	    regexp_engine == BACKTRACKING_ENGINE;
 	}
-	 */
     }
 
     if (prog != NULL)
