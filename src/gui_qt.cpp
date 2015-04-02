@@ -11,6 +11,7 @@
 #include <QToolBar>
 #include <QFileDialog>
 #include <QPushButton>
+#include <QMimeData>
 
 #include "qvimshell.h"
 #include "mainwindow.h"
@@ -842,7 +843,6 @@ clip_mch_lose_selection(VimClipboard *cbd)
 void
 clip_mch_set_selection(VimClipboard *cbd)
 {
-	int type;
 	long size;
 	char_u *str = NULL;
 
@@ -854,12 +854,21 @@ clip_mch_set_selection(VimClipboard *cbd)
 	clip_get_selection(cbd);
 	cbd->owned = FALSE;
 
-	type = clip_convert_selection(&str, (long_u *)&size, cbd);
+	int type = clip_convert_selection(&str, (long_u *)&size, cbd);
 	if (type >= 0) {
-		QClipboard *clip = QApplication::clipboard();
-		clip->setText( VimWrapper::convertFrom(str, size), (QClipboard::Mode)cbd->clipboardMode);
-	}
+		// Serialize the motion type and store it into the clipboard
+		// with a mimetype application/x-vim-qt-selection-type
+		QByteArray payload;
+		QDataStream serialize(&payload, QIODevice::WriteOnly);
+		serialize << type;
 
+		QClipboard *clip = QApplication::clipboard();
+		QMimeData *clipData = new QMimeData();
+		clipData->setText(VimWrapper::convertFrom(str, size));
+		clipData->setData("application/x-vim-qt-selection-type", payload);
+
+		clip->setMimeData(clipData, (QClipboard::Mode)cbd->clipboardMode);
+	}
 	vim_free(str);
 }
 
@@ -892,7 +901,14 @@ clip_mch_request_selection(VimClipboard *cbd)
 		buffer[i] = text[i];
 	}
 
-	clip_yank_selection(MAUTO, buffer, text.size(), cbd);
+	int type = MAUTO;
+	// If available, deserialize the motion type from the clipboard
+	if (clip->mimeData((QClipboard::Mode)cbd->clipboardMode)->hasFormat("application/x-vim-qt-selection-type")) {
+		QDataStream serialize(clip->mimeData((QClipboard::Mode)cbd->clipboardMode)->data("application/x-vim-qt-selection-type"));
+		serialize >> type;
+	}
+
+	clip_yank_selection(type, buffer, text.size(), cbd);
 	vim_free(buffer);
 }
 
