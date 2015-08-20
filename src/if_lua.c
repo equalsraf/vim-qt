@@ -119,13 +119,19 @@ static luaV_Dict *luaV_pushdict (lua_State *L, dict_T *dic);
 #define lua_getglobal dll_lua_getglobal
 #define lua_setglobal dll_lua_setglobal
 #endif
+#if LUA_VERSION_NUM <= 502
+#define lua_replace dll_lua_replace
+#define lua_remove dll_lua_remove
+#endif
+#if LUA_VERSION_NUM >= 503
+#define lua_rotate dll_lua_rotate
+#define lua_copy dll_lua_copy
+#endif
 #define lua_typename dll_lua_typename
 #define lua_close dll_lua_close
 #define lua_gettop dll_lua_gettop
 #define lua_settop dll_lua_settop
 #define lua_pushvalue dll_lua_pushvalue
-#define lua_replace dll_lua_replace
-#define lua_remove dll_lua_remove
 #define lua_isnumber dll_lua_isnumber
 #define lua_isstring dll_lua_isstring
 #define lua_type dll_lua_type
@@ -205,13 +211,19 @@ int (*dll_lua_pcallk) (lua_State *L, int nargs, int nresults, int errfunc,
 void (*dll_lua_getglobal) (lua_State *L, const char *var);
 void (*dll_lua_setglobal) (lua_State *L, const char *var);
 #endif
+#if LUA_VERSION_NUM <= 502
+void (*dll_lua_replace) (lua_State *L, int idx);
+void (*dll_lua_remove) (lua_State *L, int idx);
+#endif
+#if LUA_VERSION_NUM >= 503
+void  (*dll_lua_rotate) (lua_State *L, int idx, int n);
+void (*dll_lua_copy) (lua_State *L, int fromidx, int toidx);
+#endif
 const char *(*dll_lua_typename) (lua_State *L, int tp);
 void       (*dll_lua_close) (lua_State *L);
 int (*dll_lua_gettop) (lua_State *L);
 void (*dll_lua_settop) (lua_State *L, int idx);
 void (*dll_lua_pushvalue) (lua_State *L, int idx);
-void (*dll_lua_replace) (lua_State *L, int idx);
-void (*dll_lua_remove) (lua_State *L, int idx);
 int (*dll_lua_isnumber) (lua_State *L, int idx);
 int (*dll_lua_isstring) (lua_State *L, int idx);
 int (*dll_lua_type) (lua_State *L, int idx);
@@ -296,13 +308,19 @@ static const luaV_Reg luaV_dll[] = {
     {"lua_getglobal", (luaV_function) &dll_lua_getglobal},
     {"lua_setglobal", (luaV_function) &dll_lua_setglobal},
 #endif
+#if LUA_VERSION_NUM <= 502
+    {"lua_replace", (luaV_function) &dll_lua_replace},
+    {"lua_remove", (luaV_function) &dll_lua_remove},
+#endif
+#if LUA_VERSION_NUM >= 503
+    {"lua_rotate", (luaV_function) &dll_lua_rotate},
+    {"lua_copy", (luaV_function) &dll_lua_copy},
+#endif
     {"lua_typename", (luaV_function) &dll_lua_typename},
     {"lua_close", (luaV_function) &dll_lua_close},
     {"lua_gettop", (luaV_function) &dll_lua_gettop},
     {"lua_settop", (luaV_function) &dll_lua_settop},
     {"lua_pushvalue", (luaV_function) &dll_lua_pushvalue},
-    {"lua_replace", (luaV_function) &dll_lua_replace},
-    {"lua_remove", (luaV_function) &dll_lua_remove},
     {"lua_isnumber", (luaV_function) &dll_lua_isnumber},
     {"lua_isstring", (luaV_function) &dll_lua_isstring},
     {"lua_type", (luaV_function) &dll_lua_type},
@@ -1336,7 +1354,7 @@ luaV_eval(lua_State *L)
     static int
 luaV_beep(lua_State *L UNUSED)
 {
-    vim_beep();
+    vim_beep(BO_LANG);
     return 0;
 }
 

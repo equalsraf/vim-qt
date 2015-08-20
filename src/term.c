@@ -124,6 +124,11 @@ static int crv_status = CRV_GET;
 #  define U7_SENT	2	/* did send T_U7, waiting for answer */
 #  define U7_GOT	3	/* received T_U7 response */
 static int u7_status = U7_GET;
+/* Request background color report: */
+#  define RBG_GET	1	/* send T_RBG when switched to RAW mode */
+#  define RBG_SENT	2	/* did send T_RBG, waiting for answer */
+#  define RBG_GOT	3	/* received T_RBG response */
+static int rbg_status = RBG_GET;
 # endif
 
 /*
@@ -949,6 +954,7 @@ static struct builtin_term builtin_termcaps[] =
     {(int)KS_CWP,	IF_EB("\033[3;%d;%dt", ESC_STR "[3;%d;%dt")},
 #  endif
     {(int)KS_CRV,	IF_EB("\033[>c", ESC_STR "[>c")},
+    {(int)KS_RBG,	IF_EB("\033]11;?\007", ESC_STR "]11;?\007")},
     {(int)KS_U7,	IF_EB("\033[6n", ESC_STR "[6n")},
 
     {K_UP,		IF_EB("\033O*A", ESC_STR "O*A")},
@@ -1240,6 +1246,7 @@ static struct builtin_term builtin_termcaps[] =
 #  endif
     {(int)KS_CRV,	"[CRV]"},
     {(int)KS_U7,	"[U7]"},
+    {(int)KS_RBG,	"[RBG]"},
     {K_UP,		"[KU]"},
     {K_DOWN,		"[KD]"},
     {K_LEFT,		"[KL]"},
@@ -1615,7 +1622,7 @@ set_termname(term)
 				{KS_TS, "ts"}, {KS_FS, "fs"},
 				{KS_CWP, "WP"}, {KS_CWS, "WS"},
 				{KS_CSI, "SI"}, {KS_CEI, "EI"},
-				{KS_U7, "u7"},
+				{KS_U7, "u7"}, {KS_RBG, "RB"},
 				{(enum SpecialKey)0, NULL}
 			    };
 
@@ -2357,7 +2364,7 @@ term_7to8bit(p)
 	if (p[1] == '[')
 	    return CSI;
 	if (p[1] == ']')
-	    return 0x9d;
+	    return OSC;
 	if (p[1] == 'O')
 	    return 0x8f;
     }
@@ -3224,7 +3231,8 @@ settmode(tmode)
 		 * doesn't work in Cooked mode, an external program may get
 		 * them. */
 		if (tmode != TMODE_RAW && (crv_status == CRV_SENT
-					 || u7_status == U7_SENT))
+					 || u7_status == U7_SENT
+					 || rbg_status == RBG_SENT))
 		    (void)vpeekc_nomap();
 		check_for_codes_from_term();
 	    }
@@ -3285,8 +3293,9 @@ stoptermcap()
 	if (!gui.in_use && !gui.starting)
 # endif
 	{
-	    /* May need to discard T_CRV or T_U7 response. */
-	    if (crv_status == CRV_SENT || u7_status == U7_SENT)
+	    /* May need to discard T_CRV, T_U7 or T_RBG response. */
+	    if (crv_status == CRV_SENT || u7_status == U7_SENT
+						     || rbg_status == RBG_SENT)
 	    {
 # ifdef UNIX
 		/* Give the terminal a chance to respond. */
@@ -3394,6 +3403,36 @@ may_req_ambiguous_char_width()
 	  * get_keystroke() */
 	 out_flush();
 	 (void)vpeekc_nomap();
+    }
+}
+# endif
+
+#if defined(FEAT_TERMRESPONSE) || defined(PROTO)
+/*
+ * Similar to requesting the version string: Request the terminal background
+ * color when it is the right moment.
+ */
+    void
+may_req_bg_color()
+{
+    if (rbg_status == RBG_GET
+	    && cur_tmode == TMODE_RAW
+	    && termcap_active
+	    && p_ek
+#  ifdef UNIX
+	    && isatty(1)
+	    && isatty(read_cmd_fd)
+#  endif
+	    && *T_RBG != NUL
+	    && !option_was_set((char_u *)"bg"))
+    {
+	LOG_TR("Sending BG request");
+	out_str(T_RBG);
+	rbg_status = RBG_SENT;
+	/* check for the characters now, otherwise they might be eaten by
+	 * get_keystroke() */
+	out_flush();
+	(void)vpeekc_nomap();
     }
 }
 # endif
@@ -4223,11 +4262,12 @@ check_termcode(max_offset, buf, bufsize, buflen)
 	     *   The final byte must be 'R'. It is used for checking the
 	     *   ambiguous-width character state.
 	     */
-	    p = tp[0] == CSI ? tp + 1 : tp + 2;
+	    char_u *argp = tp[0] == ESC ? tp + 2 : tp + 1;
+
 	    if ((*T_CRV != NUL || *T_U7 != NUL)
-			&& ((tp[0] == ESC && tp[1] == '[' && len >= 3)
+			&& ((tp[0] == ESC && len >= 3 && tp[1] == '[')
 			    || (tp[0] == CSI && len >= 2))
-			&& (VIM_ISDIGIT(*p) || *p == '>' || *p == '?'))
+			&& (VIM_ISDIGIT(*argp) || *argp == '>' || *argp == '?'))
 	    {
 #ifdef FEAT_MBYTE
 		int col;
@@ -4365,18 +4405,78 @@ check_termcode(max_offset, buf, bufsize, buflen)
 		}
 	    }
 
-	    /* Check for '<Esc>P1+r<hex bytes><Esc>\'.  A "0" instead of the
-	     * "1" means an invalid request. */
+	    /* Check for background color response from the terminal:
+	     *
+	     *       {lead}11;rgb:{rrrr}/{gggg}/{bbbb}{tail}
+	     *
+	     * {lead} can be <Esc>] or OSC
+	     * {tail} can be '\007', <Esc>\ or STERM.
+	     *
+	     * Consume any code that starts with "{lead}11;", it's also
+	     * possible that "rgba" is following.
+	     */
+	    else if (*T_RBG != NUL
+			&& ((tp[0] == ESC && len >= 2 && tp[1] == ']')
+			    || tp[0] == OSC))
+	    {
+		j = 1 + (tp[0] == ESC);
+		if (len >= j + 3 && (argp[0] != '1'
+					 || argp[1] != '1' || argp[2] != ';'))
+		  i = 0; /* no match */
+		else
+		  for (i = j; i < len; ++i)
+		    if (tp[i] == '\007' || (tp[0] == OSC ? tp[i] == STERM
+			: (tp[i] == ESC && i + 1 < len && tp[i + 1] == '\\')))
+		    {
+			if (i - j >= 21 && STRNCMP(tp + j + 3, "rgb:", 4) == 0
+			    && tp[j + 11] == '/' && tp[j + 16] == '/'
+			    && !option_was_set((char_u *)"bg"))
+			{/* TODO: don't set option when already the right value */
+			    LOG_TR("Received RBG");
+			    rbg_status = RBG_GOT;
+			    set_option_value((char_u *)"bg", 0L, (char_u *)(
+				    (3 * '6' < tp[j+7] + tp[j+12] + tp[j+17])
+				    ? "light" : "dark"), 0);
+			    reset_option_was_set((char_u *)"bg");
+			    redraw_asap(CLEAR);
+			}
+
+			/* got finished code: consume it */
+			key_name[0] = (int)KS_EXTRA;
+			key_name[1] = (int)KE_IGNORE;
+			slen = i + 1 + (tp[i] == ESC);
+			break;
+		    }
+		if (i == len)
+		{
+		    LOG_TR("not enough characters for RB");
+		    return -1;
+		}
+	    }
+
+	    /* Check for key code response from xterm:
+	     *
+	     * {lead}{flag}+r<hex bytes><{tail}
+	     *
+	     * {lead} can be <Esc>P or DCS
+	     * {flag} can be '0' or '1'
+	     * {tail} can be Esc>\ or STERM
+	     *
+	     * Consume any code that starts with "{lead}.+r".
+	     */
 	    else if (check_for_codes
-		    && ((tp[0] == ESC && tp[1] == 'P' && len >= 2)
+		    && ((tp[0] == ESC && len >= 2 && tp[1] == 'P')
 			|| tp[0] == DCS))
 	    {
-		j = 1 + (tp[0] != DCS);
-		for (i = j; i < len; ++i)
-		    if ((tp[i] == ESC && tp[i + 1] == '\\' && i + 1 < len)
+		j = 1 + (tp[0] == ESC);
+		if (len >= j + 3 && (argp[1] != '+' || argp[2] != 'r'))
+		  i = 0; /* no match */
+		else
+		  for (i = j; i < len; ++i)
+		    if ((tp[i] == ESC && i + 1 < len && tp[i + 1] == '\\')
 			    || tp[i] == STERM)
 		    {
-			if (i - j >= 3 && tp[j + 1] == '+' && tp[j + 2] == 'r')
+			if (i - j >= 3)
 			    got_code_from_term(tp + j, i);
 			key_name[0] = (int)KS_EXTRA;
 			key_name[1] = (int)KE_IGNORE;
@@ -4386,8 +4486,10 @@ check_termcode(max_offset, buf, bufsize, buflen)
 
 		if (i == len)
 		{
+		    /* These codes arrive many together, each code can be
+		     * truncated at any point. */
 		    LOG_TR("not enough characters for XT");
-		    return -1;		/* not enough characters */
+		    return -1;
 		}
 	    }
 	}

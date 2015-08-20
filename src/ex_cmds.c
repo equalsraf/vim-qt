@@ -500,7 +500,7 @@ ex_sort(eap)
 		nrs[lnum - eap->line1].start_col_nr = -MAXLNUM;
 	    else
 		vim_str2nr(s, NULL, NULL, sort_oct, sort_hex,
-				  &nrs[lnum - eap->line1].start_col_nr, NULL);
+				  &nrs[lnum - eap->line1].start_col_nr, NULL, 0);
 	    *s2 = c;
 	}
 	else
@@ -741,6 +741,16 @@ do_move(line1, line2, dest)
     linenr_T	extra;	    /* Num lines added before line1 */
     linenr_T	num_lines;  /* Num lines moved */
     linenr_T	last_line;  /* Last line in file after adding new text */
+#ifdef FEAT_FOLDING
+    int		isFolded;
+
+    /* Moving lines seems to corrupt the folds, delete folding info now
+     * and recreate it when finished.  Don't do this for manual folding, it
+     * would delete all folds. */
+    isFolded = hasAnyFolding(curwin) && !foldmethodIsManual(curwin);
+    if (isFolded)
+	deleteFoldRecurse(&curwin->w_folds);
+#endif
 
     if (dest >= line1 && dest < line2)
     {
@@ -838,6 +848,12 @@ do_move(line1, line2, dest)
     }
     else
 	changed_lines(dest + 1, 0, line1 + num_lines, 0L);
+
+#ifdef FEAT_FOLDING
+	/* recreate folds */
+	if (isFolded)
+	    foldUpdateAll(curwin);
+#endif
 
     return OK;
 }
@@ -4263,6 +4279,8 @@ do_sub(eap)
     static int	do_list = FALSE;	/* list last line with subs. */
     static int	do_number = FALSE;	/* list last line with line nr*/
     static int	do_ic = 0;		/* ignore case flag */
+    int		save_do_all;		/* remember user specified 'g' flag */
+    int		save_do_ask;		/* remember user specified 'c' flag */
     char_u	*pat = NULL, *sub = NULL;	/* init for GCC */
     int		delimiter;
     int		sublen;
@@ -4497,6 +4515,9 @@ do_sub(eap)
     }
     if (do_count)
 	do_ask = FALSE;
+
+    save_do_all = do_all;
+    save_do_ask = do_ask;
 
     /*
      * check for a trailing count
@@ -5311,6 +5332,10 @@ outofmem:
 #endif
 
     vim_regfree(regmatch.regprog);
+
+    /* Restore the flag values, they can be used for ":&&". */
+    do_all = save_do_all;
+    do_ask = save_do_ask;
 }
 
 /*
@@ -6831,7 +6856,8 @@ helptags_one(dir, ext, tagfname, add_help_tags)
 	/*
 	 * Sort the tags.
 	 */
-	sort_strings((char_u **)ga.ga_data, ga.ga_len);
+	if (ga.ga_data != NULL)
+	    sort_strings((char_u **)ga.ga_data, ga.ga_len);
 
 	/*
 	 * Check for duplicates.

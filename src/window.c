@@ -141,7 +141,7 @@ do_window(nchar, Prenum, xchar)
 #ifdef FEAT_GUI
 		need_mouse_correct = TRUE;
 #endif
-		win_split((int)Prenum, 0);
+		(void)win_split((int)Prenum, 0);
 		break;
 
 #ifdef FEAT_VERTSPLIT
@@ -159,7 +159,7 @@ do_window(nchar, Prenum, xchar)
 # ifdef FEAT_GUI
 		need_mouse_correct = TRUE;
 # endif
-		win_split((int)Prenum, WSP_VERT);
+		(void)win_split((int)Prenum, WSP_VERT);
 		break;
 #endif
 
@@ -1236,7 +1236,8 @@ win_split_ins(size, flags, new_wp, dir)
 	{
 	    wp->w_winrow = oldwin->w_winrow + oldwin->w_height + STATUS_HEIGHT;
 	    wp->w_status_height = oldwin->w_status_height;
-	    oldwin->w_status_height = STATUS_HEIGHT;
+	    /* Don't set the status_height for oldwin yet, this might break
+	     * frame_fix_height(oldwin), therefore will be set below. */
 	}
 #ifdef FEAT_VERTSPLIT
 	if (flags & WSP_BOT)
@@ -1244,6 +1245,11 @@ win_split_ins(size, flags, new_wp, dir)
 #endif
 	frame_fix_height(wp);
 	frame_fix_height(oldwin);
+
+	if (!before)
+	    /* new window above current one, set the status_height after
+	     * frame_fix_height(oldwin) */
+	    oldwin->w_status_height = STATUS_HEIGHT;
     }
 
     if (flags & (WSP_TOP | WSP_BOT))
@@ -2580,7 +2586,7 @@ win_close_othertab(win, free_buf, tp)
 	return;
 
     /* When closing the last window in a tab page remove the tab page. */
-    if (tp == NULL ? firstwin == lastwin : tp->tp_firstwin == tp->tp_lastwin)
+    if (tp->tp_firstwin == tp->tp_lastwin)
     {
 	if (tp == first_tabpage)
 	    first_tabpage = tp->tp_next;
@@ -4114,17 +4120,26 @@ goto_tabpage_win(tp, wp)
 }
 
 /*
- * Move the current tab page to before tab page "nr".
+ * Move the current tab page to after tab page "nr".
  */
     void
 tabpage_move(nr)
     int		nr;
 {
-    int		n = nr;
-    tabpage_T	*tp;
+    int		n = 1;
+    tabpage_T	*tp, *tp_dst;
 
     if (first_tabpage->tp_next == NULL)
 	return;
+
+    for (tp = first_tabpage; tp->tp_next != NULL && n < nr; tp = tp->tp_next)
+	++n;
+
+    if (tp == curtab || (nr > 0 && tp->tp_next != NULL
+						    && tp->tp_next == curtab))
+	return;
+
+    tp_dst = tp;
 
     /* Remove the current tab page from the list of tab pages. */
     if (curtab == first_tabpage)
@@ -4140,17 +4155,15 @@ tabpage_move(nr)
     }
 
     /* Re-insert it at the specified position. */
-    if (n <= 0)
+    if (nr <= 0)
     {
 	curtab->tp_next = first_tabpage;
 	first_tabpage = curtab;
     }
     else
     {
-	for (tp = first_tabpage; tp->tp_next != NULL && n > 1; tp = tp->tp_next)
-	    --n;
-	curtab->tp_next = tp->tp_next;
-	tp->tp_next = curtab;
+	curtab->tp_next = tp_dst->tp_next;
+	tp_dst->tp_next = curtab;
     }
 
     /* Need to redraw the tabline.  Tab page contents doesn't change. */
@@ -6930,13 +6943,14 @@ win_hasvertsplit()
  * Return ID of added match, -1 on failure.
  */
     int
-match_add(wp, grp, pat, prio, id, pos_list)
+match_add(wp, grp, pat, prio, id, pos_list, conceal_char)
     win_T	*wp;
     char_u	*grp;
     char_u	*pat;
     int		prio;
     int		id;
     list_T	*pos_list;
+    char_u      *conceal_char UNUSED; /* pointer to conceal replacement char */
 {
     matchitem_T	*cur;
     matchitem_T	*prev;
@@ -6996,6 +7010,11 @@ match_add(wp, grp, pat, prio, id, pos_list)
     m->match.regprog = regprog;
     m->match.rmm_ic = FALSE;
     m->match.rmm_maxcol = 0;
+#ifdef FEAT_CONCEAL
+    m->conceal_char = 0;
+    if (conceal_char != NULL)
+	m->conceal_char = (*mb_ptr2char)(conceal_char);
+#endif
 
     /* Set up position matches */
     if (pos_list != NULL)

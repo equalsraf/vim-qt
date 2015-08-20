@@ -1697,7 +1697,9 @@ msg_prt_line(s, list)
 	else if (has_mbyte && (l = (*mb_ptr2len)(s)) > 1)
 	{
 	    col += (*mb_ptr2cells)(s);
-	    if (lcs_nbsp != NUL && list && mb_ptr2char(s) == 160)
+	    if (lcs_nbsp != NUL && list
+		    && (mb_ptr2char(s) == 160
+			|| mb_ptr2char(s) == 0x202f))
 	    {
 		mb_char2bytes(lcs_nbsp, buf);
 		buf[(*mb_ptr2len)(buf)] = NUL;
@@ -1759,6 +1761,11 @@ msg_prt_line(s, list)
 	    else if (c == ' ' && trail != NULL && s > trail)
 	    {
 		c = lcs_trail;
+		attr = hl_attr(HLF_8);
+	    }
+	    else if (c == ' ' && list && lcs_space != NUL)
+	    {
+		c = lcs_space;
 		attr = hl_attr(HLF_8);
 	    }
 	}
@@ -2112,8 +2119,8 @@ msg_puts_display(str, maxlen, attr, recurse)
 		msg_screen_putchar(' ', attr);
 	    while (msg_col & 7);
 	}
-	else if (*s == BELL)	    /* beep (from ":sh") */
-	    vim_beep();
+	else if (*s == BELL)		/* beep (from ":sh") */
+	    vim_beep(BO_SH);
 	else
 	{
 #ifdef FEAT_MBYTE
@@ -2356,7 +2363,7 @@ show_sb_text()
      * weird, typing a command without output results in one line. */
     mp = msg_sb_start(last_msgchunk);
     if (mp == NULL || mp->sb_prev == NULL)
-	vim_beep();
+	vim_beep(BO_MESS);
     else
     {
 	do_more_prompt('G');

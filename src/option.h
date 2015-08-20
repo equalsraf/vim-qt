@@ -338,6 +338,37 @@ static char *(p_bkc_values[]) = {"yes", "auto", "no", "breaksymlink", "breakhard
 # define BKC_BREAKHARDLINK	0x010
 EXTERN char_u	*p_bdir;	/* 'backupdir' */
 EXTERN char_u	*p_bex;		/* 'backupext' */
+EXTERN char_u	*p_bo;		/* 'belloff' */
+EXTERN unsigned	bo_flags;
+# ifdef IN_OPTION_C
+static char *(p_bo_values[]) = {"all", "backspace", "cursor", "complete",
+				 "copy", "ctrlg", "error", "esc", "ex",
+				 "hangul", "insertmode", "lang", "mess",
+				 "showmatch", "operator", "register", "shell", 
+				 "spell", "wildmode", NULL};
+# endif
+
+/* values for the 'beepon' option */
+#define BO_ALL		0x0001
+#define BO_BS		0x0002
+#define BO_CRSR		0x0004
+#define BO_COMPL	0x0008
+#define BO_COPY		0x0010
+#define BO_CTRLG	0x0020
+#define BO_ERROR	0x0040
+#define BO_ESC		0x0080
+#define BO_EX		0x0100
+#define BO_HANGUL	0x0200
+#define BO_IM		0x0400
+#define BO_LANG		0x0800
+#define BO_MESS		0x1000
+#define BO_MATCH	0x2000
+#define BO_OPER		0x4000
+#define BO_REG		0x8000
+#define BO_SH		0x10000
+#define BO_SPELL	0x20000
+#define BO_WILD		0x40000
+
 #ifdef FEAT_WILDIGN
 EXTERN char_u	*p_bsk;		/* 'backupskip' */
 #endif
@@ -765,12 +796,13 @@ EXTERN char_u	*p_sws;		/* 'swapsync' */
 EXTERN char_u	*p_swb;		/* 'switchbuf' */
 EXTERN unsigned	swb_flags;
 #ifdef IN_OPTION_C
-static char *(p_swb_values[]) = {"useopen", "usetab", "split", "newtab", NULL};
+static char *(p_swb_values[]) = {"useopen", "usetab", "split", "newtab", "vsplit", NULL};
 #endif
 #define SWB_USEOPEN		0x001
 #define SWB_USETAB		0x002
 #define SWB_SPLIT		0x004
 #define SWB_NEWTAB		0x008
+#define SWB_VSPLIT		0x010
 EXTERN int	p_tbs;		/* 'tagbsearch' */
 EXTERN long	p_tl;		/* 'taglength' */
 EXTERN int	p_tr;		/* 'tagrelative' */
@@ -961,6 +993,7 @@ enum
     , BV_INC
 #endif
     , BV_EOL
+    , BV_FIXEOL
     , BV_EP
     , BV_ET
     , BV_FENC

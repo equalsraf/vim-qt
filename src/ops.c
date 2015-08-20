@@ -442,8 +442,8 @@ shift_block(oap, amount)
 	    return;
 	vim_memset(newp, NUL, (size_t)(bd.textcol + i + j + len));
 	mch_memmove(newp, oldp, (size_t)bd.textcol);
-	copy_chars(newp + bd.textcol, (size_t)i, TAB);
-	copy_spaces(newp + bd.textcol + i, (size_t)j);
+	vim_memset(newp + bd.textcol, TAB, (size_t)i);
+	vim_memset(newp + bd.textcol + i, ' ', (size_t)j);
 	/* the end */
 	mch_memmove(newp + bd.textcol + i + j, bd.textstart, (size_t)len);
     }
@@ -535,7 +535,7 @@ shift_block(oap, amount)
 	if (newp == NULL)
 	    return;
 	mch_memmove(newp, oldp, (size_t)(verbatim_copy_end - oldp));
-	copy_spaces(newp + (verbatim_copy_end - oldp), (size_t)fill);
+	vim_memset(newp + (verbatim_copy_end - oldp), ' ', (size_t)fill);
 	STRMOVE(newp + (verbatim_copy_end - oldp) + fill, non_white);
     }
     /* replace the line */
@@ -638,7 +638,7 @@ block_insert(oap, s, b_insert, bdp)
 	oldp += offset;
 
 	/* insert pre-padding */
-	copy_spaces(newp + offset, (size_t)spaces);
+	vim_memset(newp + offset, ' ', (size_t)spaces);
 
 	/* copy the new text */
 	mch_memmove(newp + offset + spaces, s, (size_t)s_len);
@@ -647,7 +647,7 @@ block_insert(oap, s, b_insert, bdp)
 	if (spaces && !bdp->is_short)
 	{
 	    /* insert post-padding */
-	    copy_spaces(newp + offset + spaces, (size_t)(p_ts - spaces));
+	    vim_memset(newp + offset + spaces, ' ', (size_t)(p_ts - spaces));
 	    /* We're splitting a TAB, don't copy it. */
 	    oldp++;
 	    /* We allowed for that TAB, remember this now */
@@ -686,7 +686,7 @@ op_reindent(oap, how)
 {
     long	i;
     char_u	*l;
-    int		count;
+    int		amount;
     linenr_T	first_changed = 0;
     linenr_T	last_changed = 0;
     linenr_T	start_lnum = curwin->w_cursor.lnum;
@@ -719,11 +719,11 @@ op_reindent(oap, how)
 	{
 	    l = skipwhite(ml_get_curline());
 	    if (*l == NUL)		    /* empty or blank line */
-		count = 0;
+		amount = 0;
 	    else
-		count = how();		    /* get the indent for this line */
+		amount = how();		    /* get the indent for this line */
 
-	    if (set_indent(count, SIN_UNDO))
+	    if (amount >= 0 && set_indent(amount, SIN_UNDO))
 	    {
 		/* did change the indent, call changed_lines() later */
 		if (first_changed == 0)
@@ -1831,7 +1831,7 @@ op_delete(oap)
 	    /* copy up to deleted part */
 	    mch_memmove(newp, oldp, (size_t)bd.textcol);
 	    /* insert spaces */
-	    copy_spaces(newp + bd.textcol,
+	    vim_memset(newp + bd.textcol, ' ',
 				     (size_t)(bd.startspaces + bd.endspaces));
 	    /* copy the part after the deleted part */
 	    oldp += bd.textcol + bd.textlen;
@@ -1959,60 +1959,31 @@ op_delete(oap)
 		    curwin->w_cursor.coladd = 0;
 	    }
 #endif
-	    if (oap->op_type == OP_DELETE
-		    && oap->inclusive
-		    && oap->end.lnum == curbuf->b_ml.ml_line_count
-		    && n > (int)STRLEN(ml_get(oap->end.lnum)))
-	    {
-		/* Special case: gH<Del> deletes the last line. */
-		del_lines(1L, FALSE);
-	    }
-	    else
-	    {
-		(void)del_bytes((long)n, !virtual_op,
-				oap->op_type == OP_DELETE && !oap->is_VIsual);
-	    }
+	    (void)del_bytes((long)n, !virtual_op,
+			    oap->op_type == OP_DELETE && !oap->is_VIsual);
 	}
 	else				/* delete characters between lines */
 	{
 	    pos_T   curpos;
-	    int     delete_last_line;
 
 	    /* save deleted and changed lines for undo */
 	    if (u_save((linenr_T)(curwin->w_cursor.lnum - 1),
 		 (linenr_T)(curwin->w_cursor.lnum + oap->line_count)) == FAIL)
 		return FAIL;
 
-	    delete_last_line = (oap->end.lnum == curbuf->b_ml.ml_line_count);
 	    truncate_line(TRUE);	/* delete from cursor to end of line */
 
 	    curpos = curwin->w_cursor;	/* remember curwin->w_cursor */
 	    ++curwin->w_cursor.lnum;
 	    del_lines((long)(oap->line_count - 2), FALSE);
 
-	    if (delete_last_line)
-		oap->end.lnum = curbuf->b_ml.ml_line_count;
-
+	    /* delete from start of line until op_end */
 	    n = (oap->end.col + 1 - !oap->inclusive);
-	    if (oap->inclusive && delete_last_line
-		    && n > (int)STRLEN(ml_get(oap->end.lnum)))
-	    {
-		/* Special case: gH<Del> deletes the last line. */
-		del_lines(1L, FALSE);
-		curwin->w_cursor = curpos;	/* restore curwin->w_cursor */
-		if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
-		    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
-	    }
-	    else
-	    {
-		/* delete from start of line until op_end */
-		curwin->w_cursor.col = 0;
-		(void)del_bytes((long)n, !virtual_op,
-				oap->op_type == OP_DELETE && !oap->is_VIsual);
-		curwin->w_cursor = curpos;	/* restore curwin->w_cursor */
-	    }
-	    if (curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
-		(void)do_join(2, FALSE, FALSE, FALSE, FALSE);
+	    curwin->w_cursor.col = 0;
+	    (void)del_bytes((long)n, !virtual_op,
+			    oap->op_type == OP_DELETE && !oap->is_VIsual);
+	    curwin->w_cursor = curpos;	/* restore curwin->w_cursor */
+	    (void)do_join(2, FALSE, FALSE, FALSE, FALSE);
 	}
     }
 
@@ -2161,7 +2132,7 @@ op_replace(oap, c)
 	    mch_memmove(newp, oldp, (size_t)bd.textcol);
 	    oldp += bd.textcol + bd.textlen;
 	    /* insert pre-spaces */
-	    copy_spaces(newp + bd.textcol, (size_t)bd.startspaces);
+	    vim_memset(newp + bd.textcol, ' ', (size_t)bd.startspaces);
 	    /* insert replacement chars CHECK FOR ALLOCATED SPACE */
 	    /* -1/-2 is used for entering CR literally. */
 	    if (had_ctrl_v_cr || (c != '\r' && c != '\n'))
@@ -2175,11 +2146,11 @@ op_replace(oap, c)
 		}
 		else
 #endif
-		    copy_chars(newp + STRLEN(newp), (size_t)numc, c);
+		    vim_memset(newp + STRLEN(newp), c, (size_t)numc);
 		if (!bd.is_short)
 		{
 		    /* insert post-spaces */
-		    copy_spaces(newp + STRLEN(newp), (size_t)bd.endspaces);
+		    vim_memset(newp + STRLEN(newp), ' ', (size_t)bd.endspaces);
 		    /* copy the part after the changed part */
 		    STRMOVE(newp + STRLEN(newp), oldp);
 		}
@@ -2860,7 +2831,7 @@ op_change(oap)
 			mch_memmove(newp, oldp, (size_t)bd.textcol);
 			offset = bd.textcol;
 # ifdef FEAT_VIRTUALEDIT
-			copy_spaces(newp + offset, (size_t)vpos.coladd);
+			vim_memset(newp + offset, ' ', (size_t)vpos.coladd);
 			offset += vpos.coladd;
 # endif
 			mch_memmove(newp + offset, ins_text, (size_t)ins_len);
@@ -3301,11 +3272,11 @@ yank_copy_line(bd, y_idx)
 								      == NULL)
 	return FAIL;
     y_current->y_array[y_idx] = pnew;
-    copy_spaces(pnew, (size_t)bd->startspaces);
+    vim_memset(pnew, ' ', (size_t)bd->startspaces);
     pnew += bd->startspaces;
     mch_memmove(pnew, bd->textstart, (size_t)bd->textlen);
     pnew += bd->textlen;
-    copy_spaces(pnew, (size_t)bd->endspaces);
+    vim_memset(pnew, ' ', (size_t)bd->endspaces);
     pnew += bd->endspaces;
     *pnew = NUL;
     return OK;
@@ -3488,17 +3459,26 @@ do_put(regname, dir, count, flags)
     {
 	if (flags & PUT_LINE_SPLIT)
 	{
+	    char_u *p;
+
 	    /* "p" or "P" in Visual mode: split the lines to put the text in
 	     * between. */
 	    if (u_save_cursor() == FAIL)
 		goto end;
-	    ptr = vim_strsave(ml_get_cursor());
+	    p = ml_get_cursor();
+	    if (dir == FORWARD && *p != NUL)
+		mb_ptr_adv(p);
+	    ptr = vim_strsave(p);
 	    if (ptr == NULL)
 		goto end;
 	    ml_append(curwin->w_cursor.lnum, ptr, (colnr_T)0, FALSE);
 	    vim_free(ptr);
 
-	    ptr = vim_strnsave(ml_get_curline(), curwin->w_cursor.col);
+	    oldp = ml_get_curline();
+	    p = oldp + curwin->w_cursor.col;
+	    if (dir == FORWARD && *p != NUL)
+		mb_ptr_adv(p);
+	    ptr = vim_strnsave(oldp, p - oldp);
 	    if (ptr == NULL)
 		goto end;
 	    ml_replace(curwin->w_cursor.lnum, ptr, FALSE);
@@ -3710,7 +3690,7 @@ do_put(regname, dir, count, flags)
 	    mch_memmove(ptr, oldp, (size_t)bd.textcol);
 	    ptr += bd.textcol;
 	    /* may insert some spaces before the new text */
-	    copy_spaces(ptr, (size_t)bd.startspaces);
+	    vim_memset(ptr, ' ', (size_t)bd.startspaces);
 	    ptr += bd.startspaces;
 	    /* insert the new text */
 	    for (j = 0; j < count; ++j)
@@ -3721,12 +3701,12 @@ do_put(regname, dir, count, flags)
 		/* insert block's trailing spaces only if there's text behind */
 		if ((j < count - 1 || !shortline) && spaces)
 		{
-		    copy_spaces(ptr, (size_t)spaces);
+		    vim_memset(ptr, ' ', (size_t)spaces);
 		    ptr += spaces;
 		}
 	    }
 	    /* may insert some spaces after the new text */
-	    copy_spaces(ptr, (size_t)bd.endspaces);
+	    vim_memset(ptr, ' ', (size_t)bd.endspaces);
 	    ptr += bd.endspaces;
 	    /* move the text after the cursor to the end of the line. */
 	    mch_memmove(ptr, oldp + bd.textcol + delcount,
@@ -4542,7 +4522,7 @@ do_join(count, insert_space, save_undo, use_formatoptions, setmark)
 	if (spaces[t] > 0)
 	{
 	    cend -= spaces[t];
-	    copy_spaces(cend, (size_t)(spaces[t]));
+	    vim_memset(cend, ' ', (size_t)(spaces[t]));
 	}
 	mark_col_adjust(curwin->w_cursor.lnum + t, (colnr_T)0, (linenr_T)-t,
 			 (long)(cend - newp + spaces[t] - (curr - curr_start)));
@@ -5395,9 +5375,10 @@ reverse_line(s)
  * return FAIL for failure, OK otherwise
  */
     int
-do_addsub(command, Prenum1)
+do_addsub(command, Prenum1, g_cmd)
     int		command;
     linenr_T	Prenum1;
+    int		g_cmd;		    /* was g<c-a>/g<c-x> */
 {
     int		col;
     char_u	*buf1;
@@ -5405,6 +5386,7 @@ do_addsub(command, Prenum1)
     int		hex;		/* 'X' or 'x': hex; '0': octal */
     static int	hexupper = FALSE;	/* 0xABC */
     unsigned long n;
+    unsigned long offset = 0;		/* line offset for Ctrl_V mode */
     long_u	oldn;
     char_u	*ptr;
     int		c;
@@ -5414,247 +5396,386 @@ do_addsub(command, Prenum1)
     int		dooct;
     int		doalp;
     int		firstdigit;
-    int		negative;
     int		subtract;
+    int		negative = FALSE;
+    int		was_positive = TRUE;
+    int		visual = VIsual_active;
+    int		i;
+    int		lnum = curwin->w_cursor.lnum;
+    int		lnume = curwin->w_cursor.lnum;
+    int		startcol = 0;
+    int		did_change = FALSE;
+    pos_T	t = curwin->w_cursor;
+    int		maxlen = 0;
 
     dohex = (vim_strchr(curbuf->b_p_nf, 'x') != NULL);	/* "heX" */
     dooct = (vim_strchr(curbuf->b_p_nf, 'o') != NULL);	/* "Octal" */
     doalp = (vim_strchr(curbuf->b_p_nf, 'p') != NULL);	/* "alPha" */
 
-    ptr = ml_get_curline();
-    RLADDSUBFIX(ptr);
-
     /*
      * First check if we are on a hexadecimal number, after the "0x".
      */
     col = curwin->w_cursor.col;
-    if (dohex)
-	while (col > 0 && vim_isxdigit(ptr[col]))
-	    --col;
-    if (       dohex
-	    && col > 0
-	    && (ptr[col] == 'X'
-		|| ptr[col] == 'x')
-	    && ptr[col - 1] == '0'
-	    && vim_isxdigit(ptr[col + 1]))
+    if (VIsual_active)
     {
-	/*
-	 * Found hexadecimal number, move to its start.
-	 */
-	--col;
+	if (lt(curwin->w_cursor, VIsual))
+	{
+	    curwin->w_cursor = VIsual;
+	    VIsual = t;
+	}
+
+	ptr = ml_get(VIsual.lnum);
+	RLADDSUBFIX(ptr);
+	if (VIsual_mode == 'V')
+	{
+	    VIsual.col = 0;
+	    curwin->w_cursor.col = (colnr_T)STRLEN(ptr);
+	}
+	else if (VIsual_mode == Ctrl_V && VIsual.col > curwin->w_cursor.col)
+	{
+	    t = VIsual;
+	    VIsual.col = curwin->w_cursor.col;
+	    curwin->w_cursor.col = t.col;
+	}
+
+	/* store visual area for 'gv' */
+	curbuf->b_visual.vi_start = VIsual;
+	curbuf->b_visual.vi_end = curwin->w_cursor;
+	curbuf->b_visual.vi_mode = VIsual_mode;
+	curbuf->b_visual.vi_curswant = curwin->w_curswant;
+
+	if (VIsual_mode != 'v')
+	    startcol = VIsual.col < curwin->w_cursor.col ? VIsual.col
+						       : curwin->w_cursor.col;
+	else
+	    startcol = VIsual.col;
+	col = startcol;
+	lnum = VIsual.lnum;
+	lnume = curwin->w_cursor.lnum;
     }
     else
     {
-	/*
-	 * Search forward and then backward to find the start of number.
-	 */
-	col = curwin->w_cursor.col;
+	ptr = ml_get_curline();
+	RLADDSUBFIX(ptr);
 
-	while (ptr[col] != NUL
-		&& !vim_isdigit(ptr[col])
-		&& !(doalp && ASCII_ISALPHA(ptr[col])))
-	    ++col;
-
-	while (col > 0
-		&& vim_isdigit(ptr[col - 1])
-		&& !(doalp && ASCII_ISALPHA(ptr[col])))
-	    --col;
-    }
-
-    /*
-     * If a number was found, and saving for undo works, replace the number.
-     */
-    firstdigit = ptr[col];
-    RLADDSUBFIX(ptr);
-    if ((!VIM_ISDIGIT(firstdigit) && !(doalp && ASCII_ISALPHA(firstdigit)))
-	    || u_save_cursor() != OK)
-    {
-	beep_flush();
-	return FAIL;
-    }
-
-    /* get ptr again, because u_save() may have changed it */
-    ptr = ml_get_curline();
-    RLADDSUBFIX(ptr);
-
-    if (doalp && ASCII_ISALPHA(firstdigit))
-    {
-	/* decrement or increment alphabetic character */
-	if (command == Ctrl_X)
+	if (dohex)
+	    while (col > 0 && vim_isxdigit(ptr[col]))
+		--col;
+	if (       dohex
+		&& col > 0
+		&& (ptr[col] == 'X'
+		    || ptr[col] == 'x')
+		&& ptr[col - 1] == '0'
+		&& vim_isxdigit(ptr[col + 1]))
 	{
-	    if (CharOrd(firstdigit) < Prenum1)
-	    {
-		if (isupper(firstdigit))
-		    firstdigit = 'A';
-		else
-		    firstdigit = 'a';
-	    }
-	    else
-#ifdef EBCDIC
-		firstdigit = EBCDIC_CHAR_ADD(firstdigit, -Prenum1);
-#else
-		firstdigit -= Prenum1;
-#endif
+	    /* Found hexadecimal number, move to its start. */
+	    --col;
 	}
 	else
 	{
-	    if (26 - CharOrd(firstdigit) - 1 < Prenum1)
-	    {
-		if (isupper(firstdigit))
-		    firstdigit = 'Z';
-		else
-		    firstdigit = 'z';
-	    }
-	    else
-#ifdef EBCDIC
-		firstdigit = EBCDIC_CHAR_ADD(firstdigit, Prenum1);
-#else
-		firstdigit += Prenum1;
-#endif
+	    /*
+	     * Search forward and then backward to find the start of number.
+	     */
+	    col = curwin->w_cursor.col;
+
+	    while (ptr[col] != NUL
+		    && !vim_isdigit(ptr[col])
+		    && !(doalp && ASCII_ISALPHA(ptr[col])))
+		++col;
+
+	    while (col > 0
+		    && vim_isdigit(ptr[col - 1])
+		    && !(doalp && ASCII_ISALPHA(ptr[col])))
+		--col;
 	}
-	curwin->w_cursor.col = col;
-	(void)del_char(FALSE);
-	ins_char(firstdigit);
     }
-    else
+
+    for (i = lnum; i <= lnume; i++)
     {
-	negative = FALSE;
-	if (col > 0 && ptr[col - 1] == '-')	    /* negative number */
+	colnr_T stop = 0;
+
+	t = curwin->w_cursor;
+	curwin->w_cursor.lnum = i;
+	ptr = ml_get_curline();
+	RLADDSUBFIX(ptr);
+	if ((int)STRLEN(ptr) <= col)
+	    /* try again on next line */
+	    continue;
+	if (visual)
 	{
-	    --col;
-	    negative = TRUE;
-	}
+	    if (VIsual_mode == 'v'
+		    && i == lnume)
+		stop = curwin->w_cursor.col;
+	    else if (VIsual_mode == Ctrl_V
+		    && curbuf->b_visual.vi_curswant != MAXCOL)
+		stop = curwin->w_cursor.col;
 
-	/* get the number value (unsigned) */
-	vim_str2nr(ptr + col, &hex, &length, dooct, dohex, NULL, &n);
-
-	/* ignore leading '-' for hex and octal numbers */
-	if (hex && negative)
-	{
-	    ++col;
-	    --length;
-	    negative = FALSE;
-	}
-
-	/* add or subtract */
-	subtract = FALSE;
-	if (command == Ctrl_X)
-	    subtract ^= TRUE;
-	if (negative)
-	    subtract ^= TRUE;
-
-	oldn = n;
-	if (subtract)
-	    n -= (unsigned long)Prenum1;
-	else
-	    n += (unsigned long)Prenum1;
-
-	/* handle wraparound for decimal numbers */
-	if (!hex)
-	{
-	    if (subtract)
+	    while (ptr[col] != NUL
+		    && !vim_isdigit(ptr[col])
+		    && !(doalp && ASCII_ISALPHA(ptr[col])))
 	    {
-		if (n > oldn)
-		{
-		    n = 1 + (n ^ (unsigned long)-1);
-		    negative ^= TRUE;
-		}
+		if (col > 0  && col == stop)
+		    break;
+		++col;
 	    }
-	    else /* add */
-	    {
-		if (n < oldn)
-		{
-		    n = (n ^ (unsigned long)-1);
-		    negative ^= TRUE;
-		}
-	    }
-	    if (n == 0)
-		negative = FALSE;
-	}
 
-	/*
-	 * Delete the old number.
-	 */
-	curwin->w_cursor.col = col;
-	todel = length;
-	c = gchar_cursor();
-	/*
-	 * Don't include the '-' in the length, only the length of the part
-	 * after it is kept the same.
-	 */
-	if (c == '-')
-	    --length;
-	while (todel-- > 0)
-	{
-	    if (c < 0x100 && isalpha(c))
+	    if (col > startcol && ptr[col - 1] == '-')
 	    {
-		if (isupper(c))
-		    hexupper = TRUE;
+		negative = TRUE;
+		was_positive = FALSE;
+	    }
+	}
+	/*
+	 * If a number was found, and saving for undo works, replace the number.
+	 */
+	firstdigit = ptr[col];
+	if ((!VIM_ISDIGIT(firstdigit) && !(doalp && ASCII_ISALPHA(firstdigit)))
+		|| u_save_cursor() != OK)
+	{
+	    if (lnum < lnume)
+	    {
+		if (visual && VIsual_mode != Ctrl_V)
+		    col = 0;
 		else
-		    hexupper = FALSE;
+		    col = startcol;
+		/* Try again on next line */
+		continue;
 	    }
-	    /* del_char() will mark line needing displaying */
-	    (void)del_char(FALSE);
-	    c = gchar_cursor();
-	}
-
-	/*
-	 * Prepare the leading characters in buf1[].
-	 * When there are many leading zeros it could be very long.  Allocate
-	 * a bit too much.
-	 */
-	buf1 = alloc((unsigned)length + NUMBUFLEN);
-	if (buf1 == NULL)
+	    beep_flush();
 	    return FAIL;
-	ptr = buf1;
-	if (negative)
-	{
-	    *ptr++ = '-';
-	}
-	if (hex)
-	{
-	    *ptr++ = '0';
-	    --length;
-	}
-	if (hex == 'x' || hex == 'X')
-	{
-	    *ptr++ = hex;
-	    --length;
 	}
 
-	/*
-	 * Put the number characters in buf2[].
-	 */
-	if (hex == 0)
-	    sprintf((char *)buf2, "%lu", n);
-	else if (hex == '0')
-	    sprintf((char *)buf2, "%lo", n);
-	else if (hex && hexupper)
-	    sprintf((char *)buf2, "%lX", n);
-	else
-	    sprintf((char *)buf2, "%lx", n);
-	length -= (int)STRLEN(buf2);
-
-	/*
-	 * Adjust number of zeros to the new number of digits, so the
-	 * total length of the number remains the same.
-	 * Don't do this when
-	 * the result may look like an octal number.
-	 */
-	if (firstdigit == '0' && !(dooct && hex == 0))
-	    while (length-- > 0)
-		*ptr++ = '0';
-	*ptr = NUL;
-	STRCAT(buf1, buf2);
-	ins_str(buf1);		/* insert the new number */
-	vim_free(buf1);
-    }
-    --curwin->w_cursor.col;
-    curwin->w_set_curswant = TRUE;
-#ifdef FEAT_RIGHTLEFT
-    ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
-    RLADDSUBFIX(ptr);
+	if (doalp && ASCII_ISALPHA(firstdigit))
+	{
+	    /* decrement or increment alphabetic character */
+	    if (command == Ctrl_X)
+	    {
+		if (CharOrd(firstdigit) < Prenum1)
+		{
+		    if (isupper(firstdigit))
+			firstdigit = 'A';
+		    else
+			firstdigit = 'a';
+		}
+		else
+#ifdef EBCDIC
+		    firstdigit = EBCDIC_CHAR_ADD(firstdigit, -Prenum1);
+#else
+		    firstdigit -= Prenum1;
 #endif
+	    }
+	    else
+	    {
+		if (26 - CharOrd(firstdigit) - 1 < Prenum1)
+		{
+		    if (isupper(firstdigit))
+			firstdigit = 'Z';
+		    else
+			firstdigit = 'z';
+		}
+		else
+#ifdef EBCDIC
+		    firstdigit = EBCDIC_CHAR_ADD(firstdigit, Prenum1);
+#else
+		    firstdigit += Prenum1;
+#endif
+	    }
+	    curwin->w_cursor.col = col;
+	    did_change = TRUE;
+	    (void)del_char(FALSE);
+	    ins_char(firstdigit);
+	    curwin->w_cursor.col = col;
+	}
+	else
+	{
+	    if (col > 0 && ptr[col - 1] == '-' && !visual)
+	    {
+		/* negative number */
+		--col;
+		negative = TRUE;
+	    }
+	    /* get the number value (unsigned) */
+	    if (visual && VIsual_mode != 'V')
+	    {
+		if (VIsual_mode == 'v')
+		{
+		    if (i == lnum)
+			maxlen = (lnum == lnume
+					    ? curwin->w_cursor.col - col + 1
+					    : (int)STRLEN(ptr) - col);
+		    else
+			maxlen = (i == lnume ? curwin->w_cursor.col - col  + 1
+					     : (int)STRLEN(ptr) - col);
+		}
+		else if (VIsual_mode == Ctrl_V)
+		    maxlen = (curbuf->b_visual.vi_curswant == MAXCOL
+					?  (int)STRLEN(ptr) - col
+					: curwin->w_cursor.col - col + 1);
+	    }
+
+	    vim_str2nr(ptr + col, &hex, &length, dooct, dohex, NULL, &n,
+								      maxlen);
+
+	    /* ignore leading '-' for hex and octal numbers */
+	    if (hex && negative)
+	    {
+		++col;
+		--length;
+		negative = FALSE;
+	    }
+
+	    /* add or subtract */
+	    subtract = FALSE;
+	    if (command == Ctrl_X)
+		subtract ^= TRUE;
+	    if (negative)
+		subtract ^= TRUE;
+
+	    oldn = n;
+	    if (subtract)
+		n -= (unsigned long)Prenum1;
+	    else
+		n += (unsigned long)Prenum1;
+
+	    /* handle wraparound for decimal numbers */
+	    if (!hex)
+	    {
+		if (subtract)
+		{
+		    if (n > oldn)
+		    {
+			n = 1 + (n ^ (unsigned long)-1);
+			negative ^= TRUE;
+		    }
+		}
+		else
+		{
+		    /* add */
+		    if (n < oldn)
+		    {
+			n = (n ^ (unsigned long)-1);
+			negative ^= TRUE;
+		    }
+		}
+		if (n == 0)
+		    negative = FALSE;
+	    }
+
+	    if (visual && !was_positive && !negative && col > 0)
+	    {
+		/* need to remove the '-' */
+		col--;
+		length++;
+	    }
+
+
+	    /*
+	     * Delete the old number.
+	     */
+	    curwin->w_cursor.col = col;
+	    did_change = TRUE;
+	    todel = length;
+	    c = gchar_cursor();
+
+	    /*
+	     * Don't include the '-' in the length, only the length of the
+	     * part after it is kept the same.
+	     */
+	    if (c == '-')
+		--length;
+	    while (todel-- > 0)
+	    {
+		if (c < 0x100 && isalpha(c))
+		{
+		    if (isupper(c))
+			hexupper = TRUE;
+		    else
+			hexupper = FALSE;
+		}
+		/* del_char() will mark line needing displaying */
+		(void)del_char(FALSE);
+		c = gchar_cursor();
+	    }
+
+	    /*
+	     * Prepare the leading characters in buf1[].
+	     * When there are many leading zeros it could be very long.
+	     * Allocate a bit too much.
+	     */
+	    buf1 = alloc((unsigned)length + NUMBUFLEN);
+	    if (buf1 == NULL)
+		return FAIL;
+	    ptr = buf1;
+	    if (negative && (!visual || (visual && was_positive)))
+	    {
+		*ptr++ = '-';
+	    }
+	    if (hex)
+	    {
+		*ptr++ = '0';
+		--length;
+	    }
+	    if (hex == 'x' || hex == 'X')
+	    {
+		*ptr++ = hex;
+		--length;
+	    }
+
+	    /*
+	     * Put the number characters in buf2[].
+	     */
+	    if (hex == 0)
+		sprintf((char *)buf2, "%lu", n);
+	    else if (hex == '0')
+		sprintf((char *)buf2, "%lo", n);
+	    else if (hex && hexupper)
+		sprintf((char *)buf2, "%lX", n);
+	    else
+		sprintf((char *)buf2, "%lx", n);
+	    length -= (int)STRLEN(buf2);
+
+	    /*
+	     * Adjust number of zeros to the new number of digits, so the
+	     * total length of the number remains the same.
+	     * Don't do this when
+	     * the result may look like an octal number.
+	     */
+	    if (firstdigit == '0' && !(dooct && hex == 0))
+		while (length-- > 0)
+		    *ptr++ = '0';
+	    *ptr = NUL;
+	    STRCAT(buf1, buf2);
+	    ins_str(buf1);		/* insert the new number */
+	    vim_free(buf1);
+	    if (lnum < lnume)
+		curwin->w_cursor.col = t.col;
+	    else if (did_change && curwin->w_cursor.col)
+		--curwin->w_cursor.col;
+	}
+
+	if (g_cmd)
+	{
+	    offset = (unsigned long)Prenum1;
+	    g_cmd = 0;
+	}
+	/* reset */
+	subtract = FALSE;
+	negative = FALSE;
+	was_positive = TRUE;
+	if (visual && VIsual_mode == Ctrl_V)
+	    col = startcol;
+	else
+	    col = 0;
+	Prenum1 += offset;
+	curwin->w_set_curswant = TRUE;
+#ifdef FEAT_RIGHTLEFT
+	ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
+	RLADDSUBFIX(ptr);
+#endif
+    }
+    if (visual)
+	/* cursor at the top of the selection */
+	curwin->w_cursor = VIsual;
     return OK;
 }
 
@@ -6642,6 +6763,14 @@ str_to_reg(y_ptr, yank_type, str, len, blocklen, str_list)
 	}
     }
 
+    /* Without any lines make the register empty. */
+    if (y_ptr->y_size + newlines == 0)
+    {
+	vim_free(y_ptr->y_array);
+	y_ptr->y_array = NULL;
+	return;
+    }
+
     /*
      * Allocate an array to hold the pointers to the new register lines.
      * If the register was not empty, move the existing lines to the new array.
@@ -6922,7 +7051,7 @@ cursor_pos_info()
 					   &char_count_cursor, len, eol_size);
 		    if (lnum == curbuf->b_ml.ml_line_count
 			    && !curbuf->b_p_eol
-			    && curbuf->b_p_bin
+			    && (curbuf->b_p_bin || !curbuf->b_p_fixeol)
 			    && (long)STRLEN(s) < len)
 			byte_count_cursor -= eol_size;
 		}
@@ -6946,7 +7075,7 @@ cursor_pos_info()
 	}
 
 	/* Correction for when last line doesn't have an EOL. */
-	if (!curbuf->b_p_eol && curbuf->b_p_bin)
+	if (!curbuf->b_p_eol && (curbuf->b_p_bin || !curbuf->b_p_fixeol))
 	    byte_count -= eol_size;
 
 	if (VIsual_active)

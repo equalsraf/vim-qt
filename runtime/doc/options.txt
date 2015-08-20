@@ -1,4 +1,4 @@
-*options.txt*	For Vim version 7.4.  Last change: 2015 Feb 17
+*options.txt*	For Vim version 7.4.  Last change: 2015 Jul 17
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -1124,6 +1124,47 @@ A jump table for the options with a short description can be found at |Q_op|.
 	expression evaluates to a |List| this is equal to using each List item
 	as a string and putting "\n" in between them.
 
+						*'belloff'* *'bo'*
+'belloff' 'bo'		string	(default "")
+			global
+			{not in Vi}
+	Specifies for which events the bell will not be rung. It is a comma
+	separated list of items. For each item that is present, the bell
+	will be silenced. This is most useful to specify specific events in
+	insert mode to be silenced.
+
+	item	    meaning when present	~
+	all	    All events.
+	backspace   When hitting <BS> or <Del> and deleting results in an
+		    error.
+	cursor	    Fail to move around using the cursor keys or
+		    <PageUp>/<PageDown> in |Insert-mode|.
+	complete    Error occurred when using |i_CTRL-X_CTRL-K| or
+		    |i_CTRL-X_CTRL-T|.
+	copy	    Cannot copy char from insert mode using |i_CTRL-Y| or
+		    |i_CTRL-E|.
+	ctrlg	    Unknown Char after <C-G> in Insert mode.
+	error	    Other Error occurred (e.g. try to join last line)
+		    (mostly used in |Normal-mode| or |Cmdline-mode|).
+	esc	    hitting <Esc> in |Normal-mode|.
+	ex	    In |Visual-mode|, hitting |Q| results in an error.
+	hangul	    Error occurred when using hangul input.
+	insertmode  Pressing <Esc> in 'insertmode'.
+	lang	    Calling the beep module for Lua/Mzscheme/TCL.
+	mess	    No output available for |g<|.
+	showmatch   Error occurred for 'showmatch' function.
+	operator    Empty region error |cpo-E|.
+	register    Unknown register after <C-R> in |Insert-mode|.
+	shell	    Bell from shell output |:!|.
+	spell	    Error happened on spell suggest.
+	wildmode    More matches in |cmdline-completion| available
+		    (depends on the 'wildmode' setting).
+
+	This is most useful, to fine tune when in insert mode the bell should
+	be rung. For normal mode and ex commands, the bell is often rung to
+	indicate that an error occurred. It can be silenced by adding the
+	"error" keyword.
+
 				     *'binary'* *'bin'* *'nobinary'* *'nobin'*
 'binary' 'bin'		boolean	(default off)
 			local to buffer
@@ -1818,6 +1859,14 @@ A jump table for the options with a short description can be found at |Q_op|.
 	   preview  Show extra information about the currently selected
 		    completion in the preview window.  Only works in
 		    combination with "menu" or "menuone".
+
+	   noinsert Do not insert any text for a match until the user selects
+		    a match from the menu. Only works in combination with
+		    "menu" or "menuone". No effect if "longest" is present.
+
+	   noselect Do not select a match in the menu, force the user to
+		    select one from the menu. Only works in combination with
+		    "menu" or "menuone".
 
 
 						*'concealcursor'* *'cocu'*
@@ -2663,15 +2712,16 @@ A jump table for the options with a short description can be found at |Q_op|.
 			local to buffer
 			{not in Vi}
 	When writing a file and this option is off and the 'binary' option
-	is on, no <EOL> will be written for the last line in the file.  This
-	option is automatically set when starting to edit a new file, unless
-	the file does not have an <EOL> for the last line in the file, in
-	which case it is reset.  Normally you don't have to set or reset this
-	option.  When 'binary' is off the value is not used when writing the
-	file.  When 'binary' is on it is used to remember the presence of a
-	<EOL> for the last line in the file, so that when you write the file
-	the situation from the original file can be kept.  But you can change
-	it if you want to.
+	is on, or 'fixeol' option is off, no <EOL> will be written for the
+	last line in the file.  This option is automatically set or reset when
+	starting to edit a new file, depending on whether file has an <EOL>
+	for the last line in the file.  Normally you don't have to set or
+	reset this option.
+	When 'binary' is off and 'fixeol' is on the value is not used when
+	writing the file.  When 'binary' is on or 'fixeol' is off it is used
+	to remember the presence of a <EOL> for the last line in the file, so
+	that when you write the file the situation from the original file can
+	be kept.  But you can change it if you want to.
 
 			     *'equalalways'* *'ea'* *'noequalalways'* *'noea'*
 'equalalways' 'ea'	boolean	(default on)
@@ -2712,7 +2762,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	makes a difference for error messages, the bell will be used always
 	for a lot of errors without a message (e.g., hitting <Esc> in Normal
 	mode).  See 'visualbell' on how to make the bell behave like a beep,
-	screen flash or do nothing.
+	screen flash or do nothing. See 'belloff' to finetune when to ring the
+	bell.
 
 						*'errorfile'* *'ef'*
 'errorfile' 'ef'	string	(Amiga default: "AztecC.Err",
@@ -3055,6 +3106,17 @@ A jump table for the options with a short description can be found at |Q_op|.
 	  vert:c	VertSplit		|hl-VertSplit|
 	  fold:c	Folded			|hl-Folded|
 	  diff:c	DiffDelete		|hl-DiffDelete|
+
+		*'fixendofline'* *'fixeol'* *'nofixendofline'* *'nofixeol'*
+'fixendofline' 'fixeol'	boolean	(default on)
+			local to buffer
+			{not in Vi}
+	When writing a file and this option is on, <EOL> at the end of file
+	will be restored if missing. Turn this option off if you want to
+	preserve the situation from the original file.
+	When the 'binary' option is set the value of this option doesn't
+	matter.
+	See the 'endofline' option.
 
 					*'fkmap'* *'fk'* *'nofkmap'* *'nofk'*
 'fkmap' 'fk'		boolean (default off)			*E198*
@@ -4717,33 +4779,38 @@ A jump table for the options with a short description can be found at |Q_op|.
 			{not in Vi}
 	Strings to use in 'list' mode and for the |:list| command.  It is a
 	comma separated list of string settings.
-	  						*lcs-eol*
+							*lcs-eol*
 	  eol:c		Character to show at the end of each line.  When
 			omitted, there is no extra character at the end of the
 			line.
-	  						*lcs-tab*
+							*lcs-tab*
 	  tab:xy	Two characters to be used to show a tab.  The first
 			char is used once.  The second char is repeated to
 			fill the space that the tab normally occupies.
 			"tab:>-" will show a tab that takes four spaces as
 			">---".  When omitted, a tab is show as ^I.
-	  						*lcs-trail*
+							*lcs-space*
+	  space:c	Character to show for a space.  When omitted, spaces
+			are left blank.
+							*lcs-trail*
 	  trail:c	Character to show for trailing spaces.  When omitted,
-			trailing spaces are blank.
-	  						*lcs-extends*
+			trailing spaces are blank.  Overrides the "space"
+			setting for trailing spaces.
+							*lcs-extends*
 	  extends:c	Character to show in the last column, when 'wrap' is
 			off and the line continues beyond the right of the
 			screen.
-	  						*lcs-precedes*
+							*lcs-precedes*
 	  precedes:c	Character to show in the first column, when 'wrap'
 			is off and there is text preceding the character
 			visible in the first column.
-	  						*lcs-conceal*
+							*lcs-conceal*
 	  conceal:c	Character to show in place of concealed text, when
 			'conceallevel' is set to 1.
-	  						*lcs-nbsp*
-	  nbsp:c	Character to show for a non-breakable space (character
-			0xA0, 160).  Left blank when omitted.
+							*lcs-nbsp*
+	  nbsp:c	Character to show for a non-breakable space character
+			(0xA0 (160 decimal) and U+202F).  Left blank when
+			omitted.
 
 	The characters ':' and ',' should not be used.  UTF-8 characters can
 	be used when 'encoding' is "utf-8", otherwise only printable
@@ -4754,7 +4821,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	    :set lcs=tab:>-,eol:<,nbsp:%
 	    :set lcs=extends:>,precedes:<
 <	The "NonText" highlighting will be used for "eol", "extends" and
-	"precedes".  "SpecialKey" for "nbsp", "tab" and "trail".
+	"precedes".  "SpecialKey" for "nbsp", "space", "tab" and "trail".
 	|hl-NonText| |hl-SpecialKey|
 
 			*'lpl'* *'nolpl'* *'loadplugins'* *'noloadplugins'*
@@ -7062,6 +7129,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	   split	If included, split the current window before loading
 			a buffer for a |quickfix| command that display errors.
 			Otherwise: do not split, use current window.
+	   vsplit	Just like "split" but split vertically.
 	   newtab	Like "split", but open a new tab page.  Overrules
 			"split" when both are present.
 

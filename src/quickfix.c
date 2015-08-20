@@ -1841,6 +1841,9 @@ win_found:
 	    if (qf_ptr->qf_col > 0)
 	    {
 		curwin->w_cursor.col = qf_ptr->qf_col - 1;
+#ifdef FEAT_VIRTUALEDIT
+		curwin->w_cursor.coladd = 0;
+#endif
 		if (qf_ptr->qf_viscol == TRUE)
 		{
 		    /*
@@ -2452,13 +2455,12 @@ ex_copen(eap)
 	    prevwin = win;
     }
 
+    qf_set_title_var(qi);
+
     /*
      * Fill the buffer with the quickfix list.
      */
     qf_fill_buffer(qi);
-
-    if (qi->qf_lists[qi->qf_curlist].qf_title != NULL)
-	qf_set_title_var(qi);
 
     curwin->w_cursor.lnum = qi->qf_lists[qi->qf_curlist].qf_index;
     curwin->w_cursor.col = 0;
@@ -2608,8 +2610,7 @@ qf_update_buffer(qi)
 
 	qf_fill_buffer(qi);
 
-	if (qi->qf_lists[qi->qf_curlist].qf_title != NULL
-	    && (win = qf_find_win(qi)) != NULL)
+	if ((win = qf_find_win(qi)) != NULL)
 	{
 	    curwin_save = curwin;
 	    curwin = win;
@@ -2625,11 +2626,15 @@ qf_update_buffer(qi)
     }
 }
 
+/*
+ * Set "w:quickfix_title" if "qi" has a title.
+ */
     static void
 qf_set_title_var(qi)
     qf_info_T	*qi;
 {
-    set_internal_string_var((char_u *)"w:quickfix_title",
+    if (qi->qf_lists[qi->qf_curlist].qf_title != NULL)
+	set_internal_string_var((char_u *)"w:quickfix_title",
 				    qi->qf_lists[qi->qf_curlist].qf_title);
 }
 

@@ -1108,7 +1108,7 @@ ex_profile(eap)
     if (len == 5 && STRNCMP(eap->arg, "start", 5) == 0 && *e != NUL)
     {
 	vim_free(profile_fname);
-	profile_fname = vim_strsave(e);
+	profile_fname = expand_env_save_opt(e, TRUE);
 	do_profiling = PROF_YES;
 	profile_zero(&prof_wait_time);
 	set_vim_var_nr(VV_PROFILING, 1L);
@@ -3051,7 +3051,7 @@ fopen_noinh_readbin(filename)
     {
 	int fdflags = fcntl(fd_tmp, F_GETFD);
 	if (fdflags >= 0 && (fdflags & FD_CLOEXEC) == 0)
-	    fcntl(fd_tmp, F_SETFD, fdflags | FD_CLOEXEC);
+	    (void)fcntl(fd_tmp, F_SETFD, fdflags | FD_CLOEXEC);
     }
 # endif
 
@@ -3841,7 +3841,7 @@ script_line_start()
     {
 	/* Grow the array before starting the timer, so that the time spent
 	 * here isn't counted. */
-	ga_grow(&si->sn_prl_ga, (int)(sourcing_lnum - si->sn_prl_ga.ga_len));
+	(void)ga_grow(&si->sn_prl_ga, (int)(sourcing_lnum - si->sn_prl_ga.ga_len));
 	si->sn_prl_idx = sourcing_lnum - 1;
 	while (si->sn_prl_ga.ga_len <= si->sn_prl_idx
 		&& si->sn_prl_ga.ga_len < si->sn_prl_ga.ga_maxlen)

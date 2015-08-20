@@ -1335,6 +1335,7 @@ enum auto_event
     EVENT_TEXTCHANGED,		/* text was modified */
     EVENT_TEXTCHANGEDI,		/* text was modified in Insert mode*/
     EVENT_CMDUNDEFINED,		/* command undefined */
+    EVENT_OPTIONSET,		/* option was set */
     NUM_EVENTS			/* MUST be the last one */
 };
 
@@ -1897,7 +1898,11 @@ typedef int proftime_T;	    /* dummy for function prototypes */
 #define VV_OLDFILES	55
 #define VV_WINDOWID	56
 #define VV_PROGPATH	57
-#define VV_LEN		58	/* number of v: vars */
+#define VV_COMPLETED_ITEM 58
+#define VV_OPTION_NEW   59
+#define VV_OPTION_OLD   60
+#define VV_OPTION_TYPE  61
+#define VV_LEN		62	/* number of v: vars */
 
 #ifdef FEAT_CLIPBOARD
 

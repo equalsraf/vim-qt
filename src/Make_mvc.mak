@@ -343,7 +343,7 @@ XPM_INC	  = -I $(XPM)\include -I $(XPM)\..\include
 # gdi32.lib and comdlg32.lib for printing support
 # ole32.lib and uuid.lib are needed for FEAT_SHORTCUT
 CON_LIB = oldnames.lib kernel32.lib advapi32.lib shell32.lib gdi32.lib \
-          comdlg32.lib ole32.lib uuid.lib /machine:$(CPU) /nodefaultlib
+          comdlg32.lib ole32.lib uuid.lib /machine:$(CPU)
 !if "$(DELAYLOAD)" == "yes"
 CON_LIB = $(CON_LIB) /DELAYLOAD:comdlg32.dll /DELAYLOAD:ole32.dll DelayImp.lib
 !endif
@@ -446,6 +446,9 @@ MSVCVER = 11.0
 !if "$(_NMAKE_VER)" == "12.00.21005.1"
 MSVCVER = 12.0
 !endif
+!if ("$(_NMAKE_VER)" == "14.00.22609.0") || ("$(_NMAKE_VER)" == "14.00.22816.0") || ("$(_NMAKE_VER)" == "14.00.23026.0")
+MSVCVER = 14.0
+!endif
 !endif
 
 # Abort building VIM if version of VC is unrecognised.
@@ -460,7 +463,7 @@ MSVCVER = 12.0
 !endif
 
 # Convert processor ID to MVC-compatible number
-!if ("$(MSVCVER)" != "8.0") && ("$(MSVCVER)" != "9.0") && ("$(MSVCVER)" != "10.0") && ("$(MSVCVER)" != "11.0") && ("$(MSVCVER)" != "12.0")
+!if ("$(MSVCVER)" != "8.0") && ("$(MSVCVER)" != "9.0") && ("$(MSVCVER)" != "10.0") && ("$(MSVCVER)" != "11.0") && ("$(MSVCVER)" != "12.0") && ("$(MSVCVER)" != "14.0")
 !if "$(CPUNR)" == "i386"
 CPUARG = /G3
 !elseif "$(CPUNR)" == "i486"
@@ -483,6 +486,13 @@ CPUARG = /arch:SSE2
 
 LIBC =
 DEBUGINFO = /Zi
+
+# Don't use /nodefaultlib on MSVC 14
+!if "$(MSVCVER)" == "14.0"
+NODEFAULTLIB =
+!else
+NODEFAULTLIB = /nodefaultlib
+!endif
 
 !ifdef NODEBUG
 VIM = vim
@@ -655,7 +665,7 @@ GUI_OBJ = \
 GUI_LIB = \
 	gdi32.lib version.lib $(IME_LIB) \
 	winspool.lib comctl32.lib advapi32.lib shell32.lib \
-	/machine:$(CPU) /nodefaultlib
+	/machine:$(CPU)
 !else
 SUBSYSTEM = console
 !endif
@@ -787,7 +797,8 @@ MZSCHEME_VER = 205_000
 !endif
 CFLAGS = $(CFLAGS) -DFEAT_MZSCHEME -I $(MZSCHEME)\include
 !if EXIST("$(MZSCHEME)\collects\scheme\base.ss") \
-	|| EXIST("$(MZSCHEME)\collects\scheme\base.rkt") 
+      	|| EXIST("$(MZSCHEME)\collects\scheme\base.rkt") \
+      	|| EXIST("$(MZSCHEME)\collects\racket\base.rkt")
 # for MzScheme >= 4 we need to include byte code for basic Scheme stuff
 MZSCHEME_EXTRA_DEP = mzscheme_base.c
 CFLAGS = $(CFLAGS) -DINCLUDE_MZSCHEME_BASE
@@ -864,7 +875,7 @@ PERL_LIB = $(PERL_INCDIR)\libperl$(PERL_VER).a
 !endif
 !endif
 
-CFLAGS = $(CFLAGS) -DFEAT_PERL
+CFLAGS = $(CFLAGS) -DFEAT_PERL -DPERL_IMPLICIT_CONTEXT -DPERL_IMPLICIT_SYS
 
 # Do we want to load Perl dynamically?
 !if "$(DYNAMIC_PERL)" == "yes"
@@ -976,7 +987,7 @@ conflags = $(conflags) /map /mapinfo:lines
 !ENDIF
 
 LINKARGS1 = $(linkdebug) $(conflags)
-LINKARGS2 = $(CON_LIB) $(GUI_LIB) $(LIBC) $(OLE_LIB)  user32.lib $(SNIFF_LIB) \
+LINKARGS2 = $(CON_LIB) $(GUI_LIB) $(NODEFAULTLIB) $(LIBC) $(OLE_LIB) user32.lib $(SNIFF_LIB) \
 		$(LUA_LIB) $(MZSCHEME_LIB) $(PERL_LIB) $(PYTHON_LIB) $(PYTHON3_LIB) $(RUBY_LIB) \
 		$(TCL_LIB) $(NETBEANS_LIB) $(XPM_LIB) $(LINK_PDB)
 
@@ -1160,7 +1171,11 @@ $(OUTDIR)/if_mzsch.obj: $(OUTDIR) if_mzsch.c if_mzsch.h $(INCL) $(MZSCHEME_EXTRA
 	$(CC) $(CFLAGS) if_mzsch.c \
 		-DMZSCHEME_COLLECTS=\"$(MZSCHEME:\=\\)\\collects\"
 mzscheme_base.c:
+!IF "$(MZSCHEME_MAIN_LIB)" == "racket"
+	$(MZSCHEME)\raco ctool --c-mods mzscheme_base.c ++lib scheme/base
+!ELSE
 	$(MZSCHEME)\mzc --c-mods mzscheme_base.c ++lib scheme/base
+!ENDIF
 
 $(OUTDIR)/if_python.obj: $(OUTDIR) if_python.c if_py_both.h $(INCL)
 	$(CC) $(CFLAGS) $(PYTHON_INC) if_python.c

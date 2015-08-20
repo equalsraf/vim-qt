@@ -234,6 +234,8 @@ hasFoldingWin(win, lnum, firstp, lastp, cache, infop)
 	return FALSE;
     }
 
+    if (last > win->w_buffer->b_ml.ml_line_count)
+	last = win->w_buffer->b_ml.ml_line_count;
     if (lastp != NULL)
 	*lastp = last;
     if (firstp != NULL)
@@ -845,8 +847,8 @@ foldUpdate(wp, top, bot)
     fold_T	*fp;
 
     /* Mark all folds from top to bot as maybe-small. */
-    (void)foldFind(&curwin->w_folds, top, &fp);
-    while (fp < (fold_T *)curwin->w_folds.ga_data + curwin->w_folds.ga_len
+    (void)foldFind(&wp->w_folds, top, &fp);
+    while (fp < (fold_T *)wp->w_folds.ga_data + wp->w_folds.ga_len
 	    && fp->fd_top < bot)
     {
 	fp->fd_small = MAYBE;
@@ -2444,7 +2446,7 @@ foldUpdateIEMSRecurse(gap, level, startlnum, flp, getlevel, bot, topflags)
     if (getlevel == foldlevelMarker && flp->start <= flp->lvl - level
 							      && flp->lvl > 0)
     {
-	foldFind(gap, startlnum - 1, &fp);
+	(void)foldFind(gap, startlnum - 1, &fp);
 	if (fp >= ((fold_T *)gap->ga_data) + gap->ga_len
 						   || fp->fd_top >= startlnum)
 	    fp = NULL;
@@ -2506,7 +2508,7 @@ foldUpdateIEMSRecurse(gap, level, startlnum, flp, getlevel, bot, topflags)
 	    }
 	    if (lvl < level + i)
 	    {
-		foldFind(&fp->fd_nested, flp->lnum - fp->fd_top, &fp2);
+		(void)foldFind(&fp->fd_nested, flp->lnum - fp->fd_top, &fp2);
 		if (fp2 != NULL)
 		    bot = fp2->fd_top + fp2->fd_len - 1 + fp->fd_top;
 	    }

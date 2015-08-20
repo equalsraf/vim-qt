@@ -76,6 +76,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 'bdir'	options.txt	/*'bdir'*
 'bdlay'	options.txt	/*'bdlay'*
 'beautify'	vi_diff.txt	/*'beautify'*
+'belloff'	options.txt	/*'belloff'*
 'beval'	options.txt	/*'beval'*
 'bex'	options.txt	/*'bex'*
 'bexpr'	options.txt	/*'bexpr'*
@@ -89,6 +90,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 'bk'	options.txt	/*'bk'*
 'bkc'	options.txt	/*'bkc'*
 'bl'	options.txt	/*'bl'*
+'bo'	options.txt	/*'bo'*
 'bomb'	options.txt	/*'bomb'*
 'breakat'	options.txt	/*'breakat'*
 'breakindent'	options.txt	/*'breakindent'*
@@ -246,6 +248,8 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 'fileignorecase'	options.txt	/*'fileignorecase'*
 'filetype'	options.txt	/*'filetype'*
 'fillchars'	options.txt	/*'fillchars'*
+'fixendofline'	options.txt	/*'fixendofline'*
+'fixeol'	options.txt	/*'fixeol'*
 'fk'	options.txt	/*'fk'*
 'fkmap'	options.txt	/*'fkmap'*
 'fl'	vi_diff.txt	/*'fl'*
@@ -540,6 +544,8 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 'nofen'	options.txt	/*'nofen'*
 'nofic'	options.txt	/*'nofic'*
 'nofileignorecase'	options.txt	/*'nofileignorecase'*
+'nofixendofline'	options.txt	/*'nofixendofline'*
+'nofixeol'	options.txt	/*'nofixeol'*
 'nofk'	options.txt	/*'nofk'*
 'nofkmap'	options.txt	/*'nofkmap'*
 'nofoldenable'	options.txt	/*'nofoldenable'*
@@ -929,9 +935,11 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 't_KJ'	term.txt	/*'t_KJ'*
 't_KK'	term.txt	/*'t_KK'*
 't_KL'	term.txt	/*'t_KL'*
+'t_RB'	term.txt	/*'t_RB'*
 't_RI'	term.txt	/*'t_RI'*
 't_RV'	term.txt	/*'t_RV'*
 't_SI'	term.txt	/*'t_SI'*
+'t_SR'	term.txt	/*'t_SR'*
 't_Sb'	term.txt	/*'t_Sb'*
 't_Sf'	term.txt	/*'t_Sf'*
 't_WP'	term.txt	/*'t_WP'*
@@ -1836,6 +1844,7 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 :CompilerSet	usr_41.txt	/*:CompilerSet*
 :DiffOrig	diff.txt	/*:DiffOrig*
 :DoMatchParen	pi_paren.txt	/*:DoMatchParen*
+:ELP	pi_logipat.txt	/*:ELP*
 :Explore	pi_netrw.txt	/*:Explore*
 :GLVS	pi_getscript.txt	/*:GLVS*
 :GetLatestVimScripts_dat	pi_getscript.txt	/*:GetLatestVimScripts_dat*
@@ -1843,7 +1852,10 @@ $VIMRUNTIME	starting.txt	/*$VIMRUNTIME*
 :GnatPretty	ft_ada.txt	/*:GnatPretty*
 :GnatTags	ft_ada.txt	/*:GnatTags*
 :Hexplore	pi_netrw.txt	/*:Hexplore*
+:LP	pi_logipat.txt	/*:LP*
+:LPF	pi_logipat.txt	/*:LPF*
 :Lexplore	pi_netrw.txt	/*:Lexplore*
+:LogiPat	pi_logipat.txt	/*:LogiPat*
 :Man	filetype.txt	/*:Man*
 :MkVimball	pi_vimball.txt	/*:MkVimball*
 :N	editing.txt	/*:N*
@@ -4420,6 +4432,8 @@ L	motion.txt	/*L*
 Linux-backspace	options.txt	/*Linux-backspace*
 List	eval.txt	/*List*
 Lists	eval.txt	/*Lists*
+LogiPat()	pi_logipat.txt	/*LogiPat()*
+LogiPat-flags	pi_logipat.txt	/*LogiPat-flags*
 Lua	if_lua.txt	/*Lua*
 M	motion.txt	/*M*
 MDI	starting.txt	/*MDI*
@@ -4466,6 +4480,7 @@ OffTheSpot	mbyte.txt	/*OffTheSpot*
 OnTheSpot	mbyte.txt	/*OnTheSpot*
 Operator-pending	intro.txt	/*Operator-pending*
 Operator-pending-mode	intro.txt	/*Operator-pending-mode*
+OptionSet	autocmd.txt	/*OptionSet*
 OverTheSpot	mbyte.txt	/*OverTheSpot*
 P	change.txt	/*P*
 PATHEXT	eval.txt	/*PATHEXT*
@@ -4555,6 +4570,7 @@ SourcePre	autocmd.txt	/*SourcePre*
 SpellFileMissing	autocmd.txt	/*SpellFileMissing*
 StdinReadPost	autocmd.txt	/*StdinReadPost*
 StdinReadPre	autocmd.txt	/*StdinReadPre*
+String	eval.txt	/*String*
 SwapExists	autocmd.txt	/*SwapExists*
 Syntax	autocmd.txt	/*Syntax*
 T	motion.txt	/*T*
@@ -4874,6 +4890,7 @@ b:current_syntax-variable	syntax.txt	/*b:current_syntax-variable*
 b:netrw_lastfile	pi_netrw.txt	/*b:netrw_lastfile*
 b:tex_stylish	syntax.txt	/*b:tex_stylish*
 b:var	eval.txt	/*b:var*
+b:yaml_schema	syntax.txt	/*b:yaml_schema*
 baan-folding	syntax.txt	/*baan-folding*
 baan-syntax	syntax.txt	/*baan-syntax*
 baan.vim	syntax.txt	/*baan.vim*
@@ -5200,6 +5217,7 @@ complete_CTRL-E	insert.txt	/*complete_CTRL-E*
 complete_CTRL-Y	insert.txt	/*complete_CTRL-Y*
 complete_add()	eval.txt	/*complete_add()*
 complete_check()	eval.txt	/*complete_check()*
+completed_item-variable	eval.txt	/*completed_item-variable*
 completion-functions	usr_41.txt	/*completion-functions*
 complex-change	change.txt	/*complex-change*
 complex-repeat	repeat.txt	/*complex-repeat*
@@ -5883,6 +5901,7 @@ ft-xhtml-omni	insert.txt	/*ft-xhtml-omni*
 ft-xml-omni	insert.txt	/*ft-xml-omni*
 ft-xml-syntax	syntax.txt	/*ft-xml-syntax*
 ft-xpm-syntax	syntax.txt	/*ft-xpm-syntax*
+ft-yaml-syntax	syntax.txt	/*ft-yaml-syntax*
 ft_ada.txt	ft_ada.txt	/*ft_ada.txt*
 ft_sql.txt	ft_sql.txt	/*ft_sql.txt*
 ftdetect	filetype.txt	/*ftdetect*
@@ -6112,6 +6131,7 @@ g:vimsyn_folding	syntax.txt	/*g:vimsyn_folding*
 g:vimsyn_maxlines	syntax.txt	/*g:vimsyn_maxlines*
 g:vimsyn_minlines	syntax.txt	/*g:vimsyn_minlines*
 g:vimsyn_noerror	syntax.txt	/*g:vimsyn_noerror*
+g:yaml_schema	syntax.txt	/*g:yaml_schema*
 g:zip_nomax	pi_zip.txt	/*g:zip_nomax*
 g:zip_shq	pi_zip.txt	/*g:zip_shq*
 g:zip_unzipcmd	pi_zip.txt	/*g:zip_unzipcmd*
@@ -6163,6 +6183,7 @@ getbufline()	eval.txt	/*getbufline()*
 getbufvar()	eval.txt	/*getbufvar()*
 getchar()	eval.txt	/*getchar()*
 getcharmod()	eval.txt	/*getcharmod()*
+getcharsearch()	eval.txt	/*getcharsearch()*
 getcmdline()	eval.txt	/*getcmdline()*
 getcmdpos()	eval.txt	/*getcmdpos()*
 getcmdtype()	eval.txt	/*getcmdtype()*
@@ -6729,6 +6750,7 @@ lcs-eol	options.txt	/*lcs-eol*
 lcs-extends	options.txt	/*lcs-extends*
 lcs-nbsp	options.txt	/*lcs-nbsp*
 lcs-precedes	options.txt	/*lcs-precedes*
+lcs-space	options.txt	/*lcs-space*
 lcs-tab	options.txt	/*lcs-tab*
 lcs-trail	options.txt	/*lcs-trail*
 left-right-motions	motion.txt	/*left-right-motions*
@@ -6776,6 +6798,18 @@ location-list	quickfix.txt	/*location-list*
 location-list-window	quickfix.txt	/*location-list-window*
 log()	eval.txt	/*log()*
 log10()	eval.txt	/*log10()*
+logipat	pi_logipat.txt	/*logipat*
+logipat-arg	pi_logipat.txt	/*logipat-arg*
+logipat-caveat	pi_logipat.txt	/*logipat-caveat*
+logipat-contents	pi_logipat.txt	/*logipat-contents*
+logipat-copyright	pi_logipat.txt	/*logipat-copyright*
+logipat-examples	pi_logipat.txt	/*logipat-examples*
+logipat-history	pi_logipat.txt	/*logipat-history*
+logipat-input	pi_logipat.txt	/*logipat-input*
+logipat-man	pi_logipat.txt	/*logipat-man*
+logipat-manual	pi_logipat.txt	/*logipat-manual*
+logipat-operators	pi_logipat.txt	/*logipat-operators*
+logipat-pattern	pi_logipat.txt	/*logipat-pattern*
 long-lines	version5.txt	/*long-lines*
 love	intro.txt	/*love*
 lowercase	change.txt	/*lowercase*
@@ -7419,6 +7453,7 @@ php3.vim	syntax.txt	/*php3.vim*
 phtml.vim	syntax.txt	/*phtml.vim*
 pi_getscript.txt	pi_getscript.txt	/*pi_getscript.txt*
 pi_gzip.txt	pi_gzip.txt	/*pi_gzip.txt*
+pi_logipat.txt	pi_logipat.txt	/*pi_logipat.txt*
 pi_netrw.txt	pi_netrw.txt	/*pi_netrw.txt*
 pi_paren.txt	pi_paren.txt	/*pi_paren.txt*
 pi_spec.txt	pi_spec.txt	/*pi_spec.txt*
@@ -7759,6 +7794,7 @@ session-file	starting.txt	/*session-file*
 set-option	options.txt	/*set-option*
 set-spc-auto	spell.txt	/*set-spc-auto*
 setbufvar()	eval.txt	/*setbufvar()*
+setcharsearch()	eval.txt	/*setcharsearch()*
 setcmdpos()	eval.txt	/*setcmdpos()*
 setline()	eval.txt	/*setline()*
 setloclist()	eval.txt	/*setloclist()*
@@ -8100,9 +8136,11 @@ t_KI	term.txt	/*t_KI*
 t_KJ	term.txt	/*t_KJ*
 t_KK	term.txt	/*t_KK*
 t_KL	term.txt	/*t_KL*
+t_RB	term.txt	/*t_RB*
 t_RI	term.txt	/*t_RI*
 t_RV	term.txt	/*t_RV*
 t_SI	term.txt	/*t_SI*
+t_SR	term.txt	/*t_SR*
 t_Sb	term.txt	/*t_Sb*
 t_Sf	term.txt	/*t_Sf*
 t_WP	term.txt	/*t_WP*
@@ -8464,6 +8502,7 @@ v:charconvert_from	eval.txt	/*v:charconvert_from*
 v:charconvert_to	eval.txt	/*v:charconvert_to*
 v:cmdarg	eval.txt	/*v:cmdarg*
 v:cmdbang	eval.txt	/*v:cmdbang*
+v:completed_item	eval.txt	/*v:completed_item*
 v:count	eval.txt	/*v:count*
 v:count1	eval.txt	/*v:count1*
 v:ctype	eval.txt	/*v:ctype*
@@ -8491,6 +8530,9 @@ v:mouse_lnum	eval.txt	/*v:mouse_lnum*
 v:mouse_win	eval.txt	/*v:mouse_win*
 v:oldfiles	eval.txt	/*v:oldfiles*
 v:operator	eval.txt	/*v:operator*
+v:option_new	eval.txt	/*v:option_new*
+v:option_old	eval.txt	/*v:option_old*
+v:option_type	eval.txt	/*v:option_type*
 v:prevcount	eval.txt	/*v:prevcount*
 v:profiling	eval.txt	/*v:profiling*
 v:progname	eval.txt	/*v:progname*
@@ -8522,11 +8564,13 @@ v_<Esc>	visual.txt	/*v_<Esc>*
 v_=	change.txt	/*v_=*
 v_>	change.txt	/*v_>*
 v_C	change.txt	/*v_C*
+v_CTRL-A	change.txt	/*v_CTRL-A*
 v_CTRL-C	visual.txt	/*v_CTRL-C*
 v_CTRL-G	visual.txt	/*v_CTRL-G*
 v_CTRL-H	change.txt	/*v_CTRL-H*
 v_CTRL-O	visual.txt	/*v_CTRL-O*
 v_CTRL-V	visual.txt	/*v_CTRL-V*
+v_CTRL-X	change.txt	/*v_CTRL-X*
 v_CTRL-Z	starting.txt	/*v_CTRL-Z*
 v_CTRL-\_CTRL-G	intro.txt	/*v_CTRL-\\_CTRL-G*
 v_CTRL-\_CTRL-N	intro.txt	/*v_CTRL-\\_CTRL-N*
@@ -8582,7 +8626,9 @@ v_gJ	change.txt	/*v_gJ*
 v_gN	visual.txt	/*v_gN*
 v_gV	visual.txt	/*v_gV*
 v_g]	tagsrch.txt	/*v_g]*
+v_g_CTRL-A	change.txt	/*v_g_CTRL-A*
 v_g_CTRL-G	editing.txt	/*v_g_CTRL-G*
+v_g_CTRL-X	change.txt	/*v_g_CTRL-X*
 v_g_CTRL-]	tagsrch.txt	/*v_g_CTRL-]*
 v_gf	editing.txt	/*v_gf*
 v_gn	visual.txt	/*v_gn*
@@ -8887,6 +8933,7 @@ xterm-screens	tips.txt	/*xterm-screens*
 xterm-scroll-region	term.txt	/*xterm-scroll-region*
 xterm-shifted-keys	term.txt	/*xterm-shifted-keys*
 y	change.txt	/*y*
+yaml.vim	syntax.txt	/*yaml.vim*
 yank	change.txt	/*yank*
 ye-option-gone	version4.txt	/*ye-option-gone*
 year-2000	intro.txt	/*year-2000*

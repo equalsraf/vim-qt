@@ -94,8 +94,9 @@ INFORMATION
 The latest news about Vim can be found on the Vim home page:
 	http://www.vim.org/
 
-If you have problems, have a look at the Vim FAQ:
-	http://vimdoc.sf.net/vimfaq.html
+If you have problems, have a look at the Vim documentation or tips:
+	http://www.vim.org/docs.php
+	http://vim.wikia.com/wiki/Vim_Tips_Wiki
 
 If you still have problems or any other questions, use one of the mailing
 lists to discuss them with Vim users and developers:
@@ -110,6 +111,3 @@ MAIN AUTHOR
 Send any other comments, patches, flowers and suggestions to:
 
 	Bram Moolenaar		E-mail:	Bram@vim.org
-	Finsterruetihof 1
-	8134 Adliswil
-	Switzerland

@@ -2365,8 +2365,9 @@ do_one_cmd(cmdlinep, sourcing,
 	p = vim_strnsave(ea.cmd, (int)(p - ea.cmd));
 	ret = apply_autocmds(EVENT_CMDUNDEFINED, p, p, TRUE, NULL);
 	vim_free(p);
-	if (ret && !aborting())
-	    p = find_command(&ea, NULL);
+	/* If the autocommands did something and didn't cause an error, try
+	 * finding the command again. */
+	p = (ret && !aborting()) ? find_command(&ea, NULL) : NULL;
     }
 #endif
 
@@ -3128,8 +3129,8 @@ find_command(eap, full)
 	++p;
     }
     else if (p[0] == 's'
-	    && ((p[1] == 'c' && p[2] != 's' && p[2] != 'r'
-						&& p[3] != 'i' && p[4] != 'p')
+	    && ((p[1] == 'c' && (p[2] == NUL || (p[2] != 's' && p[2] != 'r'
+			&& (p[3] == NUL || (p[3] != 'i' && p[4] != 'p')))))
 		|| p[1] == 'g'
 		|| (p[1] == 'i' && p[2] != 'm' && p[2] != 'l' && p[2] != 'g')
 		|| p[1] == 'I'
@@ -4519,6 +4520,9 @@ get_address(ptr, addr_type, skip, to_other_file)
 			pos.col = MAXCOL;
 		    else
 			pos.col = 0;
+#ifdef FEAT_VIRTUALEDIT
+		    pos.coladd = 0;
+#endif
 		    if (searchit(curwin, curbuf, &pos,
 				*cmd == '?' ? BACKWARD : FORWARD,
 				(char_u *)"", 1L, SEARCH_MSG,
@@ -7092,7 +7096,14 @@ ex_quit(eap)
     else
     {
 #ifdef FEAT_WINDOWS
-	if (only_one_window())	    /* quit last window */
+	/* quit last window
+	 * Note: only_one_window() returns true, even so a help window is
+	 * still open. In that case only quit, if no address has been
+	 * specified. Example:
+	 * :h|wincmd w|1q     - don't quit
+	 * :h|wincmd w|q      - quit
+	 */
+	if (only_one_window() && (firstwin == lastwin || eap->addr_count == 0))
 #endif
 	    getout(0);
 #ifdef FEAT_WINDOWS
@@ -8145,7 +8156,7 @@ ex_tabnext(eap)
 ex_tabmove(eap)
     exarg_T	*eap;
 {
-    int tab_number = 9999;
+    int tab_number;
 
     if (eap->arg && *eap->arg != NUL)
     {
@@ -8166,19 +8177,38 @@ ex_tabmove(eap)
 	else
 	    p = eap->arg;
 
-	if (p == skipdigits(p))
+	if (relative == 0)
 	{
-	    /* No numbers as argument. */
-	    eap->errmsg = e_invarg;
-	    return;
+	    if (STRCMP(p, "$") == 0)
+		tab_number = LAST_TAB_NR;
+	    else if (p == skipdigits(p))
+	    {
+		/* No numbers as argument. */
+		eap->errmsg = e_invarg;
+		return;
+	    }
+	    else
+		tab_number = getdigits(&p);
 	}
-
-	tab_number = getdigits(&p);
-	if (relative != 0)
-	    tab_number = tab_number * relative + tabpage_index(curtab) - 1;;
+	else
+	{
+	    if (*p != NUL)
+		tab_number = getdigits(&p);
+	    else
+		tab_number = 1;
+	    tab_number = tab_number * relative + tabpage_index(curtab);
+	    if (relative == -1)
+		--tab_number;
+	}
     }
     else if (eap->addr_count != 0)
+    {
 	tab_number = eap->line2;
+	if (**eap->cmdlinep == '-')
+	    --tab_number;
+    }
+    else
+	tab_number = LAST_TAB_NR;
 
     tabpage_move(tab_number);
 }
@@ -10727,7 +10757,11 @@ arg_all()
 		}
 		for ( ; *p != NUL; ++p)
 		{
-		    if (*p == ' ' || *p == '\\')
+		    if (*p == ' '
+#ifndef BACKSLASH_IN_FILENAME
+			    || *p == '\\'
+#endif
+			    )
 		    {
 			/* insert a backslash */
 			if (retval != NULL)
@@ -10845,7 +10879,6 @@ makeopens(fd, dirnow)
     buf_T	*buf;
     int		only_save_windows = TRUE;
     int		nr;
-    int		cnr = 1;
     int		restore_size = TRUE;
     win_T	*wp;
     char_u	*sname;
@@ -10983,7 +11016,8 @@ makeopens(fd, dirnow)
     tab_topframe = topframe;
     for (tabnr = 1; ; ++tabnr)
     {
-	int  need_tabnew = FALSE;
+	int	need_tabnew = FALSE;
+	int	cnr = 1;
 
 	if ((ssop_flags & SSOP_TABPAGES))
 	{
@@ -12049,7 +12083,7 @@ ex_match(eap)
 
 	    c = *end;
 	    *end = NUL;
-	    match_add(curwin, g, p + 1, 10, id, NULL);
+	    match_add(curwin, g, p + 1, 10, id, NULL, NULL);
 	    vim_free(g);
 	    *end = c;
 	}

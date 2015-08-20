@@ -635,7 +635,7 @@ typedef struct memline
     int		ml_flags;
 
     infoptr_T	*ml_stack;	/* stack of pointer blocks (array of IPTRs) */
-    int		ml_stack_top;	/* current top if ml_stack */
+    int		ml_stack_top;	/* current top of ml_stack */
     int		ml_stack_size;	/* total number of entries in ml_stack */
 
     linenr_T	ml_line_lnum;	/* line number of cached line, 0 if not valid */
@@ -1203,10 +1203,11 @@ struct dictitem_S
 
 typedef struct dictitem_S dictitem_T;
 
-#define DI_FLAGS_RO	1 /* "di_flags" value: read-only variable */
-#define DI_FLAGS_RO_SBX 2 /* "di_flags" value: read-only in the sandbox */
-#define DI_FLAGS_FIX	4 /* "di_flags" value: fixed variable, not allocated */
-#define DI_FLAGS_LOCK	8 /* "di_flags" value: locked variable */
+#define DI_FLAGS_RO	1  /* "di_flags" value: read-only variable */
+#define DI_FLAGS_RO_SBX 2  /* "di_flags" value: read-only in the sandbox */
+#define DI_FLAGS_FIX	4  /* "di_flags" value: fixed: no :unlet or remove() */
+#define DI_FLAGS_LOCK	8  /* "di_flags" value: locked variable */
+#define DI_FLAGS_ALLOC	16 /* "di_flags" value: separately allocated */
 
 /*
  * Structure to hold info about a Dictionary.
@@ -1585,6 +1586,7 @@ struct file_buffer
     char_u	*b_p_ofu;	/* 'omnifunc' */
 #endif
     int		b_p_eol;	/* 'endofline' */
+    int		b_p_fixeol;	/* 'fixendofline' */
     int		b_p_et;		/* 'expandtab' */
     int		b_p_et_nobin;	/* b_p_et saved for binary mode */
 #ifdef FEAT_MBYTE
@@ -2019,6 +2021,9 @@ struct matchitem
     regmmatch_T	match;	    /* regexp program for pattern */
     posmatch_T	pos;	    /* position matches */
     match_T	hl;	    /* struct for doing the actual highlighting */
+#ifdef FEAT_CONCEAL
+    int		conceal_char; /* cchar for Conceal highlighting */
+#endif
 };
 
 /*
