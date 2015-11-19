@@ -401,7 +401,15 @@ void QVimShell::paintEvent ( QPaintEvent *ev )
 			painter.restore();
 			painter.end();
 
+#if QT_VERSION >= 0x050000
+			// From #56, in Qt5 scrolling does not work inside
+			// a paint event, without overriding this attribute
+			this->setAttribute(Qt::WA_WState_InPaintEvent, false);
+#endif
 			this->scroll(op.pos.x(), op.pos.y(), op.rect);
+#if QT_VERSION >= 0x050000
+			this->setAttribute(Qt::WA_WState_InPaintEvent);
+#endif
 
 			painter.begin(this);
 
