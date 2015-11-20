@@ -843,7 +843,7 @@ clip_mch_lose_selection(VimClipboard *cbd)
 void
 clip_mch_set_selection(VimClipboard *cbd)
 {
-	long size;
+	long_u size;
 	char_u *str = NULL;
 
 	if (!cbd->owned) {
