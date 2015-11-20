@@ -1,7 +1,6 @@
 #include "qvimshell.moc"
 
 #include <QResizeEvent>
-#include <QPainter>
 #include <QApplication>
 #include <QDebug>
 #include <QFile>
@@ -342,24 +341,24 @@ void QVimShell::drawString( const PaintOperation& op, QPainter &painter)
 
 void QVimShell::paintEvent ( QPaintEvent *ev )
 {
-	QPainter painter(this);
+	m_painter.begin(this);
 	while ( !paintOps.isEmpty() ) {
-		painter.save();
+		m_painter.save();
 
 		PaintOperation op = paintOps.dequeue();
 		switch( op.type ) {
 		case CLEARALL:
-			painter.fillRect(this->rect(), op.color);
+			m_painter.fillRect(this->rect(), op.color);
 			break;
 		case FILLRECT:
-			painter.fillRect(op.rect, op.color);
+			m_painter.fillRect(op.rect, op.color);
 			break;
 		case DRAWRECT:
-			painter.setPen(op.color);
-			painter.drawRect(op.rect);
+			m_painter.setPen(op.color);
+			m_painter.drawRect(op.rect);
 			break;
 		case DRAWSTRING:
-			painter.setClipRect(op.rect);
+			m_painter.setClipRect(op.rect);
 
 			// Disable underline if undercurl is in place
 			if (op.undercurl && op.font.underline()) {
@@ -367,11 +366,11 @@ void QVimShell::paintEvent ( QPaintEvent *ev )
 			}
 
 			if ( m_slowStringDrawing ) {
-				drawStringSlow(op, painter);
+				drawStringSlow(op, m_painter);
 			} else if ( op.str.length() != VimWrapper::stringCellWidth(op.str) ) {
-				drawStringSlow(op, painter);
+				drawStringSlow(op, m_painter);
 			} else {
-				drawString(op, painter);
+				drawString(op, m_painter);
 			}
 
 			// Draw undercurl
@@ -384,26 +383,26 @@ void QVimShell::paintEvent ( QPaintEvent *ev )
 				end.setX(op.rect.right());
 
 				QPen pen(op.curlcolor, 1, Qt::DashDotDotLine);
-				painter.setPen(pen);
-				painter.drawLine(QLine(start, end));
+				m_painter.setPen(pen);
+				m_painter.drawLine(QLine(start, end));
 			}
 
 			break;
 		case DRAWSIGN:
-			painter.drawPixmap( op.pos, op.sign);
+			m_painter.drawPixmap( op.pos, op.sign);
 			break;
 		case INVERTRECT:
-			painter.setCompositionMode( QPainter::RasterOp_SourceXorDestination );
-			painter.fillRect( op.rect, Qt::color0);
-			painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
+			m_painter.setCompositionMode( QPainter::RasterOp_SourceXorDestination );
+			m_painter.fillRect( op.rect, Qt::color0);
+			m_painter.setCompositionMode( QPainter::CompositionMode_SourceOver );
 			break;
 		case SCROLLRECT:
-			painter.restore();
-			painter.end();
+			m_painter.restore();
+			m_painter.end();
 
 			this->scroll(op.pos.x(), op.pos.y(), op.rect);
 
-			painter.begin(this);
+			m_painter.begin(this);
 
 			// Repaint exposed background. Vim won't redraw areas exposed by
 			// scroll if it considers them empty because it assumes we already
@@ -415,13 +414,14 @@ void QVimShell::paintEvent ( QPaintEvent *ev )
 				rect.moveTopLeft(op.rect.topLeft());
 			else
 				rect.moveBottomRight(op.rect.bottomRight());
-			painter.fillRect(rect, op.color);
+			m_painter.fillRect(rect, op.color);
 
 			continue; // exception, skip painter restore
 		}
 
-		painter.restore();
+		m_painter.restore();
 	}
+	m_painter.end();
 }
 
 //
