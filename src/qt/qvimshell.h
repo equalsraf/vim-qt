@@ -5,6 +5,7 @@
 #include <QQueue>
 #include <QLabel>
 #include <QTime>
+#include <QPainter>
 #include "vimwrapper.h"
 
 
@@ -104,6 +105,7 @@ private:
 	QColor m_background;
 	int m_charWidth;
 	QFont m_font;
+	QPainter m_painter;
 
 	QTimer * timer_cursorBlinkOn ;
 	QTimer * timer_cursorBlinkOff ;
