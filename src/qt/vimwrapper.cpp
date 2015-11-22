@@ -403,8 +403,9 @@ bool VimWrapper::processEvents(long wtime, bool inputOnly)
 	if ( wtime == -1 ) {
 		QApplication::processEvents( QEventLoop::WaitForMoreEvents);
 	} else if ( wtime == 0 ) {
-		if ( !hasPendingEvents() && vim_is_input_buf_empty() )
+		if ( !hasPendingEvents() && vim_is_input_buf_empty() ) {
 			return OK;
+		}
 		QApplication::processEvents();
 	} else {
 		QTime t;
