@@ -3856,7 +3856,7 @@ init_homedir()
 # endif
 #endif
 
-#if defined(OS2) || defined(MSDOS) || defined(MSWIN)
+#if defined(MSDOS) || defined(MSWIN)
     /*
      * Default home dir is C:/
      * Best assumption we can make in such a situation.
@@ -3969,13 +3969,33 @@ expand_env_esc(srcp, dst, dstlen, esc, one, startstr)
     --dstlen;		    /* leave one char space for "\," */
     while (*src && dstlen > 0)
     {
+#ifdef FEAT_EVAL
+	/* Skip over `=expr`. */
+	if (src[0] == '`' && src[1] == '=')
+	{
+	    size_t len;
+
+	    var = src;
+	    src += 2;
+	    (void)skip_expr(&src);
+	    if (*src == '`')
+		++src;
+	    len = src - var;
+	    if (len > (size_t)dstlen)
+		len = dstlen;
+	    vim_strncpy(dst, var, len);
+	    dst += len;
+	    dstlen -= (int)len;
+	    continue;
+	}
+#endif
 	copy_char = TRUE;
 	if ((*src == '$'
 #ifdef VMS
 		    && at_start
 #endif
 	   )
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2)
+#if defined(MSDOS) || defined(MSWIN)
 		|| *src == '%'
 #endif
 		|| (*src == '~' && at_start))
@@ -4004,21 +4024,16 @@ expand_env_esc(srcp, dst, dstlen, esc, one, startstr)
 #endif
 		{
 		    while (c-- > 0 && *tail != NUL && ((vim_isIDc(*tail))
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2)
+#if defined(MSDOS) || defined(MSWIN)
 			    || (*src == '%' && *tail != '%')
 #endif
 			    ))
 		    {
-#ifdef OS2		/* env vars only in uppercase */
-			*var++ = TOUPPER_LOC(*tail);
-			tail++;	    /* toupper() may be a macro! */
-#else
 			*var++ = *tail++;
-#endif
 		    }
 		}
 
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2) || defined(UNIX)
+#if defined(MSDOS) || defined(MSWIN) || defined(UNIX)
 # ifdef UNIX
 		if (src[1] == '{' && *tail != '}')
 # else
@@ -4036,7 +4051,7 @@ expand_env_esc(srcp, dst, dstlen, esc, one, startstr)
 #endif
 		    *var = NUL;
 		    var = vim_getenv(dst, &mustfree);
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2) || defined(UNIX)
+#if defined(MSDOS) || defined(MSWIN) || defined(UNIX)
 		}
 #endif
 	    }
@@ -4229,7 +4244,7 @@ vim_getenv(name, mustfree)
     char_u	*pend;
     int		vimruntime;
 
-#if defined(OS2) || defined(MSDOS) || defined(MSWIN)
+#if defined(MSDOS) || defined(MSWIN)
     /* use "C:/" when $HOME is not set */
     if (STRCMP(name, "HOME") == 0)
 	return homedir;
@@ -4980,7 +4995,7 @@ get_past_head(path)
 {
     char_u  *retval;
 
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2)
+#if defined(MSDOS) || defined(MSWIN)
     /* may skip "c:" */
     if (isalpha(path[0]) && path[1] == ':')
 	retval = path + 2;
@@ -5325,8 +5340,19 @@ find_start_comment(ind_maxcomment)	    /* XXX */
     static pos_T *
 ind_find_start_CORS()	    /* XXX */
 {
-    pos_T	*comment_pos = find_start_comment(curbuf->b_ind_maxcomment);
-    pos_T	*rs_pos = find_start_rawstring(curbuf->b_ind_maxcomment);
+    static pos_T comment_pos_copy;
+    pos_T	*comment_pos;
+    pos_T	*rs_pos;
+
+    comment_pos = find_start_comment(curbuf->b_ind_maxcomment);
+    if (comment_pos != NULL)
+    {
+	/* Need to make a copy of the static pos in findmatchlimit(),
+	 * calling find_start_rawstring() may change it. */
+	comment_pos_copy = *comment_pos;
+	comment_pos = &comment_pos_copy;
+    }
+    rs_pos = find_start_rawstring(curbuf->b_ind_maxcomment);
 
     /* If comment_pos is before rs_pos the raw string is inside the comment.
      * If rs_pos is before comment_pos the comment is inside the raw string. */
@@ -6219,6 +6245,19 @@ cin_isfuncdecl(sp, first_lnum, min_lnum)
     {
 	if (cin_iscomment(s))	/* ignore comments */
 	    s = cin_skipcomment(s);
+	else if (*s == ':')
+	{
+	    if (*(s + 1) == ':')
+		s += 2;
+	    else
+		/* To avoid a mistake in the following situation:
+		 * A::A(int a, int b)
+		 *     : a(0)  // <--not a function decl
+		 *     , b(0)
+		 * {...
+		 */
+		return FALSE;
+	}
 	else
 	    ++s;
     }
@@ -6524,7 +6563,7 @@ cin_is_cpp_baseclass(cached)
 
     pos->lnum = lnum;
     line = ml_get(lnum);
-    s = cin_skipcomment(line);
+    s = line;
     for (;;)
     {
 	if (*s == NUL)
@@ -6533,6 +6572,13 @@ cin_is_cpp_baseclass(cached)
 		break;
 	    /* Continue in the cursor line. */
 	    line = ml_get(++lnum);
+	    s = line;
+	}
+	if (s == line)
+	{
+	    /* don't recognize "case (foo):" as a baseclass */
+	    if (cin_iscase(s, FALSE))
+		break;
 	    s = cin_skipcomment(line);
 	    if (*s == NUL)
 		continue;
@@ -8314,7 +8360,8 @@ get_c_indent()
 		if (terminated == 0 || (lookfor != LOOKFOR_UNTERM
 							&& terminated == ','))
 		{
-		    if (*skipwhite(l) == '[' || l[STRLEN(l) - 1] == '[')
+		    if (lookfor != LOOKFOR_ENUM_OR_INIT &&
+			    (*skipwhite(l) == '[' || l[STRLEN(l) - 1] == '['))
 			amount += ind_continuation;
 		    /*
 		     * if we're in the middle of a paren thing,
@@ -8556,7 +8603,10 @@ get_c_indent()
 			     */
 			    l = ml_get_curline();
 			    amount = cur_amount;
-			    if (*skipwhite(l) == ']' || l[STRLEN(l) - 1] == ']')
+
+			    n = (int)STRLEN(l);
+			    if (terminated == ',' && (*skipwhite(l) == ']'
+					|| (n >=2 && l[n - 2] == ']')))
 				break;
 
 			    /*
@@ -9677,14 +9727,14 @@ expand_wildcards_eval(pat, num_file, file, flags)
 /*
  * Expand wildcards.  Calls gen_expand_wildcards() and removes files matching
  * 'wildignore'.
- * Returns OK or FAIL.  When FAIL then "num_file" won't be set.
+ * Returns OK or FAIL.  When FAIL then "num_files" won't be set.
  */
     int
-expand_wildcards(num_pat, pat, num_file, file, flags)
+expand_wildcards(num_pat, pat, num_files, files, flags)
     int		   num_pat;	/* number of input patterns */
     char_u	 **pat;		/* array of input patterns */
-    int		  *num_file;	/* resulting number of files */
-    char_u	***file;	/* array of resulting files */
+    int		  *num_files;	/* resulting number of files */
+    char_u	***files;	/* array of resulting files */
     int		   flags;	/* EW_DIR, etc. */
 {
     int		retval;
@@ -9692,7 +9742,7 @@ expand_wildcards(num_pat, pat, num_file, file, flags)
     char_u	*p;
     int		non_suf_match;	/* number without matching suffix */
 
-    retval = gen_expand_wildcards(num_pat, pat, num_file, file, flags);
+    retval = gen_expand_wildcards(num_pat, pat, num_files, files, flags);
 
     /* When keeping all matches, return here */
     if ((flags & EW_KEEPALL) || retval == FAIL)
@@ -9706,25 +9756,33 @@ expand_wildcards(num_pat, pat, num_file, file, flags)
     {
 	char_u	*ffname;
 
-	/* check all files in (*file)[] */
-	for (i = 0; i < *num_file; ++i)
+	/* check all files in (*files)[] */
+	for (i = 0; i < *num_files; ++i)
 	{
-	    ffname = FullName_save((*file)[i], FALSE);
+	    ffname = FullName_save((*files)[i], FALSE);
 	    if (ffname == NULL)		/* out of memory */
 		break;
 # ifdef VMS
 	    vms_remove_version(ffname);
 # endif
-	    if (match_file_list(p_wig, (*file)[i], ffname))
+	    if (match_file_list(p_wig, (*files)[i], ffname))
 	    {
-		/* remove this matching file from the list */
-		vim_free((*file)[i]);
-		for (j = i; j + 1 < *num_file; ++j)
-		    (*file)[j] = (*file)[j + 1];
-		--*num_file;
+		/* remove this matching files from the list */
+		vim_free((*files)[i]);
+		for (j = i; j + 1 < *num_files; ++j)
+		    (*files)[j] = (*files)[j + 1];
+		--*num_files;
 		--i;
 	    }
 	    vim_free(ffname);
+	}
+
+	/* If the number of matches is now zero, we fail. */
+	if (*num_files == 0)
+	{
+	    vim_free(*files);
+	    *files = NULL;
+	    return FAIL;
 	}
     }
 #endif
@@ -9732,21 +9790,21 @@ expand_wildcards(num_pat, pat, num_file, file, flags)
     /*
      * Move the names where 'suffixes' match to the end.
      */
-    if (*num_file > 1)
+    if (*num_files > 1)
     {
 	non_suf_match = 0;
-	for (i = 0; i < *num_file; ++i)
+	for (i = 0; i < *num_files; ++i)
 	{
-	    if (!match_suffix((*file)[i]))
+	    if (!match_suffix((*files)[i]))
 	    {
 		/*
 		 * Move the name without matching suffix to the front
 		 * of the list.
 		 */
-		p = (*file)[i];
+		p = (*files)[i];
 		for (j = i; j > non_suf_match; --j)
-		    (*file)[j] = (*file)[j - 1];
-		(*file)[non_suf_match++] = p;
+		    (*files)[j] = (*files)[j - 1];
+		(*files)[non_suf_match++] = p;
 	    }
 	}
     }
@@ -9890,8 +9948,9 @@ dos_expandpath(
 	    return 0;
     }
 
-    /* make room for file name */
-    buf = alloc((int)STRLEN(path) + BASENAMELEN + 5);
+    /* Make room for file name.  When doing encoding conversion the actual
+     * length may be quite a bit longer, thus use the maximum possible length. */
+    buf = alloc((int)MAXPATHL);
     if (buf == NULL)
 	return 0;
 
@@ -10818,7 +10877,7 @@ has_env_var(p)
 	if (*p == '\\' && p[1] != NUL)
 	    ++p;
 	else if (vim_strchr((char_u *)
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2)
+#if defined(MSDOS) || defined(MSWIN)
 				    "$%"
 #else
 				    "$"
@@ -10875,6 +10934,7 @@ gen_expand_wildcards(num_pat, pat, num_file, file, flags)
     char_u		*p;
     static int		recursive = FALSE;
     int			add_pat;
+    int			retval = OK;
 #if defined(FEAT_SEARCHPATH)
     int			did_expand_in_path = FALSE;
 #endif
@@ -10924,7 +10984,11 @@ gen_expand_wildcards(num_pat, pat, num_file, file, flags)
 
 #ifdef VIM_BACKTICK
 	if (vim_backtick(p))
+	{
 	    add_pat = expand_backtick(&ga, p, flags);
+	    if (add_pat == -1)
+		retval = FAIL;
+	}
 	else
 #endif
 	{
@@ -11013,7 +11077,7 @@ gen_expand_wildcards(num_pat, pat, num_file, file, flags)
 
     recursive = FALSE;
 
-    return (ga.ga_data != NULL) ? OK : FAIL;
+    return (ga.ga_data != NULL) ? retval : FAIL;
 }
 
 # ifdef VIM_BACKTICK
@@ -11031,7 +11095,7 @@ vim_backtick(p)
 /*
  * Expand an item in `backticks` by executing it as a command.
  * Currently only works when pat[] starts and ends with a `.
- * Returns number of file names found.
+ * Returns number of file names found, -1 if an error is encountered.
  */
     static int
 expand_backtick(gap, pat, flags)
@@ -11048,7 +11112,7 @@ expand_backtick(gap, pat, flags)
     /* Create the command: lop off the backticks. */
     cmd = vim_strnsave(pat + 1, (int)STRLEN(pat) - 2);
     if (cmd == NULL)
-	return 0;
+	return -1;
 
 #ifdef FEAT_EVAL
     if (*cmd == '=')	    /* `={expr}`: Expand expression */
@@ -11059,7 +11123,7 @@ expand_backtick(gap, pat, flags)
 				(flags & EW_SILENT) ? SHELL_SILENT : 0, NULL);
     vim_free(cmd);
     if (buffer == NULL)
-	return 0;
+	return -1;
 
     cmd = buffer;
     while (*cmd != NUL)

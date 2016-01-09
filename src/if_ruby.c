@@ -81,6 +81,11 @@
 # define RUBY19_OR_LATER 1
 #endif
 
+#if (defined(RUBY_VERSION) && RUBY_VERSION >= 20) \
+    || (defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 20)
+# define RUBY20_OR_LATER 1
+#endif
+
 #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 19
 /* Ruby 1.9 defines a number of static functions which use rb_num2long and
  * rb_int2big */
@@ -103,7 +108,6 @@
 #endif
 #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 22
 # define rb_gc_writebarrier_unprotect rb_gc_writebarrier_unprotect_stub
-# define rb_check_type rb_check_type_stub
 #endif
 
 #include <ruby.h>
@@ -120,6 +124,16 @@
 # define __OPENTRANSPORT__
 # define __OPENTRANSPORTPROTOCOL__
 # define __OPENTRANSPORTPROVIDERS__
+#endif
+
+/*
+ * The TypedData_XXX macro family can be used since Ruby 1.9.2 but
+ * rb_data_type_t changed in 1.9.3, therefore require at least 2.0.
+ * The old Data_XXX macro family was deprecated on Ruby 2.2.
+ * Use TypedData_XXX if available.
+ */
+#if defined(TypedData_Wrap_Struct) && defined(RUBY20_OR_LATER)
+# define USE_TYPEDDATA	1
 #endif
 
 /*
@@ -184,11 +198,20 @@ static void ruby_vim_init(void);
  */
 # define rb_assoc_new			dll_rb_assoc_new
 # define rb_cObject			(*dll_rb_cObject)
-# if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER < 22
-#  define rb_check_type			dll_rb_check_type
+# define rb_check_type			dll_rb_check_type
+# ifdef USE_TYPEDDATA
+#  define rb_check_typeddata		dll_rb_check_typeddata
 # endif
 # define rb_class_path			dll_rb_class_path
-# define rb_data_object_alloc		dll_rb_data_object_alloc
+# ifdef USE_TYPEDDATA
+#  if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 23
+#   define rb_data_typed_object_wrap	dll_rb_data_typed_object_wrap
+#  else
+#   define rb_data_typed_object_alloc	dll_rb_data_typed_object_alloc
+#  endif
+# else
+#  define rb_data_object_alloc		dll_rb_data_object_alloc
+# endif
 # define rb_define_class_under		dll_rb_define_class_under
 # define rb_define_const			dll_rb_define_const
 # define rb_define_global_function	dll_rb_define_global_function
@@ -280,7 +303,7 @@ static void ruby_vim_init(void);
 #  define rb_enc_str_new			dll_rb_enc_str_new
 #  define rb_sprintf			dll_rb_sprintf
 #  define rb_require			dll_rb_require
-#  define ruby_process_options		dll_ruby_process_options
+#  define ruby_options			dll_ruby_options
 # endif
 
 /*
@@ -297,8 +320,19 @@ static VALUE *dll_rb_cObject;
 VALUE *dll_rb_cSymbol;
 VALUE *dll_rb_cTrueClass;
 static void (*dll_rb_check_type) (VALUE,int);
+# ifdef USE_TYPEDDATA
+static void *(*dll_rb_check_typeddata) (VALUE,const rb_data_type_t *);
+# endif
 static VALUE (*dll_rb_class_path) (VALUE);
+# ifdef USE_TYPEDDATA
+#  if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 23
+static VALUE (*dll_rb_data_typed_object_wrap) (VALUE, void*, const rb_data_type_t *);
+#  else
+static VALUE (*dll_rb_data_typed_object_alloc) (VALUE, void*, const rb_data_type_t *);
+#  endif
+# else
 static VALUE (*dll_rb_data_object_alloc) (VALUE, void*, RUBY_DATA_FUNC, RUBY_DATA_FUNC);
+# endif
 static VALUE (*dll_rb_define_class_under) (VALUE, const char*, VALUE);
 static void (*dll_rb_define_const) (VALUE,const char*,VALUE);
 static void (*dll_rb_define_global_function) (const char*,VALUE(*)(),int);
@@ -384,7 +418,7 @@ static rb_encoding* (*dll_rb_enc_find) (const char*);
 static VALUE (*dll_rb_enc_str_new) (const char*, long, rb_encoding*);
 static VALUE (*dll_rb_sprintf) (const char*, ...);
 static VALUE (*dll_rb_require) (const char*);
-static void* (*ruby_process_options)(int, char**);
+static void* (*ruby_options)(int, char**);
 # endif
 
 # if defined(USE_RGENGC) && USE_RGENGC
@@ -451,13 +485,6 @@ void rb_gc_writebarrier_unprotect_stub(VALUE obj)
 #  endif
 # endif
 
-# if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 22
-void rb_check_type_stub(VALUE v, int i)
-{
-    dll_rb_check_type(v, i);
-}
-# endif
-
 static HINSTANCE hinstRuby = NULL; /* Instance of ruby.dll */
 
 /*
@@ -480,8 +507,19 @@ static struct
     {"rb_cSymbol", (RUBY_PROC*)&dll_rb_cSymbol},
     {"rb_cTrueClass", (RUBY_PROC*)&dll_rb_cTrueClass},
     {"rb_check_type", (RUBY_PROC*)&dll_rb_check_type},
+# ifdef USE_TYPEDDATA
+    {"rb_check_typeddata", (RUBY_PROC*)&dll_rb_check_typeddata},
+# endif
     {"rb_class_path", (RUBY_PROC*)&dll_rb_class_path},
+# ifdef USE_TYPEDDATA
+#  if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 23
+    {"rb_data_typed_object_wrap", (RUBY_PROC*)&dll_rb_data_typed_object_wrap},
+#  else
+    {"rb_data_typed_object_alloc", (RUBY_PROC*)&dll_rb_data_typed_object_alloc},
+#  endif
+# else
     {"rb_data_object_alloc", (RUBY_PROC*)&dll_rb_data_object_alloc},
+# endif
     {"rb_define_class_under", (RUBY_PROC*)&dll_rb_define_class_under},
     {"rb_define_const", (RUBY_PROC*)&dll_rb_define_const},
     {"rb_define_global_function", (RUBY_PROC*)&dll_rb_define_global_function},
@@ -565,7 +603,7 @@ static struct
     {"rb_enc_str_new", (RUBY_PROC*)&dll_rb_enc_str_new},
     {"rb_sprintf", (RUBY_PROC*)&dll_rb_sprintf},
     {"rb_require", (RUBY_PROC*)&dll_rb_require},
-    {"ruby_process_options", (RUBY_PROC*)&dll_ruby_process_options},
+    {"ruby_options", (RUBY_PROC*)&dll_ruby_options},
 # endif
 # if defined(RUBY19_OR_LATER) || defined(RUBY_INIT_STACK)
 #  ifdef __ia64
@@ -639,7 +677,12 @@ ruby_runtime_link_init(char *libname, int verbose)
 ruby_enabled(verbose)
     int		verbose;
 {
-    return ruby_runtime_link_init(DYNAMIC_RUBY_DLL, verbose) == OK;
+#ifdef WIN3264
+    char *dll = DYNAMIC_RUBY_DLL;
+#else
+    char *dll = *p_rubydll ? (char *)p_rubydll : DYNAMIC_RUBY_DLL;
+#endif
+    return ruby_runtime_link_init(dll, verbose) == OK;
 }
 #endif /* defined(DYNAMIC_RUBY) || defined(PROTO) */
 
@@ -812,7 +855,7 @@ static int ensure_ruby_initialized(void)
 	    {
 		int dummy_argc = 2;
 		char *dummy_argv[] = {"vim-ruby", "-e0"};
-		ruby_process_options(dummy_argc, dummy_argv);
+		ruby_options(dummy_argc, dummy_argv);
 	    }
 	    ruby_script("vim-ruby");
 #else
@@ -1021,6 +1064,24 @@ static VALUE vim_evaluate(VALUE self UNUSED, VALUE str)
 #endif
 }
 
+#ifdef USE_TYPEDDATA
+static size_t buffer_dsize(const void *buf);
+
+static const rb_data_type_t buffer_type = {
+    "vim_buffer",
+    {0, 0, buffer_dsize, {0, 0}},
+    0, 0,
+# ifdef RUBY_TYPED_FREE_IMMEDIATELY
+    0,
+# endif
+};
+
+static size_t buffer_dsize(const void *buf UNUSED)
+{
+    return sizeof(buf_T);
+}
+#endif
+
 static VALUE buffer_new(buf_T *buf)
 {
     if (buf->b_ruby_ref)
@@ -1029,7 +1090,11 @@ static VALUE buffer_new(buf_T *buf)
     }
     else
     {
+#ifdef USE_TYPEDDATA
+	VALUE obj = TypedData_Wrap_Struct(cBuffer, &buffer_type, buf);
+#else
 	VALUE obj = Data_Wrap_Struct(cBuffer, 0, 0, buf);
+#endif
 	buf->b_ruby_ref = (void *) obj;
 	rb_hash_aset(objtbl, rb_obj_id(obj), obj);
 	return obj;
@@ -1040,7 +1105,11 @@ static buf_T *get_buf(VALUE obj)
 {
     buf_T *buf;
 
+#ifdef USE_TYPEDDATA
+    TypedData_Get_Struct(obj, buf_T, &buffer_type, buf);
+#else
     Data_Get_Struct(obj, buf_T, buf);
+#endif
     if (buf == NULL)
 	rb_raise(eDeletedBufferError, "attempt to refer to deleted buffer");
     return buf;
@@ -1237,6 +1306,24 @@ static VALUE buffer_append(VALUE self, VALUE num, VALUE str)
     return str;
 }
 
+#ifdef USE_TYPEDDATA
+static size_t window_dsize(const void *buf);
+
+static const rb_data_type_t window_type = {
+    "vim_window",
+    {0, 0, window_dsize, {0, 0}},
+    0, 0,
+# ifdef RUBY_TYPED_FREE_IMMEDIATELY
+    0,
+# endif
+};
+
+static size_t window_dsize(const void *win UNUSED)
+{
+    return sizeof(win_T);
+}
+#endif
+
 static VALUE window_new(win_T *win)
 {
     if (win->w_ruby_ref)
@@ -1245,7 +1332,11 @@ static VALUE window_new(win_T *win)
     }
     else
     {
+#ifdef USE_TYPEDDATA
+	VALUE obj = TypedData_Wrap_Struct(cVimWindow, &window_type, win);
+#else
 	VALUE obj = Data_Wrap_Struct(cVimWindow, 0, 0, win);
+#endif
 	win->w_ruby_ref = (void *) obj;
 	rb_hash_aset(objtbl, rb_obj_id(obj), obj);
 	return obj;
@@ -1256,7 +1347,11 @@ static win_T *get_win(VALUE obj)
 {
     win_T *win;
 
+#ifdef USE_TYPEDDATA
+    TypedData_Get_Struct(obj, win_T, &window_type, win);
+#else
     Data_Get_Struct(obj, win_T, win);
+#endif
     if (win == NULL)
 	rb_raise(eDeletedWindowError, "attempt to refer to deleted window");
     return win;

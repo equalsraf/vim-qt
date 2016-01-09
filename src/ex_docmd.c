@@ -135,7 +135,7 @@ static int	getargopt __ARGS((exarg_T *eap));
 #endif
 
 static int	check_more __ARGS((int, int));
-static linenr_T get_address __ARGS((char_u **, int addr_type, int skip, int to_other_file));
+static linenr_T get_address __ARGS((exarg_T *, char_u **, int addr_type, int skip, int to_other_file));
 static void	get_flags __ARGS((exarg_T *eap));
 #if !defined(FEAT_PERL) \
 	|| !defined(FEAT_PYTHON) || !defined(FEAT_PYTHON3) \
@@ -871,7 +871,7 @@ do_cmdline(cmdline, fgetline, cookie, flags)
     if (flags & DOCMD_EXCRESET)
 	save_dbg_stuff(&debug_saved);
     else
-	vim_memset(&debug_saved, 0, 1);
+	vim_memset(&debug_saved, 0, sizeof(debug_saved));
 
     initial_trylevel = trylevel;
 
@@ -2173,9 +2173,14 @@ do_one_cmd(cmdlinep, sourcing,
 		lnum = CURRENT_TAB_NR;
 		ea.line2 = lnum;
 		break;
+#ifdef FEAT_QUICKFIX
+	    case ADDR_QUICKFIX:
+		ea.line2 = qf_get_cur_valid_idx(&ea);
+		break;
+#endif
 	}
 	ea.cmd = skipwhite(ea.cmd);
-	lnum = get_address(&ea.cmd, ea.addr_type, ea.skip, ea.addr_count == 0);
+	lnum = get_address(&ea, &ea.cmd, ea.addr_type, ea.skip, ea.addr_count == 0);
 	if (ea.cmd == NULL)		    /* error detected */
 	    goto doend;
 	if (lnum == MAXLNUM)
@@ -2233,6 +2238,14 @@ do_one_cmd(cmdlinep, sourcing,
 			    ea.line2 = ARGCOUNT;
 			}
 			break;
+#ifdef FEAT_QUICKFIX
+		    case ADDR_QUICKFIX:
+			ea.line1 = 1;
+			ea.line2 = qf_get_size(&ea);
+			if (ea.line2 == 0)
+			    ea.line2 = 1;
+			break;
+#endif
 		}
 		++ea.addr_count;
 	    }
@@ -2530,7 +2543,8 @@ do_one_cmd(cmdlinep, sourcing,
     correct_range(&ea);
 
 #ifdef FEAT_FOLDING
-    if (((ea.argt & WHOLEFOLD) || ea.addr_count >= 2) && !global_busy)
+    if (((ea.argt & WHOLEFOLD) || ea.addr_count >= 2) && !global_busy
+	    && ea.addr_type == ADDR_LINES)
     {
 	/* Put the first line at the start of a closed fold, put the last line
 	 * at the end of a closed fold. */
@@ -2693,6 +2707,13 @@ do_one_cmd(cmdlinep, sourcing,
 		else
 		    ea.line2 = ARGCOUNT;
 		break;
+#ifdef FEAT_QUICKFIX
+	    case ADDR_QUICKFIX:
+		ea.line2 = qf_get_size(&ea);
+		if (ea.line2 == 0)
+		    ea.line2 = 1;
+		break;
+#endif
 	}
     }
 
@@ -3497,9 +3518,10 @@ set_one_cmd_context(xp, buff)
 	p = cmd;
 	while (ASCII_ISALPHA(*p) || *p == '*')    /* Allow * wild card */
 	    ++p;
-	/* check for non-alpha command */
-	if (p == cmd && vim_strchr((char_u *)"@*!=><&~#", *p) != NULL)
-	    ++p;
+	/* a user command may contain digits */
+	if (ASCII_ISUPPER(cmd[0]))
+	    while (ASCII_ISALNUM(*p) || *p == '*')
+		++p;
 	/* for python 3.x: ":py3*" commands completion */
 	if (cmd[0] == 'p' && cmd[1] == 'y' && p == cmd + 2 && *p == '3')
 	{
@@ -3507,6 +3529,9 @@ set_one_cmd_context(xp, buff)
 	    while (ASCII_ISALPHA(*p) || *p == '*')
 		++p;
 	}
+	/* check for non-alpha command */
+	if (p == cmd && vim_strchr((char_u *)"@*!=><&~#", *p) != NULL)
+	    ++p;
 	len = (int)(p - cmd);
 
 	if (len == 0)
@@ -3770,7 +3795,7 @@ set_one_cmd_context(xp, buff)
 
 	/* Check for environment variable */
 	if (*xp->xp_pattern == '$'
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2)
+#if defined(MSDOS) || defined(MSWIN)
 		|| *xp->xp_pattern == '%'
 #endif
 		)
@@ -3839,6 +3864,8 @@ set_one_cmd_context(xp, buff)
 	case CMD_botright:
 	case CMD_browse:
 	case CMD_bufdo:
+	case CMD_cdo:
+	case CMD_cfdo:
 	case CMD_confirm:
 	case CMD_debug:
 	case CMD_folddoclosed:
@@ -3848,7 +3875,9 @@ set_one_cmd_context(xp, buff)
 	case CMD_keepjumps:
 	case CMD_keepmarks:
 	case CMD_keeppatterns:
+	case CMD_ldo:
 	case CMD_leftabove:
+	case CMD_lfdo:
 	case CMD_lockmarks:
 	case CMD_noautocmd:
 	case CMD_noswapfile:
@@ -4321,7 +4350,8 @@ skip_range(cmd, ctx)
  * Return MAXLNUM when no Ex address was found.
  */
     static linenr_T
-get_address(ptr, addr_type, skip, to_other_file)
+get_address(eap, ptr, addr_type, skip, to_other_file)
+    exarg_T	*eap UNUSED;
     char_u	**ptr;
     int		addr_type;  /* flag: one of ADDR_LINES, ... */
     int		skip;	    /* only skip the address, don't use it */
@@ -4362,6 +4392,11 @@ get_address(ptr, addr_type, skip, to_other_file)
 		    case ADDR_TABS:
 			lnum = CURRENT_TAB_NR;
 			break;
+#ifdef FEAT_QUICKFIX
+		    case ADDR_QUICKFIX:
+			lnum = qf_get_cur_valid_idx(eap);
+			break;
+#endif
 		}
 		break;
 
@@ -4394,6 +4429,13 @@ get_address(ptr, addr_type, skip, to_other_file)
 		    case ADDR_TABS:
 			lnum = LAST_TAB_NR;
 			break;
+#ifdef FEAT_QUICKFIX
+		    case ADDR_QUICKFIX:
+			lnum = qf_get_size(eap);
+			if (lnum == 0)
+			    lnum = 1;
+			break;
+#endif
 		}
 		break;
 
@@ -4569,6 +4611,11 @@ get_address(ptr, addr_type, skip, to_other_file)
 		    case ADDR_TABS:
 			lnum = CURRENT_TAB_NR;
 			break;
+#ifdef FEAT_QUICKFIX
+		    case ADDR_QUICKFIX:
+			lnum = qf_get_cur_valid_idx(eap);
+			break;
+#endif
 		}
 	    }
 
@@ -4707,6 +4754,12 @@ invalid_range(eap)
 		if (eap->line2 > LAST_TAB_NR)
 		    return (char_u *)_(e_invrange);
 		break;
+#ifdef FEAT_QUICKFIX
+	    case ADDR_QUICKFIX:
+		if (eap->line2 != 1 && eap->line2 > qf_get_size(eap))
+		    return (char_u *)_(e_invrange);
+		break;
+#endif
 	}
     }
     return NULL;
@@ -5021,7 +5074,7 @@ expand_filename(eap, cmdlinep, errormsgp)
 		 * For Unix and OS/2, when wildcards are expanded, this is
 		 * done by ExpandOne() below.
 		 */
-#if defined(UNIX) || defined(OS2)
+#if defined(UNIX)
 		if (!has_wildcards)
 #endif
 		    backslash_halve(eap->arg);
@@ -5817,6 +5870,7 @@ static struct
     {ADDR_TABS, "tabs"},
     {ADDR_BUFFERS, "buffers"},
     {ADDR_WINDOWS, "windows"},
+    {ADDR_QUICKFIX, "quickfix"},
     {-1, NULL}
 };
 #endif
@@ -7089,7 +7143,7 @@ ex_quit(eap)
 				       | (eap->forceit ? CCGD_FORCEIT : 0)
 				       | CCGD_EXCMD))
 	    || check_more(TRUE, eap->forceit) == FAIL
-	    || (only_one_window() && check_changed_any(eap->forceit)))
+	    || (only_one_window() && check_changed_any(eap->forceit, TRUE)))
     {
 	not_exiting();
     }
@@ -7160,7 +7214,7 @@ ex_quit_all(eap)
 #endif
 
     exiting = TRUE;
-    if (eap->forceit || !check_changed_any(FALSE))
+    if (eap->forceit || !check_changed_any(FALSE, FALSE))
 	getout(0);
     not_exiting();
 }
@@ -7555,7 +7609,7 @@ ex_exit(eap)
 		    || curbufIsChanged())
 		&& do_write(eap) == FAIL)
 	    || check_more(TRUE, eap->forceit) == FAIL
-	    || (only_one_window() && check_changed_any(eap->forceit)))
+	    || (only_one_window() && check_changed_any(eap->forceit, FALSE)))
     {
 	not_exiting();
     }
@@ -7782,7 +7836,7 @@ alist_new()
 # endif
 #endif
 
-#if (!defined(UNIX) && !defined(__EMX__)) || defined(ARCHIE) || defined(PROTO)
+#if (!defined(UNIX) && !defined(__EMX__)) || defined(PROTO)
 /*
  * Expand the file names in the global argument list.
  * If "fnum_list" is not NULL, use "fnum_list[fnum_len]" as a list of buffer
@@ -8984,11 +9038,11 @@ do_sleep(msec)
     {
 	ui_delay(msec - done > 1000L ? 1000L : msec - done, TRUE);
 	ui_breakcheck();
-#ifdef FEAT_NETBEANS_INTG
-	/* Process the netbeans messages that may have been received in the
-	 * call to ui_breakcheck() when the GUI is in use. This may occur when
-	 * running a test case. */
-	netbeans_parse_messages();
+#ifdef MESSAGE_QUEUE
+	/* Process the netbeans and clientserver messages that may have been
+	 * received in the call to ui_breakcheck() when the GUI is in use. This
+	 * may occur when running a test case. */
+	parse_queued_messages();
 #endif
     }
 }
@@ -9224,7 +9278,7 @@ ex_copymove(eap)
 {
     long	n;
 
-    n = get_address(&eap->arg, eap->addr_type, FALSE, FALSE);
+    n = get_address(eap, &eap->arg, eap->addr_type, FALSE, FALSE);
     if (eap->arg == NULL)	    /* error detected */
     {
 	eap->nextcmd = NULL;
@@ -12064,6 +12118,7 @@ ex_match(eap)
 	if (*p == NUL)
 	{
 	    /* There must be two arguments. */
+	    vim_free(g);
 	    EMSG2(_(e_invarg2), eap->arg);
 	    return;
 	}
@@ -12072,11 +12127,13 @@ ex_match(eap)
 	{
 	    if (*end != NUL && !ends_excmd(*skipwhite(end + 1)))
 	    {
+		vim_free(g);
 		eap->errmsg = e_trailing;
 		return;
 	    }
 	    if (*end != *p)
 	    {
+		vim_free(g);
 		EMSG2(_(e_invarg2), p);
 		return;
 	    }

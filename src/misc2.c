@@ -797,6 +797,21 @@ vim_mem_profile_dump()
 
 #endif /* MEM_PROFILE */
 
+#ifdef FEAT_EVAL
+    static int
+alloc_does_fail()
+{
+    if (alloc_fail_countdown == 0)
+    {
+	if (--alloc_fail_repeat <= 0)
+	    alloc_fail_id = 0;
+	return TRUE;
+    }
+    --alloc_fail_countdown;
+    return FALSE;
+}
+#endif
+
 /*
  * Some memory is reserved for error messages and for being able to
  * call mf_release_all(), which needs some memory for mf_trans_add().
@@ -817,6 +832,22 @@ vim_mem_profile_dump()
 alloc(size)
     unsigned	    size;
 {
+    return (lalloc((long_u)size, TRUE));
+}
+
+/*
+ * alloc() with an ID for alloc_fail().
+ * LAST_ID_USED: 5
+ */
+    char_u *
+alloc_id(size, id)
+    unsigned	size;
+    int		id;
+{
+#ifdef FEAT_EVAL
+    if (alloc_fail_id == id && alloc_does_fail())
+	return NULL;
+#endif
     return (lalloc((long_u)size, TRUE));
 }
 
@@ -952,9 +983,6 @@ lalloc(size, message)
 
 	clear_sb_text();	      /* free any scrollback text */
 	try_again = mf_release_all(); /* release as many blocks as possible */
-#ifdef FEAT_EVAL
-	try_again |= garbage_collect(); /* cleanup recursive lists/dicts */
-#endif
 
 	releasing = FALSE;
 	if (!try_again)
@@ -969,6 +997,23 @@ theend:
     mem_post_alloc((void **)&p, (size_t)size);
 #endif
     return p;
+}
+
+/*
+ * lalloc() with an ID for alloc_fail().
+ * See LAST_ID_USED above.
+ */
+    char_u *
+lalloc_id(size, message, id)
+    long_u	size;
+    int		message;
+    int		id;
+{
+#ifdef FEAT_EVAL
+    if (alloc_fail_id == id && alloc_does_fail())
+	return NULL;
+#endif
+    return (lalloc((long_u)size, message));
 }
 
 #if defined(MEM_PROFILE) || defined(PROTO)
@@ -2095,6 +2140,7 @@ ga_concat_strings(gap, sep)
 
 /*
  * Concatenate a string to a growarray which contains characters.
+ * When "s" is NULL does not do anything.
  * Note: Does NOT copy the NUL at the end!
  */
     void
@@ -2102,8 +2148,11 @@ ga_concat(gap, s)
     garray_T	*gap;
     char_u	*s;
 {
-    int    len = (int)STRLEN(s);
+    int    len;
 
+    if (s == NULL)
+	return;
+    len = (int)STRLEN(s);
     if (ga_grow(gap, len) == OK)
     {
 	mch_memmove((char *)gap->ga_data + gap->ga_len, s, (size_t)len);
@@ -2779,7 +2828,7 @@ find_special_key(srcp, modp, keycode, keep_x_key)
 	    bp += 3;	/* skip t_xx, xx may be '-' or '>' */
 	else if (STRNICMP(bp, "char-", 5) == 0)
 	{
-	    vim_str2nr(bp + 5, NULL, &l, TRUE, TRUE, NULL, NULL, 0);
+	    vim_str2nr(bp + 5, NULL, &l, STR2NR_ALL, NULL, NULL, 0);
 	    bp += l + 5;
 	    break;
 	}
@@ -2811,7 +2860,7 @@ find_special_key(srcp, modp, keycode, keep_x_key)
 						 && VIM_ISDIGIT(last_dash[6]))
 	    {
 		/* <Char-123> or <Char-033> or <Char-0x33> */
-		vim_str2nr(last_dash + 6, NULL, NULL, TRUE, TRUE, NULL, &n, 0);
+		vim_str2nr(last_dash + 6, NULL, NULL, STR2NR_ALL, NULL, &n, 0);
 		key = (int)n;
 	    }
 	    else
@@ -4369,21 +4418,20 @@ vim_findfile_init(path, filename, stopdirs, level, free_visited, find_what,
 		temp = alloc((int)(STRLEN(search_ctx->ffsc_wc_path)
 				 + STRLEN(search_ctx->ffsc_fix_path + len)
 				 + 1));
-	    }
+		if (temp == NULL || wc_path == NULL)
+		{
+		    vim_free(buf);
+		    vim_free(temp);
+		    vim_free(wc_path);
+		    goto error_return;
+		}
 
-	    if (temp == NULL || wc_path == NULL)
-	    {
-		vim_free(buf);
-		vim_free(temp);
+		STRCPY(temp, search_ctx->ffsc_fix_path + len);
+		STRCAT(temp, search_ctx->ffsc_wc_path);
+		vim_free(search_ctx->ffsc_wc_path);
 		vim_free(wc_path);
-		goto error_return;
+		search_ctx->ffsc_wc_path = temp;
 	    }
-
-	    STRCPY(temp, search_ctx->ffsc_fix_path + len);
-	    STRCAT(temp, search_ctx->ffsc_wc_path);
-	    vim_free(search_ctx->ffsc_wc_path);
-	    vim_free(wc_path);
-	    search_ctx->ffsc_wc_path = temp;
 	}
 #endif
 	vim_free(buf);
@@ -5058,7 +5106,9 @@ ff_wc_equal(s1, s2)
     char_u	*s1;
     char_u	*s2;
 {
-    int		i;
+    int		i, j;
+    int		c1 = NUL;
+    int		c2 = NUL;
     int		prev1 = NUL;
     int		prev2 = NUL;
 
@@ -5068,21 +5118,21 @@ ff_wc_equal(s1, s2)
     if (s1 == NULL || s2 == NULL)
 	return FALSE;
 
-    if (STRLEN(s1) != STRLEN(s2))
-	return FAIL;
-
-    for (i = 0; s1[i] != NUL && s2[i] != NUL; i += MB_PTR2LEN(s1 + i))
+    for (i = 0, j = 0; s1[i] != NUL && s2[j] != NUL;)
     {
-	int c1 = PTR2CHAR(s1 + i);
-	int c2 = PTR2CHAR(s2 + i);
+	c1 = PTR2CHAR(s1 + i);
+	c2 = PTR2CHAR(s2 + j);
 
 	if ((p_fic ? MB_TOLOWER(c1) != MB_TOLOWER(c2) : c1 != c2)
 		&& (prev1 != '*' || prev2 != '*'))
-	    return FAIL;
+	    return FALSE;
 	prev2 = prev1;
 	prev1 = c1;
+
+        i += MB_PTR2LEN(s1 + i);
+        j += MB_PTR2LEN(s2 + j);
     }
-    return TRUE;
+    return s1[i] == s2[j];
 }
 #endif
 
@@ -5519,7 +5569,7 @@ find_file_in_path_option(ptr, len, options, first, path_option,
     if (vim_isAbsName(ff_file_to_find)
 	    /* "..", "../path", "." and "./path": don't use the path_option */
 	    || rel_to_curdir
-#if defined(MSWIN) || defined(MSDOS) || defined(OS2)
+#if defined(MSWIN) || defined(MSDOS)
 	    /* handle "\tmp" as absolute path */
 	    || vim_ispathsep(ff_file_to_find[0])
 	    /* handle "c:name" as absolute path */
@@ -5814,14 +5864,14 @@ pathcmp(p, q, maxlen)
     const char *p, *q;
     int maxlen;
 {
-    int		i;
+    int		i, j;
     int		c1, c2;
     const char	*s = NULL;
 
-    for (i = 0; maxlen < 0 || i < maxlen; i += MB_PTR2LEN((char_u *)p + i))
+    for (i = 0, j = 0; maxlen < 0 || (i < maxlen && j < maxlen);)
     {
 	c1 = PTR2CHAR((char_u *)p + i);
-	c2 = PTR2CHAR((char_u *)q + i);
+	c2 = PTR2CHAR((char_u *)q + j);
 
 	/* End of "p": check if "q" also ends or just has a slash. */
 	if (c1 == NUL)
@@ -5829,6 +5879,7 @@ pathcmp(p, q, maxlen)
 	    if (c2 == NUL)  /* full match */
 		return 0;
 	    s = q;
+            i = j;
 	    break;
 	}
 
@@ -5854,8 +5905,11 @@ pathcmp(p, q, maxlen)
 	    return p_fic ? MB_TOUPPER(c1) - MB_TOUPPER(c2)
 		    : c1 - c2;  /* no match */
 	}
+
+	i += MB_PTR2LEN((char_u *)p + i);
+	j += MB_PTR2LEN((char_u *)q + j);
     }
-    if (s == NULL)	/* "i" ran into "maxlen" */
+    if (s == NULL)	/* "i" or "j" ran into "maxlen" */
 	return 0;
 
     c1 = PTR2CHAR((char_u *)s + i);
@@ -6246,8 +6300,9 @@ put_bytes(fd, nr, len)
 
 /*
  * Write time_t to file "fd" in 8 bytes.
+ * Returns FAIL when the write failed.
  */
-    void
+    int
 put_time(fd, the_time)
     FILE	*fd;
     time_t	the_time;
@@ -6255,7 +6310,7 @@ put_time(fd, the_time)
     char_u	buf[8];
 
     time_to_bytes(the_time, buf);
-    (void)fwrite(buf, (size_t)8, (size_t)1, fd);
+    return fwrite(buf, (size_t)8, (size_t)1, fd) == 1 ? OK : FAIL;
 }
 
 /*
@@ -6320,5 +6375,25 @@ has_non_ascii(s)
 	    if (*p >= 128)
 		return TRUE;
     return FALSE;
+}
+#endif
+
+#if defined(MESSAGE_QUEUE) || defined(PROTO)
+/*
+ * Process messages that have been queued for netbeans or clientserver.
+ * These functions can call arbitrary vimscript and should only be called when
+ * it is safe to do so.
+ */
+    void
+parse_queued_messages()
+{
+# ifdef FEAT_NETBEANS_INTG
+    /* Process the queued netbeans messages. */
+    netbeans_parse_messages();
+# endif
+# if defined(FEAT_CLIENTSERVER) && defined(FEAT_X11)
+    /* Process the queued clientserver messages. */
+    server_parse_messages();
+# endif
 }
 #endif

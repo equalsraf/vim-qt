@@ -22,6 +22,9 @@
  */
 
 #include "vim.h"
+#ifdef USE_GRESOURCE
+#include "auto/gui_gtk_gresources.h"
+#endif
 
 #ifdef FEAT_GUI_GNOME
 /* Gnome redefines _() and N_().  Grrr... */
@@ -650,7 +653,7 @@ property_event(GtkWidget *widget,
 	xev.xproperty.atom = commProperty;
 	xev.xproperty.window = commWindow;
 	xev.xproperty.state = PropertyNewValue;
-	serverEventProc(GDK_WINDOW_XDISPLAY(widget->window), &xev);
+	serverEventProc(GDK_WINDOW_XDISPLAY(widget->window), &xev, 0);
     }
     return FALSE;
 }
@@ -1434,6 +1437,9 @@ gui_mch_early_init_check(void)
 	EMSG(_((char *)e_opendisp));
 	return FAIL;
     }
+#ifdef USE_GRESOURCE
+    gui_gtk_register_resource();
+#endif
     return OK;
 }
 
@@ -1680,17 +1686,15 @@ button_press_event(GtkWidget *widget,
 
     switch (event->button)
     {
-    case 1:
-	button = MOUSE_LEFT;
-	break;
-    case 2:
-	button = MOUSE_MIDDLE;
-	break;
-    case 3:
-	button = MOUSE_RIGHT;
-	break;
-    default:
-	return FALSE;		/* Unknown button */
+	/* Keep in sync with gui_x11.c.
+	 * Buttons 4-7 are handled in scroll_event() */
+	case 1: button = MOUSE_LEFT; break;
+	case 2: button = MOUSE_MIDDLE; break;
+	case 3: button = MOUSE_RIGHT; break;
+	case 8: button = MOUSE_X1; break;
+	case 9: button = MOUSE_X2; break;
+	default:
+	    return FALSE;		/* Unknown button */
     }
 
 #ifdef FEAT_XIM
@@ -1999,7 +2003,7 @@ sm_client_check_changed_any(GnomeClient	    *client UNUSED,
      * If there are changed buffers, present the user with
      * a dialog if possible, otherwise give an error message.
      */
-    shutdown_cancelled = check_changed_any(FALSE);
+    shutdown_cancelled = check_changed_any(FALSE, FALSE);
 
     exiting = FALSE;
     cmdmod = save_cmdmod;
@@ -3622,6 +3626,9 @@ mainwin_destroy_cb(GtkObject *object UNUSED, gpointer data UNUSED)
 		IOSIZE - 1);
 	preserve_exit();
     }
+#ifdef USE_GRESOURCE
+    gui_gtk_unregister_resource();
+#endif
 }
 
 
@@ -5063,8 +5070,13 @@ not_ascii:
 	     * done, because drawing the cursor would change the display. */
 	    item->analysis.shape_engine = default_shape_engine;
 
+#ifdef HAVE_PANGO_SHAPE_FULL
+	    pango_shape_full((const char *)s + item->offset, item->length,
+		    (const char *)s, len, &item->analysis, glyphs);
+#else
 	    pango_shape((const char *)s + item->offset, item->length,
 			&item->analysis, glyphs);
+#endif
 	    /*
 	     * Fixed-width hack: iterate over the array and assign a fixed
 	     * width to each glyph, thus overriding the choice made by the
@@ -5471,9 +5483,8 @@ gui_mch_wait_for_chars(long wtime)
 	    focus = gui.in_focus;
 	}
 
-#if defined(FEAT_NETBEANS_INTG)
-	/* Process any queued netbeans messages. */
-	netbeans_parse_messages();
+#ifdef MESSAGE_QUEUE
+	parse_queued_messages();
 #endif
 
 	/*

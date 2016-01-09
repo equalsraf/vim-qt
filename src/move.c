@@ -1252,11 +1252,7 @@ scrolldown(line_count, byfold)
 	    }
 	    else
 #endif
-#ifdef FEAT_DIFF
-		done += plines_nofill(curwin->w_topline);
-#else
-		done += plines(curwin->w_topline);
-#endif
+		done += PLINES_NOFILL(curwin->w_topline);
 	}
 	--curwin->w_botline;		/* approximate w_botline */
 	invalidate_botline();
@@ -1609,13 +1605,7 @@ topline_back(lp)
 	    lp->height = 1;
 	else
 #endif
-	{
-#ifdef FEAT_DIFF
-	    lp->height = plines_nofill(lp->lnum);
-#else
-	    lp->height = plines(lp->lnum);
-#endif
-	}
+	    lp->height = PLINES_NOFILL(lp->lnum);
     }
 }
 
@@ -1653,11 +1643,7 @@ botline_forw(lp)
 	else
 #endif
 	{
-#ifdef FEAT_DIFF
-	    lp->height = plines_nofill(lp->lnum);
-#else
-	    lp->height = plines(lp->lnum);
-#endif
+	    lp->height = PLINES_NOFILL(lp->lnum);
 	}
     }
 }
@@ -1732,7 +1718,7 @@ scroll_cursor_top(min_scroll, always)
      * - at least 'scrolloff' lines above and below the cursor
      */
     validate_cheight();
-    used = curwin->w_cline_height;
+    used = curwin->w_cline_height; /* includes filler lines above */
     if (curwin->w_cursor.lnum < curwin->w_topline)
 	scrolled = used;
 
@@ -1751,10 +1737,10 @@ scroll_cursor_top(min_scroll, always)
     new_topline = top + 1;
 
 #ifdef FEAT_DIFF
-    /* count filler lines of the cursor window as context */
-    i = diff_check_fill(curwin, curwin->w_cursor.lnum);
-    used += i;
-    extra += i;
+    /* "used" already contains the number of filler lines above, don't add it
+     * again.
+     * Hide filler lines above cursor line by adding them to "extra". */
+    extra += diff_check_fill(curwin, curwin->w_cursor.lnum);
 #endif
 
     /*
@@ -1769,7 +1755,7 @@ scroll_cursor_top(min_scroll, always)
 	    i = 1;
 	else
 #endif
-	    i = plines(top);
+	    i = PLINES_NOFILL(top);
 	used += i;
 	if (extra + i <= off && bot < curbuf->b_ml.ml_line_count)
 	{
@@ -2273,11 +2259,8 @@ cursor_correct()
 		++above;
 	    else
 #endif
-#ifndef FEAT_DIFF
-		above += plines(topline);
-#else
-		above += plines_nofill(topline);
-
+		above += PLINES_NOFILL(topline);
+#ifdef FEAT_DIFF
 	    /* Count filler lines below this line as context. */
 	    if (topline < botline)
 		above += diff_check_fill(curwin, topline + 1);
@@ -2666,11 +2649,7 @@ halfpage(flag, Prenum)
 	    else
 #endif
 	    {
-#ifdef FEAT_DIFF
-		i = plines_nofill(curwin->w_topline);
-#else
-		i = plines(curwin->w_topline);
-#endif
+		i = PLINES_NOFILL(curwin->w_topline);
 		n -= i;
 		if (n < 0 && scrolled > 0)
 		    break;
@@ -2776,11 +2755,7 @@ halfpage(flag, Prenum)
 	    else
 #endif
 	    {
-#ifdef FEAT_DIFF
-		i = plines_nofill(curwin->w_topline - 1);
-#else
-		i = plines(curwin->w_topline - 1);
-#endif
+		i = PLINES_NOFILL(curwin->w_topline - 1);
 		n -= i;
 		if (n < 0 && scrolled > 0)
 		    break;

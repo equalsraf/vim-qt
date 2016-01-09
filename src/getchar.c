@@ -962,8 +962,8 @@ init_typebuf()
 }
 
 /*
- * insert a string in position 'offset' in the typeahead buffer (for "@r"
- * and ":normal" command, vgetorpeek() and check_termcode())
+ * Insert a string in position 'offset' in the typeahead buffer (for "@r"
+ * and ":normal" command, vgetorpeek() and check_termcode()).
  *
  * If noremap is REMAP_YES, new string can be mapped again.
  * If noremap is REMAP_NONE, new string cannot be mapped again.
@@ -1630,13 +1630,16 @@ vgetc()
       last_recorded_len = 0;
       for (;;)			/* this is done twice if there are modifiers */
       {
+	int did_inc = FALSE;
+
 	if (mod_mask)		/* no mapping after modifier has been read */
 	{
 	    ++no_mapping;
 	    ++allow_keys;
+	    did_inc = TRUE;	/* mod_mask may change value */
 	}
 	c = vgetorpeek(TRUE);
-	if (mod_mask)
+	if (did_inc)
 	{
 	    --no_mapping;
 	    --allow_keys;
@@ -3034,9 +3037,8 @@ inchar(buf, maxlen, wait_time, tb_change_cnt)
 	    )
     {
 
-#if defined(FEAT_NETBEANS_INTG)
-	/* Process the queued netbeans messages. */
-	netbeans_parse_messages();
+#ifdef MESSAGE_QUEUE
+	parse_queued_messages();
 #endif
 
 	if (got_int || (script_char = getc(scriptin[curscript])) < 0)
@@ -5293,7 +5295,7 @@ check_map(keys, mode, exact, ign_mod, abbr, mp_ptr, local_ptr)
 }
 #endif
 
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2) || defined(MACOS)
+#if defined(MSDOS) || defined(MSWIN) || defined(MACOS)
 
 #define VIS_SEL	(VISUAL+SELECTMODE)	/* abbreviation */
 
@@ -5306,7 +5308,7 @@ static struct initmap
     int		mode;
 } initmappings[] =
 {
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2)
+#if defined(MSDOS) || defined(MSWIN)
 	/* Use the Windows (CUA) keybindings. */
 # ifdef FEAT_GUI
 	/* paste, copy and cut */
@@ -5377,7 +5379,7 @@ static struct initmap
     void
 init_mappings()
 {
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2) || defined(MACOS)
+#if defined(MSDOS) || defined(MSWIN) ||defined(MACOS)
     int		i;
 
     for (i = 0; i < sizeof(initmappings) / sizeof(struct initmap); ++i)
@@ -5385,7 +5387,7 @@ init_mappings()
 #endif
 }
 
-#if defined(MSDOS) || defined(MSWIN) || defined(OS2) \
+#if defined(MSDOS) || defined(MSWIN) \
 	|| defined(FEAT_CMDWIN) || defined(MACOS) || defined(PROTO)
 /*
  * Add a mapping "map" for mode "mode".

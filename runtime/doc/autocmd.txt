@@ -1,4 +1,4 @@
-*autocmd.txt*   For Vim version 7.4.  Last change: 2015 Aug 05
+*autocmd.txt*   For Vim version 7.4.  Last change: 2015 Dec 05
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -1072,7 +1072,7 @@ Instead of a pattern buffer-local autocommands use one of these forms:
 Examples: >
     :au CursorHold <buffer>  echo 'hold'
     :au CursorHold <buffer=33>  echo 'hold'
-    :au BufNewFile * CursorHold <buffer=abuf>  echo 'hold'
+    :au BufNewFile * au CursorHold <buffer=abuf>  echo 'hold'
 
 All the commands for autocommands also work with buffer-local autocommands,
 simply use the special string instead of the pattern.  Examples: >
@@ -1131,6 +1131,9 @@ name!
 :aug[roup] {name}		Define the autocmd group name for the
 				following ":autocmd" commands.  The name "end"
 				or "END" selects the default group.
+				To avoid confusion, the name should be
+				different from existing {event} names, as this
+				most likely will not do what you intended.
 
 						*:augroup-delete* *E367*
 :aug[roup]! {name}		Delete the autocmd group {name}.  Don't use

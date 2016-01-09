@@ -392,7 +392,15 @@
 # endif
 #endif
 
-#define NUMBUFLEN 30	    /* length of a buffer to store a number in ASCII */
+/* length of a buffer to store a number in ASCII (64 bits binary + NUL) */
+#define NUMBUFLEN 65
+
+/* flags for vim_str2nr() */
+#define STR2NR_BIN 1
+#define STR2NR_OCT 2
+#define STR2NR_HEX 4
+#define STR2NR_ALL (STR2NR_BIN + STR2NR_OCT + STR2NR_HEX)
+#define STR2NR_FORCE 8 /* only when ONE of the above is used */
 
 /*
  * Shorthand for unsigned variables. Many systems, but not all, have u_char
@@ -930,6 +938,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define SEARCH_MARK  0x200  /* set previous context mark */
 #define SEARCH_KEEP  0x400  /* keep previous search pattern */
 #define SEARCH_PEEK  0x800  /* peek for typed char, cancel search */
+#define SEARCH_COL  0x1000  /* start at specified column instead of zero */
 
 /* Values for find_ident_under_cursor() */
 #define FIND_IDENT	1	/* find identifier (word) */
@@ -1681,7 +1690,7 @@ int vim_memcmp __ARGS((void *, void *, size_t));
 # endif
 #endif
 
-#if defined(UNIX) || defined(FEAT_GUI) || defined(OS2) || defined(VMS) \
+#if defined(UNIX) || defined(FEAT_GUI) || defined(VMS) \
 	|| defined(FEAT_CLIENTSERVER)
 # define USE_INPUT_BUF
 #endif
@@ -1902,7 +1911,8 @@ typedef int proftime_T;	    /* dummy for function prototypes */
 #define VV_OPTION_NEW   59
 #define VV_OPTION_OLD   60
 #define VV_OPTION_TYPE  61
-#define VV_LEN		62	/* number of v: vars */
+#define VV_ERRORS	62
+#define VV_LEN		63	/* number of v: vars */
 
 #ifdef FEAT_CLIPBOARD
 
@@ -2235,7 +2245,7 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 /* values for vim_handle_signal() that are not a signal */
 #define SIGNAL_BLOCK	-1
 #define SIGNAL_UNBLOCK  -2
-#if !defined(UNIX) && !defined(VMS) && !defined(OS2)
+#if !defined(UNIX) && !defined(VMS)
 # define vim_handle_signal(x) 0
 #endif
 

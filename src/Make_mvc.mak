@@ -117,8 +117,6 @@
 #	Netbeans Debugging Support: NBDEBUG=[yes or no] (should be no, yes
 #	doesn't work)
 #
-#	Visual C Version: MSVCVER=m.n (default derived from nmake if undefined)
-#
 #	Static Code Analysis: ANALYZE=yes (works with VS2012 only)
 #
 # You can combine any of these interfaces
@@ -213,20 +211,24 @@ OBJDIR = $(OBJDIR)d
 ! ifdef CPU
 ASSEMBLY_ARCHITECTURE=$(CPU)
 # Using I386 for $ASSEMBLY_ARCHITECTURE doesn't work for VC7.
-!  if ("$(ASSEMBLY_ARCHITECTURE)" == "i386") || ("$(ASSEMBLY_ARCHITECTURE)" == "I386")
-ASSEMBLY_ARCHITECTURE = x86
-!  endif
-! else
-CPU = $(PROCESSOR_ARCHITECTURE)
-ASSEMBLY_ARCHITECTURE = $(PROCESSOR_ARCHITECTURE)
-!  if ("$(CPU)" == "x86") || ("$(CPU)" == "X86")
+!  if "$(CPU)" == "I386"
 CPU = i386
 !  endif
+! else  # !CPU
+CPU = i386
+!  ifdef PLATFORM
+!   if ("$(PLATFORM)" == "x64") || ("$(PLATFORM)" == "X64")
+CPU = AMD64
+!   elseif ("$(PLATFORM)" != "x86") && ("$(PLATFORM)" != "X86")
+!    error *** ERROR Unknown target platform "$(PLATFORM)". Make aborted.
+!   endif
+!  endif  # !PLATFORM
 ! endif
 !else  # !PROCESSOR_ARCHITECTURE
 # We're on Windows 95
 CPU = i386
 !endif # !PROCESSOR_ARCHITECTURE
+ASSEMBLY_ARCHITECTURE=$(CPU)
 OBJDIR = $(OBJDIR)$(CPU)
 
 # Build a retail version by default
@@ -379,91 +381,45 @@ DEL_TREE = deltree /y
 INTDIR=$(OBJDIR)
 OUTDIR=$(OBJDIR)
 
-# Derive version of VC being used from nmake if not specified
-!if "$(MSVCVER)" == ""
-!if "$(_NMAKE_VER)" == ""
-MSVCVER = 4.0
-!endif
-!if "$(_NMAKE_VER)" == "162"
-MSVCVER = 5.0
-!endif
-!if "$(_NMAKE_VER)" == "6.00.8168.0"
-MSVCVER = 6.0
-CPU = ix86
-!endif
-!if "$(_NMAKE_VER)" == "6.00.9782.0"
-MSVCVER = 6.0
-CPU = ix86
-!endif
-!if "$(_NMAKE_VER)" == "7.00.9466"
-MSVCVER = 7.0
-!endif
-!if "$(_NMAKE_VER)" == "7.10.3077"
-MSVCVER = 7.1
-!endif
-!if "$(_NMAKE_VER)" == "8.00.50727.42"
-MSVCVER = 8.0
-!endif
-!if "$(_NMAKE_VER)" == "8.00.50727.762"
-MSVCVER = 8.0
-!endif
-!if "$(_NMAKE_VER)" == "9.00.20706.01"
-MSVCVER = 9.0
-!endif
-!if "$(_NMAKE_VER)" == "9.00.21022.08"
-MSVCVER = 9.0
-!endif
-!if "$(_NMAKE_VER)" == "9.00.30729.01"
-MSVCVER = 9.0
-!endif
-!if "$(_NMAKE_VER)" == "10.00.20506.01"
-MSVCVER = 10.0
-!endif
-!if "$(_NMAKE_VER)" == "10.00.30128.01"
-MSVCVER = 10.0
-!endif
-!if "$(_NMAKE_VER)" == "10.00.30319.01"
-MSVCVER = 10.0
-!endif
-!if "$(_NMAKE_VER)" == "10.00.40219.01"
-MSVCVER = 10.0
-!endif
-!if "$(_NMAKE_VER)" == "11.00.50727.1"
-MSVCVER = 11.0
-!endif
-!if "$(_NMAKE_VER)" == "11.00.51106.1"
-MSVCVER = 11.0
-!endif
-!if "$(_NMAKE_VER)" == "11.00.60315.1"
-MSVCVER = 11.0
-!endif
-!if "$(_NMAKE_VER)" == "11.00.60610.1"
-MSVCVER = 11.0
-!endif
-!if "$(_NMAKE_VER)" == "11.00.61030.0"
-MSVCVER = 11.0
-!endif
-!if "$(_NMAKE_VER)" == "12.00.21005.1"
-MSVCVER = 12.0
-!endif
-!if ("$(_NMAKE_VER)" == "14.00.22609.0") || ("$(_NMAKE_VER)" == "14.00.22816.0") || ("$(_NMAKE_VER)" == "14.00.23026.0")
-MSVCVER = 14.0
+!if [echo MSVCVER=_MSC_VER> msvcver.c && $(CC) /EP msvcver.c > msvcver.~ 2> nul]
+!message *** ERROR
+!message Cannot run Visual C to determine its version. Make sure cl.exe is in your PATH.
+!message This can usually be done by running "vcvarsall.bat", located in the bin directory where Visual Studio was installed.
+!error Make aborted.
+!else
+!include msvcver.~
+!if [del msvcver.c msvcver.~]
 !endif
 !endif
 
-# Abort building VIM if version of VC is unrecognised.
-!ifndef MSVCVER
-!message *** ERROR
-!message Cannot determine Visual C version being used.  If you are using the
-!message Windows SDK then you must have the environment variable MSVCVER set to
-!message your version of the VC compiler.  If you are not using the Express
-!message version of Visual C, you can either set MSVCVER or update this makefile
-!message to handle the new value for _NMAKE_VER, "$(_NMAKE_VER)".
-!error Make aborted.
+!if $(MSVCVER) < 1900
+MSVC_MAJOR = ($(MSVCVER) / 100 - 6)
+MSVCRT_VER = ($(MSVCVER) / 10 - 60)
+!else
+MSVC_MAJOR = ($(MSVCVER) / 100 - 5)
+MSVCRT_VER = ($(MSVCVER) / 10 - 50)
+!endif
+
+# Calculate MSVCRT_VER
+!if [(set /a MSVCRT_VER="$(MSVCRT_VER)" > nul) && set MSVCRT_VER > msvcrtver.~] == 0
+!include msvcrtver.~
+!if [del msvcrtver.~]
+!endif
+!endif
+
+# Base name of the msvcrXX.dll
+!if $(MSVCRT_VER) <= 60
+MSVCRT_NAME = msvcrt
+!else
+MSVCRT_NAME = msvcr$(MSVCRT_VER)
+!endif
+
+!if $(MSVC_MAJOR) == 6
+CPU = ix86
 !endif
 
 # Convert processor ID to MVC-compatible number
-!if ("$(MSVCVER)" != "8.0") && ("$(MSVCVER)" != "9.0") && ("$(MSVCVER)" != "10.0") && ("$(MSVCVER)" != "11.0") && ("$(MSVCVER)" != "12.0") && ("$(MSVCVER)" != "14.0")
+!if $(MSVC_MAJOR) < 8
 !if "$(CPUNR)" == "i386"
 CPUARG = /G3
 !elseif "$(CPUNR)" == "i486"
@@ -479,7 +435,7 @@ CPUARG =
 !endif
 !else
 # VC8/9/10 only allows specifying SSE architecture but only for 32bit
-!if "$(ASSEMBLY_ARCHITECTURE)" == "x86" && "$(CPUNR)" == "pentium4"
+!if "$(ASSEMBLY_ARCHITECTURE)" == "i386" && "$(CPUNR)" == "pentium4"
 CPUARG = /arch:SSE2
 !endif
 !endif
@@ -488,7 +444,7 @@ LIBC =
 DEBUGINFO = /Zi
 
 # Don't use /nodefaultlib on MSVC 14
-!if "$(MSVCVER)" == "14.0"
+!if $(MSVC_MAJOR) >= 14
 NODEFAULTLIB =
 !else
 NODEFAULTLIB = /nodefaultlib
@@ -504,7 +460,7 @@ OPTFLAG = /O2
 OPTFLAG = /Ox
 !endif
 
-!if ("$(MSVCVER)" == "8.0") || ("$(MSVCVER)" == "9.0") || ("$(MSVCVER)" == "10.0") || ("$(MSVCVER)" == "11.0") || ("$(MSVCVER)" == "12.0")
+!if $(MSVC_MAJOR) >= 8
 # Use link time code generation if not worried about size
 !if "$(OPTIMIZE)" != "SPACE"
 OPTFLAG = $(OPTFLAG) /GL
@@ -512,12 +468,13 @@ OPTFLAG = $(OPTFLAG) /GL
 !endif
 
 # (/Wp64 is deprecated in VC9 and generates an obnoxious warning.)
-!if ("$(MSVCVER)" == "7.0") || ("$(MSVCVER)" == "7.1") || ("$(MSVCVER)" == "8.0") 
+!if ($(MSVC_MAJOR) == 7) || ($(MSVC_MAJOR) == 8)
 CFLAGS=$(CFLAGS) $(WP64CHECK)
 !endif
 
-# Static code analysis generally available starting with VS2012
-!if ("$(ANALYZE)" == "yes") && (("$(MSVCVER)" == "10.0") || ("$(MSVCVER)" == "11.0") || ("$(MSVCVER)" == "12.0"))
+# Static code analysis generally available starting with VS2012 (VC11) or
+# Windows SDK 7.1 (VC10)
+!if ("$(ANALYZE)" == "yes") && ($(MSVC_MAJOR) >= 10)
 CFLAGS=$(CFLAGS) /analyze
 !endif
 
@@ -538,7 +495,7 @@ DEBUGINFO = /ZI
 CFLAGS = $(CFLAGS) -D_DEBUG -DDEBUG /Od
 RCFLAGS = $(rcflags) $(rcvars) -D_DEBUG -DDEBUG
 # The /fixed:no is needed for Quantify. Assume not 4.? as unsupported in VC4.0.
-! if "$(MSVCVER)" == "4.0"
+! if $(MSVC_MAJOR) == 4
 LIBC =
 ! else
 LIBC = /fixed:no
@@ -885,6 +842,11 @@ CFLAGS = $(CFLAGS) -DDYNAMIC_PERL -DDYNAMIC_PERL_DLL=\"$(PERL_DLL)\"
 
 PERL_EXE = $(PERL)\Bin$(PERL_ARCH)\perl
 PERL_INC = /I $(PERL_INCDIR)
+!if $(MSVC_MAJOR) <= 11
+# ActivePerl 5.20+ requires stdbool.h but VC2012 or earlier doesn't have it.
+# Use a stub stdbool.h.
+PERL_INC = $(PERL_INC) /I if_perl_msvc
+!endif
 PERL_OBJ = $(OUTDIR)\if_perl.obj $(OUTDIR)\if_perlsfio.obj
 XSUBPP = $(PERL)\lib\ExtUtils\xsubpp
 !if exist($(XSUBPP))
@@ -912,19 +874,39 @@ RUBY_API_VER = $(RUBY_VER_LONG:.=)
 !endif
 
 !if $(RUBY_VER) >= 18
+
 !ifndef RUBY_PLATFORM
+!if "$(CPU)" == "i386"
 RUBY_PLATFORM = i386-mswin32
-!endif
+!else # CPU
+RUBY_PLATFORM = x64-mswin64
+!endif # CPU
+!if $(MSVCRT_VER) >= 70
+RUBY_PLATFORM = $(RUBY_PLATFORM)_$(MSVCRT_VER)
+!endif # MSVCRT_VER
+!endif # RUBY_PLATFORM
+
 !ifndef RUBY_INSTALL_NAME
-RUBY_INSTALL_NAME = msvcrt-ruby$(RUBY_API_VER)
-!endif
-!else
+!ifndef RUBY_MSVCRT_NAME
+# Base name of msvcrXX.dll which is used by ruby's dll.
+RUBY_MSVCRT_NAME = $(MSVCRT_NAME)
+!endif # RUBY_MSVCRT_NAME
+!if "$(CPU)" == "i386"
+RUBY_INSTALL_NAME = $(RUBY_MSVCRT_NAME)-ruby$(RUBY_API_VER)
+!else # CPU
+RUBY_INSTALL_NAME = x64-$(RUBY_MSVCRT_NAME)-ruby$(RUBY_API_VER)
+!endif # CPU
+!endif # RUBY_INSTALL_NAME
+
+!else # $(RUBY_VER) >= 18
+
 !ifndef RUBY_PLATFORM
 RUBY_PLATFORM = i586-mswin32
 !endif
 !ifndef RUBY_INSTALL_NAME
 RUBY_INSTALL_NAME = mswin32-ruby$(RUBY_API_VER)
 !endif
+
 !endif # $(RUBY_VER) >= 18
 
 !message Ruby requested (version $(RUBY_VER)) - root dir is "$(RUBY)"
@@ -993,15 +975,20 @@ LINKARGS2 = $(CON_LIB) $(GUI_LIB) $(NODEFAULTLIB) $(LIBC) $(OLE_LIB) user32.lib 
 
 # Report link time code generation progress if used. 
 !ifdef NODEBUG
-!if ("$(MSVCVER)" == "8.0") || ("$(MSVCVER)" == "9.0") || ("$(MSVCVER)" == "10.0") || ("$(MSVCVER)" == "11.0") || ("$(MSVCVER)" == "12.0")
+!if $(MSVC_MAJOR) >= 8
 !if "$(OPTIMIZE)" != "SPACE"
 LINKARGS1 = $(LINKARGS1) /LTCG:STATUS
 !endif
 !endif
 !endif
 
-all:	$(VIM).exe vimrun.exe install.exe uninstal.exe xxd/xxd.exe \
-		GvimExt/gvimext.dll
+all:	$(VIM).exe \
+	vimrun.exe \
+	install.exe \
+	uninstal.exe \
+	xxd/xxd.exe \
+	tee/tee.exe \
+	GvimExt/gvimext.dll
 
 $(VIM).exe: $(OUTDIR) $(OBJ) $(GUI_OBJ) $(OLE_OBJ) $(OLE_IDL) $(MZSCHEME_OBJ) \
 		$(LUA_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) $(TCL_OBJ) \
@@ -1033,6 +1020,11 @@ vimrun.exe: vimrun.c
 
 xxd/xxd.exe: xxd/xxd.c
 	cd xxd
+	$(MAKE) /NOLOGO -f Make_mvc.mak
+	cd ..
+
+tee/tee.exe: tee/tee.c
+	cd tee
 	$(MAKE) /NOLOGO -f Make_mvc.mak
 	cd ..
 
@@ -1081,6 +1073,11 @@ test:
 	$(MAKE) /NOLOGO -f Make_dos.mak win32
 	cd ..
 
+testgvim:
+	cd testdir
+	$(MAKE) /NOLOGO -f Make_dos.mak VIMPROG=..\gvim win32
+	cd ..
+
 testclean:
 	cd testdir
 	$(MAKE) /NOLOGO -f Make_dos.mak clean
@@ -1090,7 +1087,7 @@ testclean:
 
 # Create a default rule for transforming .c files to .obj files in $(OUTDIR)
 # Batch compilation is supported by nmake 1.62 (part of VS 5.0) and later)
-!IF "$(MSVCVER)" == "4.0"
+!IF "$(_NMAKE_VER)" == ""
 .c{$(OUTDIR)/}.obj:
 !ELSE
 .c{$(OUTDIR)/}.obj::
@@ -1099,7 +1096,7 @@ testclean:
 
 # Create a default rule for transforming .cpp files to .obj files in $(OUTDIR)
 # Batch compilation is supported by nmake 1.62 (part of VS 5.0) and later)
-!IF "$(MSVCVER)" == "4.0"
+!IF "$(_NMAKE_VER)" == ""
 .cpp{$(OUTDIR)/}.obj:
 !ELSE
 .cpp{$(OUTDIR)/}.obj::

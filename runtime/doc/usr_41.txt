@@ -1,4 +1,4 @@
-*usr_41.txt*	For Vim version 7.4.  Last change: 2014 Aug 16
+*usr_41.txt*	For Vim version 7.4.  Last change: 2015 Nov 30
 
 		     VIM USER MANUAL - by Bram Moolenaar
 
@@ -888,6 +888,11 @@ Mappings:				    *mapping-functions*
 	maparg()		get rhs of a mapping
 	wildmenumode()		check if the wildmode is active
 
+Testing:				    *test-functions*
+	assert_equal()       	assert that two expressions values are equal
+	assert_false()		assert that an expression is false
+	assert_true()		assert that an expression is true
+
 Various:					*various-functions*
 	mode()			get current editing mode
 	visualmode()		last visual mode used
@@ -918,6 +923,7 @@ Various:					*various-functions*
 	mzeval()		evaluate |MzScheme| expression
 	py3eval()		evaluate Python expression (|+python3|)
 	pyeval()		evaluate Python expression (|+python|)
+	wordcount()             get byte/word/char count of buffer
 
 ==============================================================================
 *41.7*	Defining a function

@@ -686,7 +686,12 @@ py3_runtime_link_init(char *libname, int verbose)
     int
 python3_enabled(int verbose)
 {
-    return py3_runtime_link_init(DYNAMIC_PYTHON3_DLL, verbose) == OK;
+#ifdef WIN3264
+    char *dll = DYNAMIC_PYTHON3_DLL;
+#else
+    char *dll = *p_py3dll ? (char *)p_py3dll : DYNAMIC_PYTHON3_DLL;
+#endif
+    return py3_runtime_link_init(dll, verbose) == OK;
 }
 
 /* Load the standard Python exceptions - don't import the symbols from the
@@ -828,7 +833,7 @@ python3_end()
     --recurse;
 }
 
-#if (defined(DYNAMIC_PYTHON) && defined(FEAT_PYTHON)) || defined(PROTO)
+#if (defined(DYNAMIC_PYTHON3) && defined(DYNAMIC_PYTHON) && defined(FEAT_PYTHON) && defined(UNIX)) || defined(PROTO)
     int
 python3_loaded()
 {
@@ -853,7 +858,10 @@ Python3_Init(void)
 
 
 #ifdef PYTHON3_HOME
-	Py_SetPythonHome(PYTHON3_HOME);
+# ifdef DYNAMIC_PYTHON3
+	if (mch_getenv((char_u *)"PYTHONHOME") == NULL)
+# endif
+	    Py_SetPythonHome(PYTHON3_HOME);
 #endif
 
 	PyImport_AppendInittab("vim", Py3Init_vim);

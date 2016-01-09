@@ -2561,7 +2561,8 @@ do_mouse(oap, c, dir, count, fixindent)
 	    if (in_tab_line)
 	    {
 		c1 = TabPageIdxs[mouse_col];
-		tabpage_move(c1 <= 0 ? 9999 : c1 - 1);
+		tabpage_move(c1 <= 0 ? 9999 : c1 < tabpage_index(curtab)
+								? c1 - 1 : c1);
 	    }
 	    return FALSE;
 	}
@@ -4879,6 +4880,7 @@ dozet:
 
     case 't':	scroll_cursor_top(0, TRUE);
 		redraw_later(VALID);
+		set_fraction(curwin);
 		break;
 
 		/* "z." and "zz": put cursor in middle of screen */
@@ -4887,6 +4889,7 @@ dozet:
 
     case 'z':	scroll_cursor_halfway(TRUE);
 		redraw_later(VALID);
+		set_fraction(curwin);
 		break;
 
 		/* "z^", "z-" and "zb": put cursor at bottom of screen */
@@ -4909,6 +4912,7 @@ dozet:
 
     case 'b':	scroll_cursor_bot(0, TRUE);
 		redraw_later(VALID);
+		set_fraction(curwin);
 		break;
 
 		/* "zH" - scroll screen right half-page */
@@ -8266,7 +8270,7 @@ nv_g_cmd(cap)
      * "g CTRL-G": display info about cursor position
      */
     case Ctrl_G:
-	cursor_pos_info();
+	cursor_pos_info(NULL);
 	break;
 
     /*
@@ -9495,6 +9499,9 @@ nv_put(cap)
 	{
 	    curbuf->b_visual.vi_start = curbuf->b_op_start;
 	    curbuf->b_visual.vi_end = curbuf->b_op_end;
+	    /* need to adjust cursor position */
+	    if (*p_sel == 'e')
+		inc(&curbuf->b_visual.vi_end);
 	}
 
 	/* When all lines were selected and deleted do_put() leaves an empty
@@ -9595,7 +9602,7 @@ get_op_vcol(oap, redo_VIsual_vcol, initial)
 	    || (!initial && oap->end.col < W_WIDTH(curwin)))
 	return;
 
-    oap->block_mode = VIsual_active;
+    oap->block_mode = TRUE;
 
 #ifdef FEAT_MBYTE
     /* prevent from moving onto a trail byte */

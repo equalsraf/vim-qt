@@ -1080,7 +1080,7 @@ do_record(c)
 	    retval = FAIL;
 	else
 	{
-	    Recording = TRUE;
+	    Recording = c;
 	    showmode();
 	    regname = c;
 	    retval = OK;
@@ -1577,7 +1577,7 @@ get_spec_reg(regname, argp, allocated, errmsg)
 cmdline_paste_reg(regname, literally, remcr)
     int regname;
     int literally;	/* Insert text literally instead of "as typed" */
-    int remcr;		/* don't add trailing CR */
+    int remcr;		/* don't add CR characters */
 {
     long	i;
 
@@ -1590,12 +1590,8 @@ cmdline_paste_reg(regname, literally, remcr)
 	cmdline_paste_str(y_current->y_array[i], literally);
 
 	/* Insert ^M between lines and after last line if type is MLINE.
-	 * Don't do this when "remcr" is TRUE and the next line is empty. */
-	if (y_current->y_type == MLINE
-		|| (i < y_current->y_size - 1
-		    && !(remcr
-			&& i == y_current->y_size - 2
-			&& *y_current->y_array[i + 1] == NUL)))
+	 * Don't do this when "remcr" is TRUE. */
+	if ((y_current->y_type == MLINE || i < y_current->y_size - 1) && !remcr)
 	    cmdline_paste_str((char_u *)"\r", literally);
 
 	/* Check for CTRL-C, in case someone tries to paste a few thousand
@@ -5383,7 +5379,7 @@ do_addsub(command, Prenum1, g_cmd)
     int		col;
     char_u	*buf1;
     char_u	buf2[NUMBUFLEN];
-    int		hex;		/* 'X' or 'x': hex; '0': octal */
+    int		pre;		/* 'X'/'x': hex; '0': octal; 'B'/'b': bin */
     static int	hexupper = FALSE;	/* 0xABC */
     unsigned long n;
     unsigned long offset = 0;		/* line offset for Ctrl_V mode */
@@ -5394,6 +5390,7 @@ do_addsub(command, Prenum1, g_cmd)
     int		todel;
     int		dohex;
     int		dooct;
+    int		dobin;
     int		doalp;
     int		firstdigit;
     int		subtract;
@@ -5407,9 +5404,13 @@ do_addsub(command, Prenum1, g_cmd)
     int		did_change = FALSE;
     pos_T	t = curwin->w_cursor;
     int		maxlen = 0;
+    int		pos = 0;
+    int		bit = 0;
+    int		bits = sizeof(unsigned long) * 8;
 
     dohex = (vim_strchr(curbuf->b_p_nf, 'x') != NULL);	/* "heX" */
     dooct = (vim_strchr(curbuf->b_p_nf, 'o') != NULL);	/* "Octal" */
+    dobin = (vim_strchr(curbuf->b_p_nf, 'b') != NULL);	/* "Bin" */
     doalp = (vim_strchr(curbuf->b_p_nf, 'p') != NULL);	/* "alPha" */
 
     /*
@@ -5458,17 +5459,45 @@ do_addsub(command, Prenum1, g_cmd)
 	ptr = ml_get_curline();
 	RLADDSUBFIX(ptr);
 
+	if (dobin)
+	    while (col > 0 && vim_isbdigit(ptr[col]))
+		--col;
+
 	if (dohex)
 	    while (col > 0 && vim_isxdigit(ptr[col]))
 		--col;
-	if (       dohex
+
+	if (       dobin
+		&& dohex
+		&& ! ((col > 0
+		    && (ptr[col] == 'X'
+			|| ptr[col] == 'x')
+		    && ptr[col - 1] == '0'
+		    && vim_isxdigit(ptr[col + 1]))))
+	{
+
+	    /* In case of binary/hexadecimal pattern overlap match, rescan */
+
+	    col = curwin->w_cursor.col;
+
+	    while (col > 0 && vim_isdigit(ptr[col]))
+		col--;
+	}
+
+	if ((       dohex
 		&& col > 0
 		&& (ptr[col] == 'X'
 		    || ptr[col] == 'x')
 		&& ptr[col - 1] == '0'
-		&& vim_isxdigit(ptr[col + 1]))
+		&& vim_isxdigit(ptr[col + 1])) ||
+	    (       dobin
+		&& col > 0
+		&& (ptr[col] == 'B'
+		    || ptr[col] == 'b')
+		&& ptr[col - 1] == '0'
+		&& vim_isbdigit(ptr[col + 1])))
 	{
-	    /* Found hexadecimal number, move to its start. */
+	    /* Found hexadecimal or binary number, move to its start. */
 	    --col;
 	}
 	else
@@ -5613,11 +5642,14 @@ do_addsub(command, Prenum1, g_cmd)
 					: curwin->w_cursor.col - col + 1);
 	    }
 
-	    vim_str2nr(ptr + col, &hex, &length, dooct, dohex, NULL, &n,
-								      maxlen);
+	    vim_str2nr(ptr + col, &pre, &length,
+		    0 + (dobin ? STR2NR_BIN : 0)
+		      + (dooct ? STR2NR_OCT : 0)
+		      + (dohex ? STR2NR_HEX : 0),
+		    NULL, &n, maxlen);
 
-	    /* ignore leading '-' for hex and octal numbers */
-	    if (hex && negative)
+	    /* ignore leading '-' for hex and octal and bin numbers */
+	    if (pre && negative)
 	    {
 		++col;
 		--length;
@@ -5638,7 +5670,7 @@ do_addsub(command, Prenum1, g_cmd)
 		n += (unsigned long)Prenum1;
 
 	    /* handle wraparound for decimal numbers */
-	    if (!hex)
+	    if (!pre)
 	    {
 		if (subtract)
 		{
@@ -5710,25 +5742,37 @@ do_addsub(command, Prenum1, g_cmd)
 	    {
 		*ptr++ = '-';
 	    }
-	    if (hex)
+	    if (pre)
 	    {
 		*ptr++ = '0';
 		--length;
 	    }
-	    if (hex == 'x' || hex == 'X')
+	    if (pre == 'b' || pre == 'B' || 
+		pre == 'x' || pre == 'X')
 	    {
-		*ptr++ = hex;
+		*ptr++ = pre;
 		--length;
 	    }
 
 	    /*
 	     * Put the number characters in buf2[].
 	     */
-	    if (hex == 0)
+	    if (pre == 'b' || pre == 'B')
+	    {
+		/* leading zeros */
+		for (bit = bits; bit > 0; bit--)
+		    if ((n >> (bit - 1)) & 0x1) break;
+
+		for (pos = 0; bit > 0; bit--)
+		    buf2[pos++] = ((n >> (bit - 1)) & 0x1) ? '1' : '0';
+
+		buf2[pos] = '\0';
+	    }
+	    else if (pre == 0)
 		sprintf((char *)buf2, "%lu", n);
-	    else if (hex == '0')
+	    else if (pre == '0')
 		sprintf((char *)buf2, "%lo", n);
-	    else if (hex && hexupper)
+	    else if (pre && hexupper)
 		sprintf((char *)buf2, "%lX", n);
 	    else
 		sprintf((char *)buf2, "%lx", n);
@@ -5740,7 +5784,7 @@ do_addsub(command, Prenum1, g_cmd)
 	     * Don't do this when
 	     * the result may look like an octal number.
 	     */
-	    if (firstdigit == '0' && !(dooct && hex == 0))
+	    if (firstdigit == '0' && !(dooct && pre == 0))
 		while (length-- > 0)
 		    *ptr++ = '0';
 	    *ptr = NUL;
@@ -6363,7 +6407,7 @@ get_reg_type(regname, reglen)
 #endif
 
     if (regname != NUL && !valid_yank_reg(regname, FALSE))
-        return MAUTO;
+	return MAUTO;
 
     get_yank_register(regname, FALSE);
 
@@ -6919,15 +6963,20 @@ line_count_info(line, wc, cc, limit, eol_size)
  * Give some info about the position of the cursor (for "g CTRL-G").
  * In Visual mode, give some info about the selected region.  (In this case,
  * the *_count_cursor variables store running totals for the selection.)
+ * When "dict" is not NULL store the info there instead of showing it.
  */
     void
-cursor_pos_info()
+cursor_pos_info(dict)
+    dict_T	*dict;
 {
     char_u	*p;
     char_u	buf1[50];
     char_u	buf2[40];
     linenr_T	lnum;
     long	byte_count = 0;
+#ifdef FEAT_MBYTE
+    long	bom_count  = 0;
+#endif
     long	byte_count_cursor = 0;
     long	char_count = 0;
     long	char_count_cursor = 0;
@@ -6945,7 +6994,11 @@ cursor_pos_info()
      */
     if (curbuf->b_ml.ml_flags & ML_EMPTY)
     {
-	MSG(_(no_lines_msg));
+	if (dict == NULL)
+	{
+	    MSG(_(no_lines_msg));
+	    return;
+	}
     }
     else
     {
@@ -7078,74 +7131,98 @@ cursor_pos_info()
 	if (!curbuf->b_p_eol && (curbuf->b_p_bin || !curbuf->b_p_fixeol))
 	    byte_count -= eol_size;
 
-	if (VIsual_active)
+	if (dict == NULL)
 	{
-	    if (VIsual_mode == Ctrl_V && curwin->w_curswant < MAXCOL)
+	    if (VIsual_active)
 	    {
-		getvcols(curwin, &min_pos, &max_pos, &min_pos.col,
-								&max_pos.col);
-		vim_snprintf((char *)buf1, sizeof(buf1), _("%ld Cols; "),
-			(long)(oparg.end_vcol - oparg.start_vcol + 1));
+		if (VIsual_mode == Ctrl_V && curwin->w_curswant < MAXCOL)
+		{
+		    getvcols(curwin, &min_pos, &max_pos, &min_pos.col,
+								    &max_pos.col);
+		    vim_snprintf((char *)buf1, sizeof(buf1), _("%ld Cols; "),
+			    (long)(oparg.end_vcol - oparg.start_vcol + 1));
+		}
+		else
+		    buf1[0] = NUL;
+
+		if (char_count_cursor == byte_count_cursor
+						    && char_count == byte_count)
+		    vim_snprintf((char *)IObuff, IOSIZE,
+			    _("Selected %s%ld of %ld Lines; %ld of %ld Words; %ld of %ld Bytes"),
+			    buf1, line_count_selected,
+			    (long)curbuf->b_ml.ml_line_count,
+			    word_count_cursor, word_count,
+			    byte_count_cursor, byte_count);
+		else
+		    vim_snprintf((char *)IObuff, IOSIZE,
+			    _("Selected %s%ld of %ld Lines; %ld of %ld Words; %ld of %ld Chars; %ld of %ld Bytes"),
+			    buf1, line_count_selected,
+			    (long)curbuf->b_ml.ml_line_count,
+			    word_count_cursor, word_count,
+			    char_count_cursor, char_count,
+			    byte_count_cursor, byte_count);
 	    }
 	    else
-		buf1[0] = NUL;
+	    {
+		p = ml_get_curline();
+		validate_virtcol();
+		col_print(buf1, sizeof(buf1), (int)curwin->w_cursor.col + 1,
+			(int)curwin->w_virtcol + 1);
+		col_print(buf2, sizeof(buf2), (int)STRLEN(p),
+				    linetabsize(p));
 
-	    if (char_count_cursor == byte_count_cursor
-						  && char_count == byte_count)
-		vim_snprintf((char *)IObuff, IOSIZE,
-			_("Selected %s%ld of %ld Lines; %ld of %ld Words; %ld of %ld Bytes"),
-			buf1, line_count_selected,
+		if (char_count_cursor == byte_count_cursor
+			&& char_count == byte_count)
+		    vim_snprintf((char *)IObuff, IOSIZE,
+			_("Col %s of %s; Line %ld of %ld; Word %ld of %ld; Byte %ld of %ld"),
+			(char *)buf1, (char *)buf2,
+			(long)curwin->w_cursor.lnum,
 			(long)curbuf->b_ml.ml_line_count,
 			word_count_cursor, word_count,
 			byte_count_cursor, byte_count);
-	    else
-		vim_snprintf((char *)IObuff, IOSIZE,
-			_("Selected %s%ld of %ld Lines; %ld of %ld Words; %ld of %ld Chars; %ld of %ld Bytes"),
-			buf1, line_count_selected,
+		else
+		    vim_snprintf((char *)IObuff, IOSIZE,
+			_("Col %s of %s; Line %ld of %ld; Word %ld of %ld; Char %ld of %ld; Byte %ld of %ld"),
+			(char *)buf1, (char *)buf2,
+			(long)curwin->w_cursor.lnum,
 			(long)curbuf->b_ml.ml_line_count,
 			word_count_cursor, word_count,
 			char_count_cursor, char_count,
 			byte_count_cursor, byte_count);
-	}
-	else
-	{
-	    p = ml_get_curline();
-	    validate_virtcol();
-	    col_print(buf1, sizeof(buf1), (int)curwin->w_cursor.col + 1,
-		    (int)curwin->w_virtcol + 1);
-	    col_print(buf2, sizeof(buf2), (int)STRLEN(p),
-				linetabsize(p));
-
-	    if (char_count_cursor == byte_count_cursor
-		    && char_count == byte_count)
-		vim_snprintf((char *)IObuff, IOSIZE,
-		    _("Col %s of %s; Line %ld of %ld; Word %ld of %ld; Byte %ld of %ld"),
-		    (char *)buf1, (char *)buf2,
-		    (long)curwin->w_cursor.lnum,
-		    (long)curbuf->b_ml.ml_line_count,
-		    word_count_cursor, word_count,
-		    byte_count_cursor, byte_count);
-	    else
-		vim_snprintf((char *)IObuff, IOSIZE,
-		    _("Col %s of %s; Line %ld of %ld; Word %ld of %ld; Char %ld of %ld; Byte %ld of %ld"),
-		    (char *)buf1, (char *)buf2,
-		    (long)curwin->w_cursor.lnum,
-		    (long)curbuf->b_ml.ml_line_count,
-		    word_count_cursor, word_count,
-		    char_count_cursor, char_count,
-		    byte_count_cursor, byte_count);
+	    }
 	}
 
 #ifdef FEAT_MBYTE
-	byte_count = bomb_size();
-	if (byte_count > 0)
-	    sprintf((char *)IObuff + STRLEN(IObuff), _("(+%ld for BOM)"),
-								  byte_count);
+	bom_count = bomb_size();
+	if (bom_count > 0)
+	    vim_snprintf((char *)IObuff + STRLEN(IObuff), IOSIZE,
+					      _("(+%ld for BOM)"), bom_count);
 #endif
-	/* Don't shorten this message, the user asked for it. */
-	p = p_shm;
-	p_shm = (char_u *)"";
-	msg(IObuff);
-	p_shm = p;
+	if (dict == NULL)
+	{
+	    /* Don't shorten this message, the user asked for it. */
+	    p = p_shm;
+	    p_shm = (char_u *)"";
+	    msg(IObuff);
+	    p_shm = p;
+	}
     }
+#if defined(FEAT_EVAL)
+    if (dict != NULL)
+    {
+	dict_add_nr_str(dict, "words", (long)word_count, NULL);
+	dict_add_nr_str(dict, "chars", (long)char_count, NULL);
+	dict_add_nr_str(dict, "bytes", (long)byte_count
+# ifdef FEAT_MBYTE
+		+ bom_count
+# endif
+		, NULL);
+	dict_add_nr_str(dict, VIsual_active ? "visual_bytes" : "cursor_bytes",
+		(long)byte_count_cursor, NULL);
+	dict_add_nr_str(dict, VIsual_active ? "visual_chars" : "cursor_chars",
+		(long)char_count_cursor, NULL);
+	dict_add_nr_str(dict, VIsual_active ? "visual_words" : "cursor_words",
+		(long)word_count_cursor, NULL);
+    }
+#endif
 }

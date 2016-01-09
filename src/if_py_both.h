@@ -465,11 +465,29 @@ OutputWritelines(OutputObject *self, PyObject *seq)
 }
 
     static PyObject *
-OutputFlush(PyObject *self UNUSED)
+AlwaysNone(PyObject *self UNUSED)
 {
     /* do nothing */
     Py_INCREF(Py_None);
     return Py_None;
+}
+
+    static PyObject *
+AlwaysFalse(PyObject *self UNUSED)
+{
+    /* do nothing */
+    PyObject	*ret = Py_False;
+    Py_INCREF(ret);
+    return ret;
+}
+
+    static PyObject *
+AlwaysTrue(PyObject *self UNUSED)
+{
+    /* do nothing */
+    PyObject	*ret = Py_True;
+    Py_INCREF(ret);
+    return ret;
 }
 
 /***************/
@@ -478,7 +496,12 @@ static struct PyMethodDef OutputMethods[] = {
     /* name,	    function,				calling,	doc */
     {"write",	    (PyCFunction)OutputWrite,		METH_O,		""},
     {"writelines",  (PyCFunction)OutputWritelines,	METH_O,		""},
-    {"flush",	    (PyCFunction)OutputFlush,		METH_NOARGS,	""},
+    {"flush",	    (PyCFunction)AlwaysNone,		METH_NOARGS,	""},
+    {"close",	    (PyCFunction)AlwaysNone,		METH_NOARGS,	""},
+    {"isatty",	    (PyCFunction)AlwaysFalse,		METH_NOARGS,	""},
+    {"readable",    (PyCFunction)AlwaysFalse,		METH_NOARGS,	""},
+    {"seekable",    (PyCFunction)AlwaysFalse,		METH_NOARGS,	""},
+    {"writable",    (PyCFunction)AlwaysTrue,		METH_NOARGS,	""},
     {"__dir__",	    (PyCFunction)OutputDir,		METH_NOARGS,	""},
     { NULL,	    NULL,				0,		NULL}
 };

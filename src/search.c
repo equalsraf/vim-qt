@@ -578,6 +578,7 @@ last_pat_prog(regmatch)
  * if (options & SEARCH_KEEP) keep previous search pattern
  * if (options & SEARCH_FOLD) match only once in a closed fold
  * if (options & SEARCH_PEEK) check for typed char, cancel search
+ * if (options & SEARCH_COL) start at pos->col instead of zero
  *
  * Return FAIL (zero) for failure, non-zero for success.
  * When FEAT_EVAL is defined, returns the index of the first matching
@@ -599,6 +600,7 @@ searchit(win, buf, pos, dir, pat, count, options, pat_use, stop_lnum, tm)
 {
     int		found;
     linenr_T	lnum;		/* no init to shut up Apollo cc */
+    colnr_T	col;
     regmmatch_T	regmatch;
     char_u	*ptr;
     colnr_T	matchcol;
@@ -711,12 +713,14 @@ searchit(win, buf, pos, dir, pat, count, options, pat_use, stop_lnum, tm)
 		/*
 		 * Look for a match somewhere in line "lnum".
 		 */
+		col = at_first_line && (options & SEARCH_COL) ? pos->col
+								 : (colnr_T)0;
 		nmatched = vim_regexec_multi(&regmatch, win, buf,
-						      lnum, (colnr_T)0,
+					     lnum, col,
 #ifdef FEAT_RELTIME
-						      tm
+					     tm
 #else
-						      NULL
+					     NULL
 #endif
 						      );
 		/* Abort searching on an error (e.g., out of stack). */
@@ -1098,6 +1102,7 @@ set_vv_searchforward()
 
 /*
  * Return the number of the first subpat that matched.
+ * Return zero if none of them matched.
  */
     static int
 first_submatch(rp)
@@ -1801,7 +1806,7 @@ find_rawstring_end(linep, startpos, endpos)
     for (p = linep + startpos->col + 1; *p && *p != '('; ++p)
 	;
     delim_len = (p - linep) - startpos->col - 1;
-    delim_copy = vim_strnsave(linep + startpos->col + 1, delim_len);
+    delim_copy = vim_strnsave(linep + startpos->col + 1, (int)delim_len);
     if (delim_copy == NULL)
 	return FALSE;
     for (lnum = startpos->lnum; lnum <= endpos->lnum; ++lnum)
@@ -3799,7 +3804,7 @@ current_block(oap, count, include, what, other)
     if (VIsual_active)
     {
 	if (*p_sel == 'e')
-	    ++curwin->w_cursor.col;
+	    inc(&curwin->w_cursor);
 	if (sol && gchar_cursor() != NUL)
 	    inc(&curwin->w_cursor);	/* include the line break */
 	VIsual = start_pos;

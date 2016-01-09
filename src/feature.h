@@ -60,7 +60,7 @@
  */
 #if !defined(FEAT_TINY) && !defined(FEAT_SMALL) && !defined(FEAT_NORMAL) \
 	&& !defined(FEAT_BIG) && !defined(FEAT_HUGE)
-# if defined(MSWIN) || defined(DJGPP) || defined(OS2) || defined(VMS) || defined(MACOS) || defined(AMIGA)
+# if defined(MSWIN) || defined(DJGPP) || defined(VMS) || defined(MACOS) || defined(AMIGA)
 #  define FEAT_BIG
 # else
 #  ifdef MSDOS
@@ -677,9 +677,6 @@
 # define ESC_CHG_TO_ENG_MODE		/* if defined, when ESC pressed,
 					 * turn to english mode
 					 */
-# if !defined(FEAT_XFONTSET) && defined(HAVE_X11) && !defined(FEAT_GUI_GTK)
-#  define FEAT_XFONTSET			/* Hangul input requires xfontset */
-# endif
 # if defined(FEAT_XIM) && !defined(LINT)
 	Error: You should select only ONE of XIM and HANGUL INPUT
 # endif
@@ -687,7 +684,6 @@
 #if defined(FEAT_HANGULIN) || defined(FEAT_XIM)
 /* # define X_LOCALE */			/* for OS with incomplete locale
 					   support, like old linux versions. */
-/* # define SLOW_XSERVER */		/* for extremely slow X server */
 #endif
 
 /*
@@ -1050,7 +1046,7 @@
  * +mouse		Any mouse support (any of the above enabled).
  */
 /* OS/2 and Amiga console have no mouse support */
-#if !defined(AMIGA) && !defined(OS2)
+#if !defined(AMIGA)
 # ifdef FEAT_NORMAL
 #  define FEAT_MOUSE_XTERM
 # endif

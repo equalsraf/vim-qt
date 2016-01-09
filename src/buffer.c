@@ -547,7 +547,6 @@ buf_clear_file(buf)
     buf->b_shortname = FALSE;
 #endif
     buf->b_p_eol = TRUE;
-    buf->b_p_fixeol = TRUE;
     buf->b_start_eol = TRUE;
 #ifdef FEAT_MBYTE
     buf->b_p_bomb = FALSE;
@@ -1992,6 +1991,7 @@ free_buf_options(buf, free_p_ff)
     clear_string_option(&buf->b_p_ep);
     clear_string_option(&buf->b_p_path);
     clear_string_option(&buf->b_p_tags);
+    clear_string_option(&buf->b_p_tc);
 #ifdef FEAT_INS_EXPAND
     clear_string_option(&buf->b_p_dict);
     clear_string_option(&buf->b_p_tsr);

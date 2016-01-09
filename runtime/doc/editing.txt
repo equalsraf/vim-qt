@@ -1,4 +1,4 @@
-*editing.txt*   For Vim version 7.4.  Last change: 2015 Jul 28
+*editing.txt*   For Vim version 7.4.  Last change: 2016 Jan 03
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -78,7 +78,9 @@ g CTRL-G		Prints the current position of the cursor in five
 			than one position on the screen (<Tab> or special
 			character), both the "real" column and the screen
 			column are shown, separated with a dash.
-			See also 'ruler' option.  {not in Vi}
+			Also see the 'ruler' option and the |wordcount()|
+			function.
+			{not in Vi}
 
 							*v_g_CTRL-G*
 {Visual}g CTRL-G	Similar to "g CTRL-G", but Word, Character, Line, and
@@ -415,6 +417,7 @@ Finds files:
 On Unix and a few other systems you can also use backticks for the file name
 argument, for example: >
 	:next `find . -name ver\\*.c -print`
+	:view `ls -t *.patch  \| head -n1`
 The backslashes before the star are required to prevent the shell from
 expanding "ver*.c" prior to execution of the find program.  The backslash
 before the shell pipe symbol "|" prevents Vim from parsing it as command
@@ -432,13 +435,11 @@ The expression can contain just about anything, thus this can also be used to
 avoid the special meaning of '"', '|', '%' and '#'.  However, 'wildignore'
 does apply like to other wildcards.
 
-Environment variables are expanded before evaluating the expression, thus this
-does not work: >
-	:e `=$HOME . '.vimrc'`
-Because $HOME is expanding early, resulting in: >
-	:e `=/home/user . '.vimrc'`
-This does work: >
-	:e `=expand('$HOME') . '.vimrc'`
+Environment variables in the expression are expanded when evaluating the
+expression, thus this works: >
+	:e `=$HOME . '/.vimrc'`
+This does not work, $HOME is inside a string and used literally: >
+	:e `='$HOME' . '/.vimrc'`
 
 If the expression returns a string then names are to be separated with line
 breaks.  When the result is a |List| then each item is used as a name.  Line
@@ -869,7 +870,8 @@ USING THE ARGUMENT LIST
 			each file.
 			{not in Vi} {not available when compiled without the
 			|+listcmds| feature}
-			Also see |:windo|, |:tabdo| and |:bufdo|.
+			Also see |:windo|, |:tabdo|, |:bufdo|, |:cdo|, |:ldo|,
+			|:cfdo| and |:lfdo|
 
 Example: >
 	:args *.c
@@ -1105,10 +1107,10 @@ The names can be in upper- or lowercase.
 			the last file in the argument list has not been
 			edited.  See |:confirm| and 'confirm'.  {not in Vi}
 
-:q[uit]!		Quit without writing, also when currently visible
-			buffers have changes.  Does not exit when this is the
-			last window and there is a changed hidden buffer.
-			In this case, the first changed hidden buffer becomes
+:q[uit]!		Quit without writing, also when the current buffer has
+			changes.  If this is the last window and there is a
+			modified hidden buffer, the current buffer is
+			abandoned and the first changed hidden buffer becomes
 			the current buffer.
 			Use ":qall!" to exit always.
 
@@ -1407,7 +1409,7 @@ reveal it to others.  The 'viminfo' file is not encrypted.
 You could do this to edit very secret text: >
 	:set noundofile viminfo=
 	:noswapfile edit secrets.txt
-Keep in mind that without a swap file you risk loosing your work in the event
+Keep in mind that without a swap file you risk losing your work in the event
 of a crash or a power failure.
 
 WARNING: If you make a typo when entering the key and then write the file and

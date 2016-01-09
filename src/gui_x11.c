@@ -1127,11 +1127,16 @@ gui_x11_mouse_cb(w, dud, event, dum)
 			gui_x11_timer_cb, &timed_out);
 	    switch (event->xbutton.button)
 	    {
+		/* keep in sync with gui_gtk_x11.c */
 		case Button1:	button = MOUSE_LEFT;	break;
 		case Button2:	button = MOUSE_MIDDLE;	break;
 		case Button3:	button = MOUSE_RIGHT;	break;
 		case Button4:	button = MOUSE_4;	break;
 		case Button5:	button = MOUSE_5;	break;
+		case 6:		button = MOUSE_7;	break;
+		case 7:		button = MOUSE_6;	break;
+		case 8:		button = MOUSE_X1;	break;
+		case 9:		button = MOUSE_X2;	break;
 		default:
 		    return;	/* Unknown button */
 	    }
@@ -2895,9 +2900,8 @@ gui_mch_wait_for_chars(wtime)
 	    focus = gui.in_focus;
 	}
 
-#if defined(FEAT_NETBEANS_INTG)
-	/* Process any queued netbeans messages. */
-	netbeans_parse_messages();
+#ifdef MESSAGE_QUEUE
+	parse_queued_messages();
 #endif
 
 	/*
@@ -3199,7 +3203,7 @@ gui_x11_send_event_handler(w, client_data, event, dum)
     if (e->type == PropertyNotify && e->window == commWindow
 	    && e->atom == commProperty &&  e->state == PropertyNewValue)
     {
-	serverEventProc(gui.dpy, event);
+	serverEventProc(gui.dpy, event, 0);
     }
 }
 #endif
