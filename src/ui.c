@@ -3179,7 +3179,7 @@ mouse_find_win(rowp, colp)
 
 #if defined(FEAT_GUI_MOTIF) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_MAC) \
 	|| defined(FEAT_GUI_ATHENA) || defined(FEAT_GUI_MSWIN) \
-	|| defined(FEAT_GUI_PHOTON) || defined(PROTO)
+	|| defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_QT) || defined(PROTO)
 /*
  * Translate window coordinates to buffer position without any side effects
  */
