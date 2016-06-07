@@ -48,6 +48,7 @@ void gui_mch_flush (void);
 int gui_mch_haskey (char_u *name);
 void gui_mch_beep (void);
 void gui_mch_flash (int msec);
+int gui_mch_is_blinking(void);
 void gui_mch_set_blinking (long wait, long on, long off);
 void gui_mch_stop_blink (void);
 void gui_mch_start_blink (void);
