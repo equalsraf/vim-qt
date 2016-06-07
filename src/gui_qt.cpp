@@ -132,7 +132,7 @@ gui_mch_get_font(char_u *name, int giveErrorIfMissing)
 	//
 	QFontInfo fi(font);
 
-	if ( fi.family().compare(font.family(), Qt::CaseInsensitive) != 0 && 
+	if ( fi.family().compare(font.family(), Qt::CaseInsensitive) != 0 &&
 		font.family().compare("Monospace", Qt::CaseInsensitive) != 0) {
 
 		if ( giveErrorIfMissing ) {
@@ -218,8 +218,8 @@ gui_mch_update()
 }
 
 
-/** 
- * Flush any output to the screen 
+/**
+ * Flush any output to the screen
  */
 void
 gui_mch_flush()
@@ -278,7 +278,7 @@ gui_mch_stop_blink()
  * Sound the bell
  */
 void
-gui_mch_beep() 
+gui_mch_beep()
 {
 	if ( !QApplication::instance() )
 		return;
@@ -414,7 +414,7 @@ gui_mch_get_rgb(guicolor_T pixel)
 void
 gui_mch_clear_block(int row1, int col1, int row2, int col2)
 {
-	QRect rect = VimWrapper::mapBlock(row1, col1, row2, col2); 
+	QRect rect = VimWrapper::mapBlock(row1, col1, row2, col2);
 
 	QVimShell::PaintOperation op;
 	op.type = QVimShell::FILLRECT;
@@ -436,7 +436,7 @@ clear_shell_border()
 
 	tl.setX(0);
 	tl.setY( vimshell->height() - (vimshell->height() % gui.char_height ));
-	
+
 	br.setX(vimshell->width());
 	br.setY(vimshell->height());
 
@@ -454,7 +454,7 @@ clear_shell_border()
 void
 gui_mch_insert_lines(int row, int num_lines)
 {
-	QRect scrollRect = VimWrapper::mapBlock(row, gui.scroll_region_left, 
+	QRect scrollRect = VimWrapper::mapBlock(row, gui.scroll_region_left,
 					gui.scroll_region_bot, gui.scroll_region_right);
 
 	QVimShell::PaintOperation op1;
@@ -475,7 +475,7 @@ void
 gui_mch_delete_lines(int row, int num_lines)
 {
 	// This used to be Bottom+1 and right+1
-	QRect scrollRect = VimWrapper::mapBlock(row, gui.scroll_region_left, 
+	QRect scrollRect = VimWrapper::mapBlock(row, gui.scroll_region_left,
 					gui.scroll_region_bot, gui.scroll_region_right);
 
 	QVimShell::PaintOperation op;
@@ -550,7 +550,7 @@ gui_mch_init()
 	clip_star.clipboardMode = QClipboard::Selection;
 	clip_plus.clipboardMode = QClipboard::Clipboard;
 
-	display_errors();
+    display_errors();
 
 	/* Colors */
 	gui.norm_pixel = VimWrapper::toColor(QColor(Qt::black));
@@ -578,7 +578,7 @@ gui_mch_init()
 }
 
 /**
- * Set blinking time duration 
+ * Set blinking time duration
  *
  */
 void
@@ -821,7 +821,7 @@ gui_mch_init_check()
 
 /**
  * Own the selection and return OK if it worked.
- * 
+ *
  */
 int
 clip_mch_own_selection(VimClipboard *cbd)
@@ -939,9 +939,9 @@ gui_mch_draw_hollow_cursor(guicolor_T color)
 	int w = gui.char_width;
 	int h = gui.char_height;
 
-	QPoint tl = QPoint(FILL_X(gui.col), 
+	QPoint tl = QPoint(FILL_X(gui.col),
 			FILL_Y(gui.row) + gui.char_height-h );
-	QPoint br = QPoint(FILL_X(gui.col)+w-2, 
+	QPoint br = QPoint(FILL_X(gui.col)+w-2,
 			FILL_Y(gui.row)+gui.char_height-2);
 	QRect rect(tl, br);
 
@@ -983,7 +983,7 @@ gui_mch_draw_part_cursor(int w, int h, guicolor_T color)
  * Set the current text special color.
  */
 void
-gui_mch_set_sp_color(guicolor_T color) 
+gui_mch_set_sp_color(guicolor_T color)
 {
 	if ( color != INVALCOLOR ) {
 		specialColor = VimWrapper::fromColor(color);
@@ -1002,7 +1002,7 @@ gui_mch_draw_string(
     int		flags)
 {
 	QString str = VimWrapper::convertFrom(s, len);
-	
+
 	// Font
 	QFont f = vimshell->font();
 	f.setBold( flags & DRAW_BOLD);
@@ -1302,7 +1302,7 @@ gui_mch_new_menu_font()
 }
 
 /**
- * Destroy menu 
+ * Destroy menu
  *
  * Remove menu from parent and delete it
  */
@@ -1360,8 +1360,8 @@ gui_mch_def_colors()
 
 //
 //
-// Scrollbar 
-// 
+// Scrollbar
+//
 
 void
 gui_mch_set_scrollbar_thumb(scrollbar_T *sb, long val, long size, long max)
@@ -1512,7 +1512,7 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 	QMessageBox msgBox(window);
 	msgBox.setText( VimWrapper::convertFrom(message) );
 	msgBox.setWindowTitle( VimWrapper::convertFrom(title) );
-	
+
 	// Set icon
 	QMessageBox::Icon icon;
 	switch (type)
@@ -1532,7 +1532,7 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 		case VIM_QUESTION:
 			icon = QMessageBox::Question;
 			break;
-		default:      
+		default:
 			icon = QMessageBox::NoIcon;
 	};
 	msgBox.setIcon(icon);
@@ -1582,7 +1582,7 @@ gui_mch_dialog(int type, char_u *title, char_u *message, char_u *buttons, int df
 }
 
 //
-// TabLine 
+// TabLine
 //
 
 /**
@@ -1645,7 +1645,7 @@ gui_mch_set_curtab(int nr)
  * Launch font selection dialog
  * @oldval is the name of the current font
  *
- * @return The name of the font or NULL on cancel 
+ * @return The name of the font or NULL on cancel
  */
 char_u *
 gui_mch_font_dialog(char_u *oldval)
@@ -1688,7 +1688,7 @@ out:
 
 /**
  * Draw an icon in the shell widget
- * 
+ *
  */
 void
 gui_mch_drawsign(int row, int col, int typenr)
@@ -1753,7 +1753,7 @@ gui_mch_register_sign(char_u *signfile)
 			return NULL;
 		}
 	}
-	
+
 	if ( icon.availableSizes().isEmpty() ) {
 		return NULL;
 	}
