@@ -5043,7 +5043,7 @@ gui_find_iconfile(char_u *name, char_u *buffer, char *ext)
 # endif
 #endif
 
-#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11) || defined(PROTO)
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11) || defined(PROTO) || defined(FEAT_GUI_QT)
     void
 display_errors(void)
 {
