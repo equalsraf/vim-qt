@@ -577,6 +577,12 @@ gui_mch_init()
 	return OK;
 }
 
+int
+gui_mch_is_blinking(void)
+{
+    return FALSE;
+}
+
 /**
  * Set blinking time duration
  *
