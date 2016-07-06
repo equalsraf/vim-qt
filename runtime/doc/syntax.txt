@@ -1,4 +1,4 @@
-*syntax.txt*	For Vim version 7.4.  Last change: 2015 Dec 19
+*syntax.txt*	For Vim version 7.4.  Last change: 2016 May 28
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -941,26 +941,27 @@ To disable them use ":unlet".  Example: >
 	:unlet c_comment_strings
 
 Variable		Highlight ~
-c_gnu			GNU gcc specific items
-c_comment_strings	strings and numbers inside a comment
-c_space_errors		trailing white space and spaces before a <Tab>
-c_no_trail_space_error	 ... but no trailing spaces
-c_no_tab_space_error	 ... but no spaces before a <Tab>
-c_no_bracket_error	don't highlight {}; inside [] as errors
-c_no_curly_error	don't highlight {}; inside [] and () as errors;
+*c_gnu*			GNU gcc specific items
+*c_comment_strings*	strings and numbers inside a comment
+*c_space_errors*		trailing white space and spaces before a <Tab>
+*c_no_trail_space_error*	 ... but no trailing spaces
+*c_no_tab_space_error*	 ... but no spaces before a <Tab>
+*c_no_bracket_error*	don't highlight {}; inside [] as errors
+*c_no_curly_error*	don't highlight {}; inside [] and () as errors;
 				except { and } in first column
-c_curly_error		highlight a missing }; this forces syncing from the
+*c_curly_error*		highlight a missing }; this forces syncing from the
 			start of the file, can be slow
-c_no_ansi		don't do standard ANSI types and constants
-c_ansi_typedefs		 ... but do standard ANSI types
-c_ansi_constants	 ... but do standard ANSI constants
-c_no_utf		don't highlight \u and \U in strings
-c_syntax_for_h		for *.h files use C syntax instead of C++ and use objc
+*c_no_ansi*		don't do standard ANSI types and constants
+*c_ansi_typedefs*		 ... but do standard ANSI types
+*c_ansi_constants*	 ... but do standard ANSI constants
+*c_no_utf*		don't highlight \u and \U in strings
+*c_syntax_for_h*		for *.h files use C syntax instead of C++ and use objc
 			syntax instead of objcpp
-c_no_if0		don't highlight "#if 0" blocks as comments
-c_no_cformat		don't highlight %-formats in strings
-c_no_c99		don't highlight C99 standard items
-c_no_c11		don't highlight C11 standard items
+*c_no_if0*		don't highlight "#if 0" blocks as comments
+*c_no_cformat*		don't highlight %-formats in strings
+*c_no_c99*		don't highlight C99 standard items
+*c_no_c11*		don't highlight C11 standard items
+*c_no_bsd*		don't highlight BSD specific types
 
 When 'foldmethod' is set to "syntax" then /* */ comments and { } blocks will
 become a fold.  If you don't want comments to become a fold use: >
@@ -2890,7 +2891,7 @@ You may wish to embed languages into sh.  I'll give an example courtesy of
 Lorance Stinson on how to do this with awk as an example. Put the following
 file into $HOME/.vim/after/syntax/sh/awkembed.vim: >
 
-    " AWK Embedding: {{{1
+    " AWK Embedding:
     " ==============
     " Shamelessly ripped from aspperl.vim by Aaron Hope.
     if exists("b:current_syntax")
@@ -3361,6 +3362,13 @@ Note that schemas are not actually limited to plain scalars, but this is the
 only difference between schemas defined in YAML specification and the only 
 difference defined in the syntax file.
 
+
+ZSH						    *zsh.vim* *ft-zsh-syntax*
+
+The syntax script for zsh allows for syntax-based folding: >
+
+	:let g:zsh_fold_enable = 1
+
 ==============================================================================
 5. Defining a syntax					*:syn-define* *E410*
 
@@ -3438,6 +3446,32 @@ SPELL CHECKING						*:syn-spell*
 
 	To activate spell checking the 'spell' option must be set.
 
+SYNTAX ISKEYWORD SETTING				*:syn-iskeyword*
+
+:sy[ntax] iskeyword [clear | {option}]
+	This defines the keyword characters.  It's like the 'iskeyword' option
+	for but only applies to syntax highlighting.
+
+	clear:		Syntax specific iskeyword setting is disabled and the
+			buffer-local 'iskeyword' setting is used.
+	{option}        Set the syntax 'iskeyword' option to a new value. 
+
+	Example: >
+  :syntax iskeyword @,48-57,192-255,$,_
+<
+	This would set the syntax specific iskeyword option to include all
+	alphabetic characters, plus the numeric characters, all accented
+	characters and also includes the "_" and the "$".
+
+	If no argument is given, the current value will be output.
+
+	Setting this option influences what |/\k| matches in syntax patterns
+	and also determines where |:syn-keyword| will be checked for a new
+	match.
+
+	It is recommended when writing syntax files, to use this command
+	to the correct value for the specific syntax language and not change
+	the 'iskeyword' option.
 
 DEFINING KEYWORDS					*:syn-keyword*
 
@@ -3469,6 +3503,7 @@ DEFINING KEYWORDS					*:syn-keyword*
 	isn't, the keyword will never be recognized.
 	Multi-byte characters can also be used.  These do not have to be in
 	'iskeyword'.
+	See |:syn-iskeyword| for defining syntax specific iskeyword settings.
 
 	A keyword always has higher priority than a match or region, the
 	keyword is used if more than one item matches.	Keywords do not nest
@@ -4500,9 +4535,9 @@ in their own color.
 :colo[rscheme] {name}	Load color scheme {name}.  This searches 'runtimepath'
 			for the file "colors/{name}.vim".  The first one that
 			is found is loaded.
-			To see the name of the currently active color scheme: >
-				:colo
-<			The name is also stored in the g:colors_name variable.
+			Also searches all plugins in 'packpath', first below
+			"start" and then under "opt".
+
 			Doesn't work recursively, thus you can't use
 			":colorscheme" in a color scheme script.
 			After the color scheme has been loaded the
@@ -4744,6 +4779,10 @@ font={font-name}					*highlight-font*
 	All fonts used, except for Menu and Tooltip, should be of the same
 	character size as the default font!  Otherwise redrawing problems will
 	occur.
+	To use a font name with an embedded space or other special character,
+	put it in single quotes.  The single quote cannot be used then.
+	Example: >
+	    :hi comment font='Monospace 10'
 
 guifg={color-name}					*highlight-guifg*
 guibg={color-name}					*highlight-guibg*
@@ -5012,6 +5051,9 @@ If you have changed the colors and messed them up, use this command to get the
 defaults back: >
 
   :syntax reset
+
+It is a bit of a wrong name, since it does not reset any syntax items, it only
+affects the highlighting.
 
 This doesn't change the colors for the 'highlight' option.
 

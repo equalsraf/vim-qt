@@ -36,7 +36,8 @@ SHELL = csh
 REN = $(SHELL) -c mv -f
 DEL = $(SHELL) -c rm -f
 
-SRC =	blowfish.c \
+SRC =	arabic.c \
+	blowfish.c \
 	buffer.c \
 	charset.c \
 	crypt.c \
@@ -50,11 +51,13 @@ SRC =	blowfish.c \
 	ex_docmd.c \
 	ex_eval.c \
 	ex_getln.c \
+	farsi.c \
 	fileio.c \
 	fold.c \
 	getchar.c \
 	hardcopy.c \
 	hashtab.c \
+	json.c \
 	main.c \
 	mark.c \
 	memfile.c \
@@ -86,7 +89,8 @@ SRC =	blowfish.c \
 
 INCL = vim.h feature.h keymap.h macros.h ascii.h term.h structs.h os_amiga.h
 
-OBJ =	obj/blowfish.o \
+OBJ =	obj/arabic.o \
+	obj/blowfish.o \
 	obj/buffer.o \
 	obj/charset.o \
 	obj/crypt.o \
@@ -100,11 +104,13 @@ OBJ =	obj/blowfish.o \
 	obj/ex_docmd.o \
 	obj/ex_eval.o \
 	obj/ex_getln.o \
+	obj/farsi.o \
 	obj/fileio.o \
 	obj/fold.o \
 	obj/getchar.o \
 	obj/hardcopy.o \
 	obj/hashtab.o \
+	obj/json.o \
 	obj/main.o \
 	obj/mark.o \
 	obj/memfile.o \
@@ -134,7 +140,8 @@ OBJ =	obj/blowfish.o \
 	obj/window.o \
 	$(TERMLIB)
 
-PRO =	proto/blowfish.pro \
+PRO =	proto/arabic.pro \
+	proto/blowfish.pro \
 	proto/buffer.pro \
 	proto/charset.pro \
 	proto/crypt.pro \
@@ -148,11 +155,13 @@ PRO =	proto/blowfish.pro \
 	proto/ex_docmd.pro \
 	proto/ex_eval.pro \
 	proto/ex_getln.pro \
+	proto/farsi.pro \
 	proto/fileio.pro \
 	proto/fold.pro \
 	proto/getchar.pro \
 	proto/hardcopy.pro \
 	proto/hashtab.pro \
+	proto/json.pro \
 	proto/main.pro \
 	proto/mark.pro \
 	proto/memfile.pro \
@@ -226,6 +235,9 @@ CCNOSYM = $(CC) $(CFLAGS) -o
 
 $(OBJ): $(SYMS)
 
+obj/arabic.o:	arabic.c
+	$(CCSYM) $@ arabic.c
+
 obj/blowfish.o:	blowfish.c
 	$(CCSYM) $@ blowfish.c
 
@@ -269,6 +281,9 @@ obj/ex_eval.o:	ex_eval.c ex_cmds.h
 obj/ex_getln.o:	ex_getln.c
 	$(CCSYM) $@ ex_getln.c
 
+obj/farsi.o:	farsi.c
+	$(CCSYM) $@ farsi.c
+
 obj/fileio.o:	fileio.c
 	$(CCSYM) $@ fileio.c
 
@@ -283,6 +298,9 @@ obj/hardcopy.o:	hardcopy.c
 
 obj/hashtab.o:	hashtab.c
 	$(CCSYM) $@ hashtab.c
+
+obj/json.o:	json.c
+	$(CCSYM) $@ json.c
 
 # Don't use $(SYMS) here, because main.c defines EXTERN
 obj/main.o:	main.c option.h globals.h

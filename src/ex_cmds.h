@@ -66,6 +66,7 @@
 #define ADDR_BUFFERS		4
 #define ADDR_TABS		5
 #define ADDR_QUICKFIX		6
+#define ADDR_OTHER		99
 
 #ifndef DO_DECLARE_EXCMD
 typedef struct exarg exarg_T;
@@ -85,7 +86,7 @@ typedef struct exarg exarg_T;
 #ifdef DO_DECLARE_EXCMD
 # define EX(a, b, c, d, e)  {(char_u *)b, c, (long_u)(d), e}
 
-typedef void (*ex_func_T) __ARGS((exarg_T *eap));
+typedef void (*ex_func_T) (exarg_T *eap);
 
 static struct cmdname
 {
@@ -93,11 +94,7 @@ static struct cmdname
     ex_func_T   cmd_func;	/* function for this command */
     long_u	cmd_argt;	/* flags declared above */
     int		cmd_addr_type;	/* flag for address type */
-}
-# if defined(FEAT_GUI_W16)
-_far
-# endif
-cmdnames[] =
+} cmdnames[] =
 #else
 # define EX(a, b, c, d, e)  a
 enum CMD_index
@@ -128,7 +125,7 @@ EX(CMD_args,		"args",		ex_args,
 			BANG|FILES|EDITCMD|ARGOPT|TRLBAR,
 			ADDR_LINES),
 EX(CMD_argadd,		"argadd",	ex_argadd,
-			BANG|NEEDARG|RANGE|NOTADR|ZEROR|FILES|TRLBAR,
+			BANG|RANGE|NOTADR|ZEROR|FILES|TRLBAR,
 			ADDR_ARGUMENTS),
 EX(CMD_argdelete,	"argdelete",	ex_argdelete,
 			BANG|RANGE|NOTADR|FILES|TRLBAR,
@@ -319,6 +316,9 @@ EX(CMD_clast,		"clast",	ex_cc,
 EX(CMD_close,		"close",	ex_close,
 			BANG|RANGE|NOTADR|COUNT|TRLBAR|CMDWIN,
 			ADDR_WINDOWS),
+EX(CMD_clearjumps,	"clearjumps",	ex_clearjumps,
+			TRLBAR|CMDWIN,
+			ADDR_LINES),
 EX(CMD_cmap,		"cmap",		ex_map,
 			EXTRA|TRLBAR|NOTRLCOM|USECTRLV|CMDWIN,
 			ADDR_LINES),
@@ -890,8 +890,8 @@ EX(CMD_menutranslate,	"menutranslate", ex_menutranslate,
 			EXTRA|TRLBAR|NOTRLCOM|USECTRLV|CMDWIN,
 			ADDR_LINES),
 EX(CMD_messages,	"messages",	ex_messages,
-			TRLBAR|CMDWIN,
-			ADDR_LINES),
+			EXTRA|TRLBAR|RANGE|CMDWIN,
+			ADDR_OTHER),
 EX(CMD_mkexrc,		"mkexrc",	ex_mkrc,
 			BANG|FILE1|TRLBAR|CMDWIN,
 			ADDR_LINES),
@@ -1014,6 +1014,12 @@ EX(CMD_ownsyntax,	"ownsyntax",	ex_ownsyntax,
 			ADDR_LINES),
 EX(CMD_print,		"print",	ex_print,
 			RANGE|WHOLEFOLD|COUNT|EXFLAGS|TRLBAR|CMDWIN|SBOXOK,
+			ADDR_LINES),
+EX(CMD_packadd,		"packadd",	ex_packadd,
+			BANG|FILE1|NEEDARG|TRLBAR|SBOXOK|CMDWIN,
+			ADDR_LINES),
+EX(CMD_packloadall,	"packloadall",	ex_packloadall,
+			BANG|TRLBAR|SBOXOK|CMDWIN,
 			ADDR_LINES),
 EX(CMD_pclose,		"pclose",	ex_pclose,
 			BANG|TRLBAR,
@@ -1281,9 +1287,6 @@ EX(CMD_smenu,		"smenu",	ex_menu,
 			ADDR_LINES),
 EX(CMD_snext,		"snext",	ex_next,
 			RANGE|NOTADR|BANG|FILES|EDITCMD|ARGOPT|TRLBAR,
-			ADDR_LINES),
-EX(CMD_sniff,		"sniff",	ex_sniff,
-			EXTRA|TRLBAR,
 			ADDR_LINES),
 EX(CMD_snomagic,	"snomagic",	ex_submagic,
 			RANGE|WHOLEFOLD|EXTRA|CMDWIN,
@@ -1739,7 +1742,7 @@ struct exarg
     int		useridx;	/* user command index */
 #endif
     char_u	*errmsg;	/* returned error message */
-    char_u	*(*getline) __ARGS((int, void *, int));
+    char_u	*(*getline)(int, void *, int);
     void	*cookie;	/* argument for getline() */
 #ifdef FEAT_EVAL
     struct condstack *cstack;	/* condition stack for ":if" etc. */

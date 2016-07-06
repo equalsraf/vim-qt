@@ -27,8 +27,7 @@
 # endif
 #endif
 
-#if defined(MSDOS) || defined(WIN16) || defined(WIN32) || defined(_WIN64) \
-	|| defined(__EMX__)
+#if defined(WIN32) || defined(_WIN64) || defined(__EMX__)
 # include "vimio.h"
 #endif
 
@@ -126,7 +125,6 @@
     || defined(FEAT_GUI_ATHENA) \
     || defined(FEAT_GUI_MAC) \
     || defined(FEAT_GUI_W32) \
-    || defined(FEAT_GUI_W16) \
     || defined(FEAT_GUI_PHOTON)
 # define FEAT_GUI_ENABLED  /* also defined with NO_X11_INCLUDES */
 # if !defined(FEAT_GUI) && !defined(NO_X11_INCLUDES)
@@ -147,10 +145,10 @@
 # define _CRT_NONSTDC_NO_DEPRECATE
 #endif
 
-#if defined(FEAT_GUI_W32) || defined(FEAT_GUI_W16)
+#if defined(FEAT_GUI_W32)
 # define FEAT_GUI_MSWIN
 #endif
-#if defined(WIN16) || defined(WIN32) || defined(_WIN64)
+#if defined(WIN32) || defined(_WIN64)
 # define MSWIN
 #endif
 /* Practically everything is common to both Win32 and Win64 */
@@ -164,21 +162,6 @@
  */
 #ifdef WIN3264
 # define VIM_SIZEOF_INT 4
-#endif
-#ifdef MSDOS
-# ifdef DJGPP
-#  ifndef FEAT_GUI_GTK		/* avoid problems when generating prototypes */
-#   define VIM_SIZEOF_INT 4	/* 32 bit ints */
-#  endif
-#  define DOS32
-#  define FEAT_CLIPBOARD
-# else
-#  ifndef FEAT_GUI_GTK		/* avoid problems when generating prototypes */
-#   define VIM_SIZEOF_INT 2	/* 16 bit ints */
-#  endif
-#  define SMALL_MALLOC		/* 16 bit storage allocation */
-#  define DOS16
-# endif
 #endif
 
 #ifdef AMIGA
@@ -255,48 +238,23 @@
  */
 #ifdef AZTEC_C
 # include <functions.h>
-# define __ARGS(x)  x
 #endif
 
 #ifdef SASC
 # include <clib/exec_protos.h>
-# define __ARGS(x)  x
 #endif
 
 #ifdef _DCC
 # include <clib/exec_protos.h>
-# define __ARGS(x)  x
-#endif
-
-#ifdef __TURBOC__
-# define __ARGS(x) x
 #endif
 
 #ifdef __BEOS__
 # include "os_beos.h"
-# define __ARGS(x)  x
 #endif
 
 #if (defined(UNIX) || defined(__EMX__) || defined(VMS)) \
 	&& (!defined(MACOS_X) || defined(HAVE_CONFIG_H))
 # include "os_unix.h"	    /* bring lots of system header files */
-#endif
-
-#if defined(MACOS) && (defined(__MRC__) || defined(__SC__))
-   /* Apple's Compilers support prototypes */
-# define __ARGS(x) x
-#endif
-#ifndef __ARGS
-# if defined(__STDC__) || defined(__GNUC__) || defined(WIN3264)
-#  define __ARGS(x) x
-# else
-#  define __ARGS(x) ()
-# endif
-#endif
-
-/* __ARGS and __PARMS are the same thing. */
-#ifndef __PARMS
-# define __PARMS(x) __ARGS(x)
 #endif
 
 /* Mark unused function arguments with UNUSED, so that gcc -Wunused-parameter
@@ -327,14 +285,6 @@
 
 #ifdef AMIGA
 # include "os_amiga.h"
-#endif
-
-#ifdef MSDOS
-# include "os_msdos.h"
-#endif
-
-#ifdef WIN16
-# include "os_win16.h"
 #endif
 
 #ifdef WIN3264
@@ -446,6 +396,36 @@ typedef		 long __w64     long_i;
 #endif
 
 /*
+ * We use 64-bit file functions here, if available.  E.g. ftello() returns
+ * off_t instead of long, which helps if long is 32 bit and off_t is 64 bit.
+ * We assume that when fseeko() is available then ftello() is too.
+ * Note that Windows has different function names.
+ */
+#if (defined(_MSC_VER) && (_MSC_VER >= 1300)) || defined(__MINGW32__)
+typedef __int64 off_T;
+# ifdef __MINGW32__
+#  define vim_lseek lseek64
+#  define vim_fseek fseeko64
+#  define vim_ftell ftello64
+# else
+#  define vim_lseek _lseeki64
+#  define vim_fseek _fseeki64
+#  define vim_ftell _ftelli64
+# endif
+#else
+typedef off_t off_T;
+# ifdef HAVE_FSEEKO
+#  define vim_lseek lseek
+#  define vim_ftell ftello
+#  define vim_fseek fseeko
+# else
+#  define vim_lseek lseek
+#  define vim_ftell ftell
+#  define vim_fseek(a, b, c)	fseek(a, (long)b, c)
+# endif
+#endif
+
+/*
  * The characters and attributes cached for the screen.
  */
 typedef char_u schar_T;
@@ -492,11 +472,11 @@ typedef unsigned long u8char_T;	    /* long should be 32 bits or more */
 #ifdef _DCC
 # include <sys/stat.h>
 #endif
-#if defined(MSDOS) || defined(MSWIN)
+#if defined(MSWIN)
 # include <sys/stat.h>
 #endif
 
-#if defined(HAVE_ERRNO_H) || defined(DJGPP) || defined(WIN16) \
+#if defined(HAVE_ERRNO_H) \
 	|| defined(WIN32) || defined(_WIN64) || defined(__EMX__)
 # include <errno.h>
 #endif
@@ -533,9 +513,7 @@ typedef unsigned long u8char_T;	    /* long should be 32 bits or more */
 #ifdef HAVE_WCTYPE_H
 # include <wctype.h>
 #endif
-#ifdef HAVE_STDARG_H
-# include <stdarg.h>
-#endif
+#include <stdarg.h>
 
 #if defined(HAVE_SYS_SELECT_H) && \
 	(!defined(HAVE_SYS_TIME_H) || defined(SYS_SELECT_WITH_SYS_TIME))
@@ -545,11 +523,11 @@ typedef unsigned long u8char_T;	    /* long should be 32 bits or more */
 #ifndef HAVE_SELECT
 # ifdef HAVE_SYS_POLL_H
 #  include <sys/poll.h>
-#  define HAVE_POLL
+# elif defined(WIN32)
+#  define HAVE_SELECT
 # else
 #  ifdef HAVE_POLL_H
 #   include <poll.h>
-#   define HAVE_POLL
 #  endif
 # endif
 #endif
@@ -807,6 +785,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EXPAND_USER		42
 #define EXPAND_SYNTIME		43
 #define EXPAND_USER_ADDR_TYPE	44
+#define EXPAND_PACKADD		45
 
 /* Values for exmode_active (0 is no exmode) */
 #define EXMODE_NORMAL		1
@@ -851,13 +830,15 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EW_ALLLINKS	0x1000	/* also links not pointing to existing file */
 #define EW_SHELLCMD	0x2000	/* called from expand_shellcmd(), don't check
 				 * if executable is in $PATH */
+#define EW_DODOT	0x4000	/* also files starting with a dot */
+#define EW_EMPTYOK	0x8000	/* no matches is not an error */
 
 /* Flags for find_file_*() functions. */
 #define FINDFILE_FILE	0	/* only files */
 #define FINDFILE_DIR	1	/* only directories */
 #define FINDFILE_BOTH	2	/* files and directories */
 
-#ifdef FEAT_VERTSPLIT
+#ifdef FEAT_WINDOWS
 # define W_WINCOL(wp)	(wp->w_wincol)
 # define W_WIDTH(wp)	(wp->w_width)
 # define W_ENDCOL(wp)	(wp->w_wincol + wp->w_width)
@@ -895,11 +876,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 
 #ifdef FEAT_SYN_HL
 # define SST_MIN_ENTRIES 150	/* minimal size for state stack array */
-# ifdef FEAT_GUI_W16
-#  define SST_MAX_ENTRIES 500	/* (only up to 64K blocks) */
-# else
-#  define SST_MAX_ENTRIES 1000	/* maximal size for state stack array */
-# endif
+# define SST_MAX_ENTRIES 1000	/* maximal size for state stack array */
 # define SST_FIX_STATES	 7	/* size of sst_stack[]. */
 # define SST_DIST	 16	/* normal distance between entries */
 # define SST_INVALID	(synstate_T *)-1	/* invalid syn_state pointer */
@@ -960,9 +937,10 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define GETF_SWITCH	0x04	/* respect 'switchbuf' settings when jumping */
 
 /* Values for buflist_new() flags */
-#define BLN_CURBUF	1	/* May re-use curbuf for new buffer */
-#define BLN_LISTED	2	/* Put new buffer in buffer list */
-#define BLN_DUMMY	4	/* Allocating dummy buffer */
+#define BLN_CURBUF	1	/* may re-use curbuf for new buffer */
+#define BLN_LISTED	2	/* put new buffer in buffer list */
+#define BLN_DUMMY	4	/* allocating dummy buffer */
+#define BLN_NEW		8	/* create a new buffer */
 
 /* Values for in_cinkeys() */
 #define KEY_OPEN_FORW	0x101
@@ -1115,7 +1093,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define OPENLINE_COM_LIST  16	/* format comments with list/2nd line indent */
 
 /*
- * There are four history tables:
+ * There are five history tables:
  */
 #define HIST_CMD	0	/* colon commands */
 #define HIST_SEARCH	1	/* search commands */
@@ -1124,13 +1102,30 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define HIST_DEBUG	4	/* debug commands */
 #define HIST_COUNT	5	/* number of history tables */
 
-/*
- * Flags for chartab[].
- */
-#define CT_CELL_MASK	0x07	/* mask: nr of display cells (1, 2 or 4) */
-#define CT_PRINT_CHAR	0x10	/* flag: set for printable chars */
-#define CT_ID_CHAR	0x20	/* flag: set for ID chars */
-#define CT_FNAME_CHAR	0x40	/* flag: set for file name chars */
+/* The type numbers are fixed for backwards compatibility. */
+#define BARTYPE_VERSION 1
+#define BARTYPE_HISTORY 2
+#define BARTYPE_REGISTER 3
+#define BARTYPE_MARK 4
+
+#define VIMINFO_VERSION 4
+#define VIMINFO_VERSION_WITH_HISTORY 2
+#define VIMINFO_VERSION_WITH_REGISTERS 3
+#define VIMINFO_VERSION_WITH_MARKS 4
+
+typedef enum {
+    BVAL_NR,
+    BVAL_STRING,
+    BVAL_EMPTY
+} btype_T;
+
+typedef struct {
+    btype_T	bv_type;
+    long	bv_nr;
+    char_u	*bv_string;
+    int		bv_len;		/* length of bv_string */
+    int		bv_allocated;	/* bv_string was allocated */
+} bval_T;
 
 /*
  * Values for do_tag().
@@ -1457,6 +1452,10 @@ typedef UINT32_TYPEDEF UINT32_T;
 #define OP_FOLDDELREC	25	/* "zD" delete folds recursively */
 #define OP_FORMAT2	26	/* "gw" format operator, keeps cursor pos */
 #define OP_FUNCTION	27	/* "g@" call 'operatorfunc' */
+#define OP_NR_ADD	28	/* "<C-A>" Add to the number or alphabetic
+				   character (OP_ADD conflicts with Perl) */
+#define OP_NR_SUB	29	/* "<C-X>" Subtract from the number or
+				   alphabetic character */
 
 /*
  * Motion types, used for operators and for yank/delete registers.
@@ -1615,6 +1614,41 @@ typedef UINT32_TYPEDEF UINT32_T;
 #define MSG_PUTS_LONG(s)	    msg_puts_long_attr((char_u *)(s), 0)
 #define MSG_PUTS_LONG_ATTR(s, a)    msg_puts_long_attr((char_u *)(s), (a))
 
+#ifdef FEAT_GUI
+# ifdef FEAT_TERMGUICOLORS
+#  define GUI_FUNCTION(f)	    (gui.in_use ? gui_##f : termgui_##f)
+#  define GUI_FUNCTION2(f, pixel)   (gui.in_use \
+				    ?  ((pixel) != INVALCOLOR \
+					? gui_##f((pixel)) \
+					: (long_u)INVALCOLOR) \
+				    : termgui_##f((pixel)))
+#  define USE_24BIT		    (gui.in_use || p_tgc)
+# else
+#  define GUI_FUNCTION(f)	    gui_##f
+#  define GUI_FUNCTION2(f,pixel)    ((pixel) != INVALCOLOR \
+				     ? gui_##f((pixel)) \
+				     : (long_u)INVALCOLOR)
+#  define USE_24BIT		    gui.in_use
+# endif
+#else
+# ifdef FEAT_TERMGUICOLORS
+#  define GUI_FUNCTION(f)	    termgui_##f
+#  define GUI_FUNCTION2(f, pixel)   termgui_##f((pixel))
+#  define USE_24BIT		    p_tgc
+# endif
+#endif
+#ifdef FEAT_TERMGUICOLORS
+# define IS_CTERM		    (t_colors > 1 || p_tgc)
+#else
+# define IS_CTERM		    (t_colors > 1)
+#endif
+#ifdef GUI_FUNCTION
+# define GUI_MCH_GET_RGB	    GUI_FUNCTION(mch_get_rgb)
+# define GUI_MCH_GET_RGB2(pixel)    GUI_FUNCTION2(mch_get_rgb, (pixel))
+# define GUI_MCH_GET_COLOR	    GUI_FUNCTION(mch_get_color)
+# define GUI_GET_COLOR		    GUI_FUNCTION(get_color)
+#endif
+
 /* Prefer using emsg3(), because perror() may send the output to the wrong
  * destination and mess up the screen. */
 #ifdef HAVE_STRERROR
@@ -1657,7 +1691,7 @@ typedef void	    *vim_acl_T;		/* dummy to pass an ACL to a function */
  * Include a prototype for mch_memmove(), it may not be in alloc.pro.
  */
 #ifdef VIM_MEMMOVE
-void mch_memmove __ARGS((void *, void *, size_t));
+void mch_memmove(void *, void *, size_t);
 #else
 # ifndef mch_memmove
 #  define mch_memmove(to, from, len) memmove(to, from, len)
@@ -1676,7 +1710,7 @@ void mch_memmove __ARGS((void *, void *, size_t));
 #ifdef HAVE_MEMSET
 # define vim_memset(ptr, c, size)   memset((ptr), (c), (size))
 #else
-void *vim_memset __ARGS((void *, int, size_t));
+void *vim_memset(void *, int, size_t);
 #endif
 
 #ifdef HAVE_MEMCMP
@@ -1685,7 +1719,7 @@ void *vim_memset __ARGS((void *, int, size_t));
 # ifdef HAVE_BCMP
 #  define vim_memcmp(p1, p2, len)   bcmp((p1), (p2), (len))
 # else
-int vim_memcmp __ARGS((void *, void *, size_t));
+int vim_memcmp(void *, void *, size_t);
 #  define VIM_MEMCMP
 # endif
 #endif
@@ -1757,6 +1791,23 @@ typedef struct timeval proftime_T;
 typedef int proftime_T;	    /* dummy for function prototypes */
 #endif
 
+/*
+ * When compiling with 32 bit Perl time_t is 32 bits in the Perl code but 64
+ * bits elsewhere.  That causes memory corruption.  Define time_T and use it
+ * for global variables to avoid that.
+ */
+#ifdef WIN3264
+typedef __time64_t  time_T;
+#else
+typedef time_t	    time_T;
+#endif
+
+#ifdef _WIN64
+typedef __int64 sock_T;
+#else
+typedef int sock_T;
+#endif
+
 /* Include option.h before structs.h, because the number of window-local and
  * buffer-local options is used there. */
 #include "option.h"	    /* options and default values */
@@ -1764,6 +1815,8 @@ typedef int proftime_T;	    /* dummy for function prototypes */
 /* Note that gui.h is included by structs.h */
 
 #include "structs.h"	    /* file that defines many structures */
+
+#include "alloc.h"
 
 /* Values for "do_profiling". */
 #define PROF_NONE	0	/* profiling not started */
@@ -1890,29 +1943,43 @@ typedef int proftime_T;	    /* dummy for function prototypes */
 #define VV_FCS_CHOICE	38
 #define VV_BEVAL_BUFNR	39
 #define VV_BEVAL_WINNR	40
-#define VV_BEVAL_LNUM	41
-#define VV_BEVAL_COL	42
-#define VV_BEVAL_TEXT	43
-#define VV_SCROLLSTART	44
-#define VV_SWAPNAME	45
-#define VV_SWAPCHOICE	46
-#define VV_SWAPCOMMAND	47
-#define VV_CHAR		48
-#define VV_MOUSE_WIN	49
-#define VV_MOUSE_LNUM   50
-#define VV_MOUSE_COL	51
-#define VV_OP		52
-#define VV_SEARCHFORWARD 53
-#define VV_HLSEARCH	54
-#define VV_OLDFILES	55
-#define VV_WINDOWID	56
-#define VV_PROGPATH	57
-#define VV_COMPLETED_ITEM 58
-#define VV_OPTION_NEW   59
-#define VV_OPTION_OLD   60
-#define VV_OPTION_TYPE  61
-#define VV_ERRORS	62
-#define VV_LEN		63	/* number of v: vars */
+#define VV_BEVAL_WINID	41
+#define VV_BEVAL_LNUM	42
+#define VV_BEVAL_COL	43
+#define VV_BEVAL_TEXT	44
+#define VV_SCROLLSTART	45
+#define VV_SWAPNAME	46
+#define VV_SWAPCHOICE	47
+#define VV_SWAPCOMMAND	48
+#define VV_CHAR		49
+#define VV_MOUSE_WIN	50
+#define VV_MOUSE_WINID	51
+#define VV_MOUSE_LNUM   52
+#define VV_MOUSE_COL	53
+#define VV_OP		54
+#define VV_SEARCHFORWARD 55
+#define VV_HLSEARCH	56
+#define VV_OLDFILES	57
+#define VV_WINDOWID	58
+#define VV_PROGPATH	59
+#define VV_COMPLETED_ITEM 60
+#define VV_OPTION_NEW   61
+#define VV_OPTION_OLD   62
+#define VV_OPTION_TYPE  63
+#define VV_ERRORS	64
+#define VV_FALSE	65
+#define VV_TRUE		66
+#define VV_NULL		67
+#define VV_NONE		68
+#define VV_VIM_DID_ENTER 69
+#define VV_TESTING	70
+#define VV_LEN		71	/* number of v: vars */
+
+/* used for v_number in VAR_SPECIAL */
+#define VVAL_FALSE	0L
+#define VVAL_TRUE	1L
+#define VVAL_NONE	2L
+#define VVAL_NULL	3L
 
 #ifdef FEAT_CLIPBOARD
 
@@ -1934,10 +2001,6 @@ typedef int proftime_T;	    /* dummy for function prototypes */
 # ifdef FEAT_GUI_W32
 #  ifdef FEAT_OLE
 #   define WM_OLE (WM_APP+0)
-#  endif
-#  ifdef FEAT_NETBEANS_INTG
-    /* message for Netbeans socket event */
-#   define WM_NETBEANS (WM_APP+1)
 #  endif
 # endif
 
@@ -1985,6 +2048,14 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 # define stat(a,b) (access(a,0) ? -1 : stat(a,b))
 #endif
 
+/* Use 64-bit stat structure if available. */
+#if (defined(_MSC_VER) && (_MSC_VER >= 1300)) || defined(__MINGW32__)
+# define HAVE_STAT64
+typedef struct _stat64 stat_T;
+#else
+typedef struct stat stat_T;
+#endif
+
 #include "ex_cmds.h"	    /* Ex command defines */
 #include "proto.h"	    /* function prototypes */
 
@@ -2013,10 +2084,6 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 
 
 #include "globals.h"	    /* global variables and messages */
-
-#ifdef FEAT_SNIFF
-# include "if_sniff.h"
-#endif
 
 #ifndef FEAT_VIRTUALEDIT
 # define getvvcol(w, p, s, c, e) getvcol(w, p, s, c, e)
@@ -2317,5 +2384,31 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 #else
 # define SET_NO_HLSEARCH(flag) no_hlsearch = (flag)
 #endif
+
+#ifdef FEAT_JOB_CHANNEL
+# define MAX_OPEN_CHANNELS 10
+#else
+# define MAX_OPEN_CHANNELS 0
+#endif
+
+/* Options for json_encode() and json_decode. */
+#define JSON_JS		1   /* use JS instead of JSON */
+#define JSON_NO_NONE	2   /* v:none item not allowed */
+
+#ifdef FEAT_MZSCHEME
+/* this is in main.c, cproto can't handle it. */
+int vim_main2(int argc, char **argv);
+#endif
+
+/* Used for flags of do_in_path() */
+#define DIP_ALL	    0x01	/* all matches, not just the first one */
+#define DIP_DIR	    0x02	/* find directories instead of files. */
+#define DIP_ERR	    0x04	/* give an error message when none found. */
+#define DIP_START   0x08	/* also use "start" directory in 'packpath' */
+#define DIP_OPT	    0x10	/* also use "opt" directory in 'packpath' */
+#define DIP_NORTP   0x20	/* do not use 'runtimepath' */
+
+/* Lowest number used for window ID. Cannot have this many windows. */
+#define LOWEST_WIN_ID 1000
 
 #endif /* VIM__H */

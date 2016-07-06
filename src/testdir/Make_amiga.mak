@@ -15,7 +15,6 @@ include Make_all.mak
 # test11	"cat" doesn't work properly
 # test12	can't unlink a swap file
 # test25	uses symbolic link
-# test27	can't edit file with "*"
 # test52	only for Win32
 # test85	no Lua interface
 # test86, 87	no Python interface
@@ -35,7 +34,7 @@ clean:
 
 .in.out:
 	copy $*.ok test.ok
-	$(VIMPROG) -u amiga.vim -U NONE --noplugin -s dotest.in $*.in
+	$(VIMPROG) -u amiga.vim -U NONE --noplugin --not-a-term -s dotest.in $*.in
 	diff test.out $*.ok
 	rename test.out $*.out
 	-delete X#? ALL QUIET

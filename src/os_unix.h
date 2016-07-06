@@ -74,16 +74,6 @@
 # define USE_GETCWD
 #endif
 
-#ifndef __ARGS
-    /* The AIX VisualAge cc compiler defines __EXTENDED__ instead of __STDC__
-     * because it includes pre-ansi features. */
-# if defined(__STDC__) || defined(__GNUC__) || defined(__EXTENDED__)
-#  define __ARGS(x) x
-# else
-#  define __ARGS(x) ()
-# endif
-#endif
-
 /* always use unlink() to remove files */
 #ifndef PROTO
 # ifdef VMS
@@ -179,10 +169,6 @@
 
 #ifdef HAVE_PWD_H
 # include <pwd.h>
-#endif
-
-#ifdef __COHERENT__
-# undef __ARGS
 #endif
 
 #if (defined(HAVE_SYS_RESOURCE_H) && defined(HAVE_GETRLIMIT)) \
@@ -463,7 +449,7 @@ typedef struct dsc$descriptor   DESC;
 # ifdef HAVE_RENAME
 #  define mch_rename(src, dst) rename(src, dst)
 # else
-int mch_rename __ARGS((const char *src, const char *dest));
+int mch_rename(const char *src, const char *dest);
 # endif
 # ifndef VMS
 #  ifdef __MVS__

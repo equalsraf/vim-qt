@@ -20,7 +20,7 @@
 #
 #	!!!!  After changing features do "nmake clean" first  !!!!
 #
-#	Feature Set: FEATURES=[TINY, SMALL, NORMAL, BIG, HUGE] (default is BIG)
+#	Feature Set: FEATURES=[TINY, SMALL, NORMAL, BIG, HUGE] (default is HUGE)
 #
 #	GUI interface: GUI=yes (default is no)
 #
@@ -82,8 +82,6 @@
 #	  TCL_VER_LONG=[Tcl version, eg 8.3] (default is 8.3)
 #	    You must set TCL_VER_LONG when you set TCL_VER.
 #
-#	SNiFF+ interface: SNIFF=yes
-#
 #	Cscope support: CSCOPE=yes
 #
 #	Iconv library support (always dynamically loaded):
@@ -96,6 +94,13 @@
 #	PostScript printing: POSTSCRIPT=yes (default is no)
 #
 #	Netbeans Support: NETBEANS=[yes or no] (default is yes if GUI is yes)
+#	Requires CHANNEL.
+#
+#	Netbeans Debugging Support: NBDEBUG=[yes or no] (should be no, yes
+#	doesn't work)
+#
+#	Inter process communication: CHANNEL=[yes or no] (default is yes if GUI
+#	is yes)
 #
 #	XPM Image Support: XPM=[path to XPM directory]
 #	Default is "xpm", using the files included in the distribution.
@@ -106,16 +111,13 @@
 #	Processor Version: CPUNR=[i386, i486, i586, i686, pentium4] (default is
 #	i386)
 #
-#	Version Support: WINVER=[0x0400, 0x0500] (default is 0x0400)
+#	Version Support: WINVER=[0x0501, 0x0600] (default is 0x0501)
 #
 #	Debug version: DEBUG=yes
 #	Mapfile: MAP=[no, yes or lines] (default is yes)
 #	  no:    Don't write a mapfile.
 #	  yes:   Write a normal mapfile.
 #	  lines: Write a mapfile with line numbers (only for VC6 and later)
-#
-#	Netbeans Debugging Support: NBDEBUG=[yes or no] (should be no, yes
-#	doesn't work)
 #
 #	Static Code Analysis: ANALYZE=yes (works with VS2012 only)
 #
@@ -216,6 +218,9 @@ CPU = i386
 !  endif
 ! else  # !CPU
 CPU = i386
+!  if !defined(PLATFORM) && defined(TARGET_CPU)
+PLATFORM = $(TARGET_CPU)
+!  endif
 !  ifdef PLATFORM
 !   if ("$(PLATFORM)" == "x64") || ("$(PLATFORM)" == "X64")
 CPU = AMD64
@@ -250,137 +255,7 @@ MAKEFLAGS_GVIMEXT = DEBUG=yes
 !endif
 
 
-# Flag to turn on Win64 compatibility warnings for VC7.x and VC8.
-WP64CHECK = /Wp64
-
-#>>>>> path of the compiler and linker; name of include and lib directories
-# PATH = c:\msvc20\bin;$(PATH)
-# INCLUDE = c:\msvc20\include
-# LIB = c:\msvc20\lib
-
-!ifndef CTAGS
-CTAGS = ctags
-!endif
-
-!if "$(SNIFF)" == "yes"
-# SNIFF - Include support for SNiFF+.
-SNIFF_INCL  = if_sniff.h
-SNIFF_OBJ   = $(OBJDIR)/if_sniff.obj
-SNIFF_LIB   = shell32.lib
-SNIFF_DEFS  = -DFEAT_SNIFF
-# The SNiFF integration needs multithreaded libraries!
-MULTITHREADED = yes
-!endif
-
-!ifndef CSCOPE
-CSCOPE = yes
-!endif
-
-!if "$(CSCOPE)" == "yes"
-# CSCOPE - Include support for Cscope
-CSCOPE_INCL  = if_cscope.h
-CSCOPE_OBJ   = $(OBJDIR)/if_cscope.obj
-CSCOPE_DEFS  = -DFEAT_CSCOPE
-!endif
-
-!ifndef NETBEANS
-NETBEANS = $(GUI)
-!endif
-
-# Only allow NETBEANS and XPM for a GUI build.
-!if "$(GUI)" == "yes"
-!if "$(NETBEANS)" == "yes"
-# NETBEANS - Include support for Netbeans integration
-NETBEANS_PRO	= proto/netbeans.pro
-NETBEANS_OBJ	= $(OBJDIR)/netbeans.obj
-NETBEANS_DEFS	= -DFEAT_NETBEANS_INTG
-
-!if "$(NBDEBUG)" == "yes"
-NBDEBUG_DEFS	= -DNBDEBUG
-NBDEBUG_INCL	= nbdebug.h
-NBDEBUG_SRC	= nbdebug.c
-!endif
-NETBEANS_LIB	= WSock32.lib
-!endif
-
-# DirectWrite(DirectX)
-!if "$(DIRECTX)" == "yes"
-DIRECTX_DEFS	= -DFEAT_DIRECTX -DDYNAMIC_DIRECTX
-DIRECTX_INCL	= gui_dwrite.h
-DIRECTX_OBJ	= $(OUTDIR)\gui_dwrite.obj
-!endif
-
-!ifndef XPM
-# XPM is not set, use the included xpm files, depending on the architecture.
-!if "$(CPU)" == "AMD64"
-XPM = xpm\x64
-!elseif "$(CPU)" == "i386"
-XPM = xpm\x86
-!else
-XPM = no
-!endif
-!endif
-!if "$(XPM)" != "no"
-# XPM - Include support for XPM signs
-# See the xpm directory for more information.
-XPM_OBJ   = $(OBJDIR)/xpm_w32.obj
-XPM_DEFS  = -DFEAT_XPM_W32
-XPM_LIB   = $(XPM)\lib\libXpm.lib
-XPM_INC	  = -I $(XPM)\include -I $(XPM)\..\include
-!endif
-!endif
-
-# Set which version of the CRT to use
-!if defined(USE_MSVCRT)
-# CVARS = $(cvarsdll)
-# !elseif defined(MULTITHREADED)
-# CVARS = $(cvarsmt)
-!else
-# CVARS = $(cvars)
-# CVARS = $(cvarsmt)
-!endif
-
-# need advapi32.lib for GetUserName()
-# need shell32.lib for ExtractIcon()
-# gdi32.lib and comdlg32.lib for printing support
-# ole32.lib and uuid.lib are needed for FEAT_SHORTCUT
-CON_LIB = oldnames.lib kernel32.lib advapi32.lib shell32.lib gdi32.lib \
-          comdlg32.lib ole32.lib uuid.lib /machine:$(CPU)
-!if "$(DELAYLOAD)" == "yes"
-CON_LIB = $(CON_LIB) /DELAYLOAD:comdlg32.dll /DELAYLOAD:ole32.dll DelayImp.lib
-!endif
-
-### Set the default $(WINVER) to make it work with VC++7.0 (VS.NET)
-#  When set to 0x0500 ":browse" stops working.
-!ifndef WINVER
-WINVER = 0x0400
-!endif
-
-# If you have a fixed directory for $VIM or $VIMRUNTIME, other than the normal
-# default, use these lines.
-#VIMRCLOC = somewhere
-#VIMRUNTIMEDIR = somewhere
-
-CFLAGS = -c /W3 /nologo $(CVARS) -I. -Iproto -DHAVE_PATHDEF -DWIN32 \
-		$(SNIFF_DEFS) $(CSCOPE_DEFS) $(NETBEANS_DEFS) \
-		$(NBDEBUG_DEFS) $(XPM_DEFS) \
-		$(DEFINES) -DWINVER=$(WINVER) -D_WIN32_WINNT=$(WINVER) \
-		/Fo$(OUTDIR)/ 
-
-#>>>>> end of choices
-###########################################################################
-
-!ifdef OS
-OS_TYPE	= winnt
-DEL_TREE = rmdir /s /q
-!else
-OS_TYPE	= win95
-DEL_TREE = deltree /y
-!endif
-
-INTDIR=$(OBJDIR)
-OUTDIR=$(OBJDIR)
-
+# Check VC version.
 !if [echo MSVCVER=_MSC_VER> msvcver.c && $(CC) /EP msvcver.c > msvcver.~ 2> nul]
 !message *** ERROR
 !message Cannot run Visual C to determine its version. Make sure cl.exe is in your PATH.
@@ -417,6 +292,160 @@ MSVCRT_NAME = msvcr$(MSVCRT_VER)
 !if $(MSVC_MAJOR) == 6
 CPU = ix86
 !endif
+
+
+# Flag to turn on Win64 compatibility warnings for VC7.x and VC8.
+WP64CHECK = /Wp64
+
+#>>>>> path of the compiler and linker; name of include and lib directories
+# PATH = c:\msvc20\bin;$(PATH)
+# INCLUDE = c:\msvc20\include
+# LIB = c:\msvc20\lib
+
+!if "$(FEATURES)"==""
+FEATURES = HUGE
+!endif
+
+!ifndef CTAGS
+CTAGS = ctags
+!endif
+
+!ifndef CSCOPE
+CSCOPE = yes
+!endif
+
+!if "$(CSCOPE)" == "yes"
+# CSCOPE - Include support for Cscope
+CSCOPE_INCL  = if_cscope.h
+CSCOPE_OBJ   = $(OBJDIR)/if_cscope.obj
+CSCOPE_DEFS  = -DFEAT_CSCOPE
+!endif
+
+!ifndef NETBEANS
+NETBEANS = $(GUI)
+!endif
+
+!ifndef CHANNEL
+!if "$(FEATURES)"=="HUGE"
+CHANNEL = yes
+!else
+CHANNEL = $(GUI)
+!endif
+!endif
+
+# GUI sepcific features.
+!if "$(GUI)" == "yes"
+# Only allow NETBEANS for a GUI build and CHANNEL.
+!if "$(NETBEANS)" == "yes" && "$(CHANNEL)" == "yes"
+# NETBEANS - Include support for Netbeans integration
+NETBEANS_PRO	= proto/netbeans.pro
+NETBEANS_OBJ	= $(OBJDIR)/netbeans.obj
+NETBEANS_DEFS	= -DFEAT_NETBEANS_INTG
+
+!if "$(NBDEBUG)" == "yes"
+NBDEBUG_DEFS	= -DNBDEBUG
+NBDEBUG_INCL	= nbdebug.h
+NBDEBUG_SRC	= nbdebug.c
+!endif
+NETBEANS_LIB	= WSock32.lib
+!endif
+
+# DirectWrite(DirectX)
+!if "$(DIRECTX)" == "yes"
+DIRECTX_DEFS	= -DFEAT_DIRECTX -DDYNAMIC_DIRECTX
+DIRECTX_INCL	= gui_dwrite.h
+DIRECTX_OBJ	= $(OUTDIR)\gui_dwrite.obj
+!endif
+
+# Only allow XPM for a GUI build.
+!ifndef XPM
+!ifndef USE_MSVCRT
+# Both XPM and USE_MSVCRT are not set, use the included xpm files, depending
+# on the architecture.
+!if "$(CPU)" == "AMD64"
+XPM = xpm\x64
+!elseif "$(CPU)" == "i386"
+XPM = xpm\x86
+!else
+XPM = no
+!endif
+!else # USE_MSVCRT
+XPM = no
+!endif # USE_MSVCRT
+!endif # XPM
+!if "$(XPM)" != "no"
+# XPM - Include support for XPM signs
+# See the xpm directory for more information.
+XPM_OBJ   = $(OBJDIR)/xpm_w32.obj
+XPM_DEFS  = -DFEAT_XPM_W32
+!if $(MSVC_MAJOR) >= 14
+# VC14 cannot use a library built by VC12 or eariler, because VC14 uses
+# Universal CRT.
+XPM_LIB   = $(XPM)\lib-vc14\libXpm.lib
+!else
+XPM_LIB   = $(XPM)\lib\libXpm.lib
+!endif
+XPM_INC	  = -I $(XPM)\include -I $(XPM)\..\include
+!endif
+!endif
+
+!if "$(CHANNEL)" == "yes"
+CHANNEL_PRO	= proto/channel.pro
+CHANNEL_OBJ	= $(OBJDIR)/channel.obj
+CHANNEL_DEFS	= -DFEAT_JOB_CHANNEL
+
+NETBEANS_LIB	= WSock32.lib
+!endif
+
+# Set which version of the CRT to use
+!if defined(USE_MSVCRT)
+# CVARS = $(cvarsdll)
+# !elseif defined(MULTITHREADED)
+# CVARS = $(cvarsmt)
+!else
+# CVARS = $(cvars)
+# CVARS = $(cvarsmt)
+!endif
+
+# need advapi32.lib for GetUserName()
+# need shell32.lib for ExtractIcon()
+# gdi32.lib and comdlg32.lib for printing support
+# ole32.lib and uuid.lib are needed for FEAT_SHORTCUT
+CON_LIB = oldnames.lib kernel32.lib advapi32.lib shell32.lib gdi32.lib \
+          comdlg32.lib ole32.lib uuid.lib /machine:$(CPU)
+!if "$(DELAYLOAD)" == "yes"
+CON_LIB = $(CON_LIB) /DELAYLOAD:comdlg32.dll /DELAYLOAD:ole32.dll DelayImp.lib
+!endif
+
+### Set the default $(WINVER) to make it work with VC++7.0 (VS.NET)
+!ifndef WINVER
+WINVER = 0x0501
+!endif
+
+# If you have a fixed directory for $VIM or $VIMRUNTIME, other than the normal
+# default, use these lines.
+#VIMRCLOC = somewhere
+#VIMRUNTIMEDIR = somewhere
+
+CFLAGS = -c /W3 /nologo $(CVARS) -I. -Iproto -DHAVE_PATHDEF -DWIN32 \
+		$(CSCOPE_DEFS) $(NETBEANS_DEFS) $(CHANNEL_DEFS) \
+		$(NBDEBUG_DEFS) $(XPM_DEFS) \
+		$(DEFINES) -DWINVER=$(WINVER) -D_WIN32_WINNT=$(WINVER) \
+		/Fo$(OUTDIR)/ 
+
+#>>>>> end of choices
+###########################################################################
+
+!ifdef OS
+OS_TYPE	= winnt
+DEL_TREE = rmdir /s /q
+!else
+OS_TYPE	= win95
+DEL_TREE = deltree /y
+!endif
+
+INTDIR=$(OBJDIR)
+OUTDIR=$(OBJDIR)
 
 # Convert processor ID to MVC-compatible number
 !if $(MSVC_MAJOR) < 8
@@ -472,6 +501,11 @@ OPTFLAG = $(OPTFLAG) /GL
 CFLAGS=$(CFLAGS) $(WP64CHECK)
 !endif
 
+# VC10 or later has stdint.h.
+!if $(MSVC_MAJOR) >= 10
+CFLAGS = $(CFLAGS) -DHAVE_STDINT_H
+!endif
+
 # Static code analysis generally available starting with VS2012 (VC11) or
 # Windows SDK 7.1 (VC10)
 !if ("$(ANALYZE)" == "yes") && ($(MSVC_MAJOR) >= 10)
@@ -510,10 +544,11 @@ CFLAGS = $(CFLAGS) /Zl /MTd
 !endif # DEBUG
 
 INCL =	vim.h os_win32.h ascii.h feature.h globals.h keymap.h macros.h \
-	proto.h option.h structs.h term.h $(SNIFF_INCL) $(CSCOPE_INCL) \
+	proto.h option.h structs.h term.h $(CSCOPE_INCL) \
 	$(NBDEBUG_INCL)
 
 OBJ = \
+	$(OUTDIR)\arabic.obj \
 	$(OUTDIR)\blowfish.obj \
 	$(OUTDIR)\buffer.obj \
 	$(OUTDIR)\charset.obj \
@@ -528,11 +563,13 @@ OBJ = \
 	$(OUTDIR)\ex_docmd.obj \
 	$(OUTDIR)\ex_eval.obj \
 	$(OUTDIR)\ex_getln.obj \
+	$(OUTDIR)\farsi.obj \
 	$(OUTDIR)\fileio.obj \
 	$(OUTDIR)\fold.obj \
 	$(OUTDIR)\getchar.obj \
 	$(OUTDIR)\hardcopy.obj \
 	$(OUTDIR)\hashtab.obj \
+	$(OUTDIR)\json.obj \
 	$(OUTDIR)\main.obj \
 	$(OUTDIR)\mark.obj \
 	$(OUTDIR)\mbyte.obj \
@@ -625,6 +662,8 @@ GUI_LIB = \
 	/machine:$(CPU)
 !else
 SUBSYSTEM = console
+CUI_INCL = iscygpty.h
+CUI_OBJ = $(OUTDIR)\iscygpty.obj
 !endif
 
 !if "$(SUBSYSTEM_VER)" != ""
@@ -752,43 +791,52 @@ PYTHON3_LIB = $(PYTHON3)\libs\python$(PYTHON3_VER).lib
 !ifndef MZSCHEME_VER
 MZSCHEME_VER = 205_000
 !endif
-CFLAGS = $(CFLAGS) -DFEAT_MZSCHEME -I $(MZSCHEME)\include
-!if EXIST("$(MZSCHEME)\collects\scheme\base.ss") \
-      	|| EXIST("$(MZSCHEME)\collects\scheme\base.rkt") \
-      	|| EXIST("$(MZSCHEME)\collects\racket\base.rkt")
-# for MzScheme >= 4 we need to include byte code for basic Scheme stuff
-MZSCHEME_EXTRA_DEP = mzscheme_base.c
-CFLAGS = $(CFLAGS) -DINCLUDE_MZSCHEME_BASE
+!ifndef MZSCHEME_COLLECTS
+MZSCHEME_COLLECTS=$(MZSCHEME)\collects
 !endif
+CFLAGS = $(CFLAGS) -DFEAT_MZSCHEME -I "$(MZSCHEME)\include"
 !if EXIST("$(MZSCHEME)\lib\msvc\libmzsch$(MZSCHEME_VER).lib")
 MZSCHEME_MAIN_LIB=mzsch
 !else
 MZSCHEME_MAIN_LIB=racket
 !endif
-!if EXIST("$(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib") \
-	&& !EXIST("$(MZSCHEME)\lib\msvc\libmzgc$(MZSCHEME_VER).lib")
+!if (EXIST("$(MZSCHEME)\lib\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).dll") \
+     && !EXIST("$(MZSCHEME)\lib\libmzgc$(MZSCHEME_VER).dll")) \
+    || (EXIST("$(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib") \
+        && !EXIST("$(MZSCHEME)\lib\msvc\libmzgc$(MZSCHEME_VER).lib"))
 !message Building with Precise GC
 MZSCHEME_PRECISE_GC = yes
 CFLAGS = $(CFLAGS) -DMZ_PRECISE_GC
 !endif
 !if "$(DYNAMIC_MZSCHEME)" == "yes"
-!if "$(MZSCHEME_PRECISE_GC)" == "yes"
-!error MzScheme with Precise GC cannot be loaded dynamically
-!endif
 !message MzScheme DLLs will be loaded dynamically
-CFLAGS = $(CFLAGS) -DDYNAMIC_MZSCHEME \
-		-DDYNAMIC_MZSCH_DLL=\"lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).dll\" \
-		-DDYNAMIC_MZGC_DLL=\"libmzgc$(MZSCHEME_VER).dll\"
+CFLAGS = $(CFLAGS) -DDYNAMIC_MZSCHEME
+!if "$(MZSCHEME_PRECISE_GC)" == "yes"
+# Precise GC does not use separate dll
+CFLAGS = $(CFLAGS) \
+	 -DDYNAMIC_MZSCH_DLL=\"lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).dll\" \
+	 -DDYNAMIC_MZGC_DLL=\"lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).dll\"
+!else
+CFLAGS = $(CFLAGS) \
+	 -DDYNAMIC_MZSCH_DLL=\"lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).dll\" \
+	 -DDYNAMIC_MZGC_DLL=\"libmzgc$(MZSCHEME_VER).dll\"
+!endif
 !else
 !if "$(MZSCHEME_DEBUG)" == "yes"
 CFLAGS = $(CFLAGS) -DMZSCHEME_FORCE_GC
 !endif
 !if "$(MZSCHEME_PRECISE_GC)" == "yes"
 # Precise GC does not use separate dll
-MZSCHEME_LIB = $(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib
+!if EXIST("$(MZSCHEME)\lib\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).def")
+# create .lib from .def
+MZSCHEME_LIB = lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib
+MZSCHEME_EXTRA_DEP = lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib
 !else
-MZSCHEME_LIB = $(MZSCHEME)\lib\msvc\libmzgc$(MZSCHEME_VER).lib \
-		$(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib
+MZSCHEME_LIB = "$(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib"
+!endif
+!else
+MZSCHEME_LIB = "$(MZSCHEME)\lib\msvc\libmzgc$(MZSCHEME_VER).lib" \
+		"$(MZSCHEME)\lib\msvc\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib"
 !endif
 !endif
 MZSCHEME_OBJ = $(OUTDIR)\if_mzsch.obj
@@ -937,9 +985,6 @@ CFLAGS = $(CFLAGS) -DMSWINPS
 #
 # FEATURES: TINY, SMALL, NORMAL, BIG or HUGE
 #
-!if "$(FEATURES)"==""
-FEATURES = BIG
-!endif
 CFLAGS = $(CFLAGS) -DFEAT_$(FEATURES)
 
 #
@@ -969,7 +1014,7 @@ conflags = $(conflags) /map /mapinfo:lines
 !ENDIF
 
 LINKARGS1 = $(linkdebug) $(conflags)
-LINKARGS2 = $(CON_LIB) $(GUI_LIB) $(NODEFAULTLIB) $(LIBC) $(OLE_LIB) user32.lib $(SNIFF_LIB) \
+LINKARGS2 = $(CON_LIB) $(GUI_LIB) $(NODEFAULTLIB) $(LIBC) $(OLE_LIB) user32.lib \
 		$(LUA_LIB) $(MZSCHEME_LIB) $(PERL_LIB) $(PYTHON_LIB) $(PYTHON3_LIB) $(RUBY_LIB) \
 		$(TCL_LIB) $(NETBEANS_LIB) $(XPM_LIB) $(LINK_PDB)
 
@@ -990,14 +1035,14 @@ all:	$(VIM).exe \
 	tee/tee.exe \
 	GvimExt/gvimext.dll
 
-$(VIM).exe: $(OUTDIR) $(OBJ) $(GUI_OBJ) $(OLE_OBJ) $(OLE_IDL) $(MZSCHEME_OBJ) \
+$(VIM).exe: $(OUTDIR) $(OBJ) $(GUI_OBJ) $(CUI_OBJ) $(OLE_OBJ) $(OLE_IDL) $(MZSCHEME_OBJ) \
 		$(LUA_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) $(TCL_OBJ) \
-		$(SNIFF_OBJ) $(CSCOPE_OBJ) $(NETBEANS_OBJ) $(XPM_OBJ) \
+		$(CSCOPE_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) $(XPM_OBJ) \
 		version.c version.h
 	$(CC) $(CFLAGS) version.c
-	$(link) $(LINKARGS1) -out:$(VIM).exe $(OBJ) $(GUI_OBJ) $(OLE_OBJ) \
+	$(link) $(LINKARGS1) -out:$(VIM).exe $(OBJ) $(GUI_OBJ) $(CUI_OBJ) $(OLE_OBJ) \
 		$(LUA_OBJ) $(MZSCHEME_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) \
-		$(TCL_OBJ) $(SNIFF_OBJ) $(CSCOPE_OBJ) $(NETBEANS_OBJ) \
+		$(TCL_OBJ) $(CSCOPE_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) \
 		$(XPM_OBJ) $(OUTDIR)\version.obj $(LINKARGS2)
 	if exist $(VIM).exe.manifest mt.exe -nologo -manifest $(VIM).exe.manifest -updateresource:$(VIM).exe;1
 
@@ -1056,8 +1101,10 @@ clean:
 	- if exist dimm_i.c del dimm_i.c
 	- if exist dimm.tlb del dimm.tlb
 	- if exist dosinst.exe del dosinst.exe
-	- if exist mzscheme_base.c del mzscheme_base.c
 	cd xxd
+	$(MAKE) /NOLOGO -f Make_mvc.mak clean
+	cd ..
+	cd tee
 	$(MAKE) /NOLOGO -f Make_mvc.mak clean
 	cd ..
 	cd GvimExt
@@ -1103,6 +1150,8 @@ testclean:
 !ENDIF
 	$(CC) $(CFLAGS) $<
 
+$(OUTDIR)/arabic.obj:	$(OUTDIR) arabic.c  $(INCL)
+
 $(OUTDIR)/blowfish.obj:	$(OUTDIR) blowfish.c  $(INCL)
 
 $(OUTDIR)/buffer.obj:	$(OUTDIR) buffer.c  $(INCL)
@@ -1131,6 +1180,8 @@ $(OUTDIR)/ex_eval.obj:	$(OUTDIR) ex_eval.c  $(INCL) ex_cmds.h
 
 $(OUTDIR)/ex_getln.obj:	$(OUTDIR) ex_getln.c  $(INCL)
 
+$(OUTDIR)/farsi.obj:	$(OUTDIR) farsi.c  $(INCL)
+
 $(OUTDIR)/fileio.obj:	$(OUTDIR) fileio.c  $(INCL)
 
 $(OUTDIR)/fold.obj:	$(OUTDIR) fold.c  $(INCL)
@@ -1145,7 +1196,7 @@ $(OUTDIR)/gui.obj:	$(OUTDIR) gui.c  $(INCL) $(GUI_INCL)
 
 $(OUTDIR)/gui_beval.obj:	$(OUTDIR) gui_beval.c $(INCL) $(GUI_INCL)
 
-$(OUTDIR)/gui_w32.obj:	$(OUTDIR) gui_w32.c gui_w48.c $(INCL) $(GUI_INCL)
+$(OUTDIR)/gui_w32.obj:	$(OUTDIR) gui_w32.c $(INCL) $(GUI_INCL)
 
 $(OUTDIR)/gui_dwrite.obj:	$(OUTDIR) gui_dwrite.cpp $(INCL) $(GUI_INCL)
 
@@ -1166,13 +1217,10 @@ $(OUTDIR)/if_perlsfio.obj: $(OUTDIR) if_perlsfio.c  $(INCL)
 
 $(OUTDIR)/if_mzsch.obj: $(OUTDIR) if_mzsch.c if_mzsch.h $(INCL) $(MZSCHEME_EXTRA_DEP)
 	$(CC) $(CFLAGS) if_mzsch.c \
-		-DMZSCHEME_COLLECTS=\"$(MZSCHEME:\=\\)\\collects\"
-mzscheme_base.c:
-!IF "$(MZSCHEME_MAIN_LIB)" == "racket"
-	$(MZSCHEME)\raco ctool --c-mods mzscheme_base.c ++lib scheme/base
-!ELSE
-	$(MZSCHEME)\mzc --c-mods mzscheme_base.c ++lib scheme/base
-!ENDIF
+		-DMZSCHEME_COLLECTS="\"$(MZSCHEME_COLLECTS:\=\\)\""
+
+lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).lib:
+	lib /DEF:"$(MZSCHEME)\lib\lib$(MZSCHEME_MAIN_LIB)$(MZSCHEME_VER).def"
 
 $(OUTDIR)/if_python.obj: $(OUTDIR) if_python.c if_py_both.h $(INCL)
 	$(CC) $(CFLAGS) $(PYTHON_INC) if_python.c
@@ -1185,13 +1233,15 @@ $(OUTDIR)/if_ole.obj: $(OUTDIR) if_ole.cpp  $(INCL) if_ole.h
 $(OUTDIR)/if_ruby.obj: $(OUTDIR) if_ruby.c  $(INCL)
 	$(CC) $(CFLAGS) $(RUBY_INC) if_ruby.c
 
-$(OUTDIR)/if_sniff.obj:	$(OUTDIR) if_sniff.c  $(INCL)
-	$(CC) $(CFLAGS) if_sniff.c
-
 $(OUTDIR)/if_tcl.obj: $(OUTDIR) if_tcl.c  $(INCL)
 	$(CC) $(CFLAGS) $(TCL_INC) if_tcl.c
 
-$(OUTDIR)/main.obj:	$(OUTDIR) main.c  $(INCL)
+$(OUTDIR)/iscygpty.obj:	$(OUTDIR) iscygpty.c $(CUI_INCL)
+	$(CC) $(CFLAGS) iscygpty.c -D_WIN32_WINNT=0x0600 -DUSE_DYNFILEID -DENABLE_STUB_IMPL
+
+$(OUTDIR)/json.obj:	$(OUTDIR) json.c  $(INCL)
+
+$(OUTDIR)/main.obj:	$(OUTDIR) main.c  $(INCL) $(CUI_INCL)
 
 $(OUTDIR)/mark.obj:	$(OUTDIR) mark.c  $(INCL)
 
@@ -1212,6 +1262,8 @@ $(OUTDIR)/move.obj:	$(OUTDIR) move.c  $(INCL)
 $(OUTDIR)/mbyte.obj: $(OUTDIR) mbyte.c  $(INCL)
 
 $(OUTDIR)/netbeans.obj: $(OUTDIR) netbeans.c $(NBDEBUG_SRC) $(INCL)
+
+$(OUTDIR)/channel.obj: $(OUTDIR) channel.c $(INCL)
 
 $(OUTDIR)/normal.obj:	$(OUTDIR) normal.c  $(INCL)
 
@@ -1262,7 +1314,7 @@ $(OUTDIR)/xpm_w32.obj: $(OUTDIR) xpm_w32.c
 $(OUTDIR)/vim.res:	$(OUTDIR) vim.rc gvim.exe.mnf version.h tools.bmp \
 				tearoff.bmp vim.ico vim_error.ico \
 				vim_alert.ico vim_info.ico vim_quest.ico
-	$(RC) /l 0x409 /Fo$(OUTDIR)/vim.res $(RCFLAGS) vim.rc
+	$(RC) /nologo /l 0x409 /Fo$(OUTDIR)/vim.res $(RCFLAGS) vim.rc
 
 iid_ole.c if_ole.h vim.tlb: if_ole.idl
 	midl /nologo /error none /proxy nul /iid iid_ole.c /tlb vim.tlb \
@@ -1300,6 +1352,7 @@ auto:
 
 # End Custom Build
 proto.h: \
+	proto/arabic.pro \
 	proto/blowfish.pro \
 	proto/buffer.pro \
 	proto/charset.pro \
@@ -1314,10 +1367,12 @@ proto.h: \
 	proto/ex_docmd.pro \
 	proto/ex_eval.pro \
 	proto/ex_getln.pro \
+	proto/farsi.pro \
 	proto/fileio.pro \
 	proto/getchar.pro \
 	proto/hardcopy.pro \
 	proto/hashtab.pro \
+	proto/json.pro \
 	proto/main.pro \
 	proto/mark.pro \
 	proto/memfile.pro \
@@ -1347,7 +1402,8 @@ proto.h: \
 	proto/ui.pro \
 	proto/undo.pro \
 	proto/window.pro \
-	$(NETBEANS_PRO)
+	$(NETBEANS_PRO) \
+	$(CHANNEL_PRO)
 
 .SUFFIXES: .cod .i
 

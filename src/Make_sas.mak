@@ -89,6 +89,7 @@ CFLAGS4 = $(DEFINES) DATAMEMORY=$(MEMORYTYPE)
 PROPT = DEF=PROTO GPROTO GPPARM MAXIMUMERRORS=999 GENPROTOSTATICS GENPROTOPARAMETERS
 
 SRC = \
+	arabic.c \
 	blowfish.c \
 	buffer.c \
 	charset.c \
@@ -103,11 +104,13 @@ SRC = \
 	ex_docmd.c \
 	ex_eval.c \
 	ex_getln.c \
+	farsi.c \
 	fileio.c \
 	fold.c \
 	getchar.c \
 	hardcopy.c \
 	hashtab.c \
+	json.c \
 	main.c \
 	mark.c \
 	memfile.c \
@@ -138,6 +141,7 @@ SRC = \
 	version.c
 
 OBJ = \
+	arabic.o \
 	blowfish.o \
 	buffer.o \
 	charset.o \
@@ -152,11 +156,13 @@ OBJ = \
 	ex_docmd.o \
 	ex_eval.o \
 	ex_getln.o \
+	farsi.o \
 	fileio.o \
 	fold.o \
 	getchar.o \
 	hardcopy.o \
 	hashtab.o \
+	json.o \
 	main.o \
 	mark.o \
 	memfile.o \
@@ -187,6 +193,7 @@ OBJ = \
 	$(TERMLIB)
 
 PRO = \
+	proto/arabic.pro \
 	proto/blowfish.pro \
 	proto/buffer.pro \
 	proto/charset.pro \
@@ -201,11 +208,13 @@ PRO = \
 	proto/ex_docmd.pro \
 	proto/ex_eval.pro \
 	proto/ex_getln.pro \
+	proto/farsi.pro \
 	proto/fileio.pro \
 	proto/fold.pro \
 	proto/getchar.pro \
 	proto/hardcopy.pro \
 	proto/hashtab.pro \
+	proto/json.pro \
 	proto/main.pro \
 	proto/mark.pro \
 	proto/memfile.pro \
@@ -290,6 +299,8 @@ $(PRO): $(GST) vim.h
 	$(CC) $(CFLAGS) GPFILE=proto/$*.pro $(PROPT) $*.c
 
 # dependencies
+arabic.o:		arabic.c
+proto/arabic.pro:	arabic.c
 blowfish.o:		blowfish.c
 proto/blowfish.pro:	blowfish.c
 buffer.o:		buffer.c
@@ -318,6 +329,8 @@ ex_eval.o:		ex_eval.c ex_cmds.h
 proto/ex_eval.pro:	ex_eval.c ex_cmds.h
 ex_getln.o:		ex_getln.c
 proto/ex_getln.pro:	ex_getln.c
+farsi.o:		farsi.c
+proto/farsi.pro:	farsi.c
 fileio.o:		fileio.c
 proto/fileio.pro:	fileio.c
 fold.o:			fold.c
@@ -328,6 +341,8 @@ hardcopy.o:		hardcopy.c
 proto/hardcopy.pro:	hardcopy.c
 hashtab.o:		hashtab.c
 proto/hashtab.pro:	hashtab.c
+json.o:			json.c
+proto/json.pro:		json.c
 main.o:			main.c
 proto/main.pro:		main.c
 mark.o:			mark.c

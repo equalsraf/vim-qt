@@ -762,6 +762,7 @@ install_bat_choice(int idx)
 	    fprintf(fd, "@echo off\n");
 	    fprintf(fd, "rem -- Run Vim --\n");
 	    fprintf(fd, "\n");
+	    fprintf(fd, "setlocal\n");
 
 	    /* Don't use double quotes for the "set" argument, also when it
 	     * contains a space.  The quotes would be included in the value
@@ -793,6 +794,9 @@ install_bat_choice(int idx)
 	    fprintf(fd, "if .%%1==. goto loopend\n");
 	    if (*exename == 'g')
 	    {
+		fprintf(fd, "if NOT .%%1==.--nofork goto noforklongarg\n");
+		fprintf(fd, "set VIMNOFORK=1\n");
+		fprintf(fd, ":noforklongarg\n");
 		fprintf(fd, "if NOT .%%1==.-f goto noforkarg\n");
 		fprintf(fd, "set VIMNOFORK=1\n");
 		fprintf(fd, ":noforkarg\n");
@@ -1309,14 +1313,14 @@ init_vimrc_choices(void)
     /* Whether to remap keys */
     alloc_text(choice_count, remap_text , remap_choices[remap_choice]);
     choices[choice_count].changefunc = change_remap_choice;
-    choices[choice_count].installfunc = NULL;;
+    choices[choice_count].installfunc = NULL;
     choices[choice_count].active = (*oldvimrc == NUL);
     ++choice_count;
 
     /* default way to use the mouse */
     alloc_text(choice_count, mouse_text, mouse_choices[mouse_choice]);
     choices[choice_count].changefunc = change_mouse_choice;
-    choices[choice_count].installfunc = NULL;;
+    choices[choice_count].installfunc = NULL;
     choices[choice_count].active = (*oldvimrc == NUL);
     ++choice_count;
 }

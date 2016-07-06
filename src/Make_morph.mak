@@ -24,7 +24,8 @@ RM =		rm
 .c.o:
 	${CC} ${CFLAGS} $< -o $@
 
-SRC =	blowfish.c						\
+SRC =	arabic.c						\
+	blowfish.c						\
 	buffer.c						\
 	charset.c						\
 	crypt.c							\
@@ -38,11 +39,13 @@ SRC =	blowfish.c						\
 	ex_docmd.c						\
 	ex_eval.c						\
 	ex_getln.c						\
+	farsi.c							\
 	fileio.c						\
 	fold.c							\
 	getchar.c						\
 	hardcopy.c						\
 	hashtab.c						\
+	json.c							\
 	main.c							\
 	mark.c							\
 	mbyte.c							\
