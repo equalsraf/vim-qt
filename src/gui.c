@@ -166,10 +166,10 @@ gui_attempt_start(void)
     termcapinit((char_u *)"builtin_gui");
     gui.starting = recursive - 1;
 
-#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11)
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_QT)
     if (gui.in_use)
     {
-# ifdef FEAT_EVAL
+# if defined(FEAT_EVAL) && !defined(FEAT_GUI_QT)
 	Window	x11_window;
 	Display	*x11_display;
 
@@ -797,7 +797,7 @@ gui_exit(int rc)
 }
 
 #if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_MSWIN) \
-	|| defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC) || defined(PROTO)
+	|| defined(FEAT_GUI_PHOTON) || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_QT) || defined(PROTO)
 # define NEED_GUI_UPDATE_SCREEN 1
 /*
  * Called when the GUI shell is closed by the user.  If there are no changed
@@ -1402,7 +1402,7 @@ gui_get_base_height(void)
     base_height = 2 * gui.border_offset;
     if (gui.which_scrollbars[SBAR_BOTTOM])
 	base_height += gui.scrollbar_height;
-#ifdef FEAT_GUI_GTK
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
     /* We can't take the sizes properly into account until anything is
      * realized.  Therefore we recalculate all the values here just before
      * setting the size. (--mdcki) */
@@ -1561,7 +1561,7 @@ gui_set_shellsize(
     if (!gui.shell_created)
 	return;
 
-#if defined(MSWIN) || defined(FEAT_GUI_GTK)
+#if (defined(MSWIN) || defined(FEAT_GUI_GTK)) && !defined(FEAT_GUI_QT)
     /* If not setting to a user specified size and maximized, calculate the
      * number of characters that fit in the maximized window. */
     if (!mustset && gui_mch_maximized())
@@ -2370,7 +2370,7 @@ gui_outstr_nowrap(
     if (back != 0 && ((draw_flags & DRAW_BOLD) || (highlight_mask & HL_ITALIC)))
 	return FAIL;
 
-#if defined(FEAT_GUI_GTK)
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
     /* If there's no italic font, then fake it.
      * For GTK2, we don't need a different font for italic style. */
     if (hl_mask_todo & HL_ITALIC)
@@ -5381,6 +5381,7 @@ gui_do_findrepl(
 #if (defined(FEAT_DND) && defined(FEAT_GUI_GTK)) \
 	|| defined(FEAT_GUI_MSWIN) \
 	|| defined(FEAT_GUI_MAC) \
+	|| defined(FEAT_GUI_QT) \
 	|| defined(PROTO)
 
 #ifdef FEAT_WINDOWS

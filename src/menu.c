@@ -272,7 +272,7 @@ ex_menu(
 	EMSG(_(e_trailing));
 	goto theend;
     }
-#if defined(FEAT_GUI) && !(defined(FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON))
+#if defined(FEAT_GUI) && !(defined(FEAT_GUI_GTK) || defined(FEAT_GUI_PHOTON) || FEAT_GUI_QT)
     old_menu_height = gui.menu_height;
 # if defined(FEAT_TOOLBAR) && !defined(FEAT_GUI_W32)
     old_toolbar_height = gui.toolbar_height;
@@ -391,7 +391,7 @@ ex_menu(
 	vim_free(map_buf);
     }
 
-#if defined(FEAT_GUI) && !(defined(FEAT_GUI_GTK))
+#if defined(FEAT_GUI) && !(defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT))
     /* If the menubar height changed, resize the window */
     if (gui.in_use
 	    && (gui.menu_height != old_menu_height

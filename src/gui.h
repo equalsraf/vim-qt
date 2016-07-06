@@ -62,7 +62,7 @@
  * On some systems scrolling needs to be done right away instead of in the
  * main loop.
  */
-#if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_GTK)
+#if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_MAC) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
 # define USE_ON_FLY_SCROLL
 #endif
 
@@ -138,7 +138,7 @@
 #define DRAW_BOLD		0x02	/* draw bold text */
 #define DRAW_UNDERL		0x04	/* draw underline text */
 #define DRAW_UNDERC		0x08	/* draw undercurl text */
-#if defined(FEAT_GUI_GTK)
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
 # define DRAW_ITALIC		0x10	/* draw italic text */
 #endif
 #define DRAW_CURSOR		0x20	/* drawing block cursor (win32) */
@@ -162,6 +162,10 @@
 #if defined(NO_CONSOLE) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11)
 # define NO_CONSOLE_INPUT	/* use no_console_input() to check if there
 				   is no console input possible */
+#endif
+
+#ifdef FEAT_GUI_QT
+struct VimScrollBar;
 #endif
 
 typedef struct GuiScrollbar
@@ -204,6 +208,9 @@ typedef struct GuiScrollbar
 #ifdef FEAT_GUI_PHOTON
     PtWidget_t	*id;
 #endif
+#ifdef FEAT_GUI_QT
+    struct VimScrollBar* wid;
+#endif
 } scrollbar_T;
 
 typedef long	    guicolor_T;	/* handle for a GUI color; for X11 this should
@@ -231,10 +238,19 @@ typedef long	    guicolor_T;	/* handle for a GUI color; for X11 this should
 #   define NOFONT	(GuiFont)0
 #   define NOFONTSET	(GuiFontset)0
 #  else
+
+#   ifdef FEAT_GUI_QT
+  struct QFont;
+  typedef struct QFont*	GuiFont;
+  typedef void*		GuiFontset;
+#  define NOFONT	(GuiFont)NULL
+#  define NOFONTSET	(GuiFontset)NULL
+#   else
   typedef long_u	GuiFont;	/* handle for a GUI font */
   typedef long_u	GuiFontset;	/* handle for a GUI fontset */
 #   define NOFONT	(GuiFont)0
 #   define NOFONTSET	(GuiFontset)0
+#   endif
 #  endif
 # endif
 #endif
@@ -296,6 +312,10 @@ typedef struct Gui
 #else
     int		font_can_bold;	    /* Whether norm_font supports bold weight.
 				     * The styled font variants are not used. */
+#endif
+
+#ifdef FEAT_GUI_QT
+    int		char_ul_pos;        /* underline position - distance from the baseline */
 #endif
 
 #if defined(FEAT_MENU) && !defined(FEAT_GUI_GTK)
