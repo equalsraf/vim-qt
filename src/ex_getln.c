@@ -5408,20 +5408,6 @@ static char *(history_names[]) =
     NULL
 };
 
-/*
- * Return the current time in seconds.  Calls time(), unless test_settime()
- * was used.
- */
-    static time_t
-vim_time(void)
-{
-#ifdef FEAT_EVAL
-    return time_for_testing == 0 ? time(NULL) : time_for_testing;
-#else
-    return time(NULL);
-#endif
-}
-
 #if defined(FEAT_CMDL_COMPL) || defined(PROTO)
 /*
  * Function given to ExpandGeneric() to obtain the possible first
@@ -5536,6 +5522,7 @@ clear_hist_entry(histentry_T *hisptr)
     hisptr->hisnum = 0;
     hisptr->viminfo = FALSE;
     hisptr->hisstr = NULL;
+    hisptr->time_set = 0;
 }
 
 /*
@@ -6018,7 +6005,7 @@ get_list_range(char_u **str, int *num1, int *num2)
 {
     int		len;
     int		first = FALSE;
-    long	num;
+    varnumber_T	num;
 
     *str = skipwhite(*str);
     if (**str == '-' || vim_isdigit(**str))  /* parse "from" part of range */
@@ -6262,6 +6249,8 @@ read_viminfo_history(vir_T *virp, int writing)
 		    }
 		    viminfo_history[type][viminfo_hisidx[type]].hisstr = p;
 		    viminfo_history[type][viminfo_hisidx[type]].time_set = 0;
+		    viminfo_history[type][viminfo_hisidx[type]].viminfo = TRUE;
+		    viminfo_history[type][viminfo_hisidx[type]].hisnum = 0;
 		    viminfo_hisidx[type]++;
 		}
 	    }
@@ -6277,34 +6266,34 @@ read_viminfo_history(vir_T *virp, int writing)
  */
     void
 handle_viminfo_history(
-	bval_T	*values,
-	int	count,
-	int	writing)
+	garray_T    *values,
+	int	    writing)
 {
     int		type;
     long_u	len;
     char_u	*val;
     char_u	*p;
+    bval_T	*vp = (bval_T *)values->ga_data;
 
     /* Check the format:
      * |{bartype},{histtype},{timestamp},{separator},"text" */
-    if (count < 4
-	    || values[0].bv_type != BVAL_NR
-	    || values[1].bv_type != BVAL_NR
-	    || (values[2].bv_type != BVAL_NR && values[2].bv_type != BVAL_EMPTY)
-	    || values[3].bv_type != BVAL_STRING)
+    if (values->ga_len < 4
+	    || vp[0].bv_type != BVAL_NR
+	    || vp[1].bv_type != BVAL_NR
+	    || (vp[2].bv_type != BVAL_NR && vp[2].bv_type != BVAL_EMPTY)
+	    || vp[3].bv_type != BVAL_STRING)
 	return;
 
-    type = values[0].bv_nr;
+    type = vp[0].bv_nr;
     if (type >= HIST_COUNT)
 	return;
     if (viminfo_hisidx[type] < viminfo_hislen[type])
     {
-	val = values[3].bv_string;
+	val = vp[3].bv_string;
 	if (val != NULL && *val != NUL)
 	{
-	    int sep = type == HIST_SEARCH && values[2].bv_type == BVAL_NR
-						      ? values[2].bv_nr : NUL;
+	    int sep = type == HIST_SEARCH && vp[2].bv_type == BVAL_NR
+						      ? vp[2].bv_nr : NUL;
 	    int idx;
 	    int overwrite = FALSE;
 
@@ -6326,18 +6315,22 @@ handle_viminfo_history(
 		if (!overwrite)
 		{
 		    /* Need to re-allocate to append the separator byte. */
-		    len = values[3].bv_len;
+		    len = vp[3].bv_len;
 		    p = lalloc(len + 2, TRUE);
 		}
+		else
+		    len = 0; /* for picky compilers */
 		if (p != NULL)
 		{
-		    viminfo_history[type][idx].time_set = values[1].bv_nr;
+		    viminfo_history[type][idx].time_set = vp[1].bv_nr;
 		    if (!overwrite)
 		    {
 			mch_memmove(p, val, (size_t)len + 1);
 			/* Put the separator after the NUL. */
 			p[len + 1] = sep;
 			viminfo_history[type][idx].hisstr = p;
+			viminfo_history[type][idx].hisnum = 0;
+			viminfo_history[type][idx].viminfo = TRUE;
 			viminfo_hisidx[type]++;
 		    }
 		}
@@ -6347,57 +6340,147 @@ handle_viminfo_history(
 }
 
 /*
- * Finish reading history lines from viminfo.  Not used when writing viminfo.
+ * Concatenate history lines from viminfo after the lines typed in this Vim.
  */
-    void
-finish_viminfo_history(void)
+    static void
+concat_history(int type)
 {
     int idx;
     int i;
+
+    idx = hisidx[type] + viminfo_hisidx[type];
+    if (idx >= hislen)
+	idx -= hislen;
+    else if (idx < 0)
+	idx = hislen - 1;
+    if (viminfo_add_at_front)
+	hisidx[type] = idx;
+    else
+    {
+	if (hisidx[type] == -1)
+	    hisidx[type] = hislen - 1;
+	do
+	{
+	    if (history[type][idx].hisstr != NULL
+					    || history[type][idx].viminfo)
+		break;
+	    if (++idx == hislen)
+		idx = 0;
+	} while (idx != hisidx[type]);
+	if (idx != hisidx[type] && --idx < 0)
+	    idx = hislen - 1;
+    }
+    for (i = 0; i < viminfo_hisidx[type]; i++)
+    {
+	vim_free(history[type][idx].hisstr);
+	history[type][idx].hisstr = viminfo_history[type][i].hisstr;
+	history[type][idx].viminfo = TRUE;
+	history[type][idx].time_set = viminfo_history[type][i].time_set;
+	if (--idx < 0)
+	    idx = hislen - 1;
+    }
+    idx += 1;
+    idx %= hislen;
+    for (i = 0; i < viminfo_hisidx[type]; i++)
+    {
+	history[type][idx++].hisnum = ++hisnum[type];
+	idx %= hislen;
+    }
+}
+
+#if defined(FEAT_CMDL_COMPL) || defined(PROTO)
+    static int
+#ifdef __BORLANDC__
+_RTLENTRYF
+#endif
+sort_hist(const void *s1, const void *s2)
+{
+    histentry_T *p1 = *(histentry_T **)s1;
+    histentry_T *p2 = *(histentry_T **)s2;
+
+    if (p1->time_set < p2->time_set) return -1;
+    if (p1->time_set > p2->time_set) return 1;
+    return 0;
+}
+#endif
+
+/*
+ * Merge history lines from viminfo and lines typed in this Vim based on the
+ * timestamp;
+ */
+    static void
+merge_history(int type)
+{
+    int		max_len;
+    histentry_T **tot_hist;
+    histentry_T *new_hist;
+    int		i;
+    int		len;
+
+    /* Make one long list with all entries. */
+    max_len = hislen + viminfo_hisidx[type];
+    tot_hist = (histentry_T **)alloc(max_len * (int)sizeof(histentry_T *));
+    new_hist = (histentry_T *)alloc(hislen * (int)sizeof(histentry_T));
+    if (tot_hist == NULL || new_hist == NULL)
+    {
+	vim_free(tot_hist);
+	vim_free(new_hist);
+	return;
+    }
+    for (i = 0; i < viminfo_hisidx[type]; i++)
+	tot_hist[i] = &viminfo_history[type][i];
+    len = i;
+    for (i = 0; i < hislen; i++)
+	if (history[type][i].hisstr != NULL)
+	    tot_hist[len++] = &history[type][i];
+
+    /* Sort the list on timestamp. */
+    qsort((void *)tot_hist, (size_t)len, sizeof(histentry_T *), sort_hist);
+
+    /* Keep the newest ones. */
+    for (i = 0; i < hislen; i++)
+    {
+	if (i < len)
+	{
+	    new_hist[i] = *tot_hist[i];
+	    tot_hist[i]->hisstr = NULL;
+	    if (new_hist[i].hisnum == 0)
+		new_hist[i].hisnum = ++hisnum[type];
+	}
+	else
+	    clear_hist_entry(&new_hist[i]);
+    }
+    hisidx[type] = (i < len ? i : len) - 1;
+
+    /* Free what is not kept. */
+    for (i = 0; i < viminfo_hisidx[type]; i++)
+	vim_free(viminfo_history[type][i].hisstr);
+    for (i = 0; i < hislen; i++)
+	vim_free(history[type][i].hisstr);
+    vim_free(history[type]);
+    history[type] = new_hist;
+    vim_free(tot_hist);
+}
+
+/*
+ * Finish reading history lines from viminfo.  Not used when writing viminfo.
+ */
+    void
+finish_viminfo_history(vir_T *virp)
+{
     int	type;
+    int merge = virp->vir_version >= VIMINFO_VERSION_WITH_HISTORY;
 
     for (type = 0; type < HIST_COUNT; ++type)
     {
 	if (history[type] == NULL)
 	    continue;
-	idx = hisidx[type] + viminfo_hisidx[type];
-	if (idx >= hislen)
-	    idx -= hislen;
-	else if (idx < 0)
-	    idx = hislen - 1;
-	if (viminfo_add_at_front)
-	    hisidx[type] = idx;
+
+	if (merge)
+	    merge_history(type);
 	else
-	{
-	    if (hisidx[type] == -1)
-		hisidx[type] = hislen - 1;
-	    do
-	    {
-		if (history[type][idx].hisstr != NULL
-						|| history[type][idx].viminfo)
-		    break;
-		if (++idx == hislen)
-		    idx = 0;
-	    } while (idx != hisidx[type]);
-	    if (idx != hisidx[type] && --idx < 0)
-		idx = hislen - 1;
-	}
-	for (i = 0; i < viminfo_hisidx[type]; i++)
-	{
-	    vim_free(history[type][idx].hisstr);
-	    history[type][idx].hisstr = viminfo_history[type][i].hisstr;
-	    history[type][idx].viminfo = TRUE;
-	    history[type][idx].time_set = viminfo_history[type][i].time_set;
-	    if (--idx < 0)
-		idx = hislen - 1;
-	}
-	idx += 1;
-	idx %= hislen;
-	for (i = 0; i < viminfo_hisidx[type]; i++)
-	{
-	    history[type][idx++].hisnum = ++hisnum[type];
-	    idx %= hislen;
-	}
+	    concat_history(type);
+
 	vim_free(viminfo_history[type]);
 	viminfo_history[type] = NULL;
 	viminfo_hisidx[type] = 0;

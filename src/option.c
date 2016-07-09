@@ -4201,7 +4201,7 @@ do_set(
     int		afterchar;	    /* character just after option name */
     int		len;
     int		i;
-    long	value;
+    varnumber_T	value;
     int		key;
     long_u	flags;		    /* flags for current option */
     char_u	*varp = NULL;	    /* pointer to variable for current option */
@@ -8031,7 +8031,8 @@ set_bool_option(
 		need_start_insertmode = TRUE;
 	    stop_insert_mode = FALSE;
 	}
-	else
+	/* only reset if it was set previously */
+	else if (old_value)
 	{
 	    need_start_insertmode = FALSE;
 	    stop_insert_mode = TRUE;
@@ -9143,7 +9144,7 @@ get_option_value(
 	if ((int *)varp == &curbuf->b_changed)
 	    *numval = curbufIsChanged();
 	else
-	    *numval = *(int *)varp;
+	    *numval = (long) *(int *)varp;
     }
     return 1;
 }

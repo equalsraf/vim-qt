@@ -1090,6 +1090,12 @@ deathtrap SIGDEFARG(sigarg)
     /* Remember how often we have been called. */
     ++entered;
 
+#ifdef FEAT_AUTOCMD
+    /* Executing autocommands is likely to use more stack space than we have
+     * available in the signal stack. */
+    block_autocmds();
+#endif
+
 #ifdef FEAT_EVAL
     /* Set the v:dying variable. */
     set_vim_var_nr(VV_DYING, (long)entered);
@@ -1170,6 +1176,8 @@ deathtrap SIGDEFARG(sigarg)
     /* Preserve files and exit.  This sets the really_exiting flag to prevent
      * calling free(). */
     preserve_exit();
+
+    /* NOTREACHED */
 
 #ifdef NBDEBUG
     reset_signals();
@@ -3404,7 +3412,13 @@ mch_settmode(int tmode)
 	tnew.c_cc[VTIME] = 0;		/* don't wait */
     }
     else if (tmode == TMODE_SLEEP)
-	tnew.c_lflag &= ~(ECHO);
+    {
+	/* Also reset ICANON here, otherwise on Solaris select() won't see
+	 * typeahead characters. */
+	tnew.c_lflag &= ~(ICANON | ECHO);
+	tnew.c_cc[VMIN] = 1;		/* return after 1 char */
+	tnew.c_cc[VTIME] = 0;		/* don't wait */
+    }
 
 # if defined(HAVE_TERMIOS_H)
     {

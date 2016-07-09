@@ -818,6 +818,12 @@ gui_mch_is_blinking(void)
     return blink_state != BLINK_NONE;
 }
 
+    int
+gui_mch_is_blink_off(void)
+{
+    return blink_state == BLINK_OFF;
+}
+
     void
 gui_mch_set_blinking(long waittime, long on, long off)
 {
@@ -2205,7 +2211,7 @@ parse_uri_list(int *count, char_u *data, int len)
 {
     int	    n	    = 0;
     char_u  *tmp    = NULL;
-    char_u  **array = NULL;;
+    char_u  **array = NULL;
 
     if (data != NULL && len > 0 && (tmp = (char_u *)alloc(len + 1)) != NULL)
     {

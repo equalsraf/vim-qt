@@ -1174,7 +1174,7 @@ timer_callback(timer_T *timer)
  * Return the time in msec until the next timer is due.
  */
     long
-check_due_timer()
+check_due_timer(void)
 {
     timer_T	*timer;
     long	this_due;
@@ -3349,6 +3349,7 @@ add_pack_plugin(char_u *fname, void *cookie)
     char_u  *afterdir;
     size_t  afterlen = 0;
     char_u  *ffname = fix_fname(fname);
+    size_t  fname_len;
 
     if (ffname == NULL)
 	return;
@@ -3369,7 +3370,20 @@ add_pack_plugin(char_u *fname, void *cookie)
 	 * find the part up to "pack" in 'runtimepath' */
 	c = *p4;
 	*p4 = NUL;
-	insp = (char_u *)strstr((char *)p_rtp, (char *)ffname);
+
+	/* Find "ffname" in "p_rtp", ignoring '/' vs '\' differences. */
+	fname_len = STRLEN(ffname);
+	insp = p_rtp;
+	for (;;)
+	{
+	    if (vim_fnamencmp(insp, ffname, fname_len) == 0)
+		break;
+	    insp = vim_strchr(insp, ',');
+	    if (insp == NULL)
+		break;
+	    ++insp;
+	}
+
 	if (insp == NULL)
 	    /* not found, append at the end */
 	    insp = p_rtp + STRLEN(p_rtp);
@@ -3671,7 +3685,7 @@ do_source(
     int			    save_debug_break_level = debug_break_level;
     scriptitem_T	    *si = NULL;
 # ifdef UNIX
-    struct stat		    st;
+    stat_T		    st;
     int			    stat_ok;
 # endif
 #endif

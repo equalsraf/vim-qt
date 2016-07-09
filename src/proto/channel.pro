@@ -17,14 +17,16 @@ void channel_set_req_callback(channel_T *channel, int part, char_u *callback, pa
 void channel_buffer_free(buf_T *buf);
 void channel_write_any_lines(void);
 void channel_write_new_lines(buf_T *buf);
+readq_T *channel_peek(channel_T *channel, int part);
+char_u *channel_first_nl(readq_T *node);
 char_u *channel_get(channel_T *channel, int part);
+void channel_consume(channel_T *channel, int part, int len);
 int channel_collapse(channel_T *channel, int part, int want_nl);
 int channel_can_write_to(channel_T *channel);
 int channel_is_open(channel_T *channel);
 char *channel_status(channel_T *channel);
 void channel_info(channel_T *channel, dict_T *dict);
 void channel_close(channel_T *channel, int invoke_close_cb);
-char_u *channel_peek(channel_T *channel, int part);
 void channel_clear(channel_T *channel);
 void channel_free_all(void);
 char_u *channel_read_block(channel_T *channel, int part, int timeout);
@@ -32,7 +34,7 @@ int channel_read_json_block(channel_T *channel, int part, int timeout_arg, int i
 void common_channel_read(typval_T *argvars, typval_T *rettv, int raw);
 channel_T *channel_fd2channel(sock_T fd, int *partp);
 void channel_handle_events(void);
-int channel_send(channel_T *channel, int part, char_u *buf, char *fun);
+int channel_send(channel_T *channel, int part, char_u *buf, int len, char *fun);
 channel_T *send_common(typval_T *argvars, char_u *text, int id, int eval, jobopt_T *opt, char *fun, int *part_read);
 void ch_expr_common(typval_T *argvars, typval_T *rettv, int eval);
 void ch_raw_common(typval_T *argvars, typval_T *rettv, int eval);

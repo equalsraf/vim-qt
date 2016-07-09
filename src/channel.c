@@ -132,7 +132,7 @@ ch_logfile(char_u *fname, char_u *opt)
 }
 
     int
-ch_log_active()
+ch_log_active(void)
 {
     return log_fd != NULL;
 }
@@ -261,7 +261,10 @@ strerror_win32(int eno)
     char_u *ptr;
 
     if (msgbuf)
+    {
 	LocalFree(msgbuf);
+	msgbuf = NULL;
+    }
     FormatMessage(
 	FORMAT_MESSAGE_ALLOCATE_BUFFER |
 	FORMAT_MESSAGE_FROM_SYSTEM |
@@ -272,21 +275,22 @@ strerror_win32(int eno)
 	(LPTSTR) &msgbuf,
 	0,
 	NULL);
-    /* chomp \r or \n */
-    for (ptr = (char_u *)msgbuf; *ptr; ptr++)
-	switch (*ptr)
-	{
-	    case '\r':
-		STRMOVE(ptr, ptr + 1);
-		ptr--;
-		break;
-	    case '\n':
-		if (*(ptr + 1) == '\0')
-		    *ptr = '\0';
-		else
-		    *ptr = ' ';
-		break;
-	}
+    if (msgbuf != NULL)
+	/* chomp \r or \n */
+	for (ptr = (char_u *)msgbuf; *ptr; ptr++)
+	    switch (*ptr)
+	    {
+		case '\r':
+		    STRMOVE(ptr, ptr + 1);
+		    ptr--;
+		    break;
+		case '\n':
+		    if (*(ptr + 1) == '\0')
+			*ptr = '\0';
+		    else
+			*ptr = ' ';
+		    break;
+	    }
     return msgbuf;
 }
 #endif
@@ -1309,14 +1313,20 @@ write_buf_line(buf_T *buf, linenr_T lnum, channel_T *channel)
     char_u  *line = ml_get_buf(buf, lnum, FALSE);
     int	    len = (int)STRLEN(line);
     char_u  *p;
+    int	    i;
 
     /* Need to make a copy to be able to append a NL. */
     if ((p = alloc(len + 2)) == NULL)
 	return;
-    STRCPY(p, line);
+    memcpy((char *)p, (char *)line, len);
+
+    for (i = 0; i < len; ++i)
+	if (p[i] == NL)
+	    p[i] = NUL;
+
     p[len] = NL;
     p[len + 1] = NUL;
-    channel_send(channel, PART_IN, p, "write_buf_line()");
+    channel_send(channel, PART_IN, p, len + 1, "write_buf_line()");
     vim_free(p);
 }
 
@@ -1436,7 +1446,7 @@ channel_write_in(channel_T *channel)
 }
 
 /*
- * Handle buffer "buf" beeing freed, remove it from any channels.
+ * Handle buffer "buf" being freed, remove it from any channels.
  */
     void
 channel_buffer_free(buf_T *buf)
@@ -1462,7 +1472,7 @@ channel_buffer_free(buf_T *buf)
  * Write any lines waiting to be written to a channel.
  */
     void
-channel_write_any_lines()
+channel_write_any_lines(void)
 {
     channel_T	*channel;
 
@@ -1550,6 +1560,35 @@ invoke_callback(channel_T *channel, char_u *callback, partial_T *partial,
 }
 
 /*
+ * Return the first node from "channel"/"part" without removing it.
+ * Returns NULL if there is nothing.
+ */
+    readq_T *
+channel_peek(channel_T *channel, int part)
+{
+    readq_T *head = &channel->ch_part[part].ch_head;
+
+    return head->rq_next;
+}
+
+/*
+ * Return a pointer to the first NL in "node".
+ * Skips over NUL characters.
+ * Returns NULL if there is no NL.
+ */
+    char_u *
+channel_first_nl(readq_T *node)
+{
+    char_u  *buffer = node->rq_buffer;
+    long_u  i;
+
+    for (i = 0; i < node->rq_buflen; ++i)
+	if (buffer[i] == NL)
+	    return buffer + i;
+    return NULL;
+}
+
+/*
  * Return the first buffer from channel "channel"/"part" and remove it.
  * The caller must free it.
  * Returns NULL if there is nothing.
@@ -1576,13 +1615,14 @@ channel_get(channel_T *channel, int part)
 
 /*
  * Returns the whole buffer contents concatenated for "channel"/"part".
+ * Replaces NUL bytes with NL.
  */
     static char_u *
 channel_get_all(channel_T *channel, int part)
 {
     readq_T *head = &channel->ch_part[part].ch_head;
     readq_T *node = head->rq_next;
-    long_u  len = 1;
+    long_u  len = 0;
     char_u  *res;
     char_u  *p;
 
@@ -1593,13 +1633,13 @@ channel_get_all(channel_T *channel, int part)
     /* Concatenate everything into one buffer. */
     for (node = head->rq_next; node != NULL; node = node->rq_next)
 	len += node->rq_buflen;
-    res = lalloc(len, TRUE);
+    res = lalloc(len + 1, TRUE);
     if (res == NULL)
 	return NULL;
     p = res;
     for (node = head->rq_next; node != NULL; node = node->rq_next)
     {
-	STRCPY(p, node->rq_buffer);
+	mch_memmove(p, node->rq_buffer, node->rq_buflen);
 	p += node->rq_buflen;
     }
     *p = NUL;
@@ -1611,7 +1651,30 @@ channel_get_all(channel_T *channel, int part)
 	vim_free(p);
     } while (p != NULL);
 
+    /* turn all NUL into NL */
+    while (len > 0)
+    {
+	--len;
+	if (res[len] == NUL)
+	    res[len] = NL;
+    }
+
     return res;
+}
+
+/*
+ * Consume "len" bytes from the head of "node".
+ * Caller must check these bytes are available.
+ */
+    void
+channel_consume(channel_T *channel, int part, int len)
+{
+    readq_T *head = &channel->ch_part[part].ch_head;
+    readq_T *node = head->rq_next;
+    char_u *buf = node->rq_buffer;
+
+    mch_memmove(buf, buf + len, node->rq_buflen - len);
+    node->rq_buflen -= len;
 }
 
 /*
@@ -1637,7 +1700,7 @@ channel_collapse(channel_T *channel, int part, int want_nl)
     len = node->rq_buflen + last_node->rq_buflen + 1;
     if (want_nl)
 	while (last_node->rq_next != NULL
-		&& vim_strchr(last_node->rq_buffer, NL) == NULL)
+		&& channel_first_nl(last_node) == NULL)
 	{
 	    last_node = last_node->rq_next;
 	    len += last_node->rq_buflen;
@@ -1646,14 +1709,14 @@ channel_collapse(channel_T *channel, int part, int want_nl)
     p = newbuf = alloc(len);
     if (newbuf == NULL)
 	return FAIL;	    /* out of memory */
-    STRCPY(p, node->rq_buffer);
+    mch_memmove(p, node->rq_buffer, node->rq_buflen);
     p += node->rq_buflen;
     vim_free(node->rq_buffer);
     node->rq_buffer = newbuf;
     for (n = node; n != last_node; )
     {
 	n = n->rq_next;
-	STRCPY(p, n->rq_buffer);
+	mch_memmove(p, n->rq_buffer, n->rq_buflen);
 	p += n->rq_buflen;
 	vim_free(n->rq_buffer);
     }
@@ -1691,6 +1754,8 @@ channel_save(channel_T *channel, int part, char_u *buf, int len,
     node = (readq_T *)alloc(sizeof(readq_T));
     if (node == NULL)
 	return FAIL;	    /* out of memory */
+    /* A NUL is added at the end, because netbeans code expects that.
+     * Otherwise a NUL may appear inside the text. */
     node->rq_buffer = alloc(len + 1);
     if (node->rq_buffer == NULL)
     {
@@ -2126,7 +2191,7 @@ channel_exe_cmd(channel_T *channel, int part, typval_T *argv)
 		{
 		    channel_send(channel,
 				 part == PART_SOCK ? PART_SOCK : PART_IN,
-				 json, (char *)cmd);
+				 json, (int)STRLEN(json), (char *)cmd);
 		    vim_free(json);
 		}
 	    }
@@ -2139,7 +2204,7 @@ channel_exe_cmd(channel_T *channel, int part, typval_T *argv)
     }
     else if (p_verbose > 2)
     {
-	ch_errors(channel, "Receved unknown command: %s", (char *)cmd);
+	ch_errors(channel, "Received unknown command: %s", (char *)cmd);
 	EMSG2("E905: received unknown command: %s", cmd);
     }
 }
@@ -2283,6 +2348,7 @@ may_invoke_callback(channel_T *channel, int part)
     char_u	*callback = NULL;
     partial_T	*partial = NULL;
     buf_T	*buffer = NULL;
+    char_u	*p;
 
     if (channel->ch_nb_close_cb != NULL)
 	/* this channel is handled elsewhere (netbeans) */
@@ -2375,19 +2441,27 @@ may_invoke_callback(channel_T *channel, int part)
 	{
 	    char_u  *nl;
 	    char_u  *buf;
+	    readq_T *node;
 
 	    /* See if we have a message ending in NL in the first buffer.  If
 	     * not try to concatenate the first and the second buffer. */
 	    while (TRUE)
 	    {
-		buf = channel_peek(channel, part);
-		nl = vim_strchr(buf, NL);
+		node = channel_peek(channel, part);
+		nl = channel_first_nl(node);
 		if (nl != NULL)
 		    break;
 		if (channel_collapse(channel, part, TRUE) == FAIL)
 		    return FALSE; /* incomplete message */
 	    }
-	    if (nl[1] == NUL)
+	    buf = node->rq_buffer;
+
+	    /* Convert NUL to NL, the internal representation. */
+	    for (p = buf; p < nl && p < buf + node->rq_buflen; ++p)
+		if (*p == NUL)
+		    *p = NL;
+
+	    if (nl + 1 == buf + node->rq_buflen)
 	    {
 		/* get the whole buffer, drop the NL */
 		msg = channel_get(channel, part);
@@ -2395,16 +2469,19 @@ may_invoke_callback(channel_T *channel, int part)
 	    }
 	    else
 	    {
-		/* Copy the message into allocated memory and remove it from
-		 * the buffer. */
+		/* Copy the message into allocated memory (excluding the NL)
+		 * and remove it from the buffer (including the NL). */
 		msg = vim_strnsave(buf, (int)(nl - buf));
-		mch_memmove(buf, nl + 1, STRLEN(nl + 1) + 1);
+		channel_consume(channel, part, (int)(nl - buf) + 1);
 	    }
 	}
 	else
+	{
 	    /* For a raw channel we don't know where the message ends, just
-	     * get everything we have. */
+	     * get everything we have.
+	     * Convert NUL to NL, the internal representation. */
 	    msg = channel_get_all(channel, part);
+	}
 
 	if (msg == NULL)
 	    return FALSE; /* out of memory (and avoids Coverity warning) */
@@ -2665,20 +2742,6 @@ channel_close(channel_T *channel, int invoke_close_cb)
     }
 
     channel->ch_nb_close_cb = NULL;
-}
-
-/*
- * Return the first buffer from "channel"/"part" without removing it.
- * Returns NULL if there is nothing.
- */
-    char_u *
-channel_peek(channel_T *channel, int part)
-{
-    readq_T *head = &channel->ch_part[part].ch_head;
-
-    if (head->rq_next == NULL)
-	return NULL;
-    return head->rq_next->rq_buffer;
 }
 
 /*
@@ -3043,19 +3106,23 @@ channel_read_block(channel_T *channel, int part, int timeout)
     ch_mode_T	mode = channel->ch_part[part].ch_mode;
     sock_T	fd = channel->ch_part[part].ch_fd;
     char_u	*nl;
+    readq_T	*node;
 
     ch_logsn(channel, "Blocking %s read, timeout: %d msec",
 				    mode == MODE_RAW ? "RAW" : "NL", timeout);
 
     while (TRUE)
     {
-	buf = channel_peek(channel, part);
-	if (buf != NULL && (mode == MODE_RAW
-			 || (mode == MODE_NL && vim_strchr(buf, NL) != NULL)))
-	    break;
-	if (buf != NULL && channel_collapse(channel, part, mode == MODE_NL)
-									== OK)
-	    continue;
+	node = channel_peek(channel, part);
+	if (node != NULL)
+	{
+	    if (mode == MODE_RAW || (mode == MODE_NL
+					   && channel_first_nl(node) != NULL))
+		/* got a complete message */
+		break;
+	    if (channel_collapse(channel, part, mode == MODE_NL) == OK)
+		continue;
+	}
 
 	/* Wait for up to the channel timeout. */
 	if (fd == INVALID_FD)
@@ -3074,8 +3141,17 @@ channel_read_block(channel_T *channel, int part, int timeout)
     }
     else
     {
-	nl = vim_strchr(buf, NL);
-	if (nl[1] == NUL)
+	char_u *p;
+
+	buf = node->rq_buffer;
+	nl = channel_first_nl(node);
+
+	/* Convert NUL to NL, the internal representation. */
+	for (p = buf; p < nl && p < buf + node->rq_buflen; ++p)
+	    if (*p == NUL)
+		*p = NL;
+
+	if (nl + 1 == buf + node->rq_buflen)
 	{
 	    /* get the whole buffer */
 	    msg = channel_get(channel, part);
@@ -3086,7 +3162,7 @@ channel_read_block(channel_T *channel, int part, int timeout)
 	    /* Copy the message into allocated memory and remove it from the
 	     * buffer. */
 	    msg = vim_strnsave(buf, (int)(nl - buf));
-	    mch_memmove(buf, nl + 1, STRLEN(nl + 1) + 1);
+	    channel_consume(channel, part, (int)(nl - buf) + 1);
 	}
     }
     if (log_fd != NULL)
@@ -3120,7 +3196,7 @@ channel_read_json_block(
     {
 	more = channel_parse_json(channel, part);
 
-	/* search for messsage "id" */
+	/* search for message "id" */
 	if (channel_get_json(channel, part, id, rettv) == OK)
 	{
 	    chanpart->ch_block_id = 0;
@@ -3310,9 +3386,8 @@ channel_handle_events(void)
  * Return FAIL or OK.
  */
     int
-channel_send(channel_T *channel, int part, char_u *buf, char *fun)
+channel_send(channel_T *channel, int part, char_u *buf, int len, char *fun)
 {
-    int		len = (int)STRLEN(buf);
     int		res;
     sock_T	fd;
 
@@ -3360,7 +3435,7 @@ channel_send(channel_T *channel, int part, char_u *buf, char *fun)
 /*
  * Common for "ch_sendexpr()" and "ch_sendraw()".
  * Returns the channel if the caller should read the response.
- * Sets "part_read" to the the read fd.
+ * Sets "part_read" to the read fd.
  * Otherwise returns NULL.
  */
     channel_T *
@@ -3400,7 +3475,7 @@ send_common(
 				       opt->jo_callback, opt->jo_partial, id);
     }
 
-    if (channel_send(channel, part_send, text, fun) == OK
+    if (channel_send(channel, part_send, text, (int)STRLEN(text), fun) == OK
 						  && opt->jo_callback == NULL)
 	return channel;
     return NULL;
@@ -4233,7 +4308,7 @@ job_free_contents(job_T *job)
     {
 	/* The link from the channel to the job doesn't count as a reference,
 	 * thus don't decrement the refcount of the job.  The reference from
-	 * the job to the channel does count the refrence, decrement it and
+	 * the job to the channel does count the reference, decrement it and
 	 * NULL the reference.  We don't set ch_job_killed, unreferencing the
 	 * job doesn't mean it stops running. */
 	job->jv_channel->ch_job = NULL;
@@ -4429,7 +4504,7 @@ job_set_options(job_T *job, jobopt_T *opt)
  * Called when Vim is exiting: kill all jobs that have the "stoponexit" flag.
  */
     void
-job_stop_on_exit()
+job_stop_on_exit(void)
 {
     job_T	*job;
 
@@ -4443,7 +4518,7 @@ job_stop_on_exit()
  * job_check_ended() should be called once in a while.
  */
     int
-has_pending_job()
+has_pending_job(void)
 {
     job_T	    *job;
 

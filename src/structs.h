@@ -84,7 +84,7 @@ typedef struct file_buffer	buf_T;  /* forward declaration */
 # ifdef FEAT_XCLIPBOARD
 #  include <X11/Intrinsic.h>
 # endif
-# define guicolor_T long_u		/* avoid error in prototypes and 
+# define guicolor_T long_u		/* avoid error in prototypes and
 					 * make FEAT_TERMGUICOLORS work */
 # define INVALCOLOR ((guicolor_T)0x1ffffff)
 #endif
@@ -112,6 +112,9 @@ typedef struct xfilemark
 {
     fmark_T	fmark;
     char_u	*fname;		/* file name, used when fnum == 0 */
+#ifdef FEAT_VIMINFO
+    time_T	time_set;
+#endif
 } xfmark_T;
 
 /*
@@ -355,7 +358,7 @@ struct u_header
     int		uh_flags;	/* see below */
     pos_T	uh_namedm[NMARKS];	/* marks before undo/after redo */
     visualinfo_T uh_visual;	/* Visual areas before undo/after redo */
-    time_t	uh_time;	/* timestamp when the change was made */
+    time_T	uh_time;	/* timestamp when the change was made */
     long	uh_save_nr;	/* set when the file was saved after the
 				   changes in this block */
 #ifdef U_DEBUG
@@ -1108,11 +1111,29 @@ typedef struct hashtable_S
 typedef long_u hash_T;		/* Type for hi_hash */
 
 
-#if VIM_SIZEOF_INT <= 3		/* use long if int is smaller than 32 bits */
-typedef long	varnumber_T;
+#ifdef FEAT_NUM64
+/* Use 64-bit Number. */
+# ifdef WIN3264
+typedef __int64		    varnumber_T;
+typedef unsigned __int64    uvarnumber_T;
+# elif defined(HAVE_STDINT_H)
+typedef int64_t		    varnumber_T;
+typedef uint64_t	    uvarnumber_T;
+# else
+typedef long		    varnumber_T;
+typedef unsigned long	    uvarnumber_T;
+# endif
 #else
-typedef int	varnumber_T;
+/* Use 32-bit Number. */
+# if VIM_SIZEOF_INT <= 3	/* use long if int is smaller than 32 bits */
+typedef long		    varnumber_T;
+typedef unsigned long	    uvarnumber_T;
+# else
+typedef int		    varnumber_T;
+typedef unsigned int	    uvarnumber_T;
+# endif
 #endif
+
 typedef double	float_T;
 
 typedef struct listvar_S list_T;
@@ -1748,8 +1769,12 @@ struct file_buffer
 
     long	b_mtime;	/* last change time of original file */
     long	b_mtime_read;	/* last change time when reading */
-    off_t	b_orig_size;	/* size of original file in bytes */
+    off_T	b_orig_size;	/* size of original file in bytes */
     int		b_orig_mode;	/* mode of original file */
+#ifdef FEAT_VIMINFO
+    time_T	b_last_used;	/* time when the buffer was last used; used
+				 * for viminfo */
+#endif
 
     pos_T	b_namedm[NMARKS]; /* current named marks (mark.c) */
 
@@ -1813,7 +1838,7 @@ struct file_buffer
     long	b_u_seq_last;	/* last used undo sequence number */
     long	b_u_save_nr_last; /* counter for last file write */
     long	b_u_seq_cur;	/* hu_seq of header below which we are now */
-    time_t	b_u_time_cur;	/* uh_time of header below which we are now */
+    time_T	b_u_time_cur;	/* uh_time of header below which we are now */
     long	b_u_save_nr_cur; /* file write nr after which we are now */
 
     /*

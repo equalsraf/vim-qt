@@ -401,6 +401,36 @@ typedef		 long __w64     long_i;
 #endif
 
 /*
+ * We use 64-bit file functions here, if available.  E.g. ftello() returns
+ * off_t instead of long, which helps if long is 32 bit and off_t is 64 bit.
+ * We assume that when fseeko() is available then ftello() is too.
+ * Note that Windows has different function names.
+ */
+#if (defined(_MSC_VER) && (_MSC_VER >= 1300)) || defined(__MINGW32__)
+typedef __int64 off_T;
+# ifdef __MINGW32__
+#  define vim_lseek lseek64
+#  define vim_fseek fseeko64
+#  define vim_ftell ftello64
+# else
+#  define vim_lseek _lseeki64
+#  define vim_fseek _fseeki64
+#  define vim_ftell _ftelli64
+# endif
+#else
+typedef off_t off_T;
+# ifdef HAVE_FSEEKO
+#  define vim_lseek lseek
+#  define vim_ftell ftello
+#  define vim_fseek fseeko
+# else
+#  define vim_lseek lseek
+#  define vim_ftell ftell
+#  define vim_fseek(a, b, c)	fseek(a, (long)b, c)
+# endif
+#endif
+
+/*
  * The characters and attributes cached for the screen.
  */
 typedef char_u schar_T;
@@ -1080,14 +1110,19 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 /* The type numbers are fixed for backwards compatibility. */
 #define BARTYPE_VERSION 1
 #define BARTYPE_HISTORY 2
+#define BARTYPE_REGISTER 3
+#define BARTYPE_MARK 4
+
+#define VIMINFO_VERSION 4
+#define VIMINFO_VERSION_WITH_HISTORY 2
+#define VIMINFO_VERSION_WITH_REGISTERS 3
+#define VIMINFO_VERSION_WITH_MARKS 4
 
 typedef enum {
     BVAL_NR,
     BVAL_STRING,
     BVAL_EMPTY
 } btype_T;
-
-#define BVAL_MAX 4	/* Maximum number of fields in a barline. */
 
 typedef struct {
     btype_T	bv_type;
@@ -1761,6 +1796,17 @@ typedef struct timeval proftime_T;
 typedef int proftime_T;	    /* dummy for function prototypes */
 #endif
 
+/*
+ * When compiling with 32 bit Perl time_t is 32 bits in the Perl code but 64
+ * bits elsewhere.  That causes memory corruption.  Define time_T and use it
+ * for global variables to avoid that.
+ */
+#ifdef WIN3264
+typedef __time64_t  time_T;
+#else
+typedef time_t	    time_T;
+#endif
+
 #ifdef _WIN64
 typedef __int64 sock_T;
 #else
@@ -2009,6 +2055,14 @@ typedef int VimClipboard;	/* This is required for the prototypes. */
 # include <io.h>	    /* for access() */
 
 # define stat(a,b) (access(a,0) ? -1 : stat(a,b))
+#endif
+
+/* Use 64-bit stat structure if available. */
+#if (defined(_MSC_VER) && (_MSC_VER >= 1300)) || defined(__MINGW32__)
+# define HAVE_STAT64
+typedef struct _stat64 stat_T;
+#else
+typedef struct stat stat_T;
 #endif
 
 #include "ex_cmds.h"	    /* Ex command defines */

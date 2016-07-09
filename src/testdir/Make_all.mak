@@ -32,7 +32,6 @@ SCRIPTS_ALL = \
 	test31.out \
 	test33.out \
 	test34.out \
-	test35.out \
 	test36.out \
 	test37.out \
 	test38.out \
@@ -106,7 +105,6 @@ SCRIPTS_ALL = \
 	test_marks.out \
 	test_nested_function.out \
 	test_options.out \
-	test_ruby.out \
 	test_search_mbyte.out \
 	test_signs.out \
 	test_tagcase.out \
@@ -169,15 +167,21 @@ NEW_TESTS = test_arglist.res \
 	    test_backspace_opt.res \
 	    test_cdo.res \
 	    test_channel.res \
+	    test_cmdline.res \
+	    test_farsi.res \
 	    test_hardcopy.res \
 	    test_history.res \
 	    test_increment.res \
+	    test_increment_dbcs.res \
 	    test_json.res \
 	    test_langmap.res \
+	    test_man.res \
 	    test_matchadd_conceal.res \
 	    test_packadd.res \
 	    test_perl.res \
 	    test_quickfix.res \
+	    test_ruby.res \
+	    test_stat.res \
 	    test_syntax.res \
 	    test_usercommands.res \
 	    test_viminfo.res \

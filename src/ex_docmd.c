@@ -129,6 +129,7 @@ static int	getargopt(exarg_T *eap);
 # define ex_cclose		ex_ni
 # define ex_copen		ex_ni
 # define ex_cwindow		ex_ni
+# define ex_cbottom		ex_ni
 #endif
 #if !defined(FEAT_QUICKFIX) || !defined(FEAT_EVAL)
 # define ex_cexpr		ex_ni
@@ -474,6 +475,7 @@ static void	ex_folddo(exarg_T *eap);
 #endif
 #ifndef FEAT_JUMPLIST
 # define ex_jumps		ex_ni
+# define ex_clearjumps		ex_ni
 # define ex_changes		ex_ni
 #endif
 
@@ -5449,9 +5451,11 @@ ex_doautocmd(exarg_T *eap)
 {
     char_u	*arg = eap->arg;
     int		call_do_modelines = check_nomodeline(&arg);
+    int		did_aucmd;
 
-    (void)do_doautocmd(arg, TRUE);
-    if (call_do_modelines)  /* Only when there is no <nomodeline>. */
+    (void)do_doautocmd(arg, TRUE, &did_aucmd);
+    /* Only when there is no <nomodeline>. */
+    if (call_do_modelines && did_aucmd)
 	do_modelines(0);
 }
 #endif
@@ -9452,6 +9456,14 @@ ex_redir(exarg_T *eap)
     char_u	*fname;
     char_u	*arg = eap->arg;
 
+#ifdef FEAT_EVAL
+    if (redir_evalcmd)
+    {
+	EMSG(_("E930: Cannot use :redir inside evalcmd()"));
+	return;
+    }
+#endif
+
     if (STRICMP(eap->arg, "END") == 0)
 	close_redir();
     else
@@ -11897,7 +11909,7 @@ ex_filetype(exarg_T *eap)
 	}
 	if (*arg == 'd')
 	{
-	    (void)do_doautocmd((char_u *)"filetypedetect BufRead", TRUE);
+	    (void)do_doautocmd((char_u *)"filetypedetect BufRead", TRUE, NULL);
 	    do_modelines(0);
 	}
     }

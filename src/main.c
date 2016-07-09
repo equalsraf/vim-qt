@@ -19,6 +19,10 @@
 # include <limits.h>
 #endif
 
+#if defined(WIN3264) && !defined(FEAT_GUI_W32)
+# include "iscygpty.h"
+#endif
+
 /* Maximum number of commands from + or -c arguments. */
 #define MAX_ARG_CMDS 10
 
@@ -1268,6 +1272,9 @@ main_loop(
 #ifdef FEAT_TITLE
 	    if (need_maketitle)
 		maketitle();
+#endif
+#ifdef FEAT_VIMINFO
+	    curbuf->b_last_used = vim_time();
 #endif
 	    /* display message after redraw */
 	    if (keep_msg != NULL)
@@ -2554,6 +2561,13 @@ check_tty(mparm_T *parmp)
 	    exit(1);
 	}
 #endif
+#if defined(WIN3264) && !defined(FEAT_GUI_W32)
+	if (is_cygpty_used())
+	{
+	    mch_errmsg(_("Vim: Error: This version of Vim does not run in a Cygwin terminal\n"));
+	    exit(1);
+	}
+#endif
 	if (!parmp->stdout_isatty)
 	    mch_errmsg(_("Vim: Warning: Output is not to a terminal\n"));
 	if (!input_isatty)
@@ -3159,7 +3173,7 @@ process_env(
 	sourcing_name = save_sourcing_name;
 	sourcing_lnum = save_sourcing_lnum;
 #ifdef FEAT_EVAL
-	current_SID = save_sid;;
+	current_SID = save_sid;
 #endif
 	return OK;
     }
@@ -3175,7 +3189,7 @@ process_env(
     static int
 file_owned(char *fname)
 {
-    struct stat s;
+    stat_T	s;
 # ifdef UNIX
     uid_t	uid = getuid();
 # else	 /* VMS */
@@ -4174,18 +4188,4 @@ serverConvert(
 # endif
     return res;
 }
-#endif
-
-/*
- * When FEAT_FKMAP is defined, also compile the Farsi source code.
- */
-#if defined(FEAT_FKMAP) || defined(PROTO)
-# include "farsi.c"
-#endif
-
-/*
- * When FEAT_ARABIC is defined, also compile the Arabic source code.
- */
-#if defined(FEAT_ARABIC) || defined(PROTO)
-# include "arabic.c"
 #endif
