@@ -110,7 +110,7 @@ int_u QVimShell::vimKeyboardModifiers(Qt::KeyboardModifiers mod)
 
 	if ( mod & Qt::ShiftModifier ) {
 		vim |= MOD_MASK_SHIFT;
-	} 
+	}
 	if ( mod & Qt::ControlModifier ) {
 		vim |= MOD_MASK_CTRL;
 	}
@@ -127,7 +127,7 @@ int_u QVimShell::vimMouseModifiers(Qt::KeyboardModifiers mod)
 
 	if ( mod & Qt::ShiftModifier ) {
 		vim |= MOUSE_SHIFT;
-	} 
+	}
 	if ( mod & Qt::ControlModifier ) {
 		vim |= MOUSE_CTRL;
 	}
@@ -477,8 +477,8 @@ void QVimShell::mousePressEvent(QMouseEvent *ev)
 
 	int repeat=0;
 
-	if ( !m_lastClick.isNull() 
-		&& m_lastClick.elapsed() < QApplication::doubleClickInterval() 
+	if ( !m_lastClick.isNull()
+		&& m_lastClick.elapsed() < QApplication::doubleClickInterval()
 		&& m_lastClickEvent == ev->button() ) {
 		repeat = 1;
 	}
@@ -510,7 +510,7 @@ void QVimShell::wheelEvent(QWheelEvent *ev)
  * Get a color by name
  *
  * The color name can be any Vim or Qt color including html #colors.
- * Color names are case and space insensitive, i.e. "Dark Blue" 
+ * Color names are case and space insensitive, i.e. "Dark Blue"
  * and "darkblue" are the same color.
  *
  */
@@ -680,6 +680,16 @@ void QVimShell::setBlinkTime(const long waittime, const long ontime, const long 
 	m_blinkWaitTime = waittime;
 	m_blinkOnTime = ontime;
 	m_blinkOffTime = offtime;
+}
+
+int QVimShell::isBlinking(void)
+{
+	return blinkState != BLINK_NONE;
+}
+
+int QVimShell::isBlinkOff(void)
+{
+	return blinkState == BLINK_OFF;
 }
 
 /*

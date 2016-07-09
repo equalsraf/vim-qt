@@ -580,7 +580,13 @@ gui_mch_init()
 int
 gui_mch_is_blinking(void)
 {
-    return FALSE;
+    return vimshell->isBlinking();
+}
+
+int
+gui_mch_is_blink_off(void)
+{
+    return vimshell->isBlinkOff();
 }
 
 /**
