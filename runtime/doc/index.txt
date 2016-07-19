@@ -1,4 +1,4 @@
-*index.txt*     For Vim version 7.4.  Last change: 2016 Jun 12
+*index.txt*     For Vim version 7.4.  Last change: 2016 Jul 16
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -1139,6 +1139,7 @@ tag	      command	      action ~
 |:caddfile|	:caddf[ile]	add error message to current quickfix list
 |:call|		:cal[l]		call a function
 |:catch|	:cat[ch]	part of a :try command
+|:cbottom|	:cbo[ttom]	scroll to the bottom of the quickfix window
 |:cbuffer|	:cb[uffer]	parse error messages and jump to first error
 |:cc|		:cc		go to specific error
 |:cclose|	:ccl[ose]	close quickfix window
@@ -1156,6 +1157,7 @@ tag	      command	      action ~
 |:chdir|	:chd[ir]	change directory
 |:checkpath|	:che[ckpath]	list included files
 |:checktime|	:checkt[ime]	check timestamp of loaded buffers
+|:chistory|	:chi[story]	list the error lists
 |:clast|	:cla[st]	go to the specified error, default last one
 |:clearjumps|	:cle[arjumps]	clear the jump list
 |:clist|	:cl[ist]	list all errors
@@ -1299,6 +1301,7 @@ tag	      command	      action ~
 |:last|		:la[st]		go to the last file in the argument list
 |:language|	:lan[guage]	set the language (locale)
 |:later|	:lat[er]	go to newer change, redo
+|:lbottom|	:lbo[ttom]	scroll to the bottom of the location window
 |:lbuffer|	:lb[uffer]	parse locations and jump to first location
 |:lcd|		:lc[d]		change directory locally
 |:lchdir|	:lch[dir]	change directory locally
@@ -1318,6 +1321,7 @@ tag	      command	      action ~
 |:lgrep|	:lgr[ep]	run 'grepprg' and jump to first match
 |:lgrepadd|	:lgrepa[dd]	like :grep, but append to current list
 |:lhelpgrep|	:lh[elpgrep]	like ":helpgrep" but uses location list
+|:lhistory|	:lhi[story]	list the location lists
 |:ll|		:ll		go to specific location
 |:llast|	:lla[st]	go to the specified location, default last one
 |:llist|	:lli[st]	list all locations

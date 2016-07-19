@@ -867,7 +867,10 @@ gui_mch_stop_blink(void)
 	blink_timer = 0;
     }
     if (blink_state == BLINK_OFF)
+    {
 	gui_update_cursor(TRUE, FALSE);
+	gui_mch_flush();
+    }
     blink_state = BLINK_NONE;
 }
 
@@ -902,6 +905,7 @@ blink_cb(gpointer data UNUSED)
 				   (GtkFunction) blink_cb, NULL);
 #endif
     }
+    gui_mch_flush();
 
     return FALSE;		/* don't happen again */
 }
@@ -934,6 +938,7 @@ gui_mch_start_blink(void)
 #endif
 	blink_state = BLINK_ON;
 	gui_update_cursor(TRUE, FALSE);
+	gui_mch_flush();
     }
 }
 
@@ -6641,18 +6646,9 @@ gui_mch_flush(void)
 # else
     if (gui.mainwin != NULL && GTK_WIDGET_REALIZED(gui.mainwin))
 # endif
-	gdk_display_sync(gtk_widget_get_display(gui.mainwin));
+	gdk_display_flush(gtk_widget_get_display(gui.mainwin));
 #else
     gdk_flush(); /* historical misnomer: calls XSync(), not XFlush() */
-#endif
-    /* This happens to actually do what gui_mch_flush() is supposed to do,
-     * according to the comment above. */
-#if GTK_CHECK_VERSION(3,0,0)
-    if (gui.drawarea != NULL && gtk_widget_get_window(gui.drawarea) != NULL)
-	gdk_window_process_updates(gtk_widget_get_window(gui.drawarea), FALSE);
-#else
-    if (gui.drawarea != NULL && gui.drawarea->window != NULL)
-	gdk_window_process_updates(gui.drawarea->window, FALSE);
 #endif
 }
 

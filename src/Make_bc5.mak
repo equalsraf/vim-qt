@@ -1,7 +1,7 @@
 #
 # Makefile for Vim.
 # Compiler: Borland C++ 5.0 and later 32-bit compiler
-#  Targets: Dos16 or Win32 (Windows NT and Windows 95) (with/without GUI)
+#  Targets: Win32 (Windows NT and Windows 95) (with/without GUI)
 #
 # NOTE: THIS IS OLD AND PROBABLY NO LONGER WORKS.
 #
@@ -543,10 +543,12 @@ vimobj =  \
 	$(OBJDIR)\charset.obj \
 	$(OBJDIR)\crypt.obj \
 	$(OBJDIR)\crypt_zip.obj \
+	$(OBJDIR)\dict.obj \
 	$(OBJDIR)\diff.obj \
 	$(OBJDIR)\digraph.obj \
 	$(OBJDIR)\edit.obj \
 	$(OBJDIR)\eval.obj \
+	$(OBJDIR)\evalfunc.obj \
 	$(OBJDIR)\ex_cmds.obj \
 	$(OBJDIR)\ex_cmds2.obj \
 	$(OBJDIR)\ex_docmd.obj \
@@ -559,6 +561,7 @@ vimobj =  \
 	$(OBJDIR)\hardcopy.obj \
 	$(OBJDIR)\hashtab.obj \
 	$(OBJDIR)\json.obj \
+	$(OBJDIR)\list.obj \
 	$(OBJDIR)\main.obj \
 	$(OBJDIR)\mark.obj \
 	$(OBJDIR)\memfile.obj \
@@ -579,11 +582,13 @@ vimobj =  \
 	$(OBJDIR)\search.obj \
 	$(OBJDIR)\sha256.obj \
 	$(OBJDIR)\spell.obj \
+	$(OBJDIR)\spellfile.obj \
 	$(OBJDIR)\syntax.obj \
 	$(OBJDIR)\tag.obj \
 	$(OBJDIR)\term.obj \
 	$(OBJDIR)\ui.obj \
 	$(OBJDIR)\undo.obj \
+	$(OBJDIR)\userfunc.obj \
 	$(OBJDIR)\version.obj \
 	$(OBJDIR)\window.obj \
 	$(OBJDIR)\pathdef.obj

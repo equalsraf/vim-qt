@@ -197,7 +197,7 @@ EXTERN int	need_maketitle INIT(= TRUE); /* call maketitle() soon */
 #endif
 
 EXTERN int	quit_more INIT(= FALSE);    /* 'q' hit at "--more--" msg */
-#if defined(UNIX) || defined(__EMX__) || defined(VMS) || defined(MACOS_X)
+#if defined(UNIX) || defined(VMS) || defined(MACOS_X)
 EXTERN int	newline_on_exit INIT(= FALSE);	/* did msg in altern. screen */
 EXTERN int	intr_char INIT(= 0);	    /* extra interrupt character */
 #endif
@@ -325,11 +325,9 @@ EXTERN int	garbage_collect_at_exit INIT(= FALSE);
 EXTERN scid_T	current_SID INIT(= 0);
 #endif
 
-#if defined(FEAT_EVAL) || defined(FEAT_SYN_HL)
 /* Magic number used for hashitem "hi_key" value indicating a deleted item.
  * Only the address is used. */
 EXTERN char_u	hash_removed;
-#endif
 
 
 EXTERN int	scroll_region INIT(= FALSE); /* term supports scroll region */
@@ -386,7 +384,7 @@ EXTERN int	keep_filetype INIT(= FALSE);	/* value for did_filetype when
 
 /* When deleting the current buffer, another one must be loaded.  If we know
  * which one is preferred, au_new_curbuf is set to it */
-EXTERN buf_T	*au_new_curbuf INIT(= NULL);
+EXTERN bufref_T	au_new_curbuf INIT(= {NULL});
 
 /* When deleting a buffer/window and autocmd_busy is TRUE, do not free the
  * buffer/window. but link it in the list starting with
@@ -635,6 +633,9 @@ EXTERN int	exiting INIT(= FALSE);
 EXTERN int	really_exiting INIT(= FALSE);
 				/* TRUE when we are sure to exit, e.g., after
 				 * a deadly signal */
+#if defined(FEAT_AUTOCHDIR)
+EXTERN int	test_autochdir INIT(= FALSE);
+#endif
 #if defined(EXITFREE)
 EXTERN int	entered_free_all_mem INIT(= FALSE);
 				/* TRUE when in or after free_all_mem() */
@@ -971,6 +972,7 @@ EXTERN cmdmod_T	cmdmod;			/* Ex command modifiers */
 
 EXTERN int	msg_silent INIT(= 0);	/* don't print messages */
 EXTERN int	emsg_silent INIT(= 0);	/* don't print error messages */
+EXTERN int	emsg_noredir INIT(= 0);	/* don't redirect error messages */
 EXTERN int	cmd_silent INIT(= FALSE); /* don't echo the command line */
 
 #if defined(FEAT_GUI_DIALOG) || defined(FEAT_CON_DIALOG) \
@@ -1106,7 +1108,7 @@ EXTERN FILE *redir_fd INIT(= NULL);	/* message redirection file */
 #ifdef FEAT_EVAL
 EXTERN int  redir_reg INIT(= 0);	/* message redirection register */
 EXTERN int  redir_vname INIT(= 0);	/* message redirection variable */
-EXTERN int  redir_evalcmd INIT(= 0);	/* evalcmd() redirection */
+EXTERN int  redir_execute INIT(= 0);	/* execute() redirection */
 #endif
 
 #ifdef FEAT_LANGMAP
@@ -1532,6 +1534,12 @@ EXTERN char_u e_readonly[]	INIT(= N_("E45: 'readonly' option is set (add ! to ov
 EXTERN char_u e_readonlyvar[]	INIT(= N_("E46: Cannot change read-only variable \"%s\""));
 EXTERN char_u e_readonlysbx[]	INIT(= N_("E794: Cannot set variable in the sandbox: \"%s\""));
 EXTERN char_u e_emptykey[]	INIT(= N_("E713: Cannot use empty key for Dictionary"));
+EXTERN char_u e_dictreq[]	INIT(= N_("E715: Dictionary required"));
+EXTERN char_u e_listidx[]	INIT(= N_("E684: list index out of range: %ld"));
+EXTERN char_u e_toomanyarg[]	INIT(= N_("E118: Too many arguments for function: %s"));
+EXTERN char_u e_dictkey[]	INIT(= N_("E716: Key not present in Dictionary: %s"));
+EXTERN char_u e_listreq[]	INIT(= N_("E714: List required"));
+EXTERN char_u e_listdictarg[]	INIT(= N_("E712: Argument of %s must be a List or Dictionary"));
 #endif
 #ifdef FEAT_QUICKFIX
 EXTERN char_u e_readerrf[]	INIT(= N_("E47: Error while reading errorfile"));
@@ -1642,6 +1650,9 @@ EXTERN int  did_add_timer INIT(= FALSE);
 
 #ifdef FEAT_EVAL
 EXTERN time_T time_for_testing INIT(= 0);
+
+/* Abort conversion to string after a recursion error. */
+EXTERN int  did_echo_string_emsg INIT(= FALSE);
 #endif
 
 /*

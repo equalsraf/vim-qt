@@ -5,7 +5,7 @@ source test_assign.vim
 source test_autocmd.vim
 source test_cursor_func.vim
 source test_delete.vim
-source test_evalcmd.vim
+source test_execute_func.vim
 source test_ex_undo.vim
 source test_expand.vim
 source test_expr.vim
@@ -19,6 +19,7 @@ source test_goto.vim
 source test_help_tagjump.vim
 source test_join.vim
 source test_jumps.vim
+source test_lambda.vim
 source test_lispwords.vim
 source test_matchstrpos.vim
 source test_menu.vim

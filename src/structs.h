@@ -69,6 +69,14 @@ typedef struct frame_S		frame_T;
 typedef int			scid_T;		/* script ID */
 typedef struct file_buffer	buf_T;  /* forward declaration */
 
+/* Reference to a buffer that stores the value of buf_free_count.
+ * bufref_valid() only needs to check "buf" when the count differs.
+ */
+typedef struct {
+    buf_T   *br_buf;
+    int	    br_buf_free_count;
+} bufref_T;
+
 /*
  * This is here because regexp.h needs pos_T and below regprog_T is used.
  */
@@ -1423,7 +1431,7 @@ typedef struct {
     char_u	*ch_callback;	/* call when a msg is not handled */
     partial_T	*ch_partial;
 
-    buf_T	*ch_buffer;	/* buffer to read from or write to */
+    bufref_T	ch_bufref;	/* buffer to read from or write to */
     int		ch_nomodifiable; /* TRUE when buffer can be 'nomodifiable' */
     int		ch_nomod_error;	/* TRUE when e_modifiable was given */
     int		ch_buf_append;	/* write appended lines instead top-bot */
@@ -1745,6 +1753,9 @@ struct file_buffer
     unsigned int b_fab_mrs;	/* Max record size  */
 #endif
     int		b_fnum;		/* buffer number for this file. */
+    char_u	b_key[VIM_SIZEOF_INT * 2 + 1];
+				/* key used for buf_hashtab, holds b_fnum as
+				   hex string */
 
     int		b_changed;	/* 'modified': Set to TRUE if something in the
 				   file has been changed and not written out. */
@@ -2925,7 +2936,7 @@ typedef struct
     int		use_aucmd_win;	/* using aucmd_win */
     win_T	*save_curwin;	/* saved curwin */
     win_T	*new_curwin;	/* new curwin */
-    buf_T	*new_curbuf;	/* new curbuf */
+    bufref_T	new_curbuf;	/* new curbuf */
     char_u	*globaldir;	/* saved value of globaldir */
 #endif
 } aco_save_T;
@@ -3050,3 +3061,112 @@ struct timer_S
     partial_T	*tr_partial;
 #endif
 };
+
+/* Maximum number of commands from + or -c arguments. */
+#define MAX_ARG_CMDS 10
+
+/* values for "window_layout" */
+#define WIN_HOR	    1	    /* "-o" horizontally split windows */
+#define	WIN_VER	    2	    /* "-O" vertically split windows */
+#define	WIN_TABS    3	    /* "-p" windows on tab pages */
+
+/* Struct for various parameters passed between main() and other functions. */
+typedef struct
+{
+    int		argc;
+    char	**argv;
+
+    int		evim_mode;		/* started as "evim" */
+    char_u	*use_vimrc;		/* vimrc from -u argument */
+
+    int		n_commands;		     /* no. of commands from + or -c */
+    char_u	*commands[MAX_ARG_CMDS];     /* commands from + or -c arg. */
+    char_u	cmds_tofree[MAX_ARG_CMDS];   /* commands that need free() */
+    int		n_pre_commands;		     /* no. of commands from --cmd */
+    char_u	*pre_commands[MAX_ARG_CMDS]; /* commands from --cmd argument */
+
+    int		edit_type;		/* type of editing to do */
+    char_u	*tagname;		/* tag from -t argument */
+#ifdef FEAT_QUICKFIX
+    char_u	*use_ef;		/* 'errorfile' from -q argument */
+#endif
+
+    int		want_full_screen;
+    int		stdout_isatty;		/* is stdout a terminal? */
+    int		not_a_term;		/* no warning for missing term? */
+    char_u	*term;			/* specified terminal name */
+#ifdef FEAT_CRYPT
+    int		ask_for_key;		/* -x argument */
+#endif
+    int		no_swap_file;		/* "-n" argument used */
+#ifdef FEAT_EVAL
+    int		use_debug_break_level;
+#endif
+#ifdef FEAT_WINDOWS
+    int		window_count;		/* number of windows to use */
+    int		window_layout;		/* 0, WIN_HOR, WIN_VER or WIN_TABS */
+#endif
+
+#ifdef FEAT_CLIENTSERVER
+    int		serverArg;		/* TRUE when argument for a server */
+    char_u	*serverName_arg;	/* cmdline arg for server name */
+    char_u	*serverStr;		/* remote server command */
+    char_u	*serverStrEnc;		/* encoding of serverStr */
+    char_u	*servername;		/* allocated name for our server */
+#endif
+#if !defined(UNIX)
+# define EXPAND_FILENAMES
+    int		literal;		/* don't expand file names */
+#endif
+#ifdef MSWIN
+    int		full_path;		/* file name argument was full path */
+#endif
+#ifdef FEAT_DIFF
+    int		diff_mode;		/* start with 'diff' set */
+#endif
+} mparm_T;
+
+/*
+ * Structure returned by get_lval() and used by set_var_lval().
+ * For a plain name:
+ *	"name"	    points to the variable name.
+ *	"exp_name"  is NULL.
+ *	"tv"	    is NULL
+ * For a magic braces name:
+ *	"name"	    points to the expanded variable name.
+ *	"exp_name"  is non-NULL, to be freed later.
+ *	"tv"	    is NULL
+ * For an index in a list:
+ *	"name"	    points to the (expanded) variable name.
+ *	"exp_name"  NULL or non-NULL, to be freed later.
+ *	"tv"	    points to the (first) list item value
+ *	"li"	    points to the (first) list item
+ *	"range", "n1", "n2" and "empty2" indicate what items are used.
+ * For an existing Dict item:
+ *	"name"	    points to the (expanded) variable name.
+ *	"exp_name"  NULL or non-NULL, to be freed later.
+ *	"tv"	    points to the dict item value
+ *	"newkey"    is NULL
+ * For a non-existing Dict item:
+ *	"name"	    points to the (expanded) variable name.
+ *	"exp_name"  NULL or non-NULL, to be freed later.
+ *	"tv"	    points to the Dictionary typval_T
+ *	"newkey"    is the key for the new item.
+ */
+typedef struct lval_S
+{
+    char_u	*ll_name;	/* start of variable name (can be NULL) */
+    char_u	*ll_exp_name;	/* NULL or expanded name in allocated memory. */
+    typval_T	*ll_tv;		/* Typeval of item being used.  If "newkey"
+				   isn't NULL it's the Dict to which to add
+				   the item. */
+    listitem_T	*ll_li;		/* The list item or NULL. */
+    list_T	*ll_list;	/* The list or NULL. */
+    int		ll_range;	/* TRUE when a [i:j] range was used */
+    long	ll_n1;		/* First index for list */
+    long	ll_n2;		/* Second index for list range */
+    int		ll_empty2;	/* Second index is empty: [i:] */
+    dict_T	*ll_dict;	/* The Dictionary or NULL */
+    dictitem_T	*ll_di;		/* The dictitem or NULL */
+    char_u	*ll_newkey;	/* New key for Dict in alloc. mem or NULL. */
+} lval_T;

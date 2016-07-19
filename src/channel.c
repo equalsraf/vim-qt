@@ -362,7 +362,7 @@ channel_still_useful(channel_T *channel)
 	return TRUE;
 
     /* If reading from or a buffer it's still useful. */
-    if (channel->ch_part[PART_IN].ch_buffer != NULL)
+    if (channel->ch_part[PART_IN].ch_bufref.br_buf != NULL)
 	return TRUE;
 
     /* If there is no callback then nobody can get readahead.  If the fd is
@@ -379,9 +379,11 @@ channel_still_useful(channel_T *channel)
     return (channel->ch_callback != NULL && (has_sock_msg
 		|| has_out_msg || has_err_msg))
 	    || ((channel->ch_part[PART_OUT].ch_callback != NULL
-		      || channel->ch_part[PART_OUT].ch_buffer) && has_out_msg)
+		       || channel->ch_part[PART_OUT].ch_bufref.br_buf != NULL)
+		    && has_out_msg)
 	    || ((channel->ch_part[PART_ERR].ch_callback != NULL
-		     || channel->ch_part[PART_ERR].ch_buffer) && has_err_msg);
+		       || channel->ch_part[PART_ERR].ch_bufref.br_buf != NULL)
+		    && has_err_msg);
 }
 
 /*
@@ -1046,19 +1048,19 @@ channel_set_job(channel_T *channel, job_T *job, jobopt_T *options)
     {
 	chanpart_T *in_part = &channel->ch_part[PART_IN];
 
-	in_part->ch_buffer = job->jv_in_buf;
+	set_bufref(&in_part->ch_bufref, job->jv_in_buf);
 	ch_logs(channel, "reading from buffer '%s'",
-					(char *)in_part->ch_buffer->b_ffname);
+				 (char *)in_part->ch_bufref.br_buf->b_ffname);
 	if (options->jo_set & JO_IN_TOP)
 	{
 	    if (options->jo_in_top == 0 && !(options->jo_set & JO_IN_BOT))
 	    {
 		/* Special mode: send last-but-one line when appending a line
 		 * to the buffer. */
-		in_part->ch_buffer->b_write_to_channel = TRUE;
+		in_part->ch_bufref.br_buf->b_write_to_channel = TRUE;
 		in_part->ch_buf_append = TRUE;
 		in_part->ch_buf_top =
-				   in_part->ch_buffer->b_ml.ml_line_count + 1;
+			    in_part->ch_bufref.br_buf->b_ml.ml_line_count + 1;
 	    }
 	    else
 		in_part->ch_buf_top = options->jo_in_top;
@@ -1068,7 +1070,7 @@ channel_set_job(channel_T *channel, job_T *job, jobopt_T *options)
 	if (options->jo_set & JO_IN_BOT)
 	    in_part->ch_buf_bot = options->jo_in_bot;
 	else
-	    in_part->ch_buf_bot = in_part->ch_buffer->b_ml.ml_line_count;
+	    in_part->ch_buf_bot = in_part->ch_bufref.br_buf->b_ml.ml_line_count;
     }
 }
 
@@ -1111,6 +1113,28 @@ find_buffer(char_u *name, int err)
     return buf;
 }
 
+    static void
+set_callback(
+	char_u **cbp,
+	partial_T **pp,
+	char_u *callback,
+	partial_T *partial)
+{
+    free_callback(*cbp, *pp);
+    if (callback != NULL && *callback != NUL)
+    {
+	if (partial != NULL)
+	    *cbp = partial->pt_name;
+	else
+	    *cbp = vim_strsave(callback);
+    }
+    else
+	*cbp = NULL;
+    *pp = partial;
+    if (*pp != NULL)
+	++(*pp)->pt_refcount;
+}
+
 /*
  * Set various properties from an "opt" argument.
  */
@@ -1118,8 +1142,6 @@ find_buffer(char_u *name, int err)
 channel_set_options(channel_T *channel, jobopt_T *opt)
 {
     int		part;
-    char_u	**cbp;
-    partial_T	**pp;
 
     if (opt->jo_set & JO_MODE)
 	for (part = PART_SOCK; part <= PART_IN; ++part)
@@ -1142,61 +1164,19 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 	channel->ch_part[PART_IN].ch_block_write = 1;
 
     if (opt->jo_set & JO_CALLBACK)
-    {
-	cbp = &channel->ch_callback;
-	pp = &channel->ch_partial;
-	vim_free(*cbp);
-	partial_unref(*pp);
-	if (opt->jo_callback != NULL && *opt->jo_callback != NUL)
-	    *cbp = vim_strsave(opt->jo_callback);
-	else
-	    *cbp = NULL;
-	*pp = opt->jo_partial;
-	if (*pp != NULL)
-	    ++(*pp)->pt_refcount;
-    }
+	set_callback(&channel->ch_callback, &channel->ch_partial,
+					   opt->jo_callback, opt->jo_partial);
     if (opt->jo_set & JO_OUT_CALLBACK)
-    {
-	cbp = &channel->ch_part[PART_OUT].ch_callback;
-	pp = &channel->ch_part[PART_OUT].ch_partial;
-	vim_free(*cbp);
-	partial_unref(*pp);
-	if (opt->jo_out_cb != NULL && *opt->jo_out_cb != NUL)
-	    *cbp = vim_strsave(opt->jo_out_cb);
-	else
-	    *cbp = NULL;
-	*pp = opt->jo_out_partial;
-	if (*pp != NULL)
-	    ++(*pp)->pt_refcount;
-    }
+	set_callback(&channel->ch_part[PART_OUT].ch_callback,
+		&channel->ch_part[PART_OUT].ch_partial,
+		opt->jo_out_cb, opt->jo_out_partial);
     if (opt->jo_set & JO_ERR_CALLBACK)
-    {
-	cbp = &channel->ch_part[PART_ERR].ch_callback;
-	pp = &channel->ch_part[PART_ERR].ch_partial;
-	vim_free(*cbp);
-	partial_unref(*pp);
-	if (opt->jo_err_cb != NULL && *opt->jo_err_cb != NUL)
-	    *cbp = vim_strsave(opt->jo_err_cb);
-	else
-	    *cbp = NULL;
-	*pp = opt->jo_err_partial;
-	if (*pp != NULL)
-	    ++(*pp)->pt_refcount;
-    }
+	set_callback(&channel->ch_part[PART_ERR].ch_callback,
+		&channel->ch_part[PART_ERR].ch_partial,
+		opt->jo_err_cb, opt->jo_err_partial);
     if (opt->jo_set & JO_CLOSE_CALLBACK)
-    {
-	cbp = &channel->ch_close_cb;
-	pp = &channel->ch_close_partial;
-	vim_free(*cbp);
-	partial_unref(*pp);
-	if (opt->jo_close_cb != NULL && *opt->jo_close_cb != NUL)
-	    *cbp = vim_strsave(opt->jo_close_cb);
-	else
-	    *cbp = NULL;
-	*pp = opt->jo_close_partial;
-	if (*pp != NULL)
-	    ++(*pp)->pt_refcount;
-    }
+	set_callback(&channel->ch_close_cb, &channel->ch_close_partial,
+		opt->jo_close_cb, opt->jo_close_partial);
 
     if ((opt->jo_set & JO_OUT_IO) && opt->jo_io[PART_OUT] == JIO_BUFFER)
     {
@@ -1229,7 +1209,7 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 	    {
 		ch_logs(channel, "writing out to buffer '%s'",
 						       (char *)buf->b_ffname);
-		channel->ch_part[PART_OUT].ch_buffer = buf;
+		set_bufref(&channel->ch_part[PART_OUT].ch_bufref, buf);
 	    }
 	}
     }
@@ -1244,7 +1224,7 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 	if (!(opt->jo_set & JO_ERR_MODE))
 	    channel->ch_part[PART_ERR].ch_mode = MODE_NL;
 	if (opt->jo_io[PART_ERR] == JIO_OUT)
-	    buf = channel->ch_part[PART_OUT].ch_buffer;
+	    buf = channel->ch_part[PART_OUT].ch_bufref.br_buf;
 	else if (opt->jo_set & JO_ERR_BUF)
 	{
 	    buf = buflist_findnr(opt->jo_io_buf[PART_ERR]);
@@ -1266,7 +1246,7 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 	    {
 		ch_logs(channel, "writing err to buffer '%s'",
 						       (char *)buf->b_ffname);
-		channel->ch_part[PART_ERR].ch_buffer = buf;
+		set_bufref(&channel->ch_part[PART_ERR].ch_bufref, buf);
 	    }
 	}
     }
@@ -1407,15 +1387,15 @@ channel_write_in(channel_T *channel)
 {
     chanpart_T *in_part = &channel->ch_part[PART_IN];
     linenr_T    lnum;
-    buf_T	*buf = in_part->ch_buffer;
+    buf_T	*buf = in_part->ch_bufref.br_buf;
     int		written = 0;
 
     if (buf == NULL || in_part->ch_buf_append)
 	return;  /* no buffer or using appending */
-    if (!buf_valid(buf) || buf->b_ml.ml_mfp == NULL)
+    if (!bufref_valid(&in_part->ch_bufref) || buf->b_ml.ml_mfp == NULL)
     {
 	/* buffer was wiped out or unloaded */
-	in_part->ch_buffer = NULL;
+	in_part->ch_bufref.br_buf = NULL;
 	return;
     }
 
@@ -1437,7 +1417,7 @@ channel_write_in(channel_T *channel)
     if (lnum > buf->b_ml.ml_line_count)
     {
 	/* Writing is done, no longer need the buffer. */
-	in_part->ch_buffer = NULL;
+	in_part->ch_bufref.br_buf = NULL;
 	ch_log(channel, "Finished writing all lines to channel");
     }
     else
@@ -1459,11 +1439,11 @@ channel_buffer_free(buf_T *buf)
 	{
 	    chanpart_T  *ch_part = &channel->ch_part[part];
 
-	    if (ch_part->ch_buffer == buf)
+	    if (ch_part->ch_bufref.br_buf == buf)
 	    {
 		ch_logs(channel, "%s buffer has been wiped out",
 							    part_names[part]);
-		ch_part->ch_buffer = NULL;
+		ch_part->ch_bufref.br_buf = NULL;
 	    }
 	}
 }
@@ -1480,10 +1460,10 @@ channel_write_any_lines(void)
     {
 	chanpart_T  *in_part = &channel->ch_part[PART_IN];
 
-	if (in_part->ch_buffer != NULL)
+	if (in_part->ch_bufref.br_buf != NULL)
 	{
 	    if (in_part->ch_buf_append)
-		channel_write_new_lines(in_part->ch_buffer);
+		channel_write_new_lines(in_part->ch_bufref.br_buf);
 	    else
 		channel_write_in(channel);
 	}
@@ -1507,7 +1487,7 @@ channel_write_new_lines(buf_T *buf)
 	linenr_T    lnum;
 	int	    written = 0;
 
-	if (in_part->ch_buffer == buf && in_part->ch_buf_append)
+	if (in_part->ch_bufref.br_buf == buf && in_part->ch_buf_append)
 	{
 	    if (in_part->ch_fd == INVALID_FD)
 		continue;  /* pipe was closed */
@@ -2226,8 +2206,7 @@ invoke_one_time_callback(
      * invokes ch_close() the list will be cleared. */
     remove_cb_node(cbhead, item);
     invoke_callback(channel, item->cq_callback, item->cq_partial, argv);
-    vim_free(item->cq_callback);
-    partial_unref(item->cq_partial);
+    free_callback(item->cq_callback, item->cq_partial);
     vim_free(item);
 }
 
@@ -2312,7 +2291,7 @@ append_to_buffer(buf_T *buffer, char_u *msg, channel_T *channel, int part)
 	{
 	    chanpart_T  *in_part = &ch->ch_part[PART_IN];
 
-	    if (in_part->ch_buffer == buffer)
+	    if (in_part->ch_bufref.br_buf == buffer)
 		in_part->ch_buf_bot = buffer->b_ml.ml_line_count;
 	}
     }
@@ -2374,11 +2353,11 @@ may_invoke_callback(channel_T *channel, int part)
 	partial = channel->ch_partial;
     }
 
-    buffer = channel->ch_part[part].ch_buffer;
-    if (buffer != NULL && !buf_valid(buffer))
+    buffer = channel->ch_part[part].ch_bufref.br_buf;
+    if (buffer != NULL && !bufref_valid(&channel->ch_part[part].ch_bufref))
     {
 	/* buffer was wiped out */
-	channel->ch_part[part].ch_buffer = NULL;
+	channel->ch_part[part].ch_bufref.br_buf = NULL;
 	buffer = NULL;
     }
 
@@ -2723,9 +2702,8 @@ channel_close(channel_T *channel, int invoke_close_cb)
 	  }
 
 	  /* the callback is only called once */
-	  vim_free(channel->ch_close_cb);
+	  free_callback(channel->ch_close_cb, channel->ch_close_partial);
 	  channel->ch_close_cb = NULL;
-	  partial_unref(channel->ch_close_partial);
 	  channel->ch_close_partial = NULL;
 
 	  --channel->ch_refcount;
@@ -2761,8 +2739,7 @@ channel_clear_one(channel_T *channel, int part)
 	cbq_T *node = cb_head->cq_next;
 
 	remove_cb_node(cb_head, node);
-	vim_free(node->cq_callback);
-	partial_unref(node->cq_partial);
+	free_callback(node->cq_callback, node->cq_partial);
 	vim_free(node);
     }
 
@@ -2772,9 +2749,9 @@ channel_clear_one(channel_T *channel, int part)
 	remove_json_node(json_head, json_head->jq_next);
     }
 
-    vim_free(channel->ch_part[part].ch_callback);
+    free_callback(channel->ch_part[part].ch_callback,
+					channel->ch_part[part].ch_partial);
     channel->ch_part[part].ch_callback = NULL;
-    partial_unref(channel->ch_part[part].ch_partial);
     channel->ch_part[part].ch_partial = NULL;
 }
 
@@ -2791,13 +2768,11 @@ channel_clear(channel_T *channel)
     channel_clear_one(channel, PART_OUT);
     channel_clear_one(channel, PART_ERR);
     /* there is no callback or queue for PART_IN */
-    vim_free(channel->ch_callback);
+    free_callback(channel->ch_callback, channel->ch_partial);
     channel->ch_callback = NULL;
-    partial_unref(channel->ch_partial);
     channel->ch_partial = NULL;
-    vim_free(channel->ch_close_cb);
+    free_callback(channel->ch_close_cb, channel->ch_close_partial);
     channel->ch_close_cb = NULL;
-    partial_unref(channel->ch_close_partial);
     channel->ch_close_partial = NULL;
 }
 
@@ -2834,7 +2809,7 @@ channel_fill_wfds(int maxfd_arg, fd_set *wfds)
     {
 	chanpart_T  *in_part = &ch->ch_part[PART_IN];
 
-	if (in_part->ch_fd != INVALID_FD && in_part->ch_buffer != NULL)
+	if (in_part->ch_fd != INVALID_FD && in_part->ch_bufref.br_buf != NULL)
 	{
 	    FD_SET((int)in_part->ch_fd, wfds);
 	    if ((int)in_part->ch_fd >= maxfd)
@@ -2857,7 +2832,7 @@ channel_fill_poll_write(int nfd_in, struct pollfd *fds)
     {
 	chanpart_T  *in_part = &ch->ch_part[PART_IN];
 
-	if (in_part->ch_fd != INVALID_FD && in_part->ch_buffer != NULL)
+	if (in_part->ch_fd != INVALID_FD && in_part->ch_bufref.br_buf != NULL)
 	{
 	    in_part->ch_poll_idx = nfd;
 	    fds[nfd].fd = in_part->ch_fd;
@@ -3643,8 +3618,8 @@ channel_poll_check(int ret_in, void *fds_in)
 	{
 	    if (in_part->ch_buf_append)
 	    {
-		if (in_part->ch_buffer != NULL)
-		    channel_write_new_lines(in_part->ch_buffer);
+		if (in_part->ch_bufref.br_buf != NULL)
+		    channel_write_new_lines(in_part->ch_bufref.br_buf);
 	    }
 	    else
 		channel_write_in(channel);
@@ -3721,8 +3696,8 @@ channel_select_check(int ret_in, void *rfds_in, void *wfds_in)
 	{
 	    if (in_part->ch_buf_append)
 	    {
-		if (in_part->ch_buffer != NULL)
-		    channel_write_new_lines(in_part->ch_buffer);
+		if (in_part->ch_bufref.br_buf != NULL)
+		    channel_write_new_lines(in_part->ch_bufref.br_buf);
 	    }
 	    else
 		channel_write_in(channel);
@@ -4317,8 +4292,7 @@ job_free_contents(job_T *job)
     mch_clear_job(job);
 
     vim_free(job->jv_stoponexit);
-    vim_free(job->jv_exit_cb);
-    partial_unref(job->jv_exit_partial);
+    free_callback(job->jv_exit_cb, job->jv_exit_partial);
 }
 
     static void
@@ -4483,8 +4457,7 @@ job_set_options(job_T *job, jobopt_T *opt)
     }
     if (opt->jo_set & JO_EXIT_CB)
     {
-	vim_free(job->jv_exit_cb);
-	partial_unref(job->jv_exit_partial);
+	free_callback(job->jv_exit_cb, job->jv_exit_partial);
 	if (opt->jo_exit_cb == NULL || *opt->jo_exit_cb == NUL)
 	{
 	    job->jv_exit_cb = NULL;

@@ -15,6 +15,7 @@ function! s:setup_commands(cchar)
     command! -nargs=* Xnewer <mods>cnewer <args>
     command! -nargs=* Xopen <mods>copen <args>
     command! -nargs=* Xwindow <mods>cwindow <args>
+    command! -nargs=* Xbottom <mods>cbottom <args>
     command! -nargs=* Xclose <mods>cclose <args>
     command! -nargs=* -bang Xfile <mods>cfile<bang> <args>
     command! -nargs=* Xgetfile <mods>cgetfile <args>
@@ -44,6 +45,7 @@ function! s:setup_commands(cchar)
     command! -nargs=* Xnewer <mods>lnewer <args>
     command! -nargs=* Xopen <mods>lopen <args>
     command! -nargs=* Xwindow <mods>lwindow <args>
+    command! -nargs=* Xbottom <mods>lbottom <args>
     command! -nargs=* Xclose <mods>lclose <args>
     command! -nargs=* -bang Xfile <mods>lfile<bang> <args>
     command! -nargs=* Xgetfile <mods>lgetfile <args>
@@ -200,6 +202,7 @@ function XwindowTests(cchar)
   Xwindow
   call assert_true(winnr('$') == 2 && winnr() == 2 &&
 	\ getline('.') ==# 'Xtestfile1|1 col 3| Line1')
+  redraw!
 
   " Close the window
   Xclose
@@ -919,6 +922,30 @@ function! Test_efm2()
   call assert_equal('E', l[0].type)
   call assert_equal("\nunknown variable 'i'", l[0].text)
 
+  " Test for %A, %C and other formats
+  let lines = [
+	  \"==============================================================",
+	  \"FAIL: testGetTypeIdCachesResult (dbfacadeTest.DjsDBFacadeTest)",
+	  \"--------------------------------------------------------------",
+	  \"Traceback (most recent call last):",
+	  \'  File "unittests/dbfacadeTest.py", line 89, in testFoo',
+	  \"    self.assertEquals(34, dtid)",
+	  \'  File "/usr/lib/python2.2/unittest.py", line 286, in',
+	  \" failUnlessEqual",
+	  \"    raise self.failureException, \\",
+	  \"AssertionError: 34 != 33",
+	  \"",
+	  \"--------------------------------------------------------------",
+	  \"Ran 27 tests in 0.063s"
+	  \]
+  set efm=%C\ %.%#,%A\ \ File\ \"%f\"\\,\ line\ %l%.%#,%Z%[%^\ ]%\\@=%m
+  cgetexpr lines
+  let l = getqflist()
+  call assert_equal(8, len(l))
+  call assert_equal(89, l[4].lnum)
+  call assert_equal(1, l[4].valid)
+  call assert_equal('unittests/dbfacadeTest.py', bufname(l[4].bufnr))
+
   let &efm = save_efm
 endfunction
 
@@ -1415,15 +1442,62 @@ echo string(loc_two)
   call delete('Xtwo', 'rf')
 endfunc
 
-function Test_cbottom()
-  call setqflist([{'filename': 'foo', 'lnum': 42}]) 
-  copen
+function XbottomTests(cchar)
+  call s:setup_commands(a:cchar)
+
+  call g:Xsetlist([{'filename': 'foo', 'lnum': 42}]) 
+  Xopen
   let wid = win_getid()
   call assert_equal(1, line('.'))
   wincmd w
-  call setqflist([{'filename': 'var', 'lnum': 24}], 'a') 
-  cbottom
+  call g:Xsetlist([{'filename': 'var', 'lnum': 24}], 'a') 
+  Xbottom
   call win_gotoid(wid)
   call assert_equal(2, line('.'))
-  cclose
+  Xclose
+endfunc
+
+" Tests for the :cbottom and :lbottom commands
+function Test_cbottom()
+  call XbottomTests('c')
+  call XbottomTests('l')
+endfunction
+
+function HistoryTest(cchar)
+  call s:setup_commands(a:cchar)
+
+  call assert_fails(a:cchar . 'older 99', 'E380:')
+  " clear all lists after the first one, then replace the first one.
+  call g:Xsetlist([])
+  Xolder
+  let entry = {'filename': 'foo', 'lnum': 42}
+  call g:Xsetlist([entry], 'r')
+  call g:Xsetlist([entry, entry])
+  call g:Xsetlist([entry, entry, entry])
+  let res = split(execute(a:cchar . 'hist'), "\n")
+  call assert_equal(3, len(res))
+  let common = 'errors     :set' . (a:cchar == 'c' ? 'qf' : 'loc') . 'list()'
+  call assert_equal('  error list 1 of 3; 1 ' . common, res[0])
+  call assert_equal('  error list 2 of 3; 2 ' . common, res[1])
+  call assert_equal('> error list 3 of 3; 3 ' . common, res[2])
+endfunc
+
+func Test_history()
+  call HistoryTest('c')
+  call HistoryTest('l')
+endfunc
+
+func Test_duplicate_buf()
+  " make sure we can get the highest buffer number
+  edit DoesNotExist
+  edit DoesNotExist2
+  let last_buffer = bufnr("$")
+
+  " make sure only one buffer is created
+  call writefile(['this one', 'that one'], 'Xgrepthis')
+  vimgrep one Xgrepthis
+  vimgrep one Xgrepthis
+  call assert_equal(last_buffer + 1, bufnr("$"))
+
+  call delete('Xgrepthis')
 endfunc

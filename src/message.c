@@ -260,7 +260,7 @@ trunc_string(
 	    return;
 	}
 	n = ptr2cells(s + e);
-	if (len + n >= half)
+	if (len + n > half)
 	    break;
 	len += n;
 	buf[e] = s[e];
@@ -298,9 +298,9 @@ trunc_string(
 	{
 	    do
 		half = half - (*mb_head_off)(s, s + half - 1) - 1;
-	    while (utf_iscomposing(utf_ptr2char(s + half)) && half > 0);
+	    while (half > 0 && utf_iscomposing(utf_ptr2char(s + half)));
 	    n = ptr2cells(s + half);
-	    if (len + n > room)
+	    if (len + n > room || half == 0)
 		break;
 	    len += n;
 	    i = half;
@@ -313,9 +313,25 @@ trunc_string(
 	    len += n;
     }
 
-    /* Set the middle and copy the last part. */
-    if (e + 3 < buflen)
+
+    if (i <= e + 3)
     {
+	/* text fits without truncating */
+	if (s != buf)
+	{
+	    len = STRLEN(s);
+	    if (len >= buflen)
+		len = buflen - 1;
+	    len = len - e + 1;
+	    if (len < 1)
+		buf[e - 1] = NUL;
+	    else
+		mch_memmove(buf + e, s + e, len);
+	}
+    }
+    else if (e + 3 < buflen)
+    {
+	/* set the middle and copy the last part */
 	mch_memmove(buf + e, "...", (size_t)3);
 	len = (int)STRLEN(s + i) + 1;
 	if (len >= buflen - e - 3)
@@ -325,7 +341,8 @@ trunc_string(
     }
     else
     {
-	buf[e - 1] = NUL;  /* make sure it is truncated */
+	/* can't fit in the "...", just truncate it */
+	buf[e - 1] = NUL;
     }
 }
 
@@ -566,22 +583,25 @@ emsg(char_u *s)
 	 */
 	if (emsg_silent != 0)
 	{
-	    msg_start();
-	    p = get_emsg_source();
-	    if (p != NULL)
+	    if (emsg_noredir == 0)
 	    {
-		STRCAT(p, "\n");
-		redir_write(p, -1);
-		vim_free(p);
+		msg_start();
+		p = get_emsg_source();
+		if (p != NULL)
+		{
+		    STRCAT(p, "\n");
+		    redir_write(p, -1);
+		    vim_free(p);
+		}
+		p = get_emsg_lnum();
+		if (p != NULL)
+		{
+		    STRCAT(p, "\n");
+		    redir_write(p, -1);
+		    vim_free(p);
+		}
+		redir_write(s, -1);
 	    }
-	    p = get_emsg_lnum();
-	    if (p != NULL)
-	    {
-		STRCAT(p, "\n");
-		redir_write(p, -1);
-		vim_free(p);
-	    }
-	    redir_write(s, -1);
 	    return TRUE;
 	}
 
@@ -3063,8 +3083,8 @@ redir_write(char_u *str, int maxlen)
 	    while (cur_col < msg_col)
 	    {
 #ifdef FEAT_EVAL
-		if (redir_evalcmd)
-		    evalcmd_redir_str((char_u *)" ", -1);
+		if (redir_execute)
+		    execute_redir_str((char_u *)" ", -1);
 		else if (redir_reg)
 		    write_reg_contents(redir_reg, (char_u *)" ", -1, TRUE);
 		else if (redir_vname)
@@ -3080,8 +3100,8 @@ redir_write(char_u *str, int maxlen)
 	}
 
 #ifdef FEAT_EVAL
-	if (redir_evalcmd)
-	    evalcmd_redir_str(s, maxlen);
+	if (redir_execute)
+	    execute_redir_str(s, maxlen);
 	else if (redir_reg)
 	    write_reg_contents(redir_reg, s, maxlen, TRUE);
 	else if (redir_vname)
@@ -3092,7 +3112,7 @@ redir_write(char_u *str, int maxlen)
 	while (*s != NUL && (maxlen < 0 || (int)(s - str) < maxlen))
 	{
 #ifdef FEAT_EVAL
-	    if (!redir_reg && !redir_vname && !redir_evalcmd)
+	    if (!redir_reg && !redir_vname && !redir_execute)
 #endif
 		if (redir_fd != NULL)
 		    putc(*s, redir_fd);
@@ -3117,7 +3137,7 @@ redirecting(void)
 {
     return redir_fd != NULL || *p_vfile != NUL
 #ifdef FEAT_EVAL
-			  || redir_reg || redir_vname || redir_evalcmd
+			  || redir_reg || redir_vname || redir_execute
 #endif
 				       ;
 }
@@ -4194,6 +4214,15 @@ vim_vsnprintf(
 		case 'F': fmt_spec = 'f'; break;
 		default: break;
 	    }
+
+# if defined(FEAT_EVAL) && defined(FEAT_NUM64)
+	    switch (fmt_spec)
+	    {
+		case 'd': case 'u': case 'o': case 'x': case 'X':
+		    if (tvs != NULL && length_modifier == '\0')
+			length_modifier = 'L';
+	    }
+# endif
 
 	    /* get parameter value, do initial processing */
 	    switch (fmt_spec)

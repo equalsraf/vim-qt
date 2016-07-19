@@ -3067,6 +3067,9 @@ utf_convert(
     int
 utf_fold(int a)
 {
+    if (a < 0x80)
+	/* be fast for ASCII */
+	return a >= 0x41 && a <= 0x5a ? a + 32 : a;
     return utf_convert(a, foldCase, (int)sizeof(foldCase));
 }
 
@@ -4354,7 +4357,7 @@ enc_locale(void)
 	else
 	    s = p + 1;
     }
-    for (i = 0; s[i] != NUL && i < (int)sizeof(buf) - 1; ++i)
+    for (i = 0; i < (int)sizeof(buf) - 1 && s[i] != NUL; ++i)
     {
 	if (s[i] == '_' || s[i] == '-')
 	    buf[i] = '-';
