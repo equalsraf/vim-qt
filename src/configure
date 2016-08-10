@@ -1527,7 +1527,7 @@ Optional Packages:
   --with-view-name=NAME   what to call the View executable
   --with-global-runtime=DIR    global runtime directory in 'runtimepath'
   --with-modified-by=NAME       name of who modified a release version
-  --with-features=TYPE    tiny, small, normal, big or huge (default: normal)
+  --with-features=TYPE    tiny, small, normal, big or huge (default: huge)
   --with-compiledby=NAME  name to show in :version message
   --with-lua-prefix=PFX   Prefix where Lua is installed.
   --with-luajit           Link with LuaJIT instead of Lua.
