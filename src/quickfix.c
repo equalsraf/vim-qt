@@ -651,11 +651,7 @@ qf_get_next_file_line(qfstate_T *state)
 
     discard = FALSE;
     state->linelen = (int)STRLEN(IObuff);
-    if (state->linelen == IOSIZE - 1 && !(IObuff[state->linelen - 1] == '\n'
-#ifdef USE_CRNL
-		|| IObuff[state->linelen - 1] == '\r'
-#endif
-		))
+    if (state->linelen == IOSIZE - 1 && !(IObuff[state->linelen - 1] == '\n'))
     {
 	/*
 	 * The current line exceeds IObuff, continue reading using
@@ -680,11 +676,7 @@ qf_get_next_file_line(qfstate_T *state)
 		break;
 	    state->linelen = (int)STRLEN(state->growbuf + growbuflen);
 	    growbuflen += state->linelen;
-	    if ((state->growbuf)[growbuflen - 1] == '\n'
-#ifdef USE_CRNL
-		    || (state->growbuf)[growbuflen - 1] == '\r'
-#endif
-	       )
+	    if ((state->growbuf)[growbuflen - 1] == '\n')
 		break;
 	    if (state->growbufsiz == LINE_MAXLEN)
 	    {
@@ -708,11 +700,7 @@ qf_get_next_file_line(qfstate_T *state)
 	     */
 	    if (fgets((char *)IObuff, IOSIZE, state->fd) == NULL
 		    || (int)STRLEN(IObuff) < IOSIZE - 1
-		    || IObuff[IOSIZE - 1] == '\n'
-#ifdef USE_CRNL
-		    || IObuff[IOSIZE - 1] == '\r'
-#endif
-	       )
+		    || IObuff[IOSIZE - 1] == '\n')
 		break;
 	}
 
@@ -757,11 +745,13 @@ qf_get_nextline(qfstate_T *state)
 
     /* remove newline/CR from the line */
     if (state->linelen > 0 && state->linebuf[state->linelen - 1] == '\n')
+    {
 	state->linebuf[state->linelen - 1] = NUL;
 #ifdef USE_CRNL
-    if (state->linelen > 0 && state->linebuf[state->linelen - 1] == '\r')
-	state->linebuf[state->linelen - 1] = NUL;
+	if (state->linelen > 1 && state->linebuf[state->linelen - 2] == '\r')
+	    state->linebuf[state->linelen - 2] = NUL;
 #endif
+    }
 
 #ifdef FEAT_MBYTE
     remove_bom(state->linebuf);
@@ -1408,7 +1398,8 @@ qf_add_entry(
 
 	qfp->qf_fnum = bufnum;
 	if (buf != NULL)
-	    buf->b_has_qf_entry = TRUE;
+	    buf->b_has_qf_entry |=
+		(qi == &ql_info) ? BUF_HAS_QF_ENTRY : BUF_HAS_LL_ENTRY;
     }
     else
 	qfp->qf_fnum = qf_get_fnum(qi, dir, fname);
@@ -1680,7 +1671,8 @@ qf_get_fnum(qf_info_T *qi, char_u *directory, char_u *fname)
     if (buf == NULL)
 	return 0;
 
-    buf->b_has_qf_entry = TRUE;
+    buf->b_has_qf_entry =
+			(qi == &ql_info) ? BUF_HAS_QF_ENTRY : BUF_HAS_LL_ENTRY;
     return buf->b_fnum;
 }
 
@@ -2038,7 +2030,7 @@ qf_jump(
 	if (cmdmod.tab != 0)
 	    wp = NULL;
 	else
-	    for (wp = firstwin; wp != NULL; wp = wp->w_next)
+	    FOR_ALL_WINDOWS(wp)
 		if (wp->w_buffer != NULL && wp->w_buffer->b_help)
 		    break;
 	if (wp != NULL && wp->w_buffer->b_nwindows > 0)
@@ -2728,8 +2720,9 @@ qf_mark_adjust(
     int		idx;
     qf_info_T	*qi = &ql_info;
     int		found_one = FALSE;
+    int		buf_has_flag = wp == NULL ? BUF_HAS_QF_ENTRY : BUF_HAS_LL_ENTRY;
 
-    if (!curbuf->b_has_qf_entry)
+    if (!(curbuf->b_has_qf_entry & buf_has_flag))
 	return;
     if (wp != NULL)
     {
@@ -2758,7 +2751,7 @@ qf_mark_adjust(
 		}
 
     if (!found_one)
-	curbuf->b_has_qf_entry = FALSE;
+	curbuf->b_has_qf_entry &= ~buf_has_flag;
 }
 
 /*

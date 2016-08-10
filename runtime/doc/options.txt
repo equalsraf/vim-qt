@@ -1,4 +1,4 @@
-*options.txt*	For Vim version 7.4.  Last change: 2016 Jul 12
+*options.txt*	For Vim version 7.4.  Last change: 2016 Jul 29
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -887,7 +887,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	done with ":syntax on".
 
 							*'backspace'* *'bs'*
-'backspace' 'bs'	string	(default "")
+'backspace' 'bs'	string	(default "", set to "indent,eol,start"
+							    in |defaults.vim|)
 			global
 			{not in Vi}
 	Influences the working of <BS>, <Del>, CTRL-W and CTRL-U in Insert
@@ -1696,7 +1697,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 
 			*'compatible'* *'cp'* *'nocompatible'* *'nocp'*
 'compatible' 'cp'	boolean	(default on, off when a |vimrc| or |gvimrc|
-								file is found)
+					file is found, reset in |defaults.vim|)
 			global
 			{not in Vi}
 	This option has the effect of making Vim either more Vi-compatible, or
@@ -2617,16 +2618,23 @@ A jump table for the options with a short description can be found at |Q_op|.
 	{Vi: directory to put temp file in, defaults to "/tmp"}
 
 					*'display'* *'dy'*
-'display' 'dy'		string	(default "")
+'display' 'dy'		string	(default "", set to "truncate" in
+							       |defaults.vim|)
 			global
 			{not in Vi}
 	Change the way text is displayed.  This is comma separated list of
 	flags:
 	lastline	When included, as much as possible of the last line
-			in a window will be displayed.  When not included, a
-			last line that doesn't fit is replaced with "@" lines.
+			in a window will be displayed.  "@@@" is put in the
+			last columns of the last screen line to indicate the
+			rest of the line is not displayed.
+	truncate	Like "lastline", but "@@@" is displayed in the first
+			column of the last screen line.  Overrules "lastline".
 	uhex		Show unprintable characters hexadecimal as <xx>
 			instead of using ^C and ~C.
+
+	When neither "lastline" or "truncate" is included, a last line that
+	doesn't fit is replaced with "@" lines.
 
 						*'eadirection'* *'ead'*
 'eadirection' 'ead'	string	(default "both")
@@ -3719,8 +3727,10 @@ A jump table for the options with a short description can be found at |Q_op|.
 	screen.
 
 						*'guioptions'* *'go'*
-'guioptions' 'go'	string	(default "egmrLtT"   (MS-Windows),
-					 "aegimrLtT" (GTK, Motif and Athena))
+'guioptions' 'go'	string	(default "egmrLtT"   (MS-Windows, "t" is
+						   removed in |defaults.vim|),
+					 "aegimrLtT" (GTK, Motif and Athena),
+					 )
 			global
 			{not in Vi}
 			{only available when compiled with GUI enabled}
@@ -4042,7 +4052,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	NOTE: This option is reset when 'compatible' is set.
 
 						*'history'* *'hi'*
-'history' 'hi'		number	(Vim default: 50, Vi default: 0)
+'history' 'hi'		number	(Vim default: 50, Vi default: 0,
+						 set to 200 in |defaults.vim|)
 			global
 			{not in Vi}
 	A history of ":" commands, and a history of previous search patterns
@@ -4294,7 +4305,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	evaluating 'includeexpr' |textlock|.
 
 				 *'incsearch'* *'is'* *'noincsearch'* *'nois'*
-'incsearch' 'is'	boolean	(default off)
+'incsearch' 'is'	boolean	(default off, set in |defaults.vim| if the
+						+reltime feature is supported)
 			global
 			{not in Vi}
 			{not available when compiled without the
@@ -4678,7 +4690,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 <	Warning: This deletes all menus that you defined yourself!
 
 			*'langnoremap'* *'lnr'* *'nolangnoremap'* *'nolnr'*
-'langnoremap' 'lnr'	boolean (default off)
+'langnoremap' 'lnr'	boolean (default off, set in |defaults.vim|)
 			global
 			{not in Vi}
 			{only available when compiled with the |+langmap|
@@ -5144,7 +5156,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	set and to the Vim default value when 'compatible' is reset.
 
 						*'mouse'* *E538*
-'mouse'			string	(default "", "a" for GUI, MS-DOS and Win32)
+'mouse'			string	(default "", "a" for GUI, MS-DOS and Win32,
+						 set to "a" in |defaults.vim|)
 			global
 			{not in Vi}
 	Enable the use of the mouse.  Only works for certain terminals
@@ -5310,7 +5323,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	Negative or zero value means no thread scheduling.
 
 							*'nrformats'* *'nf'*
-'nrformats' 'nf'	string	(default "bin,octal,hex")
+'nrformats' 'nf'	string	(default "bin,octal,hex",
+					   set to "bin,hex" in |defaults.vim|)
 			local to buffer
 			{not in Vi}
 	This defines what bases Vim will consider for numbers when using the
@@ -5980,7 +5994,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	security reasons.
 
 					 *'ruler'* *'ru'* *'noruler'* *'noru'*
-'ruler' 'ru'		boolean	(default off)
+'ruler' 'ru'		boolean	(default off, set in |defaults.vim|)
 			global
 			{not in Vi}
 			{not available when compiled without the
@@ -6613,8 +6627,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	"n" flag to 'cpoptions'.
 
 				     *'showcmd'* *'sc'* *'noshowcmd'* *'nosc'*
-'showcmd' 'sc'		boolean	(Vim default: on, off for Unix, Vi default:
-				 off)
+'showcmd' 'sc'		boolean	(Vim default: on, off for Unix,
+				       Vi default: off, set in |defaults.vim|)
 			global
 			{not in Vi}
 			{not available when compiled without the
@@ -8371,7 +8385,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 
 
 				*'wildmenu'* *'wmnu'* *'nowildmenu'* *'nowmnu'*
-'wildmenu' 'wmnu'	boolean	(default off)
+'wildmenu' 'wmnu'	boolean	(default off, set in |defaults.vim|)
 			global
 			{not in Vi}
 			{not available if compiled without the |+wildmenu|

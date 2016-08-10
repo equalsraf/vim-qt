@@ -1497,7 +1497,7 @@ do_shell(
 		&& !autocmd_busy
 #endif
 		&& msg_silent == 0)
-	for (buf = firstbuf; buf; buf = buf->b_next)
+	FOR_ALL_BUFFERS(buf)
 	    if (bufIsChanged(buf))
 	    {
 #ifdef FEAT_GUI_MSWIN
@@ -2345,7 +2345,7 @@ read_viminfo_up_to_marks(
 #endif
 
     /* Change file names to buffer numbers for fmarks. */
-    for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+    FOR_ALL_BUFFERS(buf)
 	fmarks_check_names(buf);
 
     return eof;
@@ -2867,7 +2867,6 @@ write_viminfo_barlines(vir_T *virp, FILE *fp_out)
 }
 #endif /* FEAT_VIMINFO */
 
-#if defined(FEAT_CMDHIST) || defined(FEAT_VIMINFO) || defined(PROTO)
 /*
  * Return the current time in seconds.  Calls time(), unless test_settime()
  * was used.
@@ -2881,7 +2880,6 @@ vim_time(void)
     return time(NULL);
 # endif
 }
-#endif
 
 /*
  * Implementation of ":fixdel", also used by get_stty().
@@ -3413,7 +3411,7 @@ do_wqall(exarg_T *eap)
     if (eap->cmdidx == CMD_xall || eap->cmdidx == CMD_wqall)
 	exiting = TRUE;
 
-    for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+    FOR_ALL_BUFFERS(buf)
     {
 	if (bufIsChanged(buf))
 	{
@@ -4008,6 +4006,7 @@ do_ecmd(
 	    }
 	    vim_free(new_name);
 	    au_new_curbuf.br_buf = NULL;
+	    au_new_curbuf.br_buf_free_count = 0;
 #endif
 	}
 
@@ -4092,7 +4091,12 @@ do_ecmd(
 	    u_sync(FALSE);
 	    if (u_savecommon(0, curbuf->b_ml.ml_line_count + 1, 0, TRUE)
 								     == FAIL)
+	    {
+#ifdef FEAT_AUTOCMD
+		vim_free(new_name);
+#endif
 		goto theend;
+	    }
 	    u_unchanged(curbuf);
 	    buf_freeall(curbuf, BFA_KEEP_UNDO);
 
@@ -4389,6 +4393,7 @@ delbuf_msg(char_u *name)
 	    name == NULL ? (char_u *)"" : name);
     vim_free(name);
     au_new_curbuf.br_buf = NULL;
+    au_new_curbuf.br_buf_free_count = 0;
 }
 #endif
 
@@ -6115,7 +6120,7 @@ prepare_tagpreview(
      */
     if (!curwin->w_p_pvw)
     {
-	for (wp = firstwin; wp != NULL; wp = wp->w_next)
+	FOR_ALL_WINDOWS(wp)
 	    if (wp->w_p_pvw)
 		break;
 	if (wp != NULL)
@@ -6272,7 +6277,7 @@ ex_help(exarg_T *eap)
 	if (cmdmod.tab != 0)
 	    wp = NULL;
 	else
-	    for (wp = firstwin; wp != NULL; wp = wp->w_next)
+	    FOR_ALL_WINDOWS(wp)
 		if (wp->w_buffer != NULL && wp->w_buffer->b_help)
 		    break;
 	if (wp != NULL && wp->w_buffer->b_nwindows > 0)
@@ -7745,7 +7750,7 @@ ex_sign(exarg_T *eap)
 		if (idx == SIGNCMD_UNPLACE && *arg == NUL)
 		{
 		    /* ":sign unplace {id}": remove placed sign by number */
-		    for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+		    FOR_ALL_BUFFERS(buf)
 			if ((lnum = buf_delsign(buf, id)) != 0)
 			    update_debug_sign(buf, lnum);
 		    return;

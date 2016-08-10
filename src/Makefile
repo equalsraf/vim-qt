@@ -368,6 +368,9 @@ CClink = $(CC)
 # Carbon GUI for Mac OS X
 #CONF_OPT_GUI = --enable-gui=carbon
 
+# Uncomment this line to run an indivisual test with gvim.
+#GUI_TESTARG = GUI_FLAG=-g 
+
 # DARWIN - detecting Mac OS X
 # Uncomment this line when you want to compile a Unix version of Vim on
 # Darwin.  None of the Mac specific options or files will be used.
@@ -1068,7 +1071,8 @@ SCRIPTLOC	= $(VIMRTLOC)
 ### the runtime directory is not below it.
 #VIMRUNTIMEDIR = $(VIMRTLOC)
 
-### Name of the evim file target.
+### Name of the defaults/evim/mswin file target.
+VIM_DEFAULTS_FILE = $(DESTDIR)$(SCRIPTLOC)/defaults.vim
 EVIM_FILE	= $(DESTDIR)$(SCRIPTLOC)/evim.vim
 MSWIN_FILE	= $(DESTDIR)$(SCRIPTLOC)/mswin.vim
 
@@ -2060,21 +2064,18 @@ test1 \
 	test_mapping \
 	test_marks \
 	test_nested_function \
-	test_options \
 	test_search_mbyte \
-	test_signs \
 	test_tagcase \
-	test_textobjects \
 	test_utf8 \
 	test_wordcount \
 	test_writefile \
 	test2 test3 test4 test5 test6 test7 test8 test9 \
-	test11 test12 test13 test14 test15 test16 test17 test18 test19 \
+	test11 test12 test13 test14 test15 test17 test18 test19 \
 	test20 test21 test22 test23 test24 test25 test26 test27 test28 test29 \
 	test30 test31 test32 test33 test34 test36 test37 test38 test39 \
-	test40 test41 test42 test43 test44 test45 test46 test47 test48 test49 \
+	test40 test41 test42 test43 test44 test45 test46 test48 test49 \
 	test50 test51 test52 test53 test54 test55 test56 test57 test58 test59 \
-	test60 test61 test62 test63 test64 test65 test66 test67 test68 test69 \
+	test60 test62 test64 test65 test66 test67 test68 test69 \
 	test70 test71 test72 test73 test74 test75 test76 test77 test78 test79 \
 	test80 test81 test82 test83 test84 test85 test86 test87 test88 test89 \
 	test90 test91 test92 test93 test94 test95 test97 test98 test99 \
@@ -2094,6 +2095,8 @@ test_arglist \
 	test_cscope \
 	test_cursor_func \
 	test_delete \
+	test_diffmode \
+	test_digraph \
 	test_ex_undo \
 	test_execute_func \
 	test_expand \
@@ -2106,12 +2109,15 @@ test_arglist \
 	test_filter_map \
 	test_fnamemodify \
 	test_glob2regpat \
+	test_gn \
 	test_goto \
+	test_gui \
 	test_hardcopy \
 	test_help_tagjump \
 	test_history \
 	test_increment \
 	test_increment_dbcs \
+	test_job_fails \
 	test_join \
 	test_json \
 	test_jumps \
@@ -2120,12 +2126,13 @@ test_arglist \
 	test_largefile \
 	test_lispwords \
 	test_man \
+	test_match \
 	test_matchadd_conceal \
 	test_matchadd_conceal_utf8 \
-	test_matchstrpos \
 	test_menu \
 	test_messages \
 	test_netbeans \
+	test_options \
 	test_packadd \
 	test_partial \
 	test_perl \
@@ -2137,18 +2144,22 @@ test_arglist \
 	test_ruby \
 	test_searchpos \
 	test_set \
+	test_signs \
 	test_sort \
+	test_startup \
+	test_startup_utf8 \
 	test_stat \
 	test_statusline \
 	test_syn_attr \
 	test_syntax \
 	test_tabline \
 	test_tagjump \
+	test_textobjects \
 	test_timers \
 	test_true_false \
-	test_undolevels \
-	test_usercommands \
+	test_undo \
 	test_unlet \
+	test_usercommands \
 	test_viminfo \
 	test_viml \
 	test_visual \
@@ -2268,11 +2279,13 @@ installrtbase: $(HELPSOURCE)/vim.1 $(DEST_VIM) $(DEST_RT) \
 	chmod $(VIMSCRIPTMOD) $(SYS_SYNMENU_FILE)
 	$(INSTALL_DATA) $(SCRIPTSOURCE)/delmenu.vim $(SYS_DELMENU_FILE)
 	chmod $(VIMSCRIPTMOD) $(SYS_DELMENU_FILE)
-# install the evim file
-	$(INSTALL_DATA) $(SCRIPTSOURCE)/mswin.vim $(MSWIN_FILE)
-	chmod $(VIMSCRIPTMOD) $(MSWIN_FILE)
+# install the defaults/evim/mswin file
+	$(INSTALL_DATA) $(SCRIPTSOURCE)/defaults.vim $(VIM_DEFAULTS_FILE)
+	chmod $(VIMSCRIPTMOD) $(VIM_DEFAULTS_FILE)
 	$(INSTALL_DATA) $(SCRIPTSOURCE)/evim.vim $(EVIM_FILE)
 	chmod $(VIMSCRIPTMOD) $(EVIM_FILE)
+	$(INSTALL_DATA) $(SCRIPTSOURCE)/mswin.vim $(MSWIN_FILE)
+	chmod $(VIMSCRIPTMOD) $(MSWIN_FILE)
 # install the rgb.txt file
 	$(INSTALL_DATA) $(SCRIPTSOURCE)/rgb.txt $(SYS_RGB_FILE)
 	chmod $(VIMSCRIPTMOD) $(SYS_RGB_FILE)
@@ -2640,7 +2653,7 @@ uninstall_runtime:
 	-rm -f $(DEST_HELP)/*.??x $(DEST_HELP)/tags-??
 	-rm -f $(SYS_RGB_FILE)
 	-rm -f $(SYS_MENU_FILE) $(SYS_SYNMENU_FILE) $(SYS_DELMENU_FILE)
-	-rm -f $(SYS_BUGR_FILE) $(EVIM_FILE) $(MSWIN_FILE)
+	-rm -f $(SYS_BUGR_FILE) $(VIM_DEFAULTS_FILE) $(EVIM_FILE) $(MSWIN_FILE)
 	-rm -f $(DEST_SCRIPT)/gvimrc_example.vim $(DEST_SCRIPT)/vimrc_example.vim
 	-rm -f $(SYS_FILETYPE_FILE) $(SYS_FTOFF_FILE) $(SYS_SCRIPTS_FILE)
 	-rm -f $(SYS_INDOFF_FILE) $(SYS_INDENT_FILE)

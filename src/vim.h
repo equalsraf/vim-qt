@@ -98,12 +98,6 @@
 # ifndef HAVE_CONFIG_H
 #  define UNIX
 # endif
-# ifndef FEAT_CLIPBOARD
-#  define FEAT_CLIPBOARD
-#  if defined(FEAT_SMALL) && !defined(FEAT_MOUSE)
-#   define FEAT_MOUSE
-#  endif
-# endif
 #endif
 #if defined(MACOS_X) || defined(MACOS_CLASSIC)
 # define MACOS
@@ -185,7 +179,20 @@
 #endif
 
 
-#include "feature.h"	/* #defines for optionals and features */
+/*
+ * #defines for optionals and features
+ * Also defines FEAT_TINY, FEAT_SMALL, etc. when FEAT_HUGE is defined.
+ */
+#include "feature.h"
+
+#if defined(MACOS_X_UNIX)
+# if defined(FEAT_SMALL) && !defined(FEAT_CLIPBOARD)
+#  define FEAT_CLIPBOARD
+# endif
+# if defined(FEAT_SMALL) && !defined(FEAT_MOUSE)
+#  define FEAT_MOUSE
+# endif
+#endif
 
 /* +x11 is only enabled when it's both available and wanted. */
 #if defined(HAVE_X11) && defined(WANT_X11)
@@ -559,6 +566,7 @@ typedef unsigned long u8char_T;	    /* long should be 32 bits or more */
 # endif
 /* These are in os_win32.c */
 extern char *(*dyn_libintl_gettext)(const char *msgid);
+extern char *(*dyn_libintl_ngettext)(const char *msgid, const char *msgid_plural, unsigned long n);
 extern char *(*dyn_libintl_bindtextdomain)(const char *domainname, const char *dirname);
 extern char *(*dyn_libintl_bind_textdomain_codeset)(const char *domainname, const char *codeset);
 extern char *(*dyn_libintl_textdomain)(const char *domainname);
@@ -572,6 +580,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #ifdef FEAT_GETTEXT
 # ifdef DYNAMIC_GETTEXT
 #  define _(x) (*dyn_libintl_gettext)((char *)(x))
+#  define ngettext(x, xs, n) (*dyn_libintl_ngettext)((char *)(x), (char *)(xs), (n))
 #  define N_(x) x
 #  define bindtextdomain(domain, dir) (*dyn_libintl_bindtextdomain)((domain), (dir))
 #  define bind_textdomain_codeset(domain, codeset) (*dyn_libintl_bind_textdomain_codeset)((domain), (codeset))
@@ -590,6 +599,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 # endif
 #else
 # define _(x) ((char *)(x))
+# define ngettext(x, xs, n) (((n) == 1) ? (char *)(x) : (char *)(xs))
 # define N_(x) x
 # ifdef bindtextdomain
 #  undef bindtextdomain
@@ -975,7 +985,8 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define READ_STDIN	0x04	/* read from stdin */
 #define READ_BUFFER	0x08	/* read from curbuf (converting stdin) */
 #define READ_DUMMY	0x10	/* reading into a dummy buffer */
-#define READ_KEEP_UNDO	0x20	/* keep undo info*/
+#define READ_KEEP_UNDO	0x20	/* keep undo info */
+#define READ_FIFO	0x40	/* read from fifo or socket */
 
 /* Values for change_indent() */
 #define INDENT_SET	1	/* set indent */
@@ -1320,6 +1331,7 @@ enum auto_event
     EVENT_VIMRESIZED,		/* after Vim window was resized */
     EVENT_WINENTER,		/* after entering a window */
     EVENT_WINLEAVE,		/* before leaving a window */
+    EVENT_WINNEW,		/* when entering a new window */
     EVENT_ENCODINGCHANGED,	/* after changing the 'encoding' option */
     EVENT_INSERTCHARPRE,	/* before inserting a char */
     EVENT_CURSORHOLD,		/* cursor in same position for a while */
@@ -1332,8 +1344,10 @@ enum auto_event
     EVENT_SPELLFILEMISSING,	/* spell file missing */
     EVENT_CURSORMOVED,		/* cursor was moved */
     EVENT_CURSORMOVEDI,		/* cursor was moved in Insert mode */
-    EVENT_TABLEAVE,		/* before leaving a tab page */
     EVENT_TABENTER,		/* after entering a tab page */
+    EVENT_TABLEAVE,		/* before leaving a tab page */
+    EVENT_TABNEW,		/* when entering a new tab page */
+    EVENT_TABCLOSED,		/* after closing a tab page */
     EVENT_SHELLCMDPOST,		/* after ":!cmd" */
     EVENT_SHELLFILTERPOST,	/* after ":1,2!cmd", ":w !cmd", ":r !cmd". */
     EVENT_TEXTCHANGED,		/* text was modified */
@@ -1496,6 +1510,8 @@ typedef UINT32_TYPEDEF UINT32_T;
 # define MSG_BUF_CLEN  MSG_BUF_LEN	    /* cell length */
 #endif
 
+#define FOLD_TEXT_LEN  51	/* buffer size for get_foldtext() */
+
 /* Size of the buffer used for tgetent().  Unfortunately this is largely
  * undocumented, some systems use 1024.  Using a buffer that is too small
  * causes a buffer overrun and a crash.  Use the maximum known value to stay
@@ -1654,7 +1670,7 @@ typedef UINT32_TYPEDEF UINT32_T;
 #ifdef HAVE_STRERROR
 # define PERROR(msg)		    (void)emsg3((char_u *)"%s: %s", (char_u *)msg, (char_u *)strerror(errno))
 #else
-# define PERROR(msg)		    perror(msg)
+# define PERROR(msg)		    do_perror(msg)
 #endif
 
 typedef long	linenr_T;		/* line number type */
@@ -1767,6 +1783,7 @@ int vim_memcmp(void *, void *, size_t);
 # ifndef INIT
 #  define INIT(x) x
 #  define DO_INIT
+#  define COMMA ,
 # endif
 #endif
 
@@ -2101,7 +2118,7 @@ typedef enum
  * been seen at that stage.  But it must be before globals.h, where error_ga
  * is declared. */
 #if !defined(FEAT_GUI_W32) && !defined(FEAT_GUI_X11) \
-	&& !defined(FEAT_GUI_GTK) && !defined(FEAT_GUI_MAC) \
+	&& !defined(FEAT_GUI_GTK) && !defined(FEAT_GUI_MAC) && !defined(PROTO) \
         && !defined(FEAT_GUI_QT)
 # define mch_errmsg(str)	fprintf(stderr, "%s", (str))
 # define display_errors()	fflush(stderr)
@@ -2433,11 +2450,6 @@ typedef enum
 #define JSON_JS		1   /* use JS instead of JSON */
 #define JSON_NO_NONE	2   /* v:none item not allowed */
 
-#ifdef FEAT_MZSCHEME
-/* this is in main.c, cproto can't handle it. */
-int vim_main2(int argc, char **argv);
-#endif
-
 /* Used for flags of do_in_path() */
 #define DIP_ALL	    0x01	/* all matches, not just the first one */
 #define DIP_DIR	    0x02	/* find directories instead of files. */
@@ -2445,6 +2457,8 @@ int vim_main2(int argc, char **argv);
 #define DIP_START   0x08	/* also use "start" directory in 'packpath' */
 #define DIP_OPT	    0x10	/* also use "opt" directory in 'packpath' */
 #define DIP_NORTP   0x20	/* do not use 'runtimepath' */
+#define DIP_NOAFTER 0x40	/* skip "after" directories */
+#define DIP_AFTER   0x80	/* only use "after" directories */
 
 /* Lowest number used for window ID. Cannot have this many windows. */
 #define LOWEST_WIN_ID 1000
@@ -2457,6 +2471,7 @@ int vim_main2(int argc, char **argv);
 #define TFN_INT		1	/* internal function name OK */
 #define TFN_QUIET	2	/* no error messages */
 #define TFN_NO_AUTOLOAD	4	/* do not use script autoloading */
+#define TFN_NO_DEREF	8	/* do not dereference a Funcref */
 
 /* Values for get_lval() flags argument: */
 #define GLV_QUIET	TFN_QUIET	/* no error messages */
@@ -2473,6 +2488,7 @@ int vim_main2(int argc, char **argv);
 #define ERROR_DICT	4
 #define ERROR_NONE	5
 #define ERROR_OTHER	6
+#define ERROR_DELETED	7
 
 /* flags for find_name_end() */
 #define FNE_INCL_BR	1	/* include [] in name */

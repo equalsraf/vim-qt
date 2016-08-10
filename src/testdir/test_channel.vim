@@ -1,5 +1,4 @@
 " Test for channel functions.
-scriptencoding utf-8
 
 if !has('channel')
   finish
@@ -1321,7 +1320,7 @@ func Test_collapse_buffers()
   1,$delete
   call job_start('cat test_channel.vim', {'out_io': 'buffer', 'out_name': 'testout'})
   call WaitFor('line("$") > g:linecount')
-  call assert_true(line('$') > g:linecount)
+  call assert_inrange(g:linecount + 1, g:linecount + 2, line('$'))
   bwipe!
 endfunc
 
@@ -1345,4 +1344,4 @@ func Test_close_lambda()
 endfunc
 
 " Uncomment this to see what happens, output is in src/testdir/channellog.
- call ch_logfile('channellog', 'w')
+" call ch_logfile('channellog', 'w')

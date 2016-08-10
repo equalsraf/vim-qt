@@ -3891,7 +3891,8 @@ ins_compl_prep(int c)
 		    && pum_visible())
 		retval = TRUE;
 
-	    /* CTRL-E means completion is Ended, go back to the typed text. */
+	    /* CTRL-E means completion is Ended, go back to the typed text.
+	     * but only do this, if the Popup is still visible */
 	    if (c == Ctrl_E)
 	    {
 		ins_compl_delete();
@@ -4239,7 +4240,7 @@ ins_compl_get_exp(pos_T *ini)
 
     if (!compl_started)
     {
-	for (ins_buf = firstbuf; ins_buf != NULL; ins_buf = ins_buf->b_next)
+	FOR_ALL_BUFFERS(ins_buf)
 	    ins_buf->b_scanned = 0;
 	found_all = FALSE;
 	ins_buf = curbuf;

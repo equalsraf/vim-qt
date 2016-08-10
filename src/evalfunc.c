@@ -48,6 +48,7 @@ static void f_assert_equal(typval_T *argvars, typval_T *rettv);
 static void f_assert_exception(typval_T *argvars, typval_T *rettv);
 static void f_assert_fails(typval_T *argvars, typval_T *rettv);
 static void f_assert_false(typval_T *argvars, typval_T *rettv);
+static void f_assert_inrange(typval_T *argvars, typval_T *rettv);
 static void f_assert_match(typval_T *argvars, typval_T *rettv);
 static void f_assert_notequal(typval_T *argvars, typval_T *rettv);
 static void f_assert_notmatch(typval_T *argvars, typval_T *rettv);
@@ -147,6 +148,7 @@ static void f_foldlevel(typval_T *argvars, typval_T *rettv);
 static void f_foldtext(typval_T *argvars, typval_T *rettv);
 static void f_foldtextresult(typval_T *argvars, typval_T *rettv);
 static void f_foreground(typval_T *argvars, typval_T *rettv);
+static void f_funcref(typval_T *argvars, typval_T *rettv);
 static void f_function(typval_T *argvars, typval_T *rettv);
 static void f_garbagecollect(typval_T *argvars, typval_T *rettv);
 static void f_get(typval_T *argvars, typval_T *rettv);
@@ -394,8 +396,11 @@ static void f_tan(typval_T *argvars, typval_T *rettv);
 static void f_tanh(typval_T *argvars, typval_T *rettv);
 #endif
 #ifdef FEAT_TIMERS
+static void f_timer_info(typval_T *argvars, typval_T *rettv);
+static void f_timer_pause(typval_T *argvars, typval_T *rettv);
 static void f_timer_start(typval_T *argvars, typval_T *rettv);
 static void f_timer_stop(typval_T *argvars, typval_T *rettv);
+static void f_timer_stopall(typval_T *argvars, typval_T *rettv);
 #endif
 static void f_tolower(typval_T *argvars, typval_T *rettv);
 static void f_toupper(typval_T *argvars, typval_T *rettv);
@@ -460,6 +465,7 @@ static struct fst
     {"assert_exception", 1, 2, f_assert_exception},
     {"assert_fails",	1, 2, f_assert_fails},
     {"assert_false",	1, 2, f_assert_false},
+    {"assert_inrange",	2, 3, f_assert_inrange},
     {"assert_match",	2, 3, f_assert_match},
     {"assert_notequal",	2, 3, f_assert_notequal},
     {"assert_notmatch",	2, 3, f_assert_notmatch},
@@ -561,6 +567,7 @@ static struct fst
     {"foldtext",	0, 0, f_foldtext},
     {"foldtextresult",	1, 1, f_foldtextresult},
     {"foreground",	0, 0, f_foreground},
+    {"funcref",		1, 3, f_funcref},
     {"function",	1, 3, f_function},
     {"garbagecollect",	0, 1, f_garbagecollect},
     {"get",		2, 3, f_get},
@@ -811,8 +818,11 @@ static struct fst
     {"test_null_string", 0, 0, f_test_null_string},
     {"test_settime",	1, 1, f_test_settime},
 #ifdef FEAT_TIMERS
+    {"timer_info",	0, 1, f_timer_info},
+    {"timer_pause",	2, 2, f_timer_pause},
     {"timer_start",	2, 3, f_timer_start},
     {"timer_stop",	1, 1, f_timer_stop},
+    {"timer_stopall",	0, 0, f_timer_stopall},
 #endif
     {"tolower",		1, 1, f_tolower},
     {"toupper",		1, 1, f_toupper},
@@ -1278,6 +1288,15 @@ f_assert_false(typval_T *argvars, typval_T *rettv UNUSED)
 }
 
 /*
+ * "assert_inrange(lower, upper[, msg])" function
+ */
+    static void
+f_assert_inrange(typval_T *argvars, typval_T *rettv UNUSED)
+{
+    assert_inrange(argvars);
+}
+
+/*
  * "assert_match(pattern, actual[, msg])" function
  */
     static void
@@ -1428,7 +1447,7 @@ find_buffer(typval_T *avar)
 	{
 	    /* No full path name match, try a match with a URL or a "nofile"
 	     * buffer, these don't use the full path. */
-	    for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+	    FOR_ALL_BUFFERS(buf)
 		if (buf->b_fname != NULL
 			&& (path_with_url(buf->b_fname)
 #ifdef FEAT_QUICKFIX
@@ -1586,7 +1605,7 @@ buf_win_common(typval_T *argvars, typval_T *rettv, int get_nr)
     ++emsg_off;
     buf = get_buf_tv(&argvars[0], TRUE);
 #ifdef FEAT_WINDOWS
-    for (wp = firstwin; wp; wp = wp->w_next)
+    FOR_ALL_WINDOWS(wp)
     {
 	++winnr;
 	if (wp->w_buffer == buf)
@@ -1712,7 +1731,7 @@ f_call(typval_T *argvars, typval_T *rettv)
     else if (argvars[0].v_type == VAR_PARTIAL)
     {
 	partial = argvars[0].vval.v_partial;
-	func = partial->pt_name;
+	func = partial_name(partial);
     }
     else
 	func = get_tv_string(&argvars[0]);
@@ -2834,7 +2853,7 @@ f_exists(typval_T *argvars, typval_T *rettv)
     }
     else if (*p == '*')			/* internal or user defined function */
     {
-	n = function_exists(p + 1);
+	n = function_exists(p + 1, FALSE);
     }
     else if (*p == ':')
     {
@@ -3435,6 +3454,7 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
     char_u	*r;
     int		len;
     char	*txt;
+    long	count;
 #endif
 
     rettv->v_type = VAR_STRING;
@@ -3465,14 +3485,15 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
 		    s = skipwhite(s + 1);
 	    }
 	}
-	txt = _("+-%s%3ld lines: ");
+	count = (long)(foldend - foldstart + 1);
+	txt = ngettext("+-%s%3ld line: ", "+-%s%3ld lines: ", count);
 	r = alloc((unsigned)(STRLEN(txt)
 		    + STRLEN(dashes)	    /* for %s */
 		    + 20		    /* for %3ld */
 		    + STRLEN(s)));	    /* concatenated */
 	if (r != NULL)
 	{
-	    sprintf((char *)r, txt, dashes, (long)(foldend - foldstart + 1));
+	    sprintf((char *)r, txt, dashes, count);
 	    len = (int)STRLEN(r);
 	    STRCAT(r, s);
 	    /* remove 'foldmarker' and 'commentstring' */
@@ -3492,7 +3513,7 @@ f_foldtextresult(typval_T *argvars UNUSED, typval_T *rettv)
 #ifdef FEAT_FOLDING
     linenr_T	lnum;
     char_u	*text;
-    char_u	buf[51];
+    char_u	buf[FOLD_TEXT_LEN];
     foldinfo_T  foldinfo;
     int		fold_count;
 #endif
@@ -3507,8 +3528,7 @@ f_foldtextresult(typval_T *argvars UNUSED, typval_T *rettv)
     fold_count = foldedCount(curwin, lnum, &foldinfo);
     if (fold_count > 0)
     {
-	text = get_foldtext(curwin, lnum, lnum + fold_count - 1,
-							      &foldinfo, buf);
+	text = get_foldtext(curwin, lnum, lnum + fold_count - 1, &foldinfo, buf);
 	if (text == buf)
 	    text = vim_strsave(text);
 	rettv->vval.v_string = text;
@@ -3532,16 +3552,14 @@ f_foreground(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
 #endif
 }
 
-/*
- * "function()" function
- */
     static void
-f_function(typval_T *argvars, typval_T *rettv)
+common_function(typval_T *argvars, typval_T *rettv, int is_funcref)
 {
     char_u	*s;
     char_u	*name;
     int		use_string = FALSE;
     partial_T   *arg_pt = NULL;
+    char_u	*trans_name = NULL;
 
     if (argvars[0].v_type == VAR_FUNC)
     {
@@ -3553,7 +3571,7 @@ f_function(typval_T *argvars, typval_T *rettv)
     {
 	/* function(dict.MyFunc, [arg]) */
 	arg_pt = argvars[0].vval.v_partial;
-	s = arg_pt->pt_name;
+	s = partial_name(arg_pt);
     }
     else
     {
@@ -3562,11 +3580,22 @@ f_function(typval_T *argvars, typval_T *rettv)
 	use_string = TRUE;
     }
 
+    if (((use_string && vim_strchr(s, AUTOLOAD_CHAR) == NULL)
+				   || is_funcref))
+    {
+	name = s;
+	trans_name = trans_function_name(&name, FALSE,
+	     TFN_INT | TFN_QUIET | TFN_NO_AUTOLOAD | TFN_NO_DEREF, NULL, NULL);
+	if (*name != NUL)
+	    s = NULL;
+    }
+
     if (s == NULL || *s == NUL || (use_string && VIM_ISDIGIT(*s)))
 	EMSG2(_(e_invarg2), s);
     /* Don't check an autoload name for existence here. */
-    else if (use_string && vim_strchr(s, AUTOLOAD_CHAR) == NULL
-						       && !function_exists(s))
+    else if (trans_name != NULL && (is_funcref
+				? find_func(trans_name) == NULL
+				: !translated_function_exists(trans_name)))
 	EMSG2(_("E700: Unknown function: %s"), s);
     else
     {
@@ -3614,7 +3643,7 @@ f_function(typval_T *argvars, typval_T *rettv)
 		{
 		    EMSG(_("E922: expected a dict"));
 		    vim_free(name);
-		    return;
+		    goto theend;
 		}
 		if (argvars[dict_idx].vval.v_dict == NULL)
 		    dict_idx = 0;
@@ -3625,14 +3654,14 @@ f_function(typval_T *argvars, typval_T *rettv)
 		{
 		    EMSG(_("E923: Second argument of function() must be a list or a dict"));
 		    vim_free(name);
-		    return;
+		    goto theend;
 		}
 		list = argvars[arg_idx].vval.v_list;
 		if (list == NULL || list->lv_len == 0)
 		    arg_idx = 0;
 	    }
 	}
-	if (dict_idx > 0 || arg_idx > 0 || arg_pt != NULL)
+	if (dict_idx > 0 || arg_idx > 0 || arg_pt != NULL || is_funcref)
 	{
 	    partial_T	*pt = (partial_T *)alloc_clear(sizeof(partial_T));
 
@@ -3659,17 +3688,14 @@ f_function(typval_T *argvars, typval_T *rettv)
 		    {
 			vim_free(pt);
 			vim_free(name);
-			return;
+			goto theend;
 		    }
-		    else
-		    {
-			for (i = 0; i < arg_len; i++)
-			    copy_tv(&arg_pt->pt_argv[i], &pt->pt_argv[i]);
-			if (lv_len > 0)
-			    for (li = list->lv_first; li != NULL;
-							     li = li->li_next)
-				copy_tv(&li->li_tv, &pt->pt_argv[i++]);
-		    }
+		    for (i = 0; i < arg_len; i++)
+			copy_tv(&arg_pt->pt_argv[i], &pt->pt_argv[i]);
+		    if (lv_len > 0)
+			for (li = list->lv_first; li != NULL;
+							 li = li->li_next)
+			    copy_tv(&li->li_tv, &pt->pt_argv[i++]);
 		}
 
 		/* For "function(dict.func, [], dict)" and "func" is a partial
@@ -3691,8 +3717,23 @@ f_function(typval_T *argvars, typval_T *rettv)
 		}
 
 		pt->pt_refcount = 1;
-		pt->pt_name = name;
-		func_ref(pt->pt_name);
+		if (arg_pt != NULL && arg_pt->pt_func != NULL)
+		{
+		    pt->pt_func = arg_pt->pt_func;
+		    func_ptr_ref(pt->pt_func);
+		    vim_free(name);
+		}
+		else if (is_funcref)
+		{
+		    pt->pt_func = find_func(trans_name);
+		    func_ptr_ref(pt->pt_func);
+		    vim_free(name);
+		}
+		else
+		{
+		    pt->pt_name = name;
+		    func_ref(name);
+		}
 	    }
 	    rettv->v_type = VAR_PARTIAL;
 	    rettv->vval.v_partial = pt;
@@ -3705,6 +3746,26 @@ f_function(typval_T *argvars, typval_T *rettv)
 	    func_ref(name);
 	}
     }
+theend:
+    vim_free(trans_name);
+}
+
+/*
+ * "funcref()" function
+ */
+    static void
+f_funcref(typval_T *argvars, typval_T *rettv)
+{
+    common_function(argvars, rettv, TRUE);
+}
+
+/*
+ * "function()" function
+ */
+    static void
+f_function(typval_T *argvars, typval_T *rettv)
+{
+    common_function(argvars, rettv, FALSE);
 }
 
 /*
@@ -3770,14 +3831,20 @@ f_get(typval_T *argvars, typval_T *rettv)
 	if (pt != NULL)
 	{
 	    char_u *what = get_tv_string(&argvars[1]);
+	    char_u *n;
 
 	    if (STRCMP(what, "func") == 0 || STRCMP(what, "name") == 0)
 	    {
 		rettv->v_type = (*what == 'f' ? VAR_FUNC : VAR_STRING);
-		if (pt->pt_name == NULL)
+		n = partial_name(pt);
+		if (n == NULL)
 		    rettv->vval.v_string = NULL;
 		else
-		    rettv->vval.v_string = vim_strsave(pt->pt_name);
+		{
+		    rettv->vval.v_string = vim_strsave(n);
+		    if (rettv->v_type == VAR_FUNC)
+			func_ref(rettv->vval.v_string);
+		}
 	    }
 	    else if (STRCMP(what, "dict") == 0)
 	    {
@@ -4153,8 +4220,8 @@ f_getcompletion(typval_T *argvars, typval_T *rettv)
 {
     char_u	*pat;
     expand_T	xpc;
-    int		options = WILD_KEEP_ALL | WILD_SILENT | WILD_USE_NL
-					  | WILD_LIST_NOTFOUND | WILD_NO_BEEP;
+    int		options = WILD_SILENT | WILD_USE_NL | WILD_ADD_SLASH
+					| WILD_NO_BEEP;
 
     if (p_wic)
 	options |= WILD_ICASE;
@@ -4179,11 +4246,25 @@ f_getcompletion(typval_T *argvars, typval_T *rettv)
 	xpc.xp_pattern_len = (int)STRLEN(xpc.xp_pattern);
     }
 # endif
+#ifdef FEAT_CSCOPE
+    if (xpc.xp_context == EXPAND_CSCOPE)
+    {
+	set_context_in_cscope_cmd(&xpc, xpc.xp_pattern, CMD_cscope);
+	xpc.xp_pattern_len = (int)STRLEN(xpc.xp_pattern);
+    }
+#endif
+#ifdef FEAT_SIGNS
+    if (xpc.xp_context == EXPAND_SIGN)
+    {
+	set_context_in_sign_cmd(&xpc, xpc.xp_pattern);
+	xpc.xp_pattern_len = (int)STRLEN(xpc.xp_pattern);
+    }
+#endif
 
     pat = addstar(xpc.xp_pattern, xpc.xp_pattern_len, xpc.xp_context);
     if ((rettv_list_alloc(rettv) != FAIL) && (pat != NULL))
     {
-	int i;
+	int	i;
 
 	ExpandOne(&xpc, pat, NULL, options, WILD_ALL_KEEP);
 
@@ -5197,6 +5278,7 @@ f_has(typval_T *argvars, typval_T *rettv)
 #ifdef FEAT_KEYMAP
 	"keymap",
 #endif
+	"lambda", /* always with FEAT_EVAL, since 7.4.2120 with closure */
 #ifdef FEAT_LANGMAP
 	"langmap",
 #endif
@@ -6375,7 +6457,7 @@ f_last_buffer_nr(typval_T *argvars UNUSED, typval_T *rettv)
     int		n = 0;
     buf_T	*buf;
 
-    for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+    FOR_ALL_BUFFERS(buf)
 	if (n < buf->b_fnum)
 	    n = buf->b_fnum;
 
@@ -9593,11 +9675,11 @@ f_setmatches(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
 		}
 	    }
 
-	    group = get_dict_string(d, (char_u *)"group", FALSE);
+	    group = get_dict_string(d, (char_u *)"group", TRUE);
 	    priority = (int)get_dict_number(d, (char_u *)"priority");
 	    id = (int)get_dict_number(d, (char_u *)"id");
 	    conceal = dict_find(d, (char_u *)"conceal", -1) != NULL
-			      ? get_dict_string(d, (char_u *)"conceal", FALSE)
+			      ? get_dict_string(d, (char_u *)"conceal", TRUE)
 			      : NULL;
 	    if (i == 0)
 	    {
@@ -9611,6 +9693,8 @@ f_setmatches(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
 		list_unref(s);
 		s = NULL;
 	    }
+	    vim_free(group);
+	    vim_free(conceal);
 
 	    li = li->li_next;
 	}
@@ -10095,7 +10179,7 @@ item_compare2(const void *s1, const void *s2)
     if (partial == NULL)
 	func_name = sortinfo->item_compare_func;
     else
-	func_name = partial->pt_name;
+	func_name = partial_name(partial);
 
     /* Copy the values.  This is needed to be able to set v_lock to VAR_FIXED
      * in the copy without changing the original list items. */
@@ -10104,7 +10188,7 @@ item_compare2(const void *s1, const void *s2)
 
     rettv.v_type = VAR_UNKNOWN;		/* clear_tv() uses this */
     res = call_func(func_name, (int)STRLEN(func_name),
-				 &rettv, 2, argv, 0L, 0L, &dummy, TRUE,
+				 &rettv, 2, argv, NULL, 0L, 0L, &dummy, TRUE,
 				 partial, sortinfo->item_compare_selfdict);
     clear_tv(&argv[0]);
     clear_tv(&argv[1]);
@@ -11854,16 +11938,14 @@ get_callback(typval_T *arg, partial_T **pp)
     {
 	*pp = arg->vval.v_partial;
 	++(*pp)->pt_refcount;
-	return (*pp)->pt_name;
+	return partial_name(*pp);
     }
     *pp = NULL;
-    if (arg->v_type == VAR_FUNC)
+    if (arg->v_type == VAR_FUNC || arg->v_type == VAR_STRING)
     {
 	func_ref(arg->vval.v_string);
 	return arg->vval.v_string;
     }
-    if (arg->v_type == VAR_STRING)
-	return arg->vval.v_string;
     if (arg->v_type == VAR_NUMBER && arg->vval.v_number == 0)
 	return (char_u *)"";
     EMSG(_("E921: Invalid callback argument"));
@@ -11887,6 +11969,50 @@ free_callback(char_u *callback, partial_T *partial)
 #endif
 
 #ifdef FEAT_TIMERS
+/*
+ * "timer_info([timer])" function
+ */
+    static void
+f_timer_info(typval_T *argvars, typval_T *rettv)
+{
+    timer_T *timer = NULL;
+
+    if (rettv_list_alloc(rettv) != OK)
+	return;
+    if (argvars[0].v_type != VAR_UNKNOWN)
+    {
+	if (argvars[0].v_type != VAR_NUMBER)
+	    EMSG(_(e_number_exp));
+	else
+	{
+	    timer = find_timer((int)get_tv_number(&argvars[0]));
+	    if (timer != NULL)
+		add_timer_info(rettv, timer);
+	}
+    }
+    else
+	add_timer_info_all(rettv);
+}
+
+/*
+ * "timer_pause(timer, paused)" function
+ */
+    static void
+f_timer_pause(typval_T *argvars, typval_T *rettv UNUSED)
+{
+    timer_T	*timer = NULL;
+    int		paused = (int)get_tv_number(&argvars[1]);
+
+    if (argvars[0].v_type != VAR_NUMBER)
+	EMSG(_(e_number_exp));
+    else
+    {
+	timer = find_timer((int)get_tv_number(&argvars[0]));
+	if (timer != NULL)
+	    timer->tr_paused = paused;
+    }
+}
+
 /*
  * "timer_start(time, callback [, options])" function
  */
@@ -11922,7 +12048,11 @@ f_timer_start(typval_T *argvars, typval_T *rettv)
     }
     else
     {
-	timer->tr_callback = vim_strsave(callback);
+	if (timer->tr_partial == NULL)
+	    timer->tr_callback = vim_strsave(callback);
+	else
+	    /* pointer into the partial */
+	    timer->tr_callback = callback;
 	rettv->vval.v_number = timer->tr_id;
     }
 }
@@ -11943,6 +12073,15 @@ f_timer_stop(typval_T *argvars, typval_T *rettv UNUSED)
     timer = find_timer((int)get_tv_number(&argvars[0]));
     if (timer != NULL)
 	stop_timer(timer);
+}
+
+/*
+ * "timer_stopall()" function
+ */
+    static void
+f_timer_stopall(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
+{
+    stop_all_timers();
 }
 #endif
 
@@ -12365,7 +12504,7 @@ f_winrestcmd(typval_T *argvars UNUSED, typval_T *rettv)
     char_u	buf[50];
 
     ga_init2(&ga, (int)sizeof(char), 70);
-    for (wp = firstwin; wp != NULL; wp = wp->w_next)
+    FOR_ALL_WINDOWS(wp)
     {
 	sprintf((char *)buf, "%dresize %d|", winnr, wp->w_height);
 	ga_concat(&ga, buf);

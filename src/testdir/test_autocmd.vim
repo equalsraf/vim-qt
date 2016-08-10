@@ -19,6 +19,7 @@ if has('timers')
     call timer_start(100, 'ExitInsertMode')
     call feedkeys('a', 'x!')
     call assert_equal(1, g:triggered)
+    au! CursorHoldI
   endfunc
 
   func Test_cursorhold_insert_ctrl_x()
@@ -29,6 +30,7 @@ if has('timers')
     " CursorHoldI does not trigger after CTRL-X
     call feedkeys("a\<C-X>", 'x!')
     call assert_equal(0, g:triggered)
+    au! CursorHoldI
   endfunc
 endif
 
@@ -58,6 +60,7 @@ function Test_bufunload()
   bwipeout
   call assert_equal(["bufunload", "bufdelete", "bufwipeout"], s:li)
 
+  au! test_bufunload_group
   augroup! test_bufunload_group
 endfunc
 
@@ -77,4 +80,91 @@ function Test_autocmd_bufunload_with_tabnext()
   augroup! test_autocmd_bufunload_with_tabnext_group
   tablast
   quit
+endfunc
+
+func Test_win_tab_autocmd()
+  let g:record = []
+
+  augroup testing
+    au WinNew * call add(g:record, 'WinNew')
+    au WinEnter * call add(g:record, 'WinEnter') 
+    au WinLeave * call add(g:record, 'WinLeave') 
+    au TabNew * call add(g:record, 'TabNew')
+    au TabClosed * call add(g:record, 'TabClosed')
+    au TabEnter * call add(g:record, 'TabEnter')
+    au TabLeave * call add(g:record, 'TabLeave')
+  augroup END
+
+  split
+  tabnew
+  close
+  close
+
+  call assert_equal([
+	\ 'WinLeave', 'WinNew', 'WinEnter',
+	\ 'WinLeave', 'TabLeave', 'WinNew', 'WinEnter', 'TabNew', 'TabEnter',
+	\ 'WinLeave', 'TabLeave', 'TabClosed', 'WinEnter', 'TabEnter',
+	\ 'WinLeave', 'WinEnter'
+	\ ], g:record)
+
+  let g:record = []
+  tabnew somefile
+  tabnext
+  bwipe somefile
+
+  call assert_equal([
+	\ 'WinLeave', 'TabLeave', 'WinNew', 'WinEnter', 'TabNew', 'TabEnter',
+	\ 'WinLeave', 'TabLeave', 'WinEnter', 'TabEnter',
+	\ 'TabClosed'
+	\ ], g:record)
+
+  augroup testing
+    au!
+  augroup END
+  unlet g:record
+endfunc
+
+func s:AddAnAutocmd()
+  augroup vimBarTest
+    au BufReadCmd * echo 'hello'
+  augroup END
+  call assert_equal(3, len(split(execute('au vimBarTest'), "\n")))
+endfunc
+
+func Test_early_bar()
+  " test that a bar is recognized before the {event}
+  call s:AddAnAutocmd()
+  augroup vimBarTest | au! | augroup END
+  call assert_equal(1, len(split(execute('au vimBarTest'), "\n")))
+
+  call s:AddAnAutocmd()
+  augroup vimBarTest| au!| augroup END
+  call assert_equal(1, len(split(execute('au vimBarTest'), "\n")))
+
+  " test that a bar is recognized after the {event}
+  call s:AddAnAutocmd()
+  augroup vimBarTest| au!BufReadCmd| augroup END
+  call assert_equal(1, len(split(execute('au vimBarTest'), "\n")))
+
+  " test that a bar is recognized after the {group}
+  call s:AddAnAutocmd()
+  au! vimBarTest|echo 'hello'
+  call assert_equal(1, len(split(execute('au vimBarTest'), "\n")))
+endfunc
+
+func Test_augroup_warning()
+  augroup TheWarning
+    au VimEnter * echo 'entering'
+  augroup END
+  call assert_true(match(execute('au VimEnter'), "TheWarning.*VimEnter") >= 0)
+  redir => res
+  augroup! TheWarning
+  redir END
+  call assert_true(match(res, "W19:") >= 0)
+  call assert_true(match(execute('au VimEnter'), "-Deleted-.*VimEnter") >= 0)
+
+  " check "Another" does not take the pace of the deleted entry
+  augroup Another
+  augroup END
+  call assert_true(match(execute('au VimEnter'), "-Deleted-.*VimEnter") >= 0)
 endfunc

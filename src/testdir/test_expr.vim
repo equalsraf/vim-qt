@@ -153,3 +153,57 @@ func Test_substitute_expr()
   endfunc
   call assert_equal('--', substitute('xxx', 'x*', {-> '-' . Recurse() . '-'}, ''))
 endfunc
+
+func Test_substitute_expr_arg()
+  call assert_equal('123456789-123456789=', substitute('123456789',
+	\ '\(.\)\(.\)\(.\)\(.\)\(.\)\(.\)\(.\)\(.\)\(.\)',
+	\ {m -> m[0] . '-' . m[1] . m[2] . m[3] . m[4] . m[5] . m[6] . m[7] . m[8] . m[9] . '='}, ''))
+
+  call assert_equal('123456-123456=789', substitute('123456789',
+	\ '\(.\)\(.\)\(.\)\(a*\)\(n*\)\(.\)\(.\)\(.\)\(x*\)',
+	\ {m -> m[0] . '-' . m[1] . m[2] . m[3] . m[4] . m[5] . m[6] . m[7] . m[8] . m[9] . '='}, ''))
+
+  call assert_equal('123456789-123456789x=', substitute('123456789',
+	\ '\(.\)\(.\)\(.*\)',
+	\ {m -> m[0] . '-' . m[1] . m[2] . m[3] . 'x' . m[4] . m[5] . m[6] . m[7] . m[8] . m[9] . '='}, ''))
+
+  call assert_fails("call substitute('xxx', '.', {m -> string(add(m, 'x'))}, '')", 'E742:')
+  call assert_fails("call substitute('xxx', '.', {m -> string(insert(m, 'x'))}, '')", 'E742:')
+  call assert_fails("call substitute('xxx', '.', {m -> string(extend(m, ['x']))}, '')", 'E742:')
+  call assert_fails("call substitute('xxx', '.', {m -> string(remove(m, 1))}, '')", 'E742:')
+endfunc
+
+func Test_function_with_funcref()
+  let s:f = function('type')
+  let s:fref = function(s:f)
+  call assert_equal(v:t_string, s:fref('x'))
+  call assert_fails("call function('s:f')", 'E700:')
+endfunc
+
+func Test_funcref()
+  func! One()
+    return 1
+  endfunc
+  let OneByName = function('One')
+  let OneByRef = funcref('One')
+  func! One()
+    return 2
+  endfunc
+  call assert_equal(2, OneByName())
+  call assert_equal(1, OneByRef())
+  let OneByRef = funcref('One')
+  call assert_equal(2, OneByRef())
+endfunc
+
+func Test_setmatches()
+  hi def link 1 Comment
+  hi def link 2 PreProc
+  let set = [{"group": 1, "pattern": 2, "id": 3, "priority": 4}]
+  let exp = [{"group": '1', "pattern": '2', "id": 3, "priority": 4}]
+  if has('conceal')
+    let set[0]['conceal'] = 5
+    let exp[0]['conceal'] = '5'
+  endif
+  call setmatches(set)
+  call assert_equal(exp, getmatches())
+endfunc

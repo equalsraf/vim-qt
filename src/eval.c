@@ -237,8 +237,8 @@ static int get_env_tv(char_u **arg, typval_T *rettv, int evaluate);
 
 static int get_env_len(char_u **arg);
 static char_u * make_expanded_name(char_u *in_start, char_u *expr_start, char_u *expr_end, char_u *in_end);
+static void check_vars(char_u *name, int len);
 static typval_T *alloc_string_tv(char_u *string);
-static hashtab_T *find_var_ht(char_u *name, char_u **varname);
 static void delete_var(hashtab_T *ht, hashitem_T *hi);
 static void list_one_var(dictitem_T *v, char_u *prefix, int *first);
 static void list_one_var_a(char_u *prefix, char_u *name, int type, char_u *string, int *first);
@@ -988,7 +988,7 @@ call_vim_function(
     }
 
     rettv->v_type = VAR_UNKNOWN;		/* clear_tv() uses this */
-    ret = call_func(func, (int)STRLEN(func), rettv, argc, argvars,
+    ret = call_func(func, (int)STRLEN(func), rettv, argc, argvars, NULL,
 		    curwin->w_cursor.lnum, curwin->w_cursor.lnum,
 		    &doesrange, TRUE, NULL, NULL);
     if (safe)
@@ -2837,7 +2837,9 @@ do_unlet(char_u *name, int forceit)
 	    }
 	}
 	hi = hash_find(ht, varname);
-	if (!HASHITEM_EMPTY(hi))
+	if (HASHITEM_EMPTY(hi))
+	    hi = find_hi_in_scoped_ht(name, &ht);
+	if (hi != NULL && !HASHITEM_EMPTY(hi))
 	{
 	    di = HI2DI(hi);
 	    if (var_check_fixed(di->di_flags, name, FALSE)
@@ -4332,6 +4334,9 @@ eval7(
 	    {
 		partial_T *partial;
 
+		if (!evaluate)
+		    check_vars(s, len);
+
 		/* If "s" is the name of a variable of type VAR_FUNC
 		 * use its contents. */
 		s = deref_func_name(s, &len, &partial, !evaluate);
@@ -4363,7 +4368,10 @@ eval7(
 	    else if (evaluate)
 		ret = get_var_tv(s, len, rettv, NULL, TRUE, FALSE);
 	    else
+	    {
+		check_vars(s, len);
 		ret = OK;
+	    }
 	}
 	vim_free(alias);
     }
@@ -5003,6 +5011,17 @@ get_lit_string_tv(char_u **arg, typval_T *rettv, int evaluate)
     return OK;
 }
 
+/*
+ * Return the function name of the partial.
+ */
+    char_u *
+partial_name(partial_T *pt)
+{
+    if (pt->pt_name != NULL)
+	return pt->pt_name;
+    return pt->pt_func->uf_name;
+}
+
     static void
 partial_free(partial_T *pt)
 {
@@ -5012,8 +5031,13 @@ partial_free(partial_T *pt)
 	clear_tv(&pt->pt_argv[i]);
     vim_free(pt->pt_argv);
     dict_unref(pt->pt_dict);
-    func_unref(pt->pt_name);
-    vim_free(pt->pt_name);
+    if (pt->pt_name != NULL)
+    {
+	func_unref(pt->pt_name);
+	vim_free(pt->pt_name);
+    }
+    else
+	func_ptr_unref(pt->pt_func);
     vim_free(pt);
 }
 
@@ -5043,11 +5067,11 @@ func_equal(
 
     /* empty and NULL function name considered the same */
     s1 = tv1->v_type == VAR_FUNC ? tv1->vval.v_string
-					   : tv1->vval.v_partial->pt_name;
+					   : partial_name(tv1->vval.v_partial);
     if (s1 != NULL && *s1 == NUL)
 	s1 = NULL;
     s2 = tv2->v_type == VAR_FUNC ? tv2->vval.v_string
-					   : tv2->vval.v_partial->pt_name;
+					   : partial_name(tv2->vval.v_partial);
     if (s2 != NULL && *s2 == NUL)
 	s2 = NULL;
     if (s1 == NULL || s2 == NULL)
@@ -5253,7 +5277,7 @@ garbage_collect(int testing)
 	abort = abort || set_ref_in_ht(&SCRIPT_VARS(i), copyID, NULL);
 
     /* buffer-local variables */
-    for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+    FOR_ALL_BUFFERS(buf)
 	abort = abort || set_ref_in_item(&buf->b_bufvar.di_tv, copyID,
 								  NULL, NULL);
 
@@ -5269,7 +5293,7 @@ garbage_collect(int testing)
 
 #ifdef FEAT_WINDOWS
     /* tabpage-local variables */
-    for (tp = first_tabpage; tp != NULL; tp = tp->tp_next)
+    FOR_ALL_TABPAGES(tp)
 	abort = abort || set_ref_in_item(&tp->tp_winvar.di_tv, copyID,
 								  NULL, NULL);
 #endif
@@ -5279,6 +5303,9 @@ garbage_collect(int testing)
 
     /* function-local variables */
     abort = abort || set_ref_in_call_stack(copyID);
+
+    /* named functions (matters for closures) */
+    abort = abort || set_ref_in_functions(copyID);
 
     /* function call arguments, if v:testing is set. */
     abort = abort || set_ref_in_func_args(copyID);
@@ -5540,6 +5567,10 @@ set_ref_in_item(
 	    }
 	}
     }
+    else if (tv->v_type == VAR_FUNC)
+    {
+	abort = set_ref_in_func(tv->vval.v_string, NULL, copyID);
+    }
     else if (tv->v_type == VAR_PARTIAL)
     {
 	partial_T	*pt = tv->vval.v_partial;
@@ -5549,6 +5580,8 @@ set_ref_in_item(
 	 */
 	if (pt != NULL)
 	{
+	    abort = set_ref_in_func(pt->pt_name, pt->pt_func, copyID);
+
 	    if (pt->pt_dict != NULL)
 	    {
 		typval_T dtv;
@@ -5721,7 +5754,7 @@ echo_string_core(
 	    {
 		partial_T   *pt = tv->vval.v_partial;
 		char_u	    *fname = string_quote(pt == NULL ? NULL
-							: pt->pt_name, FALSE);
+						    : partial_name(pt), FALSE);
 		garray_T    ga;
 		int	    i;
 		char_u	    *tf;
@@ -6791,6 +6824,34 @@ get_var_tv(
 }
 
 /*
+ * Check if variable "name[len]" is a local variable or an argument.
+ * If so, "*eval_lavars_used" is set to TRUE.
+ */
+    static void
+check_vars(char_u *name, int len)
+{
+    int		cc;
+    char_u	*varname;
+    hashtab_T	*ht;
+
+    if (eval_lavars_used == NULL)
+	return;
+
+    /* truncate the name, so that we can use strcmp() */
+    cc = name[len];
+    name[len] = NUL;
+
+    ht = find_var_ht(name, &varname);
+    if (ht == get_funccal_local_ht() || ht == get_funccal_args_ht())
+    {
+	if (find_var(name, NULL, TRUE) != NULL)
+	    *eval_lavars_used = TRUE;
+    }
+
+    name[len] = cc;
+}
+
+/*
  * Handle expr[expr], expr[expr:expr] subscript and .name lookup.
  * Also handle function call with Funcref variable: func(expr)
  * Can all be combined: dict.func(expr)[idx]['func'](expr)
@@ -6829,7 +6890,7 @@ handle_subscript(
 		if (functv.v_type == VAR_PARTIAL)
 		{
 		    pt = functv.vval.v_partial;
-		    s = pt->pt_name;
+		    s = partial_name(pt);
 		}
 		else
 		    s = functv.vval.v_string;
@@ -7274,13 +7335,19 @@ find_var(char_u *name, hashtab_T **htp, int no_autoload)
 {
     char_u	*varname;
     hashtab_T	*ht;
+    dictitem_T	*ret = NULL;
 
     ht = find_var_ht(name, &varname);
     if (htp != NULL)
 	*htp = ht;
     if (ht == NULL)
 	return NULL;
-    return find_var_in_ht(ht, *name, varname, no_autoload || htp != NULL);
+    ret = find_var_in_ht(ht, *name, varname, no_autoload || htp != NULL);
+    if (ret != NULL)
+	return ret;
+
+    /* Search in parent scope for lambda */
+    return find_var_in_scoped_ht(name, no_autoload || htp != NULL);
 }
 
 /*
@@ -7341,7 +7408,7 @@ find_var_in_ht(
  * Return NULL if the name is not valid.
  * Set "varname" to the start of name without ':'.
  */
-    static hashtab_T *
+    hashtab_T *
 find_var_ht(char_u *name, char_u **varname)
 {
     hashitem_T	*hi;
@@ -7617,6 +7684,10 @@ set_var(
     }
     v = find_var_in_ht(ht, 0, varname, TRUE);
 
+    /* Search in parent scope which is possible to reference from lambda */
+    if (v == NULL)
+	v = find_var_in_scoped_ht(name, TRUE);
+
     if ((tv->v_type == VAR_FUNC || tv->v_type == VAR_PARTIAL)
 				      && var_check_func_name(name, v == NULL))
 	return;
@@ -7760,7 +7831,7 @@ var_check_func_name(
     /* Don't allow hiding a function.  When "v" is not NULL we might be
      * assigning another function to the same var, the type is checked
      * below. */
-    if (new_var && function_exists(name))
+    if (new_var && function_exists(name, FALSE))
     {
 	EMSG2(_("E705: Variable name conflicts with existing function: %s"),
 								    name);
@@ -8303,8 +8374,8 @@ find_win_by_nr(
     if (nr == 0)
 	return curwin;
 
-    for (wp = (tp == NULL || tp == curtab) ? firstwin : tp->tp_firstwin;
-						  wp != NULL; wp = wp->w_next)
+    FOR_ALL_WINDOWS_IN_TAB(tp, wp)
+    {
 	if (nr >= LOWEST_WIN_ID)
 	{
 	    if (wp->w_id == nr)
@@ -8312,6 +8383,7 @@ find_win_by_nr(
 	}
 	else if (--nr <= 0)
 	    break;
+    }
     if (nr >= LOWEST_WIN_ID)
 	return NULL;
     return wp;
@@ -8987,6 +9059,39 @@ assert_match_common(typval_T *argvars, assert_type_T atype)
 	prepare_assert_error(&ga);
 	fill_assert_error(&ga, &argvars[2], NULL, &argvars[0], &argvars[1],
 									atype);
+	assert_error(&ga);
+	ga_clear(&ga);
+    }
+}
+
+    void
+assert_inrange(typval_T *argvars)
+{
+    garray_T	ga;
+    int		error = FALSE;
+    varnumber_T	lower = get_tv_number_chk(&argvars[0], &error);
+    varnumber_T	upper = get_tv_number_chk(&argvars[1], &error);
+    varnumber_T	actual = get_tv_number_chk(&argvars[2], &error);
+    char_u	*tofree;
+    char	msg[200];
+    char_u	numbuf[NUMBUFLEN];
+
+    if (error)
+	return;
+    if (actual < lower || actual > upper)
+    {
+	prepare_assert_error(&ga);
+	if (argvars[3].v_type != VAR_UNKNOWN)
+	{
+	    ga_concat(&ga, tv2string(&argvars[3], &tofree, numbuf, 0));
+	    vim_free(tofree);
+	}
+	else
+	{
+	    vim_snprintf(msg, 200, "Expected range %ld - %ld, but got %ld",
+				       (long)lower, (long)upper, (long)actual);
+	    ga_concat(&ga, (char_u *)msg);
+	}
 	assert_error(&ga);
 	ga_clear(&ga);
     }
@@ -9930,18 +10035,17 @@ filter_map_one(typval_T *tv, typval_T *expr, int map, int *remp)
     if (expr->v_type == VAR_FUNC)
     {
 	s = expr->vval.v_string;
-	if (call_func(s, (int)STRLEN(s),
-		    &rettv, 2, argv, 0L, 0L, &dummy, TRUE, NULL, NULL) == FAIL)
+	if (call_func(s, (int)STRLEN(s), &rettv, 2, argv, NULL,
+				     0L, 0L, &dummy, TRUE, NULL, NULL) == FAIL)
 	    goto theend;
     }
     else if (expr->v_type == VAR_PARTIAL)
     {
 	partial_T   *partial = expr->vval.v_partial;
 
-	s = partial->pt_name;
-	if (call_func(s, (int)STRLEN(s),
-		    &rettv, 2, argv, 0L, 0L, &dummy, TRUE, partial, NULL)
-								      == FAIL)
+	s = partial_name(partial);
+	if (call_func(s, (int)STRLEN(s), &rettv, 2, argv, NULL,
+				  0L, 0L, &dummy, TRUE, partial, NULL) == FAIL)
 	    goto theend;
     }
     else

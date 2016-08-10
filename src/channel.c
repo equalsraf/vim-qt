@@ -1124,15 +1124,18 @@ set_callback(
     if (callback != NULL && *callback != NUL)
     {
 	if (partial != NULL)
-	    *cbp = partial->pt_name;
+	    *cbp = partial_name(partial);
 	else
+	{
 	    *cbp = vim_strsave(callback);
+	    func_ref(*cbp);
+	}
     }
     else
 	*cbp = NULL;
     *pp = partial;
-    if (*pp != NULL)
-	++(*pp)->pt_refcount;
+    if (partial != NULL)
+	++partial->pt_refcount;
 }
 
 /*
@@ -1272,10 +1275,17 @@ channel_set_req_callback(
 
     if (item != NULL)
     {
-	item->cq_callback = vim_strsave(callback);
 	item->cq_partial = partial;
 	if (partial != NULL)
+	{
 	    ++partial->pt_refcount;
+	    item->cq_callback = callback;
+	}
+	else
+	{
+	    item->cq_callback = vim_strsave(callback);
+	    func_ref(item->cq_callback);
+	}
 	item->cq_seq_nr = id;
 	item->cq_prev = head->cq_prev;
 	head->cq_prev = item;
@@ -1533,8 +1543,8 @@ invoke_callback(channel_T *channel, char_u *callback, partial_T *partial,
     argv[0].v_type = VAR_CHANNEL;
     argv[0].vval.v_channel = channel;
 
-    call_func(callback, (int)STRLEN(callback),
-			&rettv, 2, argv, 0L, 0L, &dummy, TRUE, partial, NULL);
+    call_func(callback, (int)STRLEN(callback), &rettv, 2, argv, NULL,
+					  0L, 0L, &dummy, TRUE, partial, NULL);
     clear_tv(&rettv);
     channel_need_redraw = TRUE;
 }
@@ -2695,7 +2705,7 @@ channel_close(channel_T *channel, int invoke_close_cb)
 	      argv[0].v_type = VAR_CHANNEL;
 	      argv[0].vval.v_channel = channel;
 	      call_func(channel->ch_close_cb, (int)STRLEN(channel->ch_close_cb),
-			   &rettv, 1, argv, 0L, 0L, &dummy, TRUE,
+			   &rettv, 1, argv, NULL, 0L, 0L, &dummy, TRUE,
 			   channel->ch_close_partial, NULL);
 	      clear_tv(&rettv);
 	      channel_need_redraw = TRUE;
@@ -3919,14 +3929,24 @@ free_job_options(jobopt_T *opt)
 {
     if (opt->jo_partial != NULL)
 	partial_unref(opt->jo_partial);
+    else if (opt->jo_callback != NULL)
+	func_unref(opt->jo_callback);
     if (opt->jo_out_partial != NULL)
 	partial_unref(opt->jo_out_partial);
+    else if (opt->jo_out_cb != NULL)
+	func_unref(opt->jo_out_cb);
     if (opt->jo_err_partial != NULL)
 	partial_unref(opt->jo_err_partial);
+    else if (opt->jo_err_cb != NULL)
+	func_unref(opt->jo_err_cb);
     if (opt->jo_close_partial != NULL)
 	partial_unref(opt->jo_close_partial);
+    else if (opt->jo_close_cb != NULL)
+	func_unref(opt->jo_close_cb);
     if (opt->jo_exit_partial != NULL)
 	partial_unref(opt->jo_exit_partial);
+    else if (opt->jo_exit_cb != NULL)
+	func_unref(opt->jo_exit_cb);
 }
 
 /*
@@ -4465,10 +4485,17 @@ job_set_options(job_T *job, jobopt_T *opt)
 	}
 	else
 	{
-	    job->jv_exit_cb = vim_strsave(opt->jo_exit_cb);
 	    job->jv_exit_partial = opt->jo_exit_partial;
 	    if (job->jv_exit_partial != NULL)
+	    {
+		job->jv_exit_cb = opt->jo_exit_cb;
 		++job->jv_exit_partial->pt_refcount;
+	    }
+	    else
+	    {
+		job->jv_exit_cb = vim_strsave(opt->jo_exit_cb);
+		func_ref(job->jv_exit_cb);
+	    }
 	}
     }
 }
@@ -4758,7 +4785,7 @@ job_status(job_T *job)
 	    argv[1].v_type = VAR_NUMBER;
 	    argv[1].vval.v_number = job->jv_exitval;
 	    call_func(job->jv_exit_cb, (int)STRLEN(job->jv_exit_cb),
-			   &rettv, 2, argv, 0L, 0L, &dummy, TRUE,
+			   &rettv, 2, argv, NULL, 0L, 0L, &dummy, TRUE,
 			   job->jv_exit_partial, NULL);
 	    clear_tv(&rettv);
 	    --job->jv_refcount;

@@ -27,6 +27,7 @@ func Nb_basic(port)
 
   " Opening Makefile will result in a setDot command
   call WaitFor('len(readfile("Xnetbeans")) > 4')
+  call WaitFor('getcurpos()[1] == 2')
   let pos = getcurpos()
   call assert_equal(2, pos[1])
   call assert_equal(20, pos[2])
@@ -53,8 +54,10 @@ endfunc
 func Nb_file_auth(port)
   call assert_fails('nbstart =notexist', 'E660:')
   call writefile(['host=localhost', 'port=' . a:port, 'auth=bunny'], 'Xnbauth')
-  call setfperm('Xnbauth', "rw-r--r--")
-  call assert_fails('nbstart =Xnbauth', 'E668:')
+  if has('unix')
+    call setfperm('Xnbauth', "rw-r--r--")
+    call assert_fails('nbstart =Xnbauth', 'E668:')
+  endif
   call setfperm('Xnbauth', "rw-------")
   exe 'nbstart :localhost:' . a:port . ':bunny'
   call assert_true(has("netbeans_enabled"))

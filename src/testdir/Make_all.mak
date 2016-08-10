@@ -43,7 +43,6 @@ SCRIPTS_ALL = \
 	test44.out \
 	test45.out \
 	test46.out \
-	test47.out \
 	test48.out \
 	test51.out \
 	test53.out \
@@ -51,9 +50,7 @@ SCRIPTS_ALL = \
 	test56.out \
 	test57.out \
 	test60.out \
-	test61.out \
 	test62.out \
-	test63.out \
 	test64.out \
 	test65.out \
 	test66.out \
@@ -104,11 +101,8 @@ SCRIPTS_ALL = \
 	test_mapping.out \
 	test_marks.out \
 	test_nested_function.out \
-	test_options.out \
 	test_search_mbyte.out \
-	test_signs.out \
 	test_tagcase.out \
-	test_textobjects.out \
 	test_utf8.out \
 	test_wordcount.out \
 	test_writefile.out
@@ -157,7 +151,7 @@ SCRIPTS_WIN32 = test50.out
 
 
 # Tests for the GUI.
-SCRIPTS_GUI = test16.out
+SCRIPTS_GUI =
 
 
 # Tests using runtest.vim.vim.
@@ -170,11 +164,16 @@ NEW_TESTS = test_arglist.res \
 	    test_channel.res \
 	    test_cmdline.res \
 	    test_cscope.res \
+	    test_diffmode.res \
+	    test_digraph.res \
 	    test_farsi.res \
+	    test_gn.res \
+	    test_gui.res \
 	    test_hardcopy.res \
 	    test_history.res \
 	    test_increment.res \
 	    test_increment_dbcs.res \
+	    test_job_fails.res \
 	    test_json.res \
 	    test_langmap.res \
 	    test_man.res \
@@ -184,8 +183,13 @@ NEW_TESTS = test_arglist.res \
 	    test_perl.res \
 	    test_quickfix.res \
 	    test_ruby.res \
+	    test_signs.res \
+	    test_startup.res \
+	    test_startup_utf8.res \
 	    test_stat.res \
 	    test_syntax.res \
+	    test_textobjects.res \
+	    test_undo.res \
 	    test_usercommands.res \
 	    test_viminfo.res \
 	    test_viml.res \
