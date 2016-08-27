@@ -402,10 +402,10 @@ mch_set_mouse_shape(int shape)
 /**
  * Return the RGB value of a pixel as a long.
  */
-long_u
+guicolor_T
 gui_mch_get_rgb(guicolor_T pixel)
 {
-	return (long_u)pixel;
+	return pixel;
 }
 
 /**

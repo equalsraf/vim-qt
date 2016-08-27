@@ -56,7 +56,7 @@ void mch_set_mouse_shape (int shape);
 char_u *gui_mch_font_dialog (char_u *oldval);
 void gui_mch_show_toolbar (int showit);
 void gui_mch_new_colors (void);
-long_u gui_mch_get_rgb (guicolor_T pixel);
+guicolor_T gui_mch_get_rgb (guicolor_T pixel);
 int gui_mch_wait_for_chars (long int wtime);
 void gui_mch_draw_hollow_cursor (guicolor_T color);
 void gui_mch_draw_part_cursor (int w, int h, guicolor_T color);
