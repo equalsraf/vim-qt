@@ -724,6 +724,19 @@ static char *(features[]) =
 #else
 	"-xim",
 #endif
+#ifdef WIN3264
+# ifdef FEAT_XPM_W32
+	"+xpm_w32",
+# else
+	"-xpm_w32",
+# endif
+#else
+# ifdef HAVE_XPM
+	"+xpm",
+# else
+	"-xpm",
+# endif
+#endif
 #if defined(UNIX) || defined(VMS)
 # ifdef USE_XSMP_INTERACT
 	"+xsmp_interact",
@@ -745,24 +758,105 @@ static char *(features[]) =
 #else
 	"-xterm_save",
 #endif
-#ifdef WIN3264
-# ifdef FEAT_XPM_W32
-	"+xpm_w32",
-# else
-	"-xpm_w32",
-# endif
-#else
-# ifdef HAVE_XPM
-	"+xpm",
-# else
-	"-xpm",
-# endif
-#endif
 	NULL
 };
 
 static int included_patches[] =
 {   /* Add new patch number below this line */
+/**/
+    2242,
+/**/
+    2241,
+/**/
+    2240,
+/**/
+    2239,
+/**/
+    2238,
+/**/
+    2237,
+/**/
+    2236,
+/**/
+    2235,
+/**/
+    2234,
+/**/
+    2233,
+/**/
+    2232,
+/**/
+    2231,
+/**/
+    2230,
+/**/
+    2229,
+/**/
+    2228,
+/**/
+    2227,
+/**/
+    2226,
+/**/
+    2225,
+/**/
+    2224,
+/**/
+    2223,
+/**/
+    2222,
+/**/
+    2221,
+/**/
+    2220,
+/**/
+    2219,
+/**/
+    2218,
+/**/
+    2217,
+/**/
+    2216,
+/**/
+    2215,
+/**/
+    2214,
+/**/
+    2213,
+/**/
+    2212,
+/**/
+    2211,
+/**/
+    2210,
+/**/
+    2209,
+/**/
+    2208,
+/**/
+    2207,
+/**/
+    2206,
+/**/
+    2205,
+/**/
+    2204,
+/**/
+    2203,
+/**/
+    2202,
+/**/
+    2201,
+/**/
+    2200,
+/**/
+    2199,
+/**/
+    2198,
+/**/
+    2197,
+/**/
+    2196,
 /**/
     2195,
 /**/

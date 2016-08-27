@@ -25,11 +25,13 @@ endfunc
 func Test_equivalence_re1()
   set re=1
   call s:equivalence_test()
+  set re=0
 endfunc
 
 func Test_equivalence_re2()
   set re=2
   call s:equivalence_test()
+  set re=0
 endfunc
 
 func s:classes_test()
@@ -82,9 +84,11 @@ endfunc
 func Test_classes_re1()
   set re=1
   call s:classes_test()
+  set re=0
 endfunc
 
 func Test_classes_re2()
   set re=2
   call s:classes_test()
+  set re=0
 endfunc

@@ -220,6 +220,9 @@ open_buffer(
 # ifdef S_ISSOCK
 		      || S_ISSOCK(perm)
 # endif
+# ifdef OPEN_CHR_FILES
+		      || (S_ISCHR(perm) && is_dev_fd_file(curbuf->b_ffname))
+# endif
 		    ))
 		read_fifo = TRUE;
 	if (read_fifo)
@@ -475,7 +478,7 @@ close_buffer(
 
     if (win != NULL
 #ifdef FEAT_WINDOWS
-	&& win_valid(win)	/* in case autocommands closed the window */
+	&& win_valid_any_tab(win) /* in case autocommands closed the window */
 #endif
 	    )
     {
@@ -581,7 +584,7 @@ aucmd_abort:
 
     if (
 #ifdef FEAT_WINDOWS
-	win_valid(win) &&
+	win_valid_any_tab(win) &&
 #else
 	win != NULL &&
 #endif

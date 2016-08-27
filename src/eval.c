@@ -233,8 +233,6 @@ static int get_string_tv(char_u **arg, typval_T *rettv, int evaluate);
 static int get_lit_string_tv(char_u **arg, typval_T *rettv, int evaluate);
 static int free_unref_items(int copyID);
 static int get_env_tv(char_u **arg, typval_T *rettv, int evaluate);
-
-
 static int get_env_len(char_u **arg);
 static char_u * make_expanded_name(char_u *in_start, char_u *expr_start, char_u *expr_end, char_u *in_end);
 static void check_vars(char_u *name, int len);
@@ -4089,11 +4087,11 @@ eval6(
 		    {
 #ifdef FEAT_NUM64
 			if (n1 == 0)
-			    n1 = -0x7fffffffffffffff - 1; /* similar to NaN */
+			    n1 = -0x7fffffffffffffffLL - 1; /* similar to NaN */
 			else if (n1 < 0)
-			    n1 = -0x7fffffffffffffff;
+			    n1 = -0x7fffffffffffffffLL;
 			else
-			    n1 = 0x7fffffffffffffff;
+			    n1 = 0x7fffffffffffffffLL;
 #else
 			if (n1 == 0)
 			    n1 = -0x7fffffffL - 1L;	/* similar to NaN */
@@ -4926,7 +4924,7 @@ get_string_tv(char_u **arg, typval_T *rettv, int evaluate)
 			  break;
 
 			    /* Special key, e.g.: "\<C-W>" */
-		case '<': extra = trans_special(&p, name, TRUE);
+		case '<': extra = trans_special(&p, name, TRUE, TRUE);
 			  if (extra != 0)
 			  {
 			      name += extra;
@@ -4943,6 +4941,11 @@ get_string_tv(char_u **arg, typval_T *rettv, int evaluate)
 
     }
     *name = NUL;
+    if (p == NUL)
+    {
+	EMSG2(_("E114: Missing quote: %s"), *arg);
+	return FAIL;
+    }
     *arg = p + 1;
 
     return OK;
@@ -8923,60 +8926,6 @@ last_set_msg(scid_T scriptID)
 	    vim_free(p);
 	    verbose_leave();
 	}
-    }
-}
-
-/*
- * List v:oldfiles in a nice way.
- */
-    void
-ex_oldfiles(exarg_T *eap UNUSED)
-{
-    list_T	*l = vimvars[VV_OLDFILES].vv_list;
-    listitem_T	*li;
-    int		nr = 0;
-
-    if (l == NULL)
-	msg((char_u *)_("No old files"));
-    else
-    {
-	msg_start();
-	msg_scroll = TRUE;
-	for (li = l->lv_first; li != NULL && !got_int; li = li->li_next)
-	{
-	    msg_outnum((long)++nr);
-	    MSG_PUTS(": ");
-	    msg_outtrans(get_tv_string(&li->li_tv));
-	    msg_putchar('\n');
-	    out_flush();	    /* output one line at a time */
-	    ui_breakcheck();
-	}
-	/* Assume "got_int" was set to truncate the listing. */
-	got_int = FALSE;
-
-#ifdef FEAT_BROWSE_CMD
-	if (cmdmod.browse)
-	{
-	    quit_more = FALSE;
-	    nr = prompt_for_number(FALSE);
-	    msg_starthere();
-	    if (nr > 0)
-	    {
-		char_u *p = list_find_str(get_vim_var_list(VV_OLDFILES),
-								    (long)nr);
-
-		if (p != NULL)
-		{
-		    p = expand_env_save(p);
-		    eap->arg = p;
-		    eap->cmdidx = CMD_edit;
-		    cmdmod.browse = FALSE;
-		    do_exedit(eap, NULL);
-		    vim_free(p);
-		}
-	    }
-	}
-#endif
     }
 }
 

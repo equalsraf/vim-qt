@@ -253,6 +253,9 @@
 # define PV_COCU	OPT_WIN(WV_COCU)
 # define PV_COLE	OPT_WIN(WV_COLE)
 #endif
+#ifdef FEAT_SIGNS
+# define PV_SCL		OPT_WIN(WV_SCL)
+#endif
 
 /* WV_ and BV_ values get typecasted to this for the "indir" field */
 typedef enum
@@ -468,7 +471,7 @@ struct vimoption
 #if defined(FEAT_DIFF) || defined(FEAT_FOLDING) || defined(FEAT_SPELL) \
 	|| defined(FEAT_WINDOWS) || defined(FEAT_CLIPBOARD) \
 	|| defined(FEAT_INS_EXPAND) || defined(FEAT_SYN_HL) || defined(FEAT_CONCEAL)
-# define HIGHLIGHT_INIT "8:SpecialKey,@:NonText,d:Directory,e:ErrorMsg,i:IncSearch,l:Search,m:MoreMsg,M:ModeMsg,n:LineNr,N:CursorLineNr,r:Question,s:StatusLine,S:StatusLineNC,c:VertSplit,t:Title,v:Visual,V:VisualNOS,w:WarningMsg,W:WildMenu,f:Folded,F:FoldColumn,A:DiffAdd,C:DiffChange,D:DiffDelete,T:DiffText,>:SignColumn,-:Conceal,B:SpellBad,P:SpellCap,R:SpellRare,L:SpellLocal,+:Pmenu,=:PmenuSel,x:PmenuSbar,X:PmenuThumb,*:TabLine,#:TabLineSel,_:TabLineFill,!:CursorColumn,.:CursorLine,o:ColorColumn"
+# define HIGHLIGHT_INIT "8:SpecialKey,~:EndOfBuffer,@:NonText,d:Directory,e:ErrorMsg,i:IncSearch,l:Search,m:MoreMsg,M:ModeMsg,n:LineNr,N:CursorLineNr,r:Question,s:StatusLine,S:StatusLineNC,c:VertSplit,t:Title,v:Visual,V:VisualNOS,w:WarningMsg,W:WildMenu,f:Folded,F:FoldColumn,A:DiffAdd,C:DiffChange,D:DiffDelete,T:DiffText,>:SignColumn,-:Conceal,B:SpellBad,P:SpellCap,R:SpellRare,L:SpellLocal,+:Pmenu,=:PmenuSel,x:PmenuSbar,X:PmenuThumb,*:TabLine,#:TabLineSel,_:TabLineFill,!:CursorColumn,.:CursorLine,o:ColorColumn"
 #else
 # define HIGHLIGHT_INIT "8:SpecialKey,@:NonText,d:Directory,e:ErrorMsg,i:IncSearch,l:Search,m:MoreMsg,M:ModeMsg,n:LineNr,N:CursorLineNr,r:Question,s:StatusLine,S:StatusLineNC,t:Title,v:Visual,w:WarningMsg,W:WildMenu,>:SignColumn,*:TabLine,#:TabLineSel,_:TabLineFill"
 #endif
@@ -1724,6 +1727,13 @@ static struct vimoption options[] =
 			    (char_u *)NULL, PV_NONE,
 #endif
 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
+    {"langremap",  "lrm",   P_BOOL|P_VI_DEF,
+#ifdef FEAT_LANGMAP
+			    (char_u *)&p_lrm, PV_NONE,
+#else
+			    (char_u *)NULL, PV_NONE,
+#endif
+			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
     {"laststatus",  "ls",   P_NUM|P_VI_DEF|P_RALL,
 #ifdef FEAT_WINDOWS
 			    (char_u *)&p_ls, PV_NONE,
@@ -2432,6 +2442,15 @@ static struct vimoption options[] =
     {"sidescrolloff", "siso", P_NUM|P_VI_DEF|P_VIM|P_RBUF,
 			    (char_u *)&p_siso, PV_NONE,
 			    {(char_u *)0L, (char_u *)0L} SCRIPTID_INIT},
+    {"signcolumn",   "scl",  P_STRING|P_ALLOCED|P_VI_DEF|P_RWIN,
+#ifdef FEAT_SIGNS
+			    (char_u *)VAR_WIN, PV_SCL,
+			    {(char_u *)"auto", (char_u *)0L}
+#else
+			    (char_u *)NULL, PV_NONE,
+			    {(char_u *)NULL, (char_u *)0L}
+#endif
+			    SCRIPTID_INIT},
     {"slowopen",    "slow", P_BOOL|P_VI_DEF,
 			    (char_u *)NULL, PV_NONE,
 			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
@@ -3097,6 +3116,9 @@ static char *(p_fcl_values[]) = {"all", NULL};
 #endif
 #ifdef FEAT_INS_EXPAND
 static char *(p_cot_values[]) = {"menu", "menuone", "longest", "preview", "noinsert", "noselect", NULL};
+#endif
+#ifdef FEAT_SIGNS
+static char *(p_scl_values[]) = {"yes", "no", "auto", NULL};
 #endif
 
 static void set_option_default(int, int opt_flags, int compatible);
@@ -7000,6 +7022,15 @@ did_set_string_option(
     }
 #endif /* FEAT_INS_EXPAND */
 
+#ifdef FEAT_SIGNS
+    /* 'signcolumn' */
+    else if (varp == &curwin->w_p_scl)
+    {
+	if (check_opt_strings(*varp, p_scl_values, FALSE) != OK)
+	    errmsg = e_invarg;
+    }
+#endif
+
 
 #if defined(FEAT_TOOLBAR) && !defined(FEAT_GUI_W32)
     else if (varp == &p_toolbar)
@@ -7899,6 +7930,15 @@ set_bool_option(
     {
 	compatible_set();
     }
+
+#ifdef FEAT_LANGMAP
+    if ((int *)varp == &p_lrm)
+	/* 'langremap' -> !'langnoremap' */
+	p_lnr = !p_lrm;
+    else if ((int *)varp == &p_lnr)
+	/* 'langnoremap' -> !'langremap' */
+	p_lrm = !p_lnr;
+#endif
 
 #ifdef FEAT_PERSISTENT_UNDO
     /* 'undofile' */
@@ -9496,7 +9536,7 @@ find_key_option(char_u *arg)
     {
 	--arg;			    /* put arg at the '<' */
 	modifiers = 0;
-	key = find_special_key(&arg, &modifiers, TRUE, TRUE);
+	key = find_special_key(&arg, &modifiers, TRUE, TRUE, FALSE);
 	if (modifiers)		    /* can't handle modifiers here */
 	    key = 0;
     }
@@ -10475,6 +10515,9 @@ get_varp(struct vimoption *p)
 #ifdef FEAT_KEYMAP
 	case PV_KMAP:	return (char_u *)&(curbuf->b_p_keymap);
 #endif
+#ifdef FEAT_SIGNS
+	case PV_SCL:	return (char_u *)&(curwin->w_p_scl);
+#endif
 	default:	EMSG(_("E356: get_varp ERROR"));
     }
     /* always return a valid pointer to avoid a crash! */
@@ -10591,6 +10634,9 @@ copy_winopt(winopt_T *from, winopt_T *to)
 # endif
     to->wo_fmr = vim_strsave(from->wo_fmr);
 #endif
+#ifdef FEAT_SIGNS
+    to->wo_scl = vim_strsave(from->wo_scl);
+#endif
     check_winopt(to);		/* don't want NULL pointers */
 }
 
@@ -10619,6 +10665,9 @@ check_winopt(winopt_T *wop UNUSED)
     check_string_option(&wop->wo_fdt);
 # endif
     check_string_option(&wop->wo_fmr);
+#endif
+#ifdef FEAT_SIGNS
+    check_string_option(&wop->wo_scl);
 #endif
 #ifdef FEAT_RIGHTLEFT
     check_string_option(&wop->wo_rlc);
@@ -10652,6 +10701,9 @@ clear_winopt(winopt_T *wop UNUSED)
     clear_string_option(&wop->wo_fdt);
 # endif
     clear_string_option(&wop->wo_fmr);
+#endif
+#ifdef FEAT_SIGNS
+    clear_string_option(&wop->wo_scl);
 #endif
 #ifdef FEAT_LINEBREAK
     clear_string_option(&wop->wo_briopt);
@@ -12316,3 +12368,59 @@ get_bkc_value(buf_T *buf)
 {
     return buf->b_bkc_flags ? buf->b_bkc_flags : bkc_flags;
 }
+
+#if defined(FEAT_SIGNS) || defined(PROTO)
+/*
+ * Return TRUE when window "wp" has a column to draw signs in.
+ */
+     int
+signcolumn_on(win_T *wp)
+{
+    if (*wp->w_p_scl == 'n')
+	return FALSE;
+    if (*wp->w_p_scl == 'y')
+	return TRUE;
+    return (wp->w_buffer->b_signlist != NULL
+# ifdef FEAT_NETBEANS_INTG
+			|| wp->w_buffer->b_has_sign_column
+# endif
+		    );
+}
+#endif
+
+#if defined(FEAT_EVAL) || defined(PROTO)
+/*
+ * Get window or buffer local options.
+ */
+    dict_T *
+get_winbuf_options(int bufopt)
+{
+    dict_T	*d;
+    int		opt_idx;
+
+    d = dict_alloc();
+    if (d == NULL)
+	return NULL;
+
+    for (opt_idx = 0; !istermoption(&options[opt_idx]); opt_idx++)
+    {
+	struct vimoption *opt = &options[opt_idx];
+
+	if ((bufopt && (opt->indir & PV_BUF))
+					 || (!bufopt && (opt->indir & PV_WIN)))
+	{
+	    char_u *varp = get_varp(opt);
+
+	    if (varp != NULL)
+	    {
+		if (opt->flags & P_STRING)
+		    dict_add_nr_str(d, opt->fullname, 0L, *(char_u **)varp);
+		else
+		    dict_add_nr_str(d, opt->fullname, *varp, NULL);
+	    }
+	}
+    }
+
+    return d;
+}
+#endif
