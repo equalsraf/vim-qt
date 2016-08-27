@@ -100,9 +100,9 @@ ex_menu(
     char_u	*arg;
     char_u	*p;
     int		i;
-#if defined(FEAT_GUI) && !defined(FEAT_GUI_GTK)
+#if defined(FEAT_GUI) && !defined(FEAT_GUI_GTK) && !defined(FEAT_GUI_QT)
     int		old_menu_height;
-# if defined(FEAT_TOOLBAR) && !defined(FEAT_GUI_W32)
+# if defined(FEAT_TOOLBAR) && !defined(FEAT_GUI_W32) && !defined(FEAT_GUI_QT)
     int		old_toolbar_height;
 # endif
 #endif
