@@ -825,7 +825,7 @@
 /*
  * +termguicolors	'termguicolors' option.
  */
-#if (defined(FEAT_BIG) && defined(FEAT_SYN_HL)) && !defined(ALWAYS_USE_GUI)
+#if (defined(FEAT_BIG) && defined(FEAT_SYN_HL)) && !defined(ALWAYS_USE_GUI) && !defined(FEAT_GUI_QT)
 # define FEAT_TERMGUICOLORS
 #endif
 
