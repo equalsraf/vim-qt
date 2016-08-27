@@ -20,6 +20,7 @@ src/auto/link.log
 src/auto/link.sed
 src/auto/pathdef.c
 src/config.status
+src/autom4te.cache
 
 # Windows
 *.exe
