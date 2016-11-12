@@ -114,6 +114,8 @@ struct efm_S
     int		    conthere;	/* %> used */
 };
 
+static efm_T	*fmt_start = NULL; /* cached across qf_parse_line() calls */
+
 static int	qf_init_ext(qf_info_T *qi, char_u *efile, buf_T *buf, typval_T *tv, char_u *errorformat, int newlist, linenr_T lnumfirst, linenr_T lnumlast, char_u *qf_title);
 static void	qf_store_title(qf_info_T *qi, char_u *title);
 static void	qf_new_list(qf_info_T *qi, char_u *qf_title);
@@ -389,6 +391,7 @@ free_efm_list(efm_T **efm_first)
 	vim_regfree(efm_ptr->prog);
 	vim_free(efm_ptr);
     }
+    fmt_start = NULL;
 }
 
 /* Parse 'errorformat' option */
@@ -786,7 +789,6 @@ qf_parse_line(
 	qffields_T	*fields)
 {
     efm_T		*fmt_ptr;
-    static efm_T	*fmt_start = NULL; /* cached across calls */
     char_u		*ptr;
     int			len;
     int			i;
@@ -1110,6 +1112,7 @@ qf_init_ext(
     qffields_T	    fields = {NULL, NULL, 0, 0L, 0, FALSE, NULL, 0, 0, 0};
 #ifdef FEAT_WINDOWS
     qfline_T	    *old_last = NULL;
+    int		    adding = FALSE;
 #endif
     static efm_T    *fmt_first = NULL;
     char_u	    *efm;
@@ -1138,6 +1141,7 @@ qf_init_ext(
     else if (qi->qf_lists[qi->qf_curlist].qf_count > 0)
     {
 	/* Adding to existing list, use last entry. */
+	adding = TRUE;
 	old_last = qi->qf_lists[qi->qf_curlist].qf_last;
     }
 #endif
@@ -1264,10 +1268,13 @@ qf_init_ext(
     }
     EMSG(_(e_readerrf));
 error2:
-    qf_free(qi, qi->qf_curlist);
-    qi->qf_listcount--;
-    if (qi->qf_curlist > 0)
-	--qi->qf_curlist;
+    if (!adding)
+    {
+	qf_free(qi, qi->qf_curlist);
+	qi->qf_listcount--;
+	if (qi->qf_curlist > 0)
+	    --qi->qf_curlist;
+    }
 qf_init_end:
     if (state.fd != NULL)
 	fclose(state.fd);
@@ -2137,7 +2144,7 @@ win_found:
 	 * If there is only one window and it is the quickfix window, create a
 	 * new one above the quickfix window.
 	 */
-	if (((firstwin == lastwin) && bt_quickfix(curbuf)) || !usable_win)
+	if ((ONE_WINDOW && bt_quickfix(curbuf)) || !usable_win)
 	{
 	    flags = WSP_ABOVE;
 	    if (ll_ref != NULL)
@@ -2266,7 +2273,7 @@ win_found:
 
 	    ok = buflist_getfile(qf_ptr->qf_fnum,
 			    (linenr_T)1, GETF_SETMARK | GETF_SWITCH, forceit);
-	    if (qi != &ql_info && !win_valid(oldwin))
+	    if (qi != &ql_info && !win_valid_any_tab(oldwin))
 	    {
 		EMSG(_("E924: Current window was closed"));
 		is_abort = TRUE;
@@ -3231,7 +3238,7 @@ qf_fill_buffer(qf_info_T *qi, buf_T *buf, qfline_T *old_last)
     {
 	if (buf != curbuf)
 	{
-	    EMSG2(_(e_intern2), "qf_fill_buffer()");
+	    internal_error("qf_fill_buffer()");
 	    return;
 	}
 
@@ -3446,12 +3453,11 @@ ex_make(exarg_T *eap)
 	case CMD_lgrepadd:  au_name = (char_u *)"lgrepadd"; break;
 	default: break;
     }
-    if (au_name != NULL)
+    if (au_name != NULL && apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
+					       curbuf->b_fname, TRUE, curbuf))
     {
-	apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
-					       curbuf->b_fname, TRUE, curbuf);
 # ifdef FEAT_EVAL
-	if (did_throw || force_abort)
+	if (aborting())
 	    return;
 # endif
     }
@@ -3970,12 +3976,13 @@ ex_vimgrep(exarg_T *eap)
 	case CMD_lgrepadd:    au_name = (char_u *)"lgrepadd"; break;
 	default: break;
     }
-    if (au_name != NULL)
+    if (au_name != NULL && apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
+					       curbuf->b_fname, TRUE, curbuf))
     {
-	apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
-					       curbuf->b_fname, TRUE, curbuf);
-	if (did_throw || force_abort)
+# ifdef FEAT_EVAL
+	if (aborting())
 	    return;
+# endif
     }
 #endif
 
@@ -4875,12 +4882,11 @@ ex_cbuffer(exarg_T *eap)
 	case CMD_laddbuffer:	au_name = (char_u *)"laddbuffer"; break;
 	default: break;
     }
-    if (au_name != NULL)
+    if (au_name != NULL && apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
+					       curbuf->b_fname, TRUE, curbuf))
     {
-	apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
-					       curbuf->b_fname, TRUE, curbuf);
 # ifdef FEAT_EVAL
-	if (did_throw || force_abort)
+	if (aborting())
 	    return;
 # endif
     }
@@ -4966,12 +4972,11 @@ ex_cexpr(exarg_T *eap)
 	case CMD_laddexpr:  au_name = (char_u *)"laddexpr"; break;
 	default: break;
     }
-    if (au_name != NULL)
+    if (au_name != NULL && apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
+					       curbuf->b_fname, TRUE, curbuf))
     {
-	apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
-					       curbuf->b_fname, TRUE, curbuf);
 # ifdef FEAT_EVAL
-	if (did_throw || force_abort)
+	if (aborting())
 	    return;
 # endif
     }
@@ -5042,12 +5047,13 @@ ex_helpgrep(exarg_T *eap)
 	case CMD_lhelpgrep: au_name = (char_u *)"lhelpgrep"; break;
 	default: break;
     }
-    if (au_name != NULL)
+    if (au_name != NULL && apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
+					       curbuf->b_fname, TRUE, curbuf))
     {
-	apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
-					       curbuf->b_fname, TRUE, curbuf);
-	if (did_throw || force_abort)
+# ifdef FEAT_EVAL
+	if (aborting())
 	    return;
+# endif
     }
 #endif
 

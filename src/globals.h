@@ -546,6 +546,7 @@ EXTERN int	clip_unnamed_saved INIT(= 0);
 EXTERN win_T	*firstwin;		/* first window */
 EXTERN win_T	*lastwin;		/* last window */
 EXTERN win_T	*prevwin INIT(= NULL);	/* previous window */
+# define ONE_WINDOW (firstwin == lastwin)
 # define W_NEXT(wp) ((wp)->w_next)
 # define FOR_ALL_WINDOWS(wp) for (wp = firstwin; wp != NULL; wp = wp->w_next)
 # define FOR_ALL_TABPAGES(tp) for (tp = first_tabpage; tp != NULL; tp = tp->tp_next)
@@ -563,6 +564,7 @@ EXTERN win_T	*prevwin INIT(= NULL);	/* previous window */
 #else
 # define firstwin curwin
 # define lastwin curwin
+# define ONE_WINDOW 1
 # define W_NEXT(wp) NULL
 # define FOR_ALL_WINDOWS(wp) wp = curwin;
 # define FOR_ALL_TABPAGES(tp) for (;FALSE;)
@@ -1438,6 +1440,7 @@ EXTERN char_u e_font[]		INIT(= N_("E235: Unknown font: %s"));
 EXTERN char_u e_fontwidth[]	INIT(= N_("E236: Font \"%s\" is not fixed-width"));
 #endif
 EXTERN char_u e_internal[]	INIT(= N_("E473: Internal error"));
+EXTERN char_u e_intern2[]	INIT(= N_("E685: Internal error: %s"));
 EXTERN char_u e_interr[]	INIT(= N_("Interrupted"));
 EXTERN char_u e_invaddr[]	INIT(= N_("E14: Invalid address"));
 EXTERN char_u e_invarg[]	INIT(= N_("E474: Invalid argument"));
@@ -1587,7 +1590,6 @@ EXTERN char_u e_invexprmsg[]	INIT(= N_("E449: Invalid expression received"));
 EXTERN char_u e_guarded[]	INIT(= N_("E463: Region is guarded, cannot modify"));
 EXTERN char_u e_nbreadonly[]	INIT(= N_("E744: NetBeans does not allow changes in read-only files"));
 #endif
-EXTERN char_u e_intern2[]	INIT(= N_("E685: Internal error: %s"));
 EXTERN char_u e_maxmempat[]	INIT(= N_("E363: pattern uses more memory than 'maxmempattern'"));
 EXTERN char_u e_emptybuf[]	INIT(= N_("E749: empty buffer"));
 EXTERN char_u e_nobufnr[]	INIT(= N_("E86: Buffer %ld does not exist"));

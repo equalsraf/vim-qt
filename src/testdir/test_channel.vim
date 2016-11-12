@@ -1362,6 +1362,45 @@ func Test_exit_callback()
   endif
 endfunc
 
+function MyExitTimeCb(job, status)
+  if job_info(a:job).process == g:exit_cb_val.process
+    let g:exit_cb_val.end = reltime(g:exit_cb_val.start)
+  endif
+  call Resume()
+endfunction
+
+func Test_exit_callback_interval()
+  if !has('job')
+    return
+  endif
+
+  let g:exit_cb_val = {'start': reltime(), 'end': 0, 'process': 0}
+  let job = job_start([s:python, '-c', 'import time;time.sleep(0.5)'], {'exit_cb': 'MyExitTimeCb'})
+  let g:exit_cb_val.process = job_info(job).process
+  call WaitFor('type(g:exit_cb_val.end) != v:t_number || g:exit_cb_val.end != 0')
+  let elapsed = reltimefloat(g:exit_cb_val.end)
+  call assert_true(elapsed > 0.5)
+  call assert_true(elapsed < 1.0)
+
+  " case: unreferenced job, using timer
+  if !has('timers')
+    return
+  endif
+
+  let g:exit_cb_val = {'start': reltime(), 'end': 0, 'process': 0}
+  let g:job = job_start([s:python, '-c', 'import time;time.sleep(0.5)'], {'exit_cb': 'MyExitTimeCb'})
+  let g:exit_cb_val.process = job_info(g:job).process
+  unlet g:job
+  call Standby(1000)
+  if type(g:exit_cb_val.end) != v:t_number || g:exit_cb_val.end != 0
+    let elapsed = reltimefloat(g:exit_cb_val.end)
+  else
+    let elapsed = 1.0
+  endif
+  call assert_true(elapsed > 0.5)
+  call assert_true(elapsed < 1.0)
+endfunc
+
 """""""""
 
 let g:Ch_close_ret = 'alive'
@@ -1413,6 +1452,21 @@ endfunc
 func Test_job_start_invalid()
   call assert_fails('call job_start($x)', 'E474:')
   call assert_fails('call job_start("")', 'E474:')
+endfunc
+
+func Test_job_stop_immediately()
+  if !has('job')
+    return
+  endif
+
+  let job = job_start([s:python, '-c', 'import time;time.sleep(10)'])
+  try
+    call job_stop(job)
+    call WaitFor('"dead" == job_status(job)')
+    call assert_equal('dead', job_status(job))
+  finally
+    call job_stop(job, 'kill')
+  endtry
 endfunc
 
 " This was leaking memory.

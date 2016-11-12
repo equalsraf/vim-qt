@@ -177,6 +177,7 @@
 # define mch_fstat(n, p)	fstat(vms_fixfilename(n), (p))
 	/* VMS does not have lstat() */
 # define mch_stat(n, p)		stat(vms_fixfilename(n), (p))
+# define mch_rmdir(n)		rmdir(vms_fixfilename(n))
 #else
 # ifndef WIN32
 #   define mch_access(n, p)	access((n), (p))
@@ -344,7 +345,11 @@
 #  endif
 #  if !defined(INFINITY)
 #   if defined(DBL_MAX)
-#    define INFINITY (DBL_MAX+DBL_MAX)
+#    ifdef VMS
+#     define INFINITY DBL_MAX
+#    else
+#     define INFINITY (DBL_MAX+DBL_MAX)
+#    endif
 #   else
 #    define INFINITY (1.0 / 0.0)
 #   endif

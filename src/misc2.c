@@ -918,7 +918,7 @@ lalloc(long_u size, int message)
     {
 	/* Don't hide this message */
 	emsg_silent = 0;
-	EMSGN(_("E341: Internal error: lalloc(%ld, )"), size);
+	IEMSGN(_("E341: Internal error: lalloc(%ld, )"), size);
 	return NULL;
     }
 
@@ -1075,7 +1075,7 @@ free_all_mem(void)
     p_ea = FALSE;
     if (first_tabpage->tp_next != NULL)
 	do_cmdline_cmd((char_u *)"tabonly!");
-    if (firstwin != lastwin)
+    if (!ONE_WINDOW)
 	do_cmdline_cmd((char_u *)"only!");
 # endif
 
@@ -6040,32 +6040,6 @@ filewritable(char_u *fname)
 }
 #endif
 
-/*
- * Print an error message with one or two "%s" and one or two string arguments.
- * This is not in message.c to avoid a warning for prototypes.
- */
-    int
-emsg3(char_u *s, char_u *a1, char_u *a2)
-{
-    if (emsg_not_now())
-	return TRUE;		/* no error messages at the moment */
-    vim_snprintf((char *)IObuff, IOSIZE, (char *)s, a1, a2);
-    return emsg(IObuff);
-}
-
-/*
- * Print an error message with one "%ld" and one long int argument.
- * This is not in message.c to avoid a warning for prototypes.
- */
-    int
-emsgn(char_u *s, long n)
-{
-    if (emsg_not_now())
-	return TRUE;		/* no error messages at the moment */
-    vim_snprintf((char *)IObuff, IOSIZE, (char *)s, n);
-    return emsg(IObuff);
-}
-
 #if defined(FEAT_SPELL) || defined(FEAT_PERSISTENT_UNDO) || defined(PROTO)
 /*
  * Read 2 bytes from "fd" and turn them into an int, MSB first.
@@ -6256,6 +6230,7 @@ has_non_ascii(char_u *s)
 #if defined(MESSAGE_QUEUE) || defined(PROTO)
 /*
  * Process messages that have been queued for netbeans or clientserver.
+ * Also check if any jobs have ended.
  * These functions can call arbitrary vimscript and should only be called when
  * it is safe to do so.
  */

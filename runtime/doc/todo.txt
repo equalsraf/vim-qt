@@ -1,4 +1,4 @@
-*todo.txt*      For Vim version 8.0.  Last change: 2016 Oct 12
+*todo.txt*      For Vim version 8.0.  Last change: 2016 Nov 06
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -38,6 +38,7 @@ not be repeated below, unless there is extra information.
 - Problem with stderr on Windows? (Vincent Rischmann, 2016 Aug 31, #1026)
 - Add 'cwd' argument to start_job(): directory to change to in the child.
     check for valid directory before forking.
+  Part of patch for environment, Yasuhiro Matsumoto, #1160
 - Implement |job-term| ?
 - Channel test fails with Motif.  Sometimes kills the X11 server.
 - When a message in the queue but there is no callback, drop it after a while?
@@ -96,27 +97,50 @@ Regexp problems:
   matches the empty string. (Dominique Pelle, 2015 Oct 2, Nov 24)
   had_endbrace[] is set but not initialized or used.
 
+Patch to support nested namespace syntax. (Pauli, 2016 Oct 30, #1214)
+
+Make html indent file use javascript indent, now that it's not just cindent.
+#1220
+
 json_encode(): should convert to utf-8. (Nikolai Pavlov, 2016 Jan 23)
 What if there is an invalid character?
+
+Bug: Json with same key should not give internal error. (Lcd, 2016 Oct 26)
+Make dict_add give a duplicate key error.
 
 Should json_encode()/json_decode() restrict recursiveness?
 Or avoid recursiveness.
 
+Allow using json with empty key?  Dict already has it.
+
+Json string with trailing \u should be an error. (Lcd)
+
+Patch to reset ex_exitvalue after catch. (Christian Brabandt, 2016 Oct 23)
+
+Patch to deal with changed configure events in GTK 3. (Jan Alexander Steffens,
+2016 Oct 23 #1193)
+Remarks from nuko8, 2016 Nov 2.
+
+Wrong diff highlighting with three files. (2016 Oct 20, #1186)
+Also get E749 on exit.
+
+Patch for better explanation of 'compatible' side effects.
+https://github.com/vim/vim/pull/1161/files
+
 Error in test_startup_utf8 on Solaris. (Danek Duvall, 2016 Aug 17)
 
-Patch to recognize tmux. (Michael Henry, 2016 Sep 29)
+Screen updated delayed when using CTRL-O u in Insert mode.
+(Barlik, #1191)  Perhaps because status message?
+
+Patch for restoring wide characters in the console buffer.
+(Ken Takata, 2016 Jun 7)
 
 Patch to fix escaping of job arguments. (Yasuhiro Matsumoto, 2016 Oct 5)
+Update Oct 14: https://gist.github.com/mattn/d47e7d3bfe5ade4be86062b565a4bfca
 
 Once .exe with updated installer is available: Add remark to download page
 about /S and /D options (Ken Takata, 2016 Apr 13)
 Or point to nightly builds: https://github.com/vim/vim-win32-installer/releases
-
-Javascript indent wrong after /* in single quoted string:
-    var SRC = 'src/*.js';
-    function log(tag) {
-	a = b;
-    }
 
 Problem passing non-UTF-8 strings to Python 3. (Björn Linse, 2016 Sep 11,
 #1053)  With patch, does it work?
@@ -127,11 +151,16 @@ Add tests for using number larger than number of lines in buffer.
 Patch to make v:shell_error writable. (Christian Brabandt, 2016 Sep 27)
 Is there another solution?
 
+On MS-Windows with 'clipboard' set to "unnamed" this doesn't work to double
+lines: :g/^/normal yyp   On Unix it works OK.  (Bryce Orgill, 2016 Nov 5)
+
 Invalid behavior with NULL list. (Nikolai Pavlov, #768)
 E.g. deepcopy(test_null_list())
 
 Patch to make it possible to extend a list with itself.
 (Nikolai Pavlov, 2016 Sep 23)
+
+Patch to add Zstandard compressed file support. (Nick Terrell, 2016 Oct 24)
 
 min() and max() spawn lots of error messages if sorted list/dictionary
 contains invalid data (Nikolay Pavlov, 2016 Sep 4, #1039)
@@ -155,6 +184,9 @@ Add an argument to choose binary or non-binary (like readfile()), when omitted
 use the current behavior.
 Include the test.
 
+When 'keywordprg' starts with ":" the argument is still escaped as a shell
+command argument. (Romain Lafourcade, 2016 Oct 16, #1175)
+
 Idea from Sven: record sequence of keys.  Useful to show others what they are
 doing (look over the shoulder), and also to see what happened.
 Probably list of keystrokes, with some annotations for mode changes.
@@ -167,6 +199,8 @@ execute() cannot be used with command completeion. (Daniel Hahler, 2016 Oct 1,
 cmap using execute() has side effects. (Killthemule, 2016 Aug 17, #983)
 
 Patch to change order of compiler flags. (Yousong Zhou, 2016 Sep 19, #1100)
+
+Patch to order results from taglist(). (Duncan McDougall, 2016 Oct 25)
 
 Patch for :pyx, run python commands depending on the supported version.
 (Marc Weber, update from Ken Takata, 2016 Sep 19)
@@ -184,6 +218,9 @@ ml_get errors when reloading file. (Chris Desjardins, 2016 Apr 19)
 Also with latest version.
 
 Cannot delete a file with square brackets with delete(). (#696)
+
+Patch to add ":syn foldlevel" to use fold level further down the line.
+(Brad King, 2016 Oct 19)
 
 Completion for input() does not expand environment variables. (chdiza, 2016
 Jul 25, #948)
@@ -223,9 +260,6 @@ Filetype plugin for awk. (Doug Kearns, 2016 Sep 5)
 Patch to improve map documentation. Issue #799.
 
 Patch for syntax folding optimization. (Shougo, 2016 Sep 6, #1045)
-
-Patch for restoring wide characters in the console buffer.
-(Ken Takata, 2016 Jun 7)
 
 Patch for drag&drop reordering of GUI tab pages reordering.
 (Ken Takata, 2013 Nov 22, second one, also by Masamichi Abe)
@@ -336,6 +370,9 @@ Updated patch with three options, 2016 Sep 8.
 Patch to have text objects defined by arbitrary single characters. (Daniel
 Thau, 2013 Nov 20, 2014 Jan 29, 2014 Jan 31)
 Added tests (James McCoy, 2016 Aug 3).  Still needs more work.
+
+Feature request: add the "al" text object, to manipulate a screen line.
+Especially useful when using 'linebreak'
 
 Access to uninitialized memory in match_backref() regexp_nda.c:4882
 (Dominique Pelle, 2015 Nov 6)

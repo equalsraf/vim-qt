@@ -1995,6 +1995,11 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
 	    break;
 
 	case OP_FUNCTION:
+#ifdef FEAT_LINEBREAK
+	    /* Restore linebreak, so that when the user edits it looks as
+	     * before. */
+	    curwin->w_p_lbr = lbr_saved;
+#endif
 	    op_function(oap);		/* call 'operatorfunc' */
 	    break;
 
@@ -5713,9 +5718,13 @@ nv_ident(cmdarg_T *cap)
      */
     if (cmdchar == 'K' && !kp_help)
     {
-	/* Escape the argument properly for a shell command */
 	ptr = vim_strnsave(ptr, n);
-	p = vim_strsave_shellescape(ptr, TRUE, TRUE);
+	if (kp_ex)
+	    /* Escape the argument properly for an Ex command */
+	    p = vim_strsave_fnameescape(ptr, FALSE);
+	else
+	    /* Escape the argument properly for a shell command */
+	    p = vim_strsave_shellescape(ptr, TRUE, TRUE);
 	vim_free(ptr);
 	if (p == NULL)
 	{

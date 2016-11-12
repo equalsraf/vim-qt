@@ -289,4 +289,179 @@ func Test_compl_vim_cmds_after_register_expr()
   bwipe!
 endfunc
 
+func DummyCompleteOne(findstart, base)
+  if a:findstart
+    return 0
+  else
+    wincmd n
+    return ['onedef', 'oneDEF']
+  endif
+endfunc
+
+" Test that nothing happens if the 'completefunc' opens
+" a new window (no completion, no crash)
+func Test_completefunc_opens_new_window_one()
+  new
+  let winid = win_getid()
+  setlocal completefunc=DummyCompleteOne
+  call setline(1, 'one')
+  /^one
+  call assert_fails('call feedkeys("A\<C-X>\<C-U>\<C-N>\<Esc>", "x")', 'E839:')
+  call assert_notequal(winid, win_getid())
+  q!
+  call assert_equal(winid, win_getid())
+  call assert_equal('', getline(1))
+  q!
+endfunc
+
+" Test that nothing happens if the 'completefunc' opens
+" a new window (no completion, no crash)
+func DummyCompleteTwo(findstart, base)
+  if a:findstart
+    wincmd n
+    return 0
+  else
+    return ['twodef', 'twoDEF']
+  endif
+endfunction
+
+" Test that nothing happens if the 'completefunc' opens
+" a new window (no completion, no crash)
+func Test_completefunc_opens_new_window_two()
+  new
+  let winid = win_getid()
+  setlocal completefunc=DummyCompleteTwo
+  call setline(1, 'two')
+  /^two
+  call assert_fails('call feedkeys("A\<C-X>\<C-U>\<C-N>\<Esc>", "x")', 'E764:')
+  call assert_notequal(winid, win_getid())
+  q!
+  call assert_equal(winid, win_getid())
+  call assert_equal('two', getline(1))
+  q!
+endfunc
+
+func DummyCompleteThree(findstart, base)
+  if a:findstart
+    return 0
+  else
+    return ['threedef', 'threeDEF']
+  endif
+endfunc
+
+:"Test that 'completefunc' works when it's OK.
+func Test_completefunc_works()
+  new
+  let winid = win_getid()
+  setlocal completefunc=DummyCompleteThree
+  call setline(1, 'three')
+  /^three
+  call feedkeys("A\<C-X>\<C-U>\<C-N>\<Esc>", "x")
+  call assert_equal(winid, win_getid())
+  call assert_equal('threeDEF', getline(1))
+  q!
+endfunc
+
+func DummyCompleteFour(findstart, base)
+  if a:findstart
+    return 0
+  else
+    call complete_add('four1')
+    call complete_add('four2')
+    call complete_check()
+    call complete_add('four3')
+    call complete_add('four4')
+    call complete_check()
+    call complete_add('four5')
+    call complete_add('four6')
+    return []
+  endif
+endfunc
+
+" Test that 'omnifunc' works when it's OK.
+func Test_omnifunc_with_check()
+  new
+  setlocal omnifunc=DummyCompleteFour
+  call setline(1, 'four')
+  /^four
+  call feedkeys("A\<C-X>\<C-O>\<C-N>\<Esc>", "x")
+  call assert_equal('four2', getline(1))
+
+  call setline(1, 'four')
+  /^four
+  call feedkeys("A\<C-X>\<C-O>\<C-N>\<C-N>\<Esc>", "x")
+  call assert_equal('four3', getline(1))
+
+  call setline(1, 'four')
+  /^four
+  call feedkeys("A\<C-X>\<C-O>\<C-N>\<C-N>\<C-N>\<C-N>\<Esc>", "x")
+  call assert_equal('four5', getline(1))
+
+  q!
+endfunc
+
+function UndoComplete()
+  call complete(1, ['January', 'February', 'March',
+        \ 'April', 'May', 'June', 'July', 'August', 'September',
+        \ 'October', 'November', 'December'])
+  return ''
+endfunc
+
+" Test that no undo item is created when no completion is inserted
+func Test_complete_no_undo()
+  set completeopt=menu,preview,noinsert,noselect
+  inoremap <Right> <C-R>=UndoComplete()<CR>
+  new
+  call feedkeys("ixxx\<CR>\<CR>yyy\<Esc>k", 'xt')
+  call feedkeys("iaaa\<Esc>0", 'xt')
+  call assert_equal('aaa', getline(2))
+  call feedkeys("i\<Right>\<Esc>", 'xt')
+  call assert_equal('aaa', getline(2))
+  call feedkeys("u", 'xt')
+  call assert_equal('', getline(2))
+
+  call feedkeys("ibbb\<Esc>0", 'xt')
+  call assert_equal('bbb', getline(2))
+  call feedkeys("A\<Right>\<Down>\<CR>\<Esc>", 'xt')
+  call assert_equal('January', getline(2))
+  call feedkeys("u", 'xt')
+  call assert_equal('bbb', getline(2))
+
+  call feedkeys("A\<Right>\<C-N>\<Esc>", 'xt')
+  call assert_equal('January', getline(2))
+  call feedkeys("u", 'xt')
+  call assert_equal('bbb', getline(2))
+
+  iunmap <Right>
+  set completeopt&
+  q!
+endfunc
+
+function! DummyCompleteFive(findstart, base)
+  if a:findstart
+    return 0
+  else
+    return [
+          \   { 'word': 'January', 'info': "info1-1\n1-2\n1-3" },
+          \   { 'word': 'February', 'info': "info2-1\n2-2\n2-3" },
+          \   { 'word': 'March', 'info': "info3-1\n3-2\n3-3" },
+          \   { 'word': 'April', 'info': "info4-1\n4-2\n4-3" },
+          \   { 'word': 'May', 'info': "info5-1\n5-2\n5-3" },
+          \ ]
+  endif
+endfunc
+
+" Test that 'completefunc' on Scratch buffer with preview window works when
+" it's OK.
+func Test_completefunc_with_scratch_buffer()
+  new +setlocal\ buftype=nofile\ bufhidden=wipe\ noswapfile
+  set completeopt+=preview
+  setlocal completefunc=DummyCompleteFive
+  call feedkeys("A\<C-X>\<C-U>\<C-N>\<C-N>\<C-N>\<Esc>", "x")
+  call assert_equal(['April'], getline(1, '$'))
+  pclose
+  q!
+  set completeopt&
+endfunc
+
 " vim: shiftwidth=2 sts=2 expandtab

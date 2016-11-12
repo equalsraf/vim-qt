@@ -243,9 +243,9 @@ static void	ex_popup(exarg_T *eap);
 # define ex_helpfind		ex_ni
 #endif
 #ifndef FEAT_CSCOPE
-# define do_cscope		ex_ni
-# define do_scscope		ex_ni
-# define do_cstag		ex_ni
+# define ex_cscope		ex_ni
+# define ex_scscope		ex_ni
+# define ex_cstag		ex_ni
 #endif
 #ifndef FEAT_SYN_HL
 # define ex_syntax		ex_ni
@@ -1388,8 +1388,6 @@ do_cmdline(
 		    break;
 		case ET_INTERRUPT:
 		    break;
-		default:
-		    p = vim_strsave((char_u *)_(e_internal));
 	    }
 
 	    saved_sourcing_name = sourcing_name;
@@ -4281,6 +4279,11 @@ set_one_cmd_context(
 	    xp->xp_pattern = arg;
 	    break;
 
+	case CMD_messages:
+	    xp->xp_context = EXPAND_MESSAGES;
+	    xp->xp_pattern = arg;
+	    break;
+
 #if defined(FEAT_CMDHIST)
 	case CMD_history:
 	    xp->xp_context = EXPAND_HISTORY;
@@ -5893,6 +5896,7 @@ static struct
 #endif
     {EXPAND_MAPPINGS, "mapping"},
     {EXPAND_MENUS, "menu"},
+    {EXPAND_MESSAGES, "messages"},
     {EXPAND_OWNSYNTAX, "syntax"},
 #if defined(FEAT_PROFILE)
     {EXPAND_SYNTIME, "syntime"},
@@ -7233,7 +7237,7 @@ ex_quit(exarg_T *eap)
 	 * :h|wincmd w|1q     - don't quit
 	 * :h|wincmd w|q      - quit
 	 */
-	if (only_one_window() && (firstwin == lastwin || eap->addr_count == 0))
+	if (only_one_window() && (ONE_WINDOW || eap->addr_count == 0))
 #endif
 	    getout(0);
 #ifdef FEAT_WINDOWS
@@ -7482,9 +7486,9 @@ tabpage_close(int forceit)
 {
     /* First close all the windows but the current one.  If that worked then
      * close the last window in this tab, that will close it. */
-    if (lastwin != firstwin)
+    if (!ONE_WINDOW)
 	close_others(TRUE, forceit);
-    if (lastwin == firstwin)
+    if (ONE_WINDOW)
 	ex_win_close(forceit, curwin, NULL);
 # ifdef FEAT_GUI
     need_mouse_correct = TRUE;
@@ -10424,7 +10428,7 @@ ex_tag_cmd(exarg_T *eap, char_u *name)
 #ifdef FEAT_CSCOPE
 		  if (p_cst && *eap->arg != NUL)
 		  {
-		      do_cstag(eap);
+		      ex_cstag(eap);
 		      return;
 		  }
 #endif
@@ -11900,6 +11904,18 @@ get_behave_arg(expand_T *xp UNUSED, int idx)
 	return (char_u *)"mswin";
     if (idx == 1)
 	return (char_u *)"xterm";
+    return NULL;
+}
+
+/*
+ * Function given to ExpandGeneric() to obtain the possible arguments of the
+ * ":messages {clear}" command.
+ */
+    char_u *
+get_messages_arg(expand_T *xp UNUSED, int idx)
+{
+    if (idx == 0)
+	return (char_u *)"clear";
     return NULL;
 }
 #endif

@@ -6428,7 +6428,7 @@ add_sound_suggest(
     sfwordnr = soundfold_find(slang, goodword);
     if (sfwordnr < 0)
     {
-	EMSG2(_(e_intern2), "add_sound_suggest()");
+	internal_error("add_sound_suggest()");
 	return;
     }
 
@@ -8694,7 +8694,7 @@ spell_dump_compl(
 		    /* Done all bytes at this node, go up one level. */
 		    --depth;
 		    line_breakcheck();
-		    ins_compl_check_keys(50);
+		    ins_compl_check_keys(50, FALSE);
 		}
 		else
 		{

@@ -451,7 +451,7 @@ close_buffer(
     int		nwindows;
     bufref_T	bufref;
 # ifdef FEAT_WINDOWS
-    int		is_curwin = (curwin!= NULL && curwin->w_buffer == buf);
+    int		is_curwin = (curwin != NULL && curwin->w_buffer == buf);
     win_T	*the_curwin = curwin;
     tabpage_T	*the_curtab = curtab;
 # endif
@@ -1412,7 +1412,7 @@ do_buffer(
 # ifdef FEAT_AUTOCMD
 		   && !(curwin->w_closing || curwin->w_buffer->b_locked > 0)
 # endif
-		   && (firstwin != lastwin || first_tabpage->tp_next != NULL))
+		   && (!ONE_WINDOW || first_tabpage->tp_next != NULL))
 	{
 	    if (win_close(curwin, FALSE) == FAIL)
 		break;
@@ -1649,10 +1649,11 @@ set_curbuf(buf_T *buf, int action)
 #ifdef FEAT_AUTOCMD
     if (!apply_autocmds(EVENT_BUFLEAVE, NULL, NULL, FALSE, curbuf)
 # ifdef FEAT_EVAL
-	    || (bufref_valid(&bufref) && !aborting()))
+	    || (bufref_valid(&bufref) && !aborting())
 # else
-	    || bufref_valid(&bufref))
+	    || bufref_valid(&bufref)
 # endif
+       )
 #endif
     {
 #ifdef FEAT_SYN_HL
@@ -4934,7 +4935,7 @@ do_arg_all(
 		    }
 #ifdef FEAT_WINDOWS
 		    /* don't close last window */
-		    if (firstwin == lastwin
+		    if (ONE_WINDOW
 			    && (first_tabpage->tp_next == NULL || !had_tab))
 #endif
 			use_firstwin = TRUE;
@@ -5139,7 +5140,7 @@ ex_buffer_all(exarg_T *eap)
 			: wp->w_width != Columns)
 		    || (had_tab > 0 && wp != firstwin)
 #endif
-		    ) && firstwin != lastwin
+		    ) && !ONE_WINDOW
 #ifdef FEAT_AUTOCMD
 		    && !(wp->w_closing || wp->w_buffer->b_locked > 0)
 #endif

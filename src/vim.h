@@ -798,6 +798,7 @@ extern char *(*dyn_libintl_textdomain)(const char *domainname);
 #define EXPAND_SYNTIME		43
 #define EXPAND_USER_ADDR_TYPE	44
 #define EXPAND_PACKADD		45
+#define EXPAND_MESSAGES		46
 
 /* Values for exmode_active (0 is no exmode) */
 #define EXMODE_NORMAL		1
@@ -1627,6 +1628,9 @@ typedef UINT32_TYPEDEF UINT32_T;
 #define EMSG3(s, p, q)		    emsg3((char_u *)(s), (char_u *)(p), (char_u *)(q))
 #define EMSGN(s, n)		    emsgn((char_u *)(s), (long)(n))
 #define EMSGU(s, n)		    emsgu((char_u *)(s), (long_u)(n))
+#define IEMSG(s)		    iemsg((char_u *)(s))
+#define IEMSG2(s, p)		    iemsg2((char_u *)(s), (char_u *)(p))
+#define IEMSGN(s, n)		    iemsgn((char_u *)(s), (long)(n))
 #define OUT_STR(s)		    out_str((char_u *)(s))
 #define OUT_STR_NF(s)		    out_str_nf((char_u *)(s))
 #define MSG_PUTS(s)		    msg_puts((char_u *)(s))
@@ -2504,7 +2508,8 @@ typedef enum
 #define FNE_INCL_BR	1	/* include [] in name */
 #define FNE_CHECK_START	2	/* check name starts with valid character */
 
-#if (defined(sun) || defined(__FreeBSD__)) && defined(S_ISCHR)
+#if (defined(sun) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)) \
+	&& defined(S_ISCHR)
 # define OPEN_CHR_FILES
 #endif
 

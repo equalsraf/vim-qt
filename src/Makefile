@@ -379,7 +379,7 @@ CClink = $(CC)
 #CONF_OPT_GUI = --enable-gui=carbon
 
 # Uncomment this line to run an individual test with gvim.
-#GUI_TESTARG = GUI_FLAG=-g 
+#GUI_TESTARG = GUI_FLAG=-g
 
 # DARWIN - detecting Mac OS X
 # Uncomment this line when you want to compile a Unix version of Vim on
@@ -680,6 +680,10 @@ SANITIZER_LIBS = $(SANITIZER_CFLAGS)
 # (in libraries) is also marked as leaked memory.
 #LEAK_CFLAGS = -DEXITFREE
 #LEAK_LIBS = -lccmalloc
+
+# Uncomment this line to have Vim call abort() when an internal error is
+# detected.  Useful when using a tool to find errors.
+#ABORT_CLFAGS = -DABORT_ON_INTERNAL_ERROR
 
 #####################################################
 ###  Specific systems, check if yours is listed!  ### {{{
@@ -1442,7 +1446,7 @@ SHELL = /bin/sh
 PRE_DEFS = -Iproto $(DEFS) $(GUI_DEFS) $(GUI_IPATH) $(CPPFLAGS) $(EXTRA_IPATHS)
 POST_DEFS = $(X_CFLAGS) $(MZSCHEME_CFLAGS) $(EXTRA_DEFS)
 
-ALL_CFLAGS = $(PRE_DEFS) $(CFLAGS) $(PROFILE_CFLAGS) $(SANITIZER_CFLAGS) $(LEAK_CFLAGS) $(POST_DEFS) $(QT_CFLAGS)
+ALL_CFLAGS = $(PRE_DEFS) $(CFLAGS) $(PROFILE_CFLAGS) $(SANITIZER_CFLAGS) $(LEAK_CFLAGS) $(ABORT_CLFAGS) $(POST_DEFS) $(QT_CFLAGS)
 
 # Exclude $CFLAGS for osdef.sh, for Mac 10.4 some flags don't work together
 # with "-E".
@@ -2080,7 +2084,7 @@ test1 \
 	test40 test41 test42 test43 test44 test45 test48 test49 \
 	test50 test51 test52 test53 test54 test55 test56 test57 test58 test59 \
 	test60 test64 test65 test66 test67 test68 test69 \
-	test70 test72 test73 test74 test75 test76 test77 test78 test79 \
+	test70 test72 test73 test74 test75 test77 test78 test79 \
 	test80 test82 test83 test84 test85 test86 test87 test88 test89 \
 	test90 test91 test92 test93 test94 test95 test97 test98 test99 \
 	test100 test101 test103 test104 test107 test108:
@@ -2114,6 +2118,7 @@ test_arglist \
 	test_farsi \
 	test_feedkeys \
 	test_file_perm \
+	test_fileformat \
 	test_filter_cmd \
 	test_filter_map \
 	test_fnameescape \
