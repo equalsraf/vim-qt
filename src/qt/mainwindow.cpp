@@ -63,11 +63,11 @@ void MainWindow::tabMoved(int from, int to)
 {
 	//
 	// 1. In some cases Qt will not drag the tab you expect
-	// for example if you have two tabs (1,2) and drag 
+	// for example if you have two tabs (1,2) and drag
 	// tab 1 to place 2 -> Qt might trigger the reverse
 	// event i.e. move tab 2 to place 1
 	//
-	// 2. It also seems that QTabbar::currentIndex() always 
+	// 2. It also seems that QTabbar::currentIndex() always
 	// returns the current tab, i.e. after the movement event
 	// it returns the destination position - which is exactly
 	// what we want.

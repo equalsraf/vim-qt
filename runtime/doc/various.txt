@@ -1,4 +1,4 @@
-*various.txt*   For Vim version 7.4.  Last change: 2016 Jul 29
+*various.txt*   For Vim version 8.0.  Last change: 2016 Sep 06
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -91,6 +91,8 @@ g8			Print the hex values of the bytes used in the
 			on paper see |:hardcopy|.  In the GUI you can use the
 			File.Print menu entry.
 			See |ex-flags| for [flags].
+			The |:filter| command can be used to only show lines
+			matching a pattern.
 
 :[range]p[rint] {count} [flags]
 			Print {count} lines, starting with [range] (default
@@ -420,7 +422,7 @@ N  *+statusline*	Options 'statusline', 'rulerformat' and special
 m  *+sun_workshop*	|workshop|
 N  *+syntax*		Syntax highlighting |syntax|
    *+system()*		Unix only: opposite of |+fork|
-N  *+tag_binary*	binary searching in tags file |tag-binary-search|
+T  *+tag_binary*	binary searching in tags file |tag-binary-search|
 N  *+tag_old_static*	old method for static tags |tag-old-static|
 m  *+tag_any_white*	any white space allowed in tags file |tag-any-white|
 m  *+tcl*		Tcl interface |tcl|
@@ -523,6 +525,27 @@ N  *+X11*		Unix only: can restore window title |X11|
 			variables can be used. {not in Vi}
 
 :redi[r] END		End redirecting messages.  {not in Vi}
+
+							*:filt* *:filter*
+:filt[er] {pat} {command}
+:filt[er] /{pat}/ {command}
+			Restrict the output of {command} to matches with {pat}.
+			For example, to list only xml files: >
+				:filter /\.xml$/ oldfiles
+<
+			{pat} is a Vim search pattern.  Instead of enclosing
+			it in / any non-ID character (see |'isident'|) can be
+			used, so long as it does not appear in {pat}.  Without
+			the enclosing character the pattern cannot include the
+			bar character.
+
+			The pattern is matched against the relevant part of
+			the output, not necessarily the whole line. Only some
+			commands support filtering, try it out to check if it
+			works.
+
+			Only normal messages are filtered, error messages are
+			not.
 
 						*:sil* *:silent* *:silent!*
 :sil[ent][!] {command}	Execute {command} silently.  Normal messages will not

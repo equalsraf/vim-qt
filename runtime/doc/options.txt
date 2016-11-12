@@ -1,4 +1,4 @@
-*options.txt*	For Vim version 7.4.  Last change: 2016 Aug 14
+*options.txt*	For Vim version 8.0.  Last change: 2016 Oct 01
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -10,7 +10,7 @@ Options							*options*
 2. Automatically setting options	|auto-setting|
 3. Options summary			|option-summary|
 
-For an overview of options see help.txt |option-list|.
+For an overview of options see quickref.txt |option-list|.
 
 Vim has a number of internal variables and switches which can be set to
 achieve special effects.  These options come in three forms:
@@ -1734,12 +1734,12 @@ A jump table for the options with a short description can be found at |Q_op|.
 	option		+ set value	effect	~
 
 	'allowrevins'	  off		no CTRL-_ command
-	'backupcopy'	  Unix: "yes"	  backup file is a copy
-			  others: "auto"  copy or rename backup file
 	'backspace'	  ""		normal backspace
+	'backupcopy'	  Unix: "yes"	backup file is a copy
+			  else: "auto"  copy or rename backup file
 	'backup'	  off		no backup file
-	'cindent'	  off		no C code indentation
 	'cedit'		+ ""		no key to open the |cmdwin|
+	'cindent'	  off		no C code indentation
 	'cpoptions'	+ (all flags)	Vi-compatible flags
 	'cscopetag'	  off		don't use cscope for ":tag"
 	'cscopetagorder'  0		see |cscopetagorder|
@@ -1781,6 +1781,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	'textwidth'	  0		no automatic line wrap
 	'tildeop'	  off		tilde is not an operator
 	'ttimeout'	  off		no terminal timeout
+	'viminfo'       + {unchanged}	no viminfo file	
 	'whichwrap'	+ ""		left-right movements don't wrap
 	'wildchar'	+ CTRL-E	only when the current value is <Tab>
 					use CTRL-E for cmdline completion
@@ -2633,7 +2634,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	uhex		Show unprintable characters hexadecimal as <xx>
 			instead of using ^C and ~C.
 
-	When neither "lastline" or "truncate" is included, a last line that
+	When neither "lastline" nor "truncate" is included, a last line that
 	doesn't fit is replaced with "@" lines.
 
 						*'eadirection'* *'ead'*
@@ -2856,10 +2857,17 @@ A jump table for the options with a short description can be found at |Q_op|.
 			global
 			{not in Vi}
 	Enables the reading of .vimrc, .exrc and .gvimrc in the current
-	directory.  If you switch this option on you should also consider
-	setting the 'secure' option (see |initialization|).  Using a local
-	.exrc, .vimrc or .gvimrc is a potential security leak, use with care!
-	also see |.vimrc| and |gui-init|.
+	directory.
+
+	Setting this option is a potential security leak.  E.g., consider
+	unpacking a package or fetching files from github, a .vimrc in there
+	might be a trojan horse.  BETTER NOT SET THIS OPTION!
+	Instead, define an autocommand in your .vimrc to set options for a
+	matching directory.
+
+	If you do switch this option on you should also consider setting the
+	'secure' option (see |initialization|).
+	Also see |.vimrc| and |gui-init|.
 	This option cannot be set from a |modeline| or in the |sandbox|, for
 	security reasons.
 
@@ -4319,6 +4327,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	original position when no match is found and when pressing <Esc>.  You
 	still need to finish the search command with <Enter> to move the
 	cursor to the match.
+	You can use the CTRL-G and CTRL-T keys to move to the next and
+	previous match. |c_CTRL-G| |c_CTRL-T|
 	When compiled with the |+reltime| feature Vim only searches for about
 	half a second.  With a complicated pattern and/or a lot of text the
 	match may not be found.  This is to avoid that Vim hangs while you
@@ -4632,7 +4642,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	be able to execute Normal mode commands.
 	This is the opposite of the 'keymap' option, where characters are
 	mapped in Insert mode.
-	Also consider setting 'langnoremap' to avoid 'langmap' applies to
+	Also consider resetting 'langremap' to avoid 'langmap' applies to
 	characters resulting from a mapping.
 	This option cannot be set from a |modeline| or in the |sandbox|, for
 	security reasons.
@@ -4695,10 +4705,20 @@ A jump table for the options with a short description can be found at |Q_op|.
 			{not in Vi}
 			{only available when compiled with the |+langmap|
 			feature}
-	When on, setting 'langmap' does not apply to characters resulting from
+	This is just like 'langremap' but with the value inverted.  It only
+	exists for backwards compatibility.  When setting 'langremap' then
+	'langnoremap' is set to the inverted value, and the other way around.
+
+			*'langremap'* *'lrm'* *'nolangremap'* *'nolrm'*
+'langremap' 'lrm'	boolean (default on, reset in |defaults.vim|)
+			global
+			{not in Vi}
+			{only available when compiled with the |+langmap|
+			feature}
+	When off, setting 'langmap' does not apply to characters resulting from
 	a mapping.  This basically means, if you noticed that setting
-	'langmap' disables some of your mappings, try setting this option.
-	This option defaults to off for backwards compatibility.  Set it on if
+	'langmap' disables some of your mappings, try resetting this option.
+	This option defaults to on for backwards compatibility.  Set it off if
 	that works for you to avoid mappings to break.
 
 					*'laststatus'* *'ls'*
@@ -4903,10 +4923,11 @@ A jump table for the options with a short description can be found at |Q_op|.
 			global
 	Changes the special characters that can be used in search patterns.
 	See |pattern|.
-	NOTE: To avoid portability problems with using patterns, always keep
-	this option at the default "on".  Only switch it off when working with
-	old Vi scripts.  In any other situation write patterns that work when
-	'magic' is on.  Include "\M" when you want to |/\M|.
+	WARNING: Switching this option off most likely breaks plugins!  That
+	is because many patterns assume it's on and will fail when it's off.
+	Only switch it off when working with old Vi scripts.  In any other
+	situation write patterns that work when 'magic' is on.  Include "\M"
+	when you want to |/\M|.
 
 						*'makeef'* *'mef'*
 'makeef' 'mef'		string	(default: "")
@@ -6102,7 +6123,9 @@ A jump table for the options with a short description can be found at |Q_op|.
 	   personal preferences to overrule or add to the distributed defaults
 	   or system-wide settings (rarely needed).
 
-	More entries are added when using |packages|.
+	More entries are added when using |packages|.  If it gets very long
+	then `:set rtp` will be truncated, use `:echo &rtp` to see the full
+	string.
 
 	Note that, unlike 'path', no wildcards like "**" are allowed.  Normal
 	wildcards are allowed, but can significantly slow down searching for
@@ -6163,7 +6186,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 	NOTE: This option is set to 1 when 'compatible' is set.
 
 						*'scrolloff'* *'so'*
-'scrolloff' 'so'	number	(default 0)
+'scrolloff' 'so'	number	(default 0, set to 5 in |defaults.vim|)
 			global
 			{not in Vi}
 	Minimal number of screen lines to keep above and below the cursor.
@@ -6245,6 +6268,8 @@ A jump table for the options with a short description can be found at |Q_op|.
 	"inclusive" means that the last character of the selection is included
 	in an operation.  For example, when "x" is used to delete the
 	selection.
+	When "old" is used and 'virtualedit' allows the cursor to move past
+	the end of line the line break still isn't included.
 	Note that when "exclusive" is used and selecting from the end
 	backwards, you cannot include the last character of a line, when
 	starting in Normal mode and 'virtualedit' empty.
@@ -7663,7 +7688,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 'timeout' 'to'		boolean (default on)
 			global
 						*'ttimeout'* *'nottimeout'*
-'ttimeout'		boolean (default off)
+'ttimeout'		boolean (default off, set in |defaults.vim|))
 			global
 			{not in Vi}
 	These two options together determine the behavior when part of a
@@ -7698,7 +7723,7 @@ A jump table for the options with a short description can be found at |Q_op|.
 			global
 			{not in all versions of Vi}
 						*'ttimeoutlen'* *'ttm'*
-'ttimeoutlen' 'ttm'	number	(default -1)
+'ttimeoutlen' 'ttm'	number	(default -1, set to 100 in |defaults.vim|))
 			global
 			{not in Vi}
 	The time in milliseconds that is waited for a key code or mapped key

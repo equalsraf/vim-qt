@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -2127,7 +2127,7 @@ close_windows(
     {
 	if (wp->w_buffer == buf && (!keep_curwin || wp != curwin)
 #ifdef FEAT_AUTOCMD
-		&& !(wp->w_closing || wp->w_buffer->b_closing)
+		&& !(wp->w_closing || wp->w_buffer->b_locked > 0)
 #endif
 		)
 	{
@@ -2148,7 +2148,7 @@ close_windows(
 	    for (wp = tp->tp_firstwin; wp != NULL; wp = wp->w_next)
 		if (wp->w_buffer == buf
 #ifdef FEAT_AUTOCMD
-		    && !(wp->w_closing || wp->w_buffer->b_closing)
+		    && !(wp->w_closing || wp->w_buffer->b_locked > 0)
 #endif
 		    )
 		{
@@ -2287,7 +2287,8 @@ win_close(win_T *win, int free_buf)
     }
 
 #ifdef FEAT_AUTOCMD
-    if (win->w_closing || (win->w_buffer != NULL && win->w_buffer->b_closing))
+    if (win->w_closing || (win->w_buffer != NULL
+					       && win->w_buffer->b_locked > 0))
 	return FAIL; /* window is already being closed */
     if (win == aucmd_win)
     {
@@ -2379,7 +2380,7 @@ win_close(win_T *win, int free_buf)
 #endif
 	close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, TRUE);
 #ifdef FEAT_AUTOCMD
-	if (win_valid(win))
+	if (win_valid_any_tab(win))
 	    win->w_closing = FALSE;
 #endif
 	/* Make sure curbuf is valid. It can become invalid if 'bufhidden' is
@@ -2399,9 +2400,18 @@ win_close(win_T *win, int free_buf)
 	getout(0);
     }
 
-    /* Autocommands may have closed the window already, or closed the only
-     * other window or moved to another tab page. */
-    else if (!win_valid(win) || last_window() || curtab != prev_curtab
+    /* Autocommands may have moved to another tab page. */
+    if (curtab != prev_curtab && win_valid_any_tab(win)
+						      && win->w_buffer == NULL)
+    {
+	/* Need to close the window anyway, since the buffer is NULL. */
+	win_close_othertab(win, FALSE, prev_curtab);
+	return FAIL;
+    }
+
+    /* Autocommands may have closed the window already or closed the only
+     * other window. */
+    if (!win_valid(win) || last_window()
 	    || close_last_window_tabpage(win, free_buf, prev_curtab))
 	return FAIL;
 
@@ -2492,12 +2502,16 @@ win_close_othertab(win_T *win, int free_buf, tabpage_T *tp)
     int		free_tp = FALSE;
 
 #ifdef FEAT_AUTOCMD
-    if (win->w_closing || win->w_buffer->b_closing)
+    /* Get here with win->w_buffer == NULL when win_close() detects the tab
+     * page changed. */
+    if (win->w_closing || (win->w_buffer != NULL
+					       && win->w_buffer->b_locked > 0))
 	return; /* window is already being closed */
 #endif
 
-    /* Close the link to the buffer. */
-    close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, FALSE);
+    if (win->w_buffer != NULL)
+	/* Close the link to the buffer. */
+	close_buffer(win, win->w_buffer, free_buf ? DOBUF_UNLOAD : 0, FALSE);
 
     /* Careful: Autocommands may have closed the tab page or made it the
      * current tab page.  */
@@ -3900,12 +3914,7 @@ goto_tabpage(int n)
     if (text_locked())
     {
 	/* Not allowed when editing the command line. */
-#ifdef FEAT_CMDWIN
-	if (cmdwin_type != 0)
-	    EMSG(_(e_cmdwin));
-	else
-#endif
-	    EMSG(_(e_secure));
+	text_locked_msg();
 	return;
     }
 
@@ -5674,8 +5683,6 @@ set_fraction(win_T *wp)
     void
 win_new_height(win_T *wp, int height)
 {
-    linenr_T	lnum;
-    int		sline, line_size;
     int		prev_height = wp->w_height;
 
     /* Don't want a negative height.  Happens when splitting a tiny window.
@@ -5700,6 +5707,16 @@ win_new_height(win_T *wp, int height)
 
     wp->w_height = height;
     wp->w_skipcol = 0;
+
+    scroll_to_fraction(wp, prev_height);
+}
+
+    void
+scroll_to_fraction(win_T *wp, int prev_height)
+{
+    linenr_T	lnum;
+    int		sline, line_size;
+    int		height = wp->w_height;
 
     /* Don't change w_topline when height is zero.  Don't set w_topline when
      * 'scrollbind' is set and this isn't the current window. */
@@ -6751,7 +6768,7 @@ match_add(
 	return -1;
     if (id < -1 || id == 0)
     {
-	EMSGN("E799: Invalid ID: %ld (must be greater than or equal to 1)", id);
+	EMSGN(_("E799: Invalid ID: %ld (must be greater than or equal to 1)"), id);
 	return -1;
     }
     if (id != -1)
@@ -6761,7 +6778,7 @@ match_add(
 	{
 	    if (cur->id == id)
 	    {
-		EMSGN("E801: ID already taken: %ld", id);
+		EMSGN(_("E801: ID already taken: %ld"), id);
 		return -1;
 	    }
 	    cur = cur->next;
@@ -6938,7 +6955,7 @@ match_delete(win_T *wp, int id, int perr)
     if (id < 1)
     {
 	if (perr == TRUE)
-	    EMSGN("E802: Invalid ID: %ld (must be greater than or equal to 1)",
+	    EMSGN(_("E802: Invalid ID: %ld (must be greater than or equal to 1)"),
 									  id);
 	return -1;
     }
@@ -6950,7 +6967,7 @@ match_delete(win_T *wp, int id, int perr)
     if (cur == NULL)
     {
 	if (perr == TRUE)
-	    EMSGN("E803: ID not found: %ld", id);
+	    EMSGN(_("E803: ID not found: %ld"), id);
 	return -1;
     }
     if (cur == prev)

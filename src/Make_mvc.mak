@@ -1,7 +1,7 @@
-# Makefile for Vim on Win32 (Windows NT/2000/XP/2003 and Windows 95/98/Me)
-# and Win64, using the Microsoft Visual C++ compilers. Known to work with
-# VC5, VC6 (VS98), VC7.0 (VS2002), VC7.1 (VS2003), VC8 (VS2005),
-# VC9 (VS2008), VC10 (VS2010) and VC11 (VS2012)
+# Makefile for Vim on Win32 (Windows XP/2003/Vista/7/8/10) and Win64,
+# using the Microsoft Visual C++ compilers. Known to work with VC5, VC6 (VS98),
+# VC7.0 (VS2002), VC7.1 (VS2003), VC8 (VS2005), VC9 (VS2008), VC10 (VS2010),
+# VC11 (VS2012), VC12 (VS2013) and VC14 (VS2015)
 #
 # To build using other Windows compilers, see INSTALLpc.txt
 #
@@ -39,12 +39,12 @@
 #	Lua interface:
 #	  LUA=[Path to Lua directory]
 #	  DYNAMIC_LUA=yes (to load the Lua DLL dynamically)
-#	  LUA_VER=[Lua version]  (default is 51)
+#	  LUA_VER=[Lua version]  (default is 53)
 #
 #	MzScheme interface:
 #	  MZSCHEME=[Path to MzScheme directory]
 #	  DYNAMIC_MZSCHEME=yes (to load the MzScheme DLLs dynamically)
-#	  MZSCHEME_VER=[version, 205_000, ...]
+#	  MZSCHEME_VER=[version, 205_000, ...] (default is 3m_a0solc (6.6))
 #	  MZSCHEME_DEBUG=no
 #
 #	Perl interface:
@@ -52,34 +52,34 @@
 #	  DYNAMIC_PERL=yes (to load the Perl DLL dynamically)
 #	  PERL_VER=[Perl version, in the form 55 (5.005), 56 (5.6.x),
 #		    510 (5.10.x), etc]
-#	  (default is 56)
+#	  (default is 524)
 #
 #	Python interface:
 #	  PYTHON=[Path to Python directory]
 #	  DYNAMIC_PYTHON=yes (to load the Python DLL dynamically)
-#	  PYTHON_VER=[Python version, eg 22, 23, ..., 27]  (default is 22)
+#	  PYTHON_VER=[Python version, eg 22, 23, ..., 27]  (default is 27)
 #
 #	Python3 interface:
 #	  PYTHON3=[Path to Python3 directory]
 #	  DYNAMIC_PYTHON3=yes (to load the Python3 DLL dynamically)
-#	  PYTHON3_VER=[Python3 version, eg 30, 31]  (default is 31)
+#	  PYTHON3_VER=[Python3 version, eg 30, 31]  (default is 35)
 #
 #	Ruby interface:
 #	  RUBY=[Path to Ruby directory]
 #	  DYNAMIC_RUBY=yes (to load the Ruby DLL dynamically)
-#	  RUBY_VER=[Ruby version, eg 18, 19, 20] (default is 18)
-#	  RUBY_VER_LONG=[Ruby version, eg 1.8, 1.9.1, 2.0.0] (default is 1.8)
-#	    You must set RUBY_VER_LONG when change RUBY_VER.
-#	    RUBY_API_VER is derived from RUBY_VER_LONG.
+#	  RUBY_VER=[Ruby version, eg 19, 22] (default is 22)
+#	  RUBY_API_VER_LONG=[Ruby API version, eg 1.8, 1.9.1, 2.2.0]
+#	  		    (default is 2.2.0)
+#	    You must set RUBY_API_VER_LONG when change RUBY_VER.
 #	    Note: If you use Ruby 1.9.3, set as follows:
 #	      RUBY_VER=19
-#	      RUBY_VER_LONG=1.9.1 (not 1.9.3, because the API version is 1.9.1.)
+#	      RUBY_API_VER_LONG=1.9.1 (not 1.9.3, because the API version is 1.9.1.)
 #
 #	Tcl interface:
 #	  TCL=[Path to Tcl directory]
 #	  DYNAMIC_TCL=yes (to load the Tcl DLL dynamically)
-#	  TCL_VER=[Tcl version, e.g. 80, 83]  (default is 83)
-#	  TCL_VER_LONG=[Tcl version, eg 8.3] (default is 8.3)
+#	  TCL_VER=[Tcl version, e.g. 80, 83]  (default is 86)
+#	  TCL_VER_LONG=[Tcl version, eg 8.3] (default is 8.6)
 #	    You must set TCL_VER_LONG when you set TCL_VER.
 #
 #	Cscope support: CSCOPE=yes
@@ -119,7 +119,7 @@
 #	  yes:   Write a normal mapfile.
 #	  lines: Write a mapfile with line numbers (only for VC6 and later)
 #
-#	Static Code Analysis: ANALYZE=yes (works with VS2012 only)
+#	Static Code Analysis: ANALYZE=yes (works with VS2012 or later)
 #
 # You can combine any of these interfaces
 #
@@ -162,9 +162,9 @@
 # you can set DEFINES on the command line, e.g.,
 #	nmake -f Make_mvc.mvc "DEFINES=-DEMACS_TAGS"
 
-# Build on both Windows NT/XP and Windows 9x
+# Build on Windows NT/XP
 
-TARGETOS = BOTH
+TARGETOS = WINNT
 
 # Select one of eight object code directories, depends on GUI, OLE, DEBUG and
 # interfaces.
@@ -436,13 +436,7 @@ CFLAGS = -c /W3 /nologo $(CVARS) -I. -Iproto -DHAVE_PATHDEF -DWIN32 \
 #>>>>> end of choices
 ###########################################################################
 
-!ifdef OS
-OS_TYPE	= winnt
 DEL_TREE = rmdir /s /q
-!else
-OS_TYPE	= win95
-DEL_TREE = deltree /y
-!endif
 
 INTDIR=$(OBJDIR)
 OUTDIR=$(OBJDIR)
@@ -700,8 +694,8 @@ CFLAGS = $(CFLAGS) -DDYNAMIC_GETTEXT
 # TCL interface
 !ifdef TCL
 !ifndef TCL_VER
-TCL_VER = 83
-TCL_VER_LONG = 8.3
+TCL_VER = 86
+TCL_VER_LONG = 8.6
 !endif
 !message Tcl requested (version $(TCL_VER)) - root dir is "$(TCL)"
 !if "$(DYNAMIC_TCL)" == "yes"
@@ -723,7 +717,7 @@ TCL_LIB = $(TCL)\lib\tcl$(TCL_VER)vc.lib
 # Lua interface
 !ifdef LUA
 !ifndef LUA_VER
-LUA_VER = 51
+LUA_VER = 53
 !endif
 !message Lua requested (version $(LUA_VER)) - root dir is "$(LUA)"
 !if "$(DYNAMIC_LUA)" == "yes"
@@ -751,7 +745,7 @@ DYNAMIC_PYTHON3=yes
 # PYTHON interface
 !ifdef PYTHON
 !ifndef PYTHON_VER
-PYTHON_VER = 22
+PYTHON_VER = 27
 !endif
 !message Python requested (version $(PYTHON_VER)) - root dir is "$(PYTHON)"
 !if "$(DYNAMIC_PYTHON)" == "yes"
@@ -772,7 +766,7 @@ PYTHON_LIB = $(PYTHON)\libs\python$(PYTHON_VER).lib
 # PYTHON3 interface
 !ifdef PYTHON3
 !ifndef PYTHON3_VER
-PYTHON3_VER = 31
+PYTHON3_VER = 35
 !endif
 !message Python3 requested (version $(PYTHON3_VER)) - root dir is "$(PYTHON3)"
 !if "$(DYNAMIC_PYTHON3)" == "yes"
@@ -794,7 +788,7 @@ PYTHON3_LIB = $(PYTHON3)\libs\python$(PYTHON3_VER).lib
 !ifdef MZSCHEME
 !message MzScheme requested - root dir is "$(MZSCHEME)"
 !ifndef MZSCHEME_VER
-MZSCHEME_VER = 205_000
+MZSCHEME_VER = 3m_a0solc
 !endif
 !ifndef MZSCHEME_COLLECTS
 MZSCHEME_COLLECTS=$(MZSCHEME)\collects
@@ -852,7 +846,7 @@ MZSCHEME_LIB = $(MZSCHEME_LIB) /STACK:8388608
 # Perl interface
 !ifdef PERL
 !ifndef PERL_VER
-PERL_VER = 56
+PERL_VER = 524
 !endif
 !message Perl requested (version $(PERL_VER)) - root dir is "$(PERL)"
 !if "$(DYNAMIC_PERL)" == "yes"
@@ -917,13 +911,16 @@ XSUBPP_TYPEMAP = $(PERL)\lib\ExtUtils\typemap
 !ifdef RUBY
 #  Set default value
 !ifndef RUBY_VER
-RUBY_VER = 18
+RUBY_VER = 22
 !endif
 !ifndef RUBY_VER_LONG
-RUBY_VER_LONG = 1.8
+RUBY_VER_LONG = 2.2.0
+!endif
+!ifndef RUBY_API_VER_LONG
+RUBY_API_VER_LONG = $(RUBY_VER_LONG)
 !endif
 !ifndef RUBY_API_VER
-RUBY_API_VER = $(RUBY_VER_LONG:.=)
+RUBY_API_VER = $(RUBY_API_VER_LONG:.=)
 !endif
 
 !if $(RUBY_VER) >= 18
@@ -934,7 +931,7 @@ RUBY_PLATFORM = i386-mswin32
 !else # CPU
 RUBY_PLATFORM = x64-mswin64
 !endif # CPU
-!if $(MSVCRT_VER) >= 70
+!if $(MSVCRT_VER) >= 70 && $(RUBY_VER) > 19
 RUBY_PLATFORM = $(RUBY_PLATFORM)_$(MSVCRT_VER)
 !endif # MSVCRT_VER
 !endif # RUBY_PLATFORM
@@ -966,9 +963,9 @@ RUBY_INSTALL_NAME = mswin32-ruby$(RUBY_API_VER)
 CFLAGS = $(CFLAGS) -DFEAT_RUBY
 RUBY_OBJ = $(OUTDIR)\if_ruby.obj
 !if $(RUBY_VER) >= 19
-RUBY_INC = /I "$(RUBY)\lib\ruby\$(RUBY_VER_LONG)\$(RUBY_PLATFORM)" /I "$(RUBY)\include\ruby-$(RUBY_VER_LONG)" /I "$(RUBY)\include\ruby-$(RUBY_VER_LONG)\$(RUBY_PLATFORM)"
+RUBY_INC = /I "$(RUBY)\lib\ruby\$(RUBY_API_VER_LONG)\$(RUBY_PLATFORM)" /I "$(RUBY)\include\ruby-$(RUBY_API_VER_LONG)" /I "$(RUBY)\include\ruby-$(RUBY_API_VER_LONG)\$(RUBY_PLATFORM)"
 !else
-RUBY_INC = /I "$(RUBY)\lib\ruby\$(RUBY_VER_LONG)\$(RUBY_PLATFORM)"
+RUBY_INC = /I "$(RUBY)\lib\ruby\$(RUBY_API_VER_LONG)\$(RUBY_PLATFORM)"
 !endif
 RUBY_LIB = $(RUBY)\lib\$(RUBY_INSTALL_NAME).lib
 # Do we want to load Ruby dynamically?

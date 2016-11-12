@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -415,7 +415,11 @@ typedef __int64 off_T;
 #  define vim_ftell _ftelli64
 # endif
 #else
+# ifdef PROTO
+typedef long off_T;
+# else
 typedef off_t off_T;
+# endif
 # ifdef HAVE_FSEEKO
 #  define vim_lseek lseek
 #  define vim_ftell ftello
@@ -1637,14 +1641,14 @@ typedef UINT32_TYPEDEF UINT32_T;
 #  define GUI_FUNCTION2(f, pixel)   (gui.in_use \
 				    ?  ((pixel) != INVALCOLOR \
 					? gui_##f((pixel)) \
-					: (long_u)INVALCOLOR) \
+					: INVALCOLOR) \
 				    : termgui_##f((pixel)))
 #  define USE_24BIT		    (gui.in_use || p_tgc)
 # else
 #  define GUI_FUNCTION(f)	    gui_##f
 #  define GUI_FUNCTION2(f,pixel)    ((pixel) != INVALCOLOR \
 				     ? gui_##f((pixel)) \
-				     : (long_u)INVALCOLOR)
+				     : INVALCOLOR)
 #  define USE_24BIT		    gui.in_use
 # endif
 #else
@@ -1814,10 +1818,14 @@ typedef int proftime_T;	    /* dummy for function prototypes */
  * bits elsewhere.  That causes memory corruption.  Define time_T and use it
  * for global variables to avoid that.
  */
-#ifdef WIN3264
-typedef __time64_t  time_T;
+#ifdef PROTO
+typedef long  time_T;
 #else
+# ifdef WIN3264
+typedef __time64_t  time_T;
+# else
 typedef time_t	    time_T;
+# endif
 #endif
 
 #ifdef _WIN64
@@ -2450,6 +2458,7 @@ typedef enum
 /* Options for json_encode() and json_decode. */
 #define JSON_JS		1   /* use JS instead of JSON */
 #define JSON_NO_NONE	2   /* v:none item not allowed */
+#define JSON_NL		4   /* append a NL */
 
 /* Used for flags of do_in_path() */
 #define DIP_ALL	    0x01	/* all matches, not just the first one */

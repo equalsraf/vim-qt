@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -502,6 +502,28 @@ get_cursor_rel_lnum(
 	retval = lnum - cursor;
 
     return retval;
+}
+
+/*
+ * Make sure "pos.lnum" and "pos.col" are valid in "buf".
+ * This allows for the col to be on the NUL byte.
+ */
+    void
+check_pos(buf_T *buf, pos_T *pos)
+{
+    char_u *line;
+    colnr_T len;
+
+    if (pos->lnum > buf->b_ml.ml_line_count)
+	pos->lnum = buf->b_ml.ml_line_count;
+
+    if (pos->col > 0)
+    {
+	line = ml_get_buf(buf, pos->lnum, FALSE);
+	len = (colnr_T)STRLEN(line);
+	if (pos->col > len)
+	    pos->col = len;
+    }
 }
 
 /*
@@ -1398,7 +1420,7 @@ vim_strsave_shellescape(char_u *string, int do_special, int do_newline)
     length = (unsigned)STRLEN(string) + 3;  /* two quotes and a trailing NUL */
     for (p = string; *p != NUL; mb_ptr_adv(p))
     {
-# if defined(WIN32) || defined(DOS)
+# ifdef WIN32
 	if (!p_ssl)
 	{
 	    if (*p == '"')
@@ -1429,7 +1451,7 @@ vim_strsave_shellescape(char_u *string, int do_special, int do_newline)
 	d = escaped_string;
 
 	/* add opening quote */
-# if defined(WIN32) || defined(DOS)
+# ifdef WIN32
 	if (!p_ssl)
 	    *d++ = '"';
 	else
@@ -1438,7 +1460,7 @@ vim_strsave_shellescape(char_u *string, int do_special, int do_newline)
 
 	for (p = string; *p != NUL; )
 	{
-# if defined(WIN32) || defined(DOS)
+# ifdef WIN32
 	    if (!p_ssl)
 	    {
 		if (*p == '"')
@@ -1481,7 +1503,7 @@ vim_strsave_shellescape(char_u *string, int do_special, int do_newline)
 	}
 
 	/* add terminating quote and finish with a NUL */
-# if defined(WIN32) || defined(DOS)
+# ifdef WIN32
 	if (!p_ssl)
 	    *d++ = '"';
 	else

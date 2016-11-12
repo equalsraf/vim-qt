@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -4167,7 +4167,7 @@ eval7(
     rettv->v_type = VAR_UNKNOWN;
 
     /*
-     * Skip '!' and '-' characters.  They are handled later.
+     * Skip '!', '-' and '+' characters.  They are handled later.
      */
     start_leader = *arg;
     while (**arg == '!' || **arg == '-' || **arg == '+')
@@ -4941,12 +4941,9 @@ get_string_tv(char_u **arg, typval_T *rettv, int evaluate)
 
     }
     *name = NUL;
-    if (p == NUL)
-    {
-	EMSG2(_("E114: Missing quote: %s"), *arg);
-	return FAIL;
-    }
-    *arg = p + 1;
+    if (*p != NUL) /* just in case */
+	++p;
+    *arg = p;
 
     return OK;
 }
@@ -5625,7 +5622,7 @@ set_ref_in_item(
     else if (tv->v_type == VAR_CHANNEL)
     {
 	channel_T   *ch =tv->vval.v_channel;
-	int	    part;
+	ch_part_T   part;
 	typval_T    dtv;
 	jsonq_T	    *jq;
 	cbq_T	    *cq;
@@ -5633,7 +5630,7 @@ set_ref_in_item(
 	if (ch != NULL && ch->ch_copyID != copyID)
 	{
 	    ch->ch_copyID = copyID;
-	    for (part = PART_SOCK; part <= PART_IN; ++part)
+	    for (part = PART_SOCK; part < PART_COUNT; ++part)
 	    {
 		for (jq = ch->ch_part[part].ch_json_head.jq_next; jq != NULL;
 							     jq = jq->jq_next)
@@ -7308,7 +7305,7 @@ get_tv_string_buf_chk(typval_T *varp, char_u *buf)
 #ifdef FEAT_JOB_CHANNEL
 	    {
 		channel_T *channel = varp->vval.v_channel;
-		char      *status = channel_status(channel);
+		char      *status = channel_status(channel, -1);
 
 		if (channel == NULL)
 		    vim_snprintf((char *)buf, NUMBUFLEN, "channel %s", status);
@@ -8473,9 +8470,23 @@ getwinvar(
 		  || switch_win(&oldcurwin, &oldtabpage, win, tp, TRUE) == OK)
 #endif
 	{
-	    if (*varname == '&')	/* window-local-option */
+	    if (*varname == '&')
 	    {
-		if (get_option_tv(&varname, rettv, 1) == OK)
+		if (varname[1] == NUL)
+		{
+		    /* get all window-local options in a dict */
+		    dict_T	*opts = get_winbuf_options(FALSE);
+
+		    if (opts != NULL)
+		    {
+			rettv->v_type = VAR_DICT;
+			rettv->vval.v_dict = opts;
+			++opts->dv_refcount;
+			done = TRUE;
+		    }
+		}
+		else if (get_option_tv(&varname, rettv, 1) == OK)
+		    /* window-local-option */
 		    done = TRUE;
 	    }
 	    else

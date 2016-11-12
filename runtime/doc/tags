@@ -400,6 +400,7 @@ $VIM_POSIX	vi_diff.txt	/*$VIM_POSIX*
 'langmap'	options.txt	/*'langmap'*
 'langmenu'	options.txt	/*'langmenu'*
 'langnoremap'	options.txt	/*'langnoremap'*
+'langremap'	options.txt	/*'langremap'*
 'laststatus'	options.txt	/*'laststatus'*
 'lazyredraw'	options.txt	/*'lazyredraw'*
 'lbr'	options.txt	/*'lbr'*
@@ -416,6 +417,7 @@ $VIM_POSIX	vi_diff.txt	/*$VIM_POSIX*
 'lnr'	options.txt	/*'lnr'*
 'loadplugins'	options.txt	/*'loadplugins'*
 'lpl'	options.txt	/*'lpl'*
+'lrm'	options.txt	/*'lrm'*
 'ls'	options.txt	/*'ls'*
 'lsp'	options.txt	/*'lsp'*
 'luadll'	options.txt	/*'luadll'*
@@ -586,6 +588,7 @@ $VIM_POSIX	vi_diff.txt	/*$VIM_POSIX*
 'nojoinspaces'	options.txt	/*'nojoinspaces'*
 'nojs'	options.txt	/*'nojs'*
 'nolangnoremap'	options.txt	/*'nolangnoremap'*
+'nolangremap'	options.txt	/*'nolangremap'*
 'nolazyredraw'	options.txt	/*'nolazyredraw'*
 'nolbr'	options.txt	/*'nolbr'*
 'nolinebreak'	options.txt	/*'nolinebreak'*
@@ -594,6 +597,7 @@ $VIM_POSIX	vi_diff.txt	/*$VIM_POSIX*
 'nolnr'	options.txt	/*'nolnr'*
 'noloadplugins'	options.txt	/*'noloadplugins'*
 'nolpl'	options.txt	/*'nolpl'*
+'nolrm'	options.txt	/*'nolrm'*
 'nolz'	options.txt	/*'nolz'*
 'noma'	options.txt	/*'noma'*
 'nomacatsui'	options.txt	/*'nomacatsui'*
@@ -1593,6 +1597,9 @@ $VIM_POSIX	vi_diff.txt	/*$VIM_POSIX*
 /\{-	pattern.txt	/*\/\\{-*
 /\~	pattern.txt	/*\/\\~*
 /^	pattern.txt	/*\/^*
+/_CTRL-G	cmdline.txt	/*\/_CTRL-G*
+/_CTRL-L	cmdline.txt	/*\/_CTRL-L*
+/_CTRL-T	cmdline.txt	/*\/_CTRL-T*
 /atom	pattern.txt	/*\/atom*
 /bar	pattern.txt	/*\/bar*
 /branch	pattern.txt	/*\/branch*
@@ -2267,6 +2274,8 @@ $VIM_POSIX	vi_diff.txt	/*$VIM_POSIX*
 :filetype-overview	filetype.txt	/*:filetype-overview*
 :filetype-plugin-off	filetype.txt	/*:filetype-plugin-off*
 :filetype-plugin-on	filetype.txt	/*:filetype-plugin-on*
+:filt	various.txt	/*:filt*
+:filter	various.txt	/*:filter*
 :fin	editing.txt	/*:fin*
 :fina	eval.txt	/*:fina*
 :finally	eval.txt	/*:finally*
@@ -4475,6 +4484,8 @@ E931	message.txt	/*E931*
 E932	eval.txt	/*E932*
 E933	eval.txt	/*E933*
 E934	sign.txt	/*E934*
+E935	eval.txt	/*E935*
+E936	autocmd.txt	/*E936*
 E94	windows.txt	/*E94*
 E95	message.txt	/*E95*
 E96	diff.txt	/*E96*
@@ -4606,6 +4617,7 @@ OptionSet	autocmd.txt	/*OptionSet*
 OverTheSpot	mbyte.txt	/*OverTheSpot*
 P	change.txt	/*P*
 PATHEXT	eval.txt	/*PATHEXT*
+PEP8	filetype.txt	/*PEP8*
 PHP_BracesAtCodeLevel	indent.txt	/*PHP_BracesAtCodeLevel*
 PHP_autoformatcomment	indent.txt	/*PHP_autoformatcomment*
 PHP_default_indenting	indent.txt	/*PHP_default_indenting*
@@ -5166,11 +5178,13 @@ c_CTRL-C	cmdline.txt	/*c_CTRL-C*
 c_CTRL-D	cmdline.txt	/*c_CTRL-D*
 c_CTRL-E	cmdline.txt	/*c_CTRL-E*
 c_CTRL-F	cmdline.txt	/*c_CTRL-F*
+c_CTRL-G	cmdline.txt	/*c_CTRL-G*
 c_CTRL-H	cmdline.txt	/*c_CTRL-H*
 c_CTRL-I	cmdline.txt	/*c_CTRL-I*
 c_CTRL-J	cmdline.txt	/*c_CTRL-J*
 c_CTRL-K	cmdline.txt	/*c_CTRL-K*
 c_CTRL-L	cmdline.txt	/*c_CTRL-L*
+c_CTRL-M	cmdline.txt	/*c_CTRL-M*
 c_CTRL-N	cmdline.txt	/*c_CTRL-N*
 c_CTRL-P	cmdline.txt	/*c_CTRL-P*
 c_CTRL-Q	cmdline.txt	/*c_CTRL-Q*
@@ -5182,10 +5196,12 @@ c_CTRL-R_CTRL-O	cmdline.txt	/*c_CTRL-R_CTRL-O*
 c_CTRL-R_CTRL-P	cmdline.txt	/*c_CTRL-R_CTRL-P*
 c_CTRL-R_CTRL-R	cmdline.txt	/*c_CTRL-R_CTRL-R*
 c_CTRL-R_CTRL-W	cmdline.txt	/*c_CTRL-R_CTRL-W*
+c_CTRL-T	cmdline.txt	/*c_CTRL-T*
 c_CTRL-U	cmdline.txt	/*c_CTRL-U*
 c_CTRL-V	cmdline.txt	/*c_CTRL-V*
 c_CTRL-W	cmdline.txt	/*c_CTRL-W*
 c_CTRL-Y	cmdline.txt	/*c_CTRL-Y*
+c_CTRL-[	cmdline.txt	/*c_CTRL-[*
 c_CTRL-\_CTRL-G	intro.txt	/*c_CTRL-\\_CTRL-G*
 c_CTRL-\_CTRL-N	intro.txt	/*c_CTRL-\\_CTRL-N*
 c_CTRL-\_e	cmdline.txt	/*c_CTRL-\\_e*
@@ -5233,6 +5249,7 @@ cc	change.txt	/*cc*
 ceil()	eval.txt	/*ceil()*
 ch.vim	syntax.txt	/*ch.vim*
 ch_close()	eval.txt	/*ch_close()*
+ch_close_in()	eval.txt	/*ch_close_in()*
 ch_evalexpr()	eval.txt	/*ch_evalexpr()*
 ch_evalraw()	eval.txt	/*ch_evalraw()*
 ch_getbufnr()	eval.txt	/*ch_getbufnr()*
@@ -5275,6 +5292,7 @@ changing	change.txt	/*changing*
 channel	channel.txt	/*channel*
 channel-callback	channel.txt	/*channel-callback*
 channel-close	channel.txt	/*channel-close*
+channel-close-in	channel.txt	/*channel-close-in*
 channel-commands	channel.txt	/*channel-commands*
 channel-demo	channel.txt	/*channel-demo*
 channel-functions	usr_41.txt	/*channel-functions*
@@ -5720,6 +5738,8 @@ erlang.vim	syntax.txt	/*erlang.vim*
 err_buf	channel.txt	/*err_buf*
 err_cb	channel.txt	/*err_cb*
 err_mode	channel.txt	/*err_mode*
+err_modifiable	channel.txt	/*err_modifiable*
+err_msg	channel.txt	/*err_msg*
 err_name	channel.txt	/*err_name*
 err_timeout	channel.txt	/*err_timeout*
 errmsg-variable	eval.txt	/*errmsg-variable*
@@ -6007,6 +6027,7 @@ ft-csh-syntax	syntax.txt	/*ft-csh-syntax*
 ft-css-omni	insert.txt	/*ft-css-omni*
 ft-cweb-syntax	syntax.txt	/*ft-cweb-syntax*
 ft-cynlib-syntax	syntax.txt	/*ft-cynlib-syntax*
+ft-dash-syntax	syntax.txt	/*ft-dash-syntax*
 ft-desktop-syntax	syntax.txt	/*ft-desktop-syntax*
 ft-dircolors-syntax	syntax.txt	/*ft-dircolors-syntax*
 ft-docbk-syntax	syntax.txt	/*ft-docbk-syntax*
@@ -6067,12 +6088,14 @@ ft-php-syntax	syntax.txt	/*ft-php-syntax*
 ft-php3-syntax	syntax.txt	/*ft-php3-syntax*
 ft-phtml-syntax	syntax.txt	/*ft-phtml-syntax*
 ft-plaintex-syntax	syntax.txt	/*ft-plaintex-syntax*
+ft-posix-synax	syntax.txt	/*ft-posix-synax*
 ft-postscr-syntax	syntax.txt	/*ft-postscr-syntax*
 ft-ppwiz-syntax	syntax.txt	/*ft-ppwiz-syntax*
 ft-printcap-syntax	syntax.txt	/*ft-printcap-syntax*
 ft-progress-syntax	syntax.txt	/*ft-progress-syntax*
 ft-ptcap-syntax	syntax.txt	/*ft-ptcap-syntax*
 ft-python-indent	indent.txt	/*ft-python-indent*
+ft-python-plugin	filetype.txt	/*ft-python-plugin*
 ft-python-syntax	syntax.txt	/*ft-python-syntax*
 ft-quake-syntax	syntax.txt	/*ft-quake-syntax*
 ft-r-indent	indent.txt	/*ft-r-indent*
@@ -6319,8 +6342,6 @@ g:netrw_win95ftp	pi_netrw.txt	/*g:netrw_win95ftp*
 g:netrw_winsize	pi_netrw.txt	/*g:netrw_winsize*
 g:netrw_wiw	pi_netrw.txt	/*g:netrw_wiw*
 g:netrw_xstrlen	pi_netrw.txt	/*g:netrw_xstrlen*
-g:sh_isk	syntax.txt	/*g:sh_isk*
-g:sh_noisk	syntax.txt	/*g:sh_noisk*
 g:syntax_on	syntax.txt	/*g:syntax_on*
 g:tar_browseoptions	pi_tar.txt	/*g:tar_browseoptions*
 g:tar_cmd	pi_tar.txt	/*g:tar_cmd*
@@ -6351,6 +6372,8 @@ g:vimsyn_maxlines	syntax.txt	/*g:vimsyn_maxlines*
 g:vimsyn_minlines	syntax.txt	/*g:vimsyn_minlines*
 g:vimsyn_noerror	syntax.txt	/*g:vimsyn_noerror*
 g:yaml_schema	syntax.txt	/*g:yaml_schema*
+g:zipPlugin_ext	pi_zip.txt	/*g:zipPlugin_ext*
+g:zip_extractcmd	pi_zip.txt	/*g:zip_extractcmd*
 g:zip_nomax	pi_zip.txt	/*g:zip_nomax*
 g:zip_shq	pi_zip.txt	/*g:zip_shq*
 g:zip_unzipcmd	pi_zip.txt	/*g:zip_unzipcmd*
@@ -6853,6 +6876,7 @@ improvements-7	version7.txt	/*improvements-7*
 improvements-8	version8.txt	/*improvements-8*
 in_bot	channel.txt	/*in_bot*
 in_buf	channel.txt	/*in_buf*
+in_io-buffer	channel.txt	/*in_io-buffer*
 in_mode	channel.txt	/*in_mode*
 in_name	channel.txt	/*in_name*
 in_top	channel.txt	/*in_top*
@@ -7683,7 +7707,10 @@ os_win32.txt	os_win32.txt	/*os_win32.txt*
 other-features	vi_diff.txt	/*other-features*
 out_buf	channel.txt	/*out_buf*
 out_cb	channel.txt	/*out_cb*
+out_io-buffer	channel.txt	/*out_io-buffer*
 out_mode	channel.txt	/*out_mode*
+out_modifiable	channel.txt	/*out_modifiable*
+out_msg	channel.txt	/*out_msg*
 out_name	channel.txt	/*out_name*
 out_timeout	channel.txt	/*out_timeout*
 p	change.txt	/*p*
@@ -8004,6 +8031,13 @@ ruby-set_option	if_ruby.txt	/*ruby-set_option*
 ruby-vim	if_ruby.txt	/*ruby-vim*
 ruby-window	if_ruby.txt	/*ruby-window*
 ruby.vim	syntax.txt	/*ruby.vim*
+ruby_fold	syntax.txt	/*ruby_fold*
+ruby_foldable_groups	syntax.txt	/*ruby_foldable_groups*
+ruby_minlines	syntax.txt	/*ruby_minlines*
+ruby_no_expensive	syntax.txt	/*ruby_no_expensive*
+ruby_operators	syntax.txt	/*ruby_operators*
+ruby_space_errors	syntax.txt	/*ruby_space_errors*
+ruby_spellcheck_strings	syntax.txt	/*ruby_spellcheck_strings*
 russian	russian.txt	/*russian*
 russian-intro	russian.txt	/*russian-intro*
 russian-issues	russian.txt	/*russian-issues*
@@ -8138,6 +8172,7 @@ sin()	eval.txt	/*sin()*
 single-repeat	repeat.txt	/*single-repeat*
 sinh()	eval.txt	/*sinh()*
 skeleton	autocmd.txt	/*skeleton*
+skip_defaults_vim	starting.txt	/*skip_defaults_vim*
 slice	eval.txt	/*slice*
 slow-fast-terminal	term.txt	/*slow-fast-terminal*
 slow-start	starting.txt	/*slow-start*
@@ -9217,6 +9252,7 @@ window-size	term.txt	/*window-size*
 window-size-functions	usr_41.txt	/*window-size-functions*
 window-tag	windows.txt	/*window-tag*
 window-variable	eval.txt	/*window-variable*
+windowid	windows.txt	/*windowid*
 windowid-variable	eval.txt	/*windowid-variable*
 windows	windows.txt	/*windows*
 windows-3.1	os_win32.txt	/*windows-3.1*
@@ -9226,6 +9262,7 @@ windows-starting	windows.txt	/*windows-starting*
 windows.txt	windows.txt	/*windows.txt*
 windows95	os_win32.txt	/*windows95*
 winheight()	eval.txt	/*winheight()*
+winid	windows.txt	/*winid*
 winline()	eval.txt	/*winline()*
 winnr()	eval.txt	/*winnr()*
 winrestcmd()	eval.txt	/*winrestcmd()*
@@ -9353,6 +9390,7 @@ zip-extension	pi_zip.txt	/*zip-extension*
 zip-history	pi_zip.txt	/*zip-history*
 zip-manual	pi_zip.txt	/*zip-manual*
 zip-usage	pi_zip.txt	/*zip-usage*
+zip-x	pi_zip.txt	/*zip-x*
 zj	fold.txt	/*zj*
 zk	fold.txt	/*zk*
 zl	scroll.txt	/*zl*

@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -1010,39 +1010,42 @@ restofline:
 	}
 	else if (vim_strchr((char_u *)"CZ", idx) != NULL)
 	{				/* continuation of multi-line msg */
-	    qfline_T *qfprev = qi->qf_lists[qi->qf_curlist].qf_last;
-
-	    if (qfprev == NULL)
-		return QF_FAIL;
-	    if (*fields->errmsg && !qi->qf_multiignore)
+	    if (!qi->qf_multiignore)
 	    {
-		len = (int)STRLEN(qfprev->qf_text);
-		if ((ptr = alloc((unsigned)(len + STRLEN(fields->errmsg) + 2)))
-			== NULL)
-		    return QF_FAIL;
-		STRCPY(ptr, qfprev->qf_text);
-		vim_free(qfprev->qf_text);
-		qfprev->qf_text = ptr;
-		*(ptr += len) = '\n';
-		STRCPY(++ptr, fields->errmsg);
-	    }
-	    if (qfprev->qf_nr == -1)
-		qfprev->qf_nr = fields->enr;
-	    if (vim_isprintc(fields->type) && !qfprev->qf_type)
-		/* only printable chars allowed */
-		qfprev->qf_type = fields->type;
+		qfline_T *qfprev = qi->qf_lists[qi->qf_curlist].qf_last;
 
-	    if (!qfprev->qf_lnum)
-		qfprev->qf_lnum = fields->lnum;
-	    if (!qfprev->qf_col)
-		qfprev->qf_col = fields->col;
-	    qfprev->qf_viscol = fields->use_viscol;
-	    if (!qfprev->qf_fnum)
-		qfprev->qf_fnum = qf_get_fnum(qi, qi->qf_directory,
-			*fields->namebuf || qi->qf_directory != NULL
-			? fields->namebuf
-			: qi->qf_currfile != NULL && fields->valid
-			? qi->qf_currfile : 0);
+		if (qfprev == NULL)
+		    return QF_FAIL;
+		if (*fields->errmsg && !qi->qf_multiignore)
+		{
+		    len = (int)STRLEN(qfprev->qf_text);
+		    if ((ptr = alloc((unsigned)(len + STRLEN(fields->errmsg) + 2)))
+			    == NULL)
+			return QF_FAIL;
+		    STRCPY(ptr, qfprev->qf_text);
+		    vim_free(qfprev->qf_text);
+		    qfprev->qf_text = ptr;
+		    *(ptr += len) = '\n';
+		    STRCPY(++ptr, fields->errmsg);
+		}
+		if (qfprev->qf_nr == -1)
+		    qfprev->qf_nr = fields->enr;
+		if (vim_isprintc(fields->type) && !qfprev->qf_type)
+		    /* only printable chars allowed */
+		    qfprev->qf_type = fields->type;
+
+		if (!qfprev->qf_lnum)
+		    qfprev->qf_lnum = fields->lnum;
+		if (!qfprev->qf_col)
+		    qfprev->qf_col = fields->col;
+		qfprev->qf_viscol = fields->use_viscol;
+		if (!qfprev->qf_fnum)
+		    qfprev->qf_fnum = qf_get_fnum(qi, qi->qf_directory,
+			    *fields->namebuf || qi->qf_directory != NULL
+			    ? fields->namebuf
+			    : qi->qf_currfile != NULL && fields->valid
+			    ? qi->qf_currfile : 0);
+	    }
 	    if (idx == 'Z')
 		qi->qf_multiline = qi->qf_multiignore = FALSE;
 	    line_breakcheck();
@@ -3569,7 +3572,7 @@ get_mef_name(void)
 	STRCAT(name, p + 2);
 	if (mch_getperm(name) < 0
 #ifdef HAVE_LSTAT
-		    /* Don't accept a symbolic link, its a security risk. */
+		    /* Don't accept a symbolic link, it's a security risk. */
 		    && mch_lstat((char *)name, &sb) < 0
 #endif
 		)
@@ -4591,9 +4594,13 @@ get_errorlist_properties(win_T *wp, dict_T *what, dict_T *retdict)
 	/* Use the specified quickfix/location list */
 	if (di->di_tv.v_type == VAR_NUMBER)
 	{
-	    qf_idx = di->di_tv.vval.v_number - 1;
-	    if (qf_idx < 0 || qf_idx >= qi->qf_listcount)
-		return FAIL;
+	    /* for zero use the current list */
+	    if (di->di_tv.vval.v_number != 0)
+	    {
+		qf_idx = di->di_tv.vval.v_number - 1;
+		if (qf_idx < 0 || qf_idx >= qi->qf_listcount)
+		    return FAIL;
+	    }
 	    flags |= QF_GETLIST_NR;
 	}
 	else
@@ -4753,11 +4760,15 @@ qf_add_entries(
 }
 
     static int
-qf_set_properties(qf_info_T *qi, dict_T *what)
+qf_set_properties(qf_info_T *qi, dict_T *what, int action)
 {
     dictitem_T	*di;
     int		retval = FAIL;
     int		qf_idx;
+    int		newlist = FALSE;
+
+    if (action == ' ' || qi->qf_curlist == qi->qf_listcount)
+	newlist = TRUE;
 
     qf_idx = qi->qf_curlist;		/* default is the current list */
     if ((di = dict_find(what, (char_u *)"nr", -1)) != NULL)
@@ -4771,6 +4782,13 @@ qf_set_properties(qf_info_T *qi, dict_T *what)
 	}
 	else
 	    return FAIL;
+	newlist = FALSE;	/* use the specified list */
+    }
+
+    if (newlist)
+    {
+	qf_new_list(qi, NULL);
+	qf_idx = qi->qf_curlist;
     }
 
     if ((di = dict_find(what, (char_u *)"title", -1)) != NULL)
@@ -4813,7 +4831,7 @@ set_errorlist(
     }
 
     if (what != NULL)
-	retval = qf_set_properties(qi, what);
+	retval = qf_set_properties(qi, what, action);
     else
 	retval = qf_add_entries(qi, list, title, action);
 
@@ -4834,6 +4852,9 @@ ex_cbuffer(exarg_T *eap)
 {
     buf_T	*buf = NULL;
     qf_info_T	*qi = &ql_info;
+#ifdef FEAT_AUTOCMD
+    char_u	*au_name = NULL;
+#endif
 
     if (eap->cmdidx == CMD_lbuffer || eap->cmdidx == CMD_lgetbuffer
 	    || eap->cmdidx == CMD_laddbuffer)
@@ -4842,6 +4863,28 @@ ex_cbuffer(exarg_T *eap)
 	if (qi == NULL)
 	    return;
     }
+
+#ifdef FEAT_AUTOCMD
+    switch (eap->cmdidx)
+    {
+	case CMD_cbuffer:	au_name = (char_u *)"cbuffer"; break;
+	case CMD_cgetbuffer:	au_name = (char_u *)"cgetbuffer"; break;
+	case CMD_caddbuffer:	au_name = (char_u *)"caddbuffer"; break;
+	case CMD_lbuffer:	au_name = (char_u *)"lbuffer"; break;
+	case CMD_lgetbuffer:	au_name = (char_u *)"lgetbuffer"; break;
+	case CMD_laddbuffer:	au_name = (char_u *)"laddbuffer"; break;
+	default: break;
+    }
+    if (au_name != NULL)
+    {
+	apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
+					       curbuf->b_fname, TRUE, curbuf);
+# ifdef FEAT_EVAL
+	if (did_throw || force_abort)
+	    return;
+# endif
+    }
+#endif
 
     if (*eap->arg == NUL)
 	buf = curbuf;
@@ -4876,10 +4919,16 @@ ex_cbuffer(exarg_T *eap)
 			    (eap->cmdidx != CMD_caddbuffer
 			     && eap->cmdidx != CMD_laddbuffer),
 						   eap->line1, eap->line2,
-						   qf_title) > 0
-		    && (eap->cmdidx == CMD_cbuffer
-			|| eap->cmdidx == CMD_lbuffer))
-		qf_jump(qi, 0, 0, eap->forceit);  /* display first error */
+						   qf_title) > 0)
+	    {
+#ifdef FEAT_AUTOCMD
+		if (au_name != NULL)
+		    apply_autocmds(EVENT_QUICKFIXCMDPOST, au_name,
+			    curbuf->b_fname, TRUE, curbuf);
+#endif
+		if (eap->cmdidx == CMD_cbuffer || eap->cmdidx == CMD_lbuffer)
+		    qf_jump(qi, 0, 0, eap->forceit);  /* display first error */
+	    }
 	}
     }
 }
@@ -4894,6 +4943,9 @@ ex_cexpr(exarg_T *eap)
 {
     typval_T	*tv;
     qf_info_T	*qi = &ql_info;
+#ifdef FEAT_AUTOCMD
+    char_u	*au_name = NULL;
+#endif
 
     if (eap->cmdidx == CMD_lexpr || eap->cmdidx == CMD_lgetexpr
 	    || eap->cmdidx == CMD_laddexpr)
@@ -4902,6 +4954,28 @@ ex_cexpr(exarg_T *eap)
 	if (qi == NULL)
 	    return;
     }
+
+#ifdef FEAT_AUTOCMD
+    switch (eap->cmdidx)
+    {
+	case CMD_cexpr:	    au_name = (char_u *)"cexpr"; break;
+	case CMD_cgetexpr:  au_name = (char_u *)"cgetexpr"; break;
+	case CMD_caddexpr:  au_name = (char_u *)"caddexpr"; break;
+	case CMD_lexpr:	    au_name = (char_u *)"lexpr"; break;
+	case CMD_lgetexpr:  au_name = (char_u *)"lgetexpr"; break;
+	case CMD_laddexpr:  au_name = (char_u *)"laddexpr"; break;
+	default: break;
+    }
+    if (au_name != NULL)
+    {
+	apply_autocmds(EVENT_QUICKFIXCMDPRE, au_name,
+					       curbuf->b_fname, TRUE, curbuf);
+# ifdef FEAT_EVAL
+	if (did_throw || force_abort)
+	    return;
+# endif
+    }
+#endif
 
     /* Evaluate the expression.  When the result is a string or a list we can
      * use it to fill the errorlist. */
@@ -4914,10 +4988,16 @@ ex_cexpr(exarg_T *eap)
 	    if (qf_init_ext(qi, NULL, NULL, tv, p_efm,
 			    (eap->cmdidx != CMD_caddexpr
 			     && eap->cmdidx != CMD_laddexpr),
-				 (linenr_T)0, (linenr_T)0, *eap->cmdlinep) > 0
-		    && (eap->cmdidx == CMD_cexpr
-			|| eap->cmdidx == CMD_lexpr))
-		qf_jump(qi, 0, 0, eap->forceit);  /* display first error */
+				 (linenr_T)0, (linenr_T)0, *eap->cmdlinep) > 0)
+	    {
+#ifdef FEAT_AUTOCMD
+		if (au_name != NULL)
+		    apply_autocmds(EVENT_QUICKFIXCMDPOST, au_name,
+			    curbuf->b_fname, TRUE, curbuf);
+#endif
+		if (eap->cmdidx == CMD_cexpr || eap->cmdidx == CMD_lexpr)
+		    qf_jump(qi, 0, 0, eap->forceit);  /* display first error */
+	    }
 	}
 	else
 	    EMSG(_("E777: String or List expected"));

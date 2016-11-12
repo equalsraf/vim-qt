@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *	      OS/2 port by Paul Slootman
@@ -2262,6 +2262,7 @@ use_xterm_like_mouse(char_u *name)
     return (name != NULL
 	    && (term_is_xterm
 		|| STRNICMP(name, "screen", 6) == 0
+		|| STRNICMP(name, "tmux", 4) == 0
 		|| STRICMP(name, "st") == 0
 		|| STRNICMP(name, "st-", 3) == 0
 		|| STRNICMP(name, "stterm", 6) == 0));
@@ -2325,6 +2326,7 @@ vim_is_fastterm(char_u *name)
     return (   STRNICMP(name, "hpterm", 6) == 0
 	    || STRNICMP(name, "sun-cmd", 7) == 0
 	    || STRNICMP(name, "screen", 6) == 0
+	    || STRNICMP(name, "tmux", 4) == 0
 	    || STRNICMP(name, "dtterm", 6) == 0);
 }
 
@@ -3935,6 +3937,7 @@ mch_new_shellsize(void)
 wait4pid(pid_t child, waitstatus *status)
 {
     pid_t wait_pid = 0;
+    long delay_msec = 1;
 
     while (wait_pid != child)
     {
@@ -3949,8 +3952,10 @@ wait4pid(pid_t child, waitstatus *status)
 # endif
 	if (wait_pid == 0)
 	{
-	    /* Wait for 10 msec before trying again. */
-	    mch_delay(10L, TRUE);
+	    /* Wait for 1 to 10 msec before trying again. */
+	    mch_delay(delay_msec, TRUE);
+	    if (++delay_msec > 10)
+		delay_msec = 10;
 	    continue;
 	}
 	if (wait_pid <= 0
@@ -4930,6 +4935,8 @@ finished:
 # if defined(FEAT_XCLIPBOARD) && defined(FEAT_X11)
 	    else
 	    {
+		long delay_msec = 1;
+
 		/*
 		 * Similar to the loop above, but only handle X events, no
 		 * I/O.
@@ -4962,7 +4969,11 @@ finished:
 		    /* Handle any X events, e.g. serving the clipboard. */
 		    clip_update();
 
-		    mch_delay(10L, TRUE);
+		    /* Wait for 1 to 10 msec. 1 is faster but gives the child
+		     * less time. */
+		    mch_delay(delay_msec, TRUE);
+		    if (++delay_msec > 10)
+			delay_msec = 10;
 		}
 	    }
 # endif
@@ -5356,9 +5367,10 @@ mch_clear_job(job_T *job)
  * In cooked mode we should get SIGINT, no need to check.
  */
     void
-mch_breakcheck(void)
+mch_breakcheck(int force)
 {
-    if (curr_tmode == TMODE_RAW && RealWaitForChar(read_cmd_fd, 0L, NULL, NULL))
+    if ((curr_tmode == TMODE_RAW || force)
+			       && RealWaitForChar(read_cmd_fd, 0L, NULL, NULL))
 	fill_input_buf(FALSE);
 }
 

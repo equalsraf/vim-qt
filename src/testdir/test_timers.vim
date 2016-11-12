@@ -20,7 +20,7 @@ func Test_oneshot()
   let slept = WaitFor('g:val == 1')
   call assert_equal(1, g:val)
   if has('reltime')
-    call assert_inrange(50, 100, slept)
+    call assert_inrange(49, 100, slept)
   else
     call assert_inrange(20, 100, slept)
   endif
@@ -32,7 +32,7 @@ func Test_repeat_three()
   let slept = WaitFor('g:val == 3')
   call assert_equal(3, g:val)
   if has('reltime')
-    call assert_inrange(150, 250, slept)
+    call assert_inrange(149, 250, slept)
   else
     call assert_inrange(80, 200, slept)
   endif
@@ -48,16 +48,16 @@ endfunc
 
 func Test_with_partial_callback()
   let g:val = 0
-  let s:meow = {}
-  function s:meow.bite(...)
-    let g:val += 1
+  let meow = {'one': 1}
+  function meow.bite(...)
+    let g:val += self.one
   endfunction
 
-  call timer_start(50, s:meow.bite)
+  call timer_start(50, meow.bite)
   let slept = WaitFor('g:val == 1')
   call assert_equal(1, g:val)
   if has('reltime')
-    call assert_inrange(50, 130, slept)
+    call assert_inrange(49, 130, slept)
   else
     call assert_inrange(20, 100, slept)
   endif
@@ -127,5 +127,50 @@ func Test_paused()
     call assert_inrange(0, 10, slept)
   endif
 endfunc
+
+func StopMyself(timer)
+  let g:called += 1
+  if g:called == 2
+    call timer_stop(a:timer)
+  endif
+endfunc
+
+func Test_delete_myself()
+  let g:called = 0
+  let t = timer_start(10, 'StopMyself', {'repeat': -1})
+  call WaitFor('g:called == 2')
+  call assert_equal(2, g:called)
+  call assert_equal([], timer_info(t))
+endfunc
+
+func StopTimer1(timer)
+  let g:timer2 = timer_start(10, 'StopTimer2')
+  " avoid maxfuncdepth error
+  call timer_pause(g:timer1, 1)
+  sleep 40m
+endfunc
+
+func StopTimer2(timer)
+  call timer_stop(g:timer1)
+endfunc
+
+func Test_stop_in_callback()
+  let g:timer1 = timer_start(10, 'StopTimer1')
+  sleep 40m
+endfunc
+
+func StopTimerAll(timer)
+  call timer_stopall()
+endfunc
+
+func Test_stop_all_in_callback()
+  let g:timer1 = timer_start(10, 'StopTimerAll')
+  let info = timer_info()
+  call assert_equal(1, len(info))
+  sleep 40m
+  let info = timer_info()
+  call assert_equal(0, len(info))
+endfunc
+
 
 " vim: shiftwidth=2 sts=2 expandtab

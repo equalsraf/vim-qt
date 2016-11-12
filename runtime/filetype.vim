@@ -1,7 +1,7 @@
 " Vim support file to detect file types
 "
 " Maintainer:	Bram Moolenaar <Bram@vim.org>
-" Last Change:	2016 Aug 18
+" Last Change:	2016 Sep 22
 
 " Listen very carefully, I will say this only once
 if exists("did_load_filetypes")
@@ -676,6 +676,9 @@ au BufNewFile,BufRead *.dts,*.dtsi		setf dts
 " EDIF (*.edf,*.edif,*.edn,*.edo)
 au BufNewFile,BufRead *.ed\(f\|if\|n\|o\)	setf edif
 
+" EditorConfig (close enough to dosini)
+au BufNewFile,BufRead .editorconfig		setf dosini
+
 " Embedix Component Description
 au BufNewFile,BufRead *.ecd			setf ecd
 
@@ -692,8 +695,8 @@ func! s:FTe()
     let n = 1
     while n < 100 && n < line("$")
       if getline(n) =~ "^\\s*\\(<'\\|'>\\)\\s*$"
-        setf specman
-        return
+	setf specman
+	return
       endif
       let n = n + 1
     endwhile
@@ -806,6 +809,10 @@ au BufNewFile,BufRead *.gp,.gprc		setf gp
 au BufNewFile,BufRead */.gnupg/options		setf gpg
 au BufNewFile,BufRead */.gnupg/gpg.conf		setf gpg
 au BufNewFile,BufRead */usr/*/gnupg/options.skel setf gpg
+if !empty($GNUPGHOME)
+  au BufNewFile,BufRead $GNUPGHOME/options	setf gpg
+  au BufNewFile,BufRead $GNUPGHOME/gpg.conf	setf gpg
+endif
 
 " gnash(1) configuration files
 au BufNewFile,BufRead gnashrc,.gnashrc,gnashpluginrc,.gnashpluginrc setf gnash
@@ -1780,6 +1787,9 @@ au BufNewFile,BufRead *.sass			setf sass
 " Sather
 au BufNewFile,BufRead *.sa			setf sather
 
+" Scala
+au BufNewFile,BufRead *.scala			setf scala
+
 " Scilab
 au BufNewFile,BufRead *.sci,*.sce		setf scilab
 
@@ -2052,7 +2062,7 @@ func! s:FTRules()
     if line =~ s:ft_rules_udev_rules_pattern
       let udev_rules = substitute(line, s:ft_rules_udev_rules_pattern, '\1', "")
       if dir == udev_rules
-        setf udevrules
+	setf udevrules
       endif
       break
     endif
@@ -2301,7 +2311,7 @@ au BufNewFile,BufRead */etc/updatedb.conf	setf updatedb
 au BufNewFile,BufRead */usr/share/upstart/*.conf	       setf upstart
 au BufNewFile,BufRead */usr/share/upstart/*.override	       setf upstart
 au BufNewFile,BufRead */etc/init/*.conf,*/etc/init/*.override  setf upstart
-au BufNewFile,BufRead */.init/*.conf,*/.init/*.override        setf upstart
+au BufNewFile,BufRead */.init/*.conf,*/.init/*.override	       setf upstart
 au BufNewFile,BufRead */.config/upstart/*.conf		       setf upstart
 au BufNewFile,BufRead */.config/upstart/*.override	       setf upstart
 

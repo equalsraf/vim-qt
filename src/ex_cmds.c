@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -1175,14 +1175,6 @@ do_filter(
     if (*cmd == NUL)	    /* no filter command */
 	return;
 
-#ifdef WIN3264
-    /*
-     * Check if external commands are allowed now.
-     */
-    if (can_end_termcap_mode(TRUE) == FALSE)
-	return;
-#endif
-
     cursor_save = curwin->w_cursor;
     linecount = line2 - line1 + 1;
     curwin->w_cursor.lnum = line1;
@@ -1459,12 +1451,6 @@ do_shell(
     }
 
 #ifdef MSWIN
-    /*
-     * Check if external commands are allowed now.
-     */
-    if (can_end_termcap_mode(TRUE) == FALSE)
-	return;
-
     /*
      * Check if ":!start" is used.
      */
@@ -1927,11 +1913,7 @@ write_viminfo(char_u *file, int forceit)
 #ifdef UNIX
 				    shortname,
 #else
-# ifdef FEAT_GUI_W32
-				    gui_is_win32s(),
-# else
 				    FALSE,
-# endif
 #endif
 				    fname,
 #ifdef VMS
@@ -2530,7 +2512,7 @@ barline_writestring(FILE *fd, char_u *s, int remaining_start)
 	else
 	    ++len;
     }
-    if (len > remaining)
+    if (len > remaining - 2)
     {
 	fprintf(fd, ">%d\n|<", len);
 	remaining = LSIZE - 20;
@@ -2921,6 +2903,10 @@ print_line_no_prefix(
 print_line(linenr_T lnum, int use_number, int list)
 {
     int		save_silent = silent_mode;
+
+    /* apply :filter /pat/ */
+    if (message_filtered(ml_get(lnum)))
+	return;
 
     msg_start();
     silent_mode = FALSE;
@@ -3872,8 +3858,8 @@ do_ecmd(
 	    oldbuf = TRUE;
 	    set_bufref(&bufref, buf);
 	    (void)buf_check_timestamp(buf, FALSE);
-	    /* Check if autocommands made buffer invalid or changed the current
-	     * buffer. */
+	    /* Check if autocommands made the buffer invalid or changed the
+	     * current buffer. */
 	    if (!bufref_valid(&bufref)
 #ifdef FEAT_AUTOCMD
 		    || curbuf != old_curbuf.br_buf
@@ -3935,25 +3921,30 @@ do_ecmd(
 		auto_buf = TRUE;
 	    else
 	    {
+		win_T	    *the_curwin = curwin;
+
+		/* Set the w_closing flag to avoid that autocommands close the
+		 * window.  And set b_locked for the same reason. */
+		the_curwin->w_closing = TRUE;
+		++buf->b_locked;
+
 		if (curbuf == old_curbuf.br_buf)
 #endif
 		    buf_copy_options(buf, BCO_ENTER);
 
-		/* close the link to the current buffer */
+		/* Close the link to the current buffer. This will set
+		 * oldwin->w_buffer to NULL. */
 		u_sync(FALSE);
 		close_buffer(oldwin, curbuf,
 			       (flags & ECMD_HIDE) ? 0 : DOBUF_UNLOAD, FALSE);
 
 #ifdef FEAT_AUTOCMD
-		/* Autocommands may open a new window and leave oldwin open
-		 * which leads to crashes since the above call sets
-		 * oldwin->w_buffer to NULL. */
-		if (curwin != oldwin && oldwin != aucmd_win
-			     && win_valid(oldwin) && oldwin->w_buffer == NULL)
-		    win_close(oldwin, FALSE);
+		the_curwin->w_closing = FALSE;
+		--buf->b_locked;
 
 # ifdef FEAT_EVAL
-		if (aborting())	    /* autocmds may abort script processing */
+		/* autocmds may abort script processing */
+		if (aborting() && curwin->w_buffer != NULL)
 		{
 		    vim_free(new_name);
 		    goto theend;
@@ -4135,11 +4126,6 @@ do_ecmd(
  */
     /* Assume success now */
     retval = OK;
-
-    /*
-     * Reset cursor position, could be used by autocommands.
-     */
-    check_cursor();
 
     /*
      * Check if we are editing the w_arg_idx file in the argument list.
@@ -7088,7 +7074,7 @@ helptags_one(
 	    || filecount == 0)
     {
 	if (!got_int)
-	    EMSG2("E151: No match: %s", NameBuff);
+	    EMSG2(_("E151: No match: %s"), NameBuff);
 	return;
     }
 
@@ -7331,7 +7317,7 @@ do_helptags(char_u *dirname, int add_help_tags)
 						    EW_FILE|EW_SILENT) == FAIL
 	    || filecount == 0)
     {
-	EMSG2("E151: No match: %s", NameBuff);
+	EMSG2(_("E151: No match: %s"), NameBuff);
 	return;
     }
 
@@ -8392,7 +8378,6 @@ ex_drop(exarg_T *eap)
 }
 #endif
 
-#if defined(FEAT_QUICKFIX) || defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Skip over the pattern argument of ":vimgrep /pat/[g][j]".
  * Put the start of the pattern in "*s", unless "s" is NULL.
@@ -8444,7 +8429,6 @@ skip_vimgrep_pat(char_u *p, char_u **s, int *flags)
     }
     return p;
 }
-#endif
 
 #if defined(FEAT_EVAL) || defined(PROTO)
 /*
@@ -8456,45 +8440,29 @@ ex_oldfiles(exarg_T *eap UNUSED)
     list_T	*l = get_vim_var_list(VV_OLDFILES);
     listitem_T	*li;
     int		nr = 0;
-    char_u	*reg_pat = NULL;
     char_u	*fname;
-    regmatch_T	regmatch;
 
     if (l == NULL)
 	msg((char_u *)_("No old files"));
     else
     {
-	if (*eap->arg != NUL)
-	{
-	    if (skip_vimgrep_pat(eap->arg, &reg_pat, NULL) == NULL)
-	    {
-		EMSG(_(e_invalpat));
-		return;
-	    }
-	    regmatch.regprog = vim_regcomp(reg_pat, p_magic ? RE_MAGIC : 0);
-	    if (regmatch.regprog == NULL)
-		return;
-	}
-
 	msg_start();
 	msg_scroll = TRUE;
 	for (li = l->lv_first; li != NULL && !got_int; li = li->li_next)
 	{
 	    ++nr;
 	    fname = get_tv_string(&li->li_tv);
-	    if (reg_pat == NULL || *reg_pat == NUL
-				  || vim_regexec(&regmatch, fname, (colnr_T)0))
+	    if (!message_filtered(fname))
 	    {
 		msg_outnum((long)nr);
 		MSG_PUTS(": ");
 		msg_outtrans(fname);
+		msg_clr_eos();
 		msg_putchar('\n');
 		out_flush();	    /* output one line at a time */
 		ui_breakcheck();
 	    }
 	}
-	if (*eap->arg != NUL)
-	    vim_regfree(regmatch.regprog);
 
 	/* Assume "got_int" was set to truncate the listing. */
 	got_int = FALSE;

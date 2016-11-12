@@ -22,7 +22,7 @@ class VimWrapper
 {
 public:
 	VimWrapper();
-	
+
 	/**
 	 * Map a row/col coordinate to a point in widget coordinates
 	 */

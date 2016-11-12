@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -22,7 +22,7 @@
  * - If it's a list of flags, add some code in do_set(), search for WW_ALL.
  * - When adding an option with expansion (P_EXPAND), but with a different
  *   default for Vi and Vim (no P_VI_DEF), add some code at VIMEXP.
- * - Add documentation!  One line in doc/help.txt, full description in
+ * - Add documentation!  One line in doc/quickref.txt, full description in
  *   options.txt, and any other related places.
  * - Add an entry in runtime/optwin.vim.
  * When making changes:
@@ -1733,7 +1733,7 @@ static struct vimoption options[] =
 #else
 			    (char_u *)NULL, PV_NONE,
 #endif
-			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
+			    {(char_u *)TRUE, (char_u *)0L} SCRIPTID_INIT},
     {"laststatus",  "ls",   P_NUM|P_VI_DEF|P_RALL,
 #ifdef FEAT_WINDOWS
 			    (char_u *)&p_ls, PV_NONE,
@@ -3315,16 +3315,6 @@ set_init_1(void)
 	    }
 	}
     }
-
-#ifdef FEAT_GUI_W32
-    /* force 'shortname' for Win32s */
-    if (gui_is_win32s())
-    {
-	opt_idx = findoption((char_u *)"shortname");
-	if (opt_idx >= 0)
-	    options[opt_idx].def_val[VI_DEFAULT] = (char_u *)TRUE;
-    }
-#endif
 
 #ifdef FEAT_SEARCHPATH
     {
@@ -8251,7 +8241,7 @@ set_bool_option(
 	p_wiv = (*T_XS != NUL);
     }
 
-#if defined(FEAT_BEVAL) && !defined(FEAT_GUI_QT) 
+#if defined(FEAT_BEVAL) && !defined(FEAT_GUI_QT)
     else if ((int *)varp == &p_beval)
     {
 	if (p_beval && !old_value)
@@ -9996,13 +9986,7 @@ clear_termoptions(void)
     if (gui.starting)
 	clear_xterm_clip();
 #endif
-#ifdef WIN3264
-    /*
-     * Check if this is allowed now.
-     */
-    if (can_end_termcap_mode(FALSE) == TRUE)
-#endif
-	stoptermcap();			/* stop termcap mode */
+    stoptermcap();			/* stop termcap mode */
 
     free_termoptions();
 }
@@ -12415,8 +12399,10 @@ get_winbuf_options(int bufopt)
 	    {
 		if (opt->flags & P_STRING)
 		    dict_add_nr_str(d, opt->fullname, 0L, *(char_u **)varp);
+		else if (opt->flags & P_NUM)
+		    dict_add_nr_str(d, opt->fullname, *(long *)varp, NULL);
 		else
-		    dict_add_nr_str(d, opt->fullname, *varp, NULL);
+		    dict_add_nr_str(d, opt->fullname, *(int *)varp, NULL);
 	    }
 	}
     }

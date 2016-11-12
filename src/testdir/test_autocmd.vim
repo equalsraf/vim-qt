@@ -1,5 +1,13 @@
 " Tests for autocommands
 
+function! s:cleanup_buffers() abort
+  for bnr in range(1, bufnr('$'))
+    if bufloaded(bnr) && bufnr('%') != bnr
+      execute 'bd! ' . bnr
+    endif
+  endfor
+endfunction
+
 func Test_vim_did_enter()
   call assert_false(v:vim_did_enter)
 
@@ -13,6 +21,9 @@ if has('timers')
   endfunc
 
   func Test_cursorhold_insert()
+    " Need to move the cursor.
+    call feedkeys("ggG", "xt")
+
     let g:triggered = 0
     au CursorHoldI * let g:triggered += 1
     set updatetime=20
@@ -20,6 +31,7 @@ if has('timers')
     call feedkeys('a', 'x!')
     call assert_equal(1, g:triggered)
     au! CursorHoldI
+    set updatetime&
   endfunc
 
   func Test_cursorhold_insert_ctrl_x()
@@ -31,6 +43,7 @@ if has('timers')
     call feedkeys("a\<C-X>", 'x!')
     call assert_equal(0, g:triggered)
     au! CursorHoldI
+    set updatetime&
   endfunc
 endif
 
@@ -77,9 +90,58 @@ function Test_autocmd_bufunload_with_tabnext()
   quit
   call assert_equal(2, tabpagenr('$'))
 
+  autocmd! test_autocmd_bufunload_with_tabnext_group
   augroup! test_autocmd_bufunload_with_tabnext_group
   tablast
   quit
+endfunc
+
+function Test_autocmd_bufwinleave_with_tabfirst()
+  tabedit
+  augroup sample
+    autocmd!
+    autocmd BufWinLeave <buffer> tabfirst
+  augroup END
+  call setline(1, ['a', 'b', 'c'])
+  edit! a.txt
+  tabclose
+endfunc
+
+" SEGV occurs in older versions.  (At least 7.4.2321 or older)
+function Test_autocmd_bufunload_avoiding_SEGV_01()
+  split aa.txt
+  let lastbuf = bufnr('$')
+
+  augroup test_autocmd_bufunload
+    autocmd!
+    exe 'autocmd BufUnload <buffer> ' . (lastbuf + 1) . 'bwipeout!'
+  augroup END
+
+  call assert_fails('edit bb.txt', 'E937:')
+
+  autocmd! test_autocmd_bufunload
+  augroup! test_autocmd_bufunload
+  bwipe! aa.txt
+  bwipe! bb.txt
+endfunc
+
+" SEGV occurs in older versions.  (At least 7.4.2321 or older)
+function Test_autocmd_bufunload_avoiding_SEGV_02()
+  setlocal buftype=nowrite
+  let lastbuf = bufnr('$')
+
+  augroup test_autocmd_bufunload
+    autocmd!
+    exe 'autocmd BufUnload <buffer> ' . (lastbuf + 1) . 'bwipeout!'
+  augroup END
+
+  normal! i1
+  call assert_fails('edit a.txt', 'E517:')
+  call feedkeys("\<CR>")
+
+  autocmd! test_autocmd_bufunload
+  augroup! test_autocmd_bufunload
+  bwipe! a.txt
 endfunc
 
 func Test_win_tab_autocmd()
@@ -152,6 +214,11 @@ func Test_early_bar()
   call assert_equal(1, len(split(execute('au vimBarTest'), "\n")))
 endfunc
 
+func RemoveGroup()
+  autocmd! StartOK
+  augroup! StartOK
+endfunc
+
 func Test_augroup_warning()
   augroup TheWarning
     au VimEnter * echo 'entering'
@@ -167,4 +234,91 @@ func Test_augroup_warning()
   augroup Another
   augroup END
   call assert_true(match(execute('au VimEnter'), "-Deleted-.*VimEnter") >= 0)
+  augroup! Another
+
+  " no warning for postpone aucmd delete
+  augroup StartOK
+    au VimEnter * call RemoveGroup()
+  augroup END
+  call assert_true(match(execute('au VimEnter'), "StartOK.*VimEnter") >= 0)
+  redir => res
+  doautocmd VimEnter
+  redir END
+  call assert_true(match(res, "W19:") < 0)
+  au! VimEnter
+endfunc
+
+func Test_augroup_deleted()
+  " This caused a crash before E936 was introduced
+  augroup x
+    call assert_fails('augroup! x', 'E936:')
+    au VimEnter * echo
+  augroup end
+  augroup! x
+  call assert_true(match(execute('au VimEnter'), "-Deleted-.*VimEnter") >= 0)
+  au! VimEnter
+endfunc
+
+" Tests for autocommands on :close command.
+" This used to be in test13.
+func Test_three_windows()
+  " Clean up buffers, because in some cases this function fails.
+  call s:cleanup_buffers()
+
+  " Write three files and open them, each in a window.
+  " Then go to next window, with autocommand that deletes the previous one.
+  " Do this twice, writing the file.
+  e! Xtestje1
+  call setline(1, 'testje1')
+  w
+  sp Xtestje2
+  call setline(1, 'testje2')
+  w
+  sp Xtestje3
+  call setline(1, 'testje3')
+  w
+  wincmd w
+  au WinLeave Xtestje2 bwipe
+  wincmd w
+  call assert_equal('Xtestje1', expand('%'))
+
+  au WinLeave Xtestje1 bwipe Xtestje3
+  close
+  call assert_equal('Xtestje1', expand('%'))
+
+  " Test deleting the buffer on a Unload event.  If this goes wrong there
+  " will be the ATTENTION prompt.
+  e Xtestje1
+  au!
+  au! BufUnload Xtestje1 bwipe
+  call assert_fails('e Xtestje3', 'E937:')
+  call assert_equal('Xtestje3', expand('%'))
+
+  e Xtestje2
+  sp Xtestje1
+  call assert_fails('e', 'E937:')
+  call assert_equal('Xtestje2', expand('%'))
+
+  " Test changing buffers in a BufWipeout autocommand.  If this goes wrong
+  " there are ml_line errors and/or a Crash.
+  au!
+  only
+  e Xanother
+  e Xtestje1
+  bwipe Xtestje2
+  bwipe Xtestje3
+  au BufWipeout Xtestje1 buf Xtestje1
+  bwipe
+  call assert_equal('Xanother', expand('%'))
+
+  only
+  help
+  wincmd w
+  1quit
+  call assert_equal('Xanother', expand('%'))
+
+  au!
+  call delete('Xtestje1')
+  call delete('Xtestje2')
+  call delete('Xtestje3')
 endfunc

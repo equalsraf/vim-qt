@@ -119,7 +119,7 @@ void VimWrapper::guiHandleDrop(const QPoint& pos, unsigned int mod, const QList<
 		DropEvent *ev = new DropEvent( *this, pos, mod, urls);
 		pendingEvents.append(ev);
 	} else {
-	
+
 		char_u **fnames = (char_u**)alloc( urls.size() * sizeof(char_u*));
 		int i;
 		for (i=0; i<urls.size(); i++) {
@@ -129,7 +129,7 @@ void VimWrapper::guiHandleDrop(const QPoint& pos, unsigned int mod, const QList<
 			} else {
 				encoded = convertTo(urls.at(i).toString());
 			}
-	
+
 			char *s = (char*)alloc(encoded.size()*sizeof(char)+1);
 			int j;
 			for (j=0; j<encoded.size(); j++) {
@@ -148,13 +148,13 @@ void VimWrapper::guiHandleDrop(const QPoint& pos, unsigned int mod, const QList<
  * The returned point is the top left corner of the cell
  *
  */
-QPoint VimWrapper::mapText(int row, int col) 
-{ 
+QPoint VimWrapper::mapText(int row, int col)
+{
 	return QPoint( gui.char_width*col, gui.char_height*row );
 }
 
-QPoint VimWrapper::cursorPosition() 
-{ 
+QPoint VimWrapper::cursorPosition()
+{
 	return mapText(gui.cursor_row, gui.cursor_col);
 }
 
@@ -244,7 +244,7 @@ bool VimWrapper::isFakeMonospace(QFont f)
 	// Regular
 	if ( fm_normal.averageCharWidth() != fm_normal.maxWidth() ) {
 		QFontInfo info(f);
-		qDebug() << __func__ << f.family() 
+		qDebug() << __func__ << f.family()
 			<< "Average and Maximum font width mismatch for Regular font; QFont::exactMatch() is" << f.exactMatch()
 			<< "Real font is " << info.family() << info.pointSize();
 		return true;
@@ -277,8 +277,8 @@ bool VimWrapper::isFakeMonospace(QFont f)
 		return true;
 	}
 
-	if ( fm_normal.maxWidth() != fm_italic.maxWidth() || 
-		fm_normal.maxWidth() != fm_boldit.maxWidth() || 
+	if ( fm_normal.maxWidth() != fm_italic.maxWidth() ||
+		fm_normal.maxWidth() != fm_boldit.maxWidth() ||
 		fm_normal.maxWidth() != fm_bold.maxWidth()) {
 		qDebug() << __func__ << f.family() << "Average and Maximum font width mismatch between font types";
 		return true;

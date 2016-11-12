@@ -195,7 +195,7 @@ function Test_tabpage_with_tab_modifier()
     exec 'tabnext ' . a:pre_nr
     exec a:cmd
     call assert_equal(a:post_nr, tabpagenr())
-    call assert_equal('help', &filetype)
+    call assert_equal('help', &buftype)
     helpclose
   endfunc
 
@@ -217,5 +217,31 @@ function Test_tabpage_with_tab_modifier()
   tabonly!
   bw!
 endfunction
+
+func Test_tabnext_on_buf_unload1()
+  " This once caused a crash
+  new
+  tabedit
+  tabfirst
+  au BufUnload <buffer> tabnext
+  q
+
+  while tabpagenr('$') > 1
+    bwipe!
+  endwhile
+endfunc
+
+func Test_tabnext_on_buf_unload2()
+  " This once caused a crash
+  tabedit
+  autocmd BufUnload <buffer> tabnext
+  file x
+  edit y
+
+  while tabpagenr('$') > 1
+    bwipe!
+  endwhile
+endfunc
+
 
 " vim: shiftwidth=2 sts=2 expandtab

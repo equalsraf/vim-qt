@@ -1,4 +1,4 @@
-*if_pyth.txt*   For Vim version 7.4.  Last change: 2015 Nov 10
+*if_pyth.txt*   For Vim version 8.0.  Last change: 2016 Sep 17
 
 
 		  VIM REFERENCE MANUAL    by Paul Moore
@@ -56,7 +56,11 @@ Example: >
 			print 'EAT ME'
 	EOF
 	endfunction
-<
+
+To see what version of Python you have: >
+	:python import sys
+	:python print(sys.version)
+
 Note: Python is very sensitive to the indenting.  Make sure the "class" line
 and "EOF" do not have any indent.
 
@@ -744,6 +748,10 @@ match the Python 2.x or Python 3 version Vim was compiled with.
 The `:py3` and `:python3` commands work similar to `:python`.  A simple check
 if the `:py3` command is working: >
 	:py3 print("Hello")
+
+To see what version of Python you have: >
+	:py3 import sys
+	:py3 print(sys.version)
 <							*:py3file*
 The `:py3file` command works similar to `:pyfile`.
 							*:py3do*

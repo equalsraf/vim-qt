@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -1781,6 +1781,7 @@ do_one_cmd(
     linenr_T		lnum;
     long		n;
     char_u		*errormsg = NULL;	/* error message */
+    char_u		*after_modifier = NULL;
     exarg_T		ea;			/* Ex command arguments */
     long		verbose_save = -1;
     int			save_msg_scroll = msg_scroll;
@@ -1917,6 +1918,31 @@ do_one_cmd(
 			cmdmod.keepjumps = TRUE;
 			continue;
 
+	    case 'f':	/* only accept ":filter {pat} cmd" */
+			{
+			    char_u *reg_pat;
+
+			    if (!checkforcmd(&p, "filter", 4)
+						|| *p == NUL || ends_excmd(*p))
+				break;
+			    if (*p == '!')
+			    {
+				cmdmod.filter_force = TRUE;
+				p = skipwhite(p + 1);
+				if (*p == NUL || ends_excmd(*p))
+				    break;
+			    }
+			    p = skip_vimgrep_pat(p, &reg_pat, NULL);
+			    if (p == NULL || *p == NUL)
+				break;
+			    cmdmod.filter_regmatch.regprog =
+						vim_regcomp(reg_pat, RE_MAGIC);
+			    if (cmdmod.filter_regmatch.regprog == NULL)
+				break;
+			    ea.cmd = p;
+			    continue;
+			}
+
 			/* ":hide" and ":hide | cmd" are not modifiers */
 	    case 'h':	if (p != ea.cmd || !checkforcmd(&p, "hide", 3)
 					       || *p == NUL || ends_excmd(*p))
@@ -2041,6 +2067,7 @@ do_one_cmd(
 	}
 	break;
     }
+    after_modifier = ea.cmd;
 
 #ifdef FEAT_EVAL
     ea.skip = did_emsg || got_int || did_throw || (cstack->cs_idx >= 0
@@ -2374,7 +2401,14 @@ do_one_cmd(
 	{
 	    STRCPY(IObuff, _("E492: Not an editor command"));
 	    if (!sourcing)
-		append_command(*cmdlinep);
+	    {
+		/* If the modifier was parsed OK the error must be in the
+		 * following command */
+		if (after_modifier != NULL)
+		    append_command(after_modifier);
+		else
+		    append_command(*cmdlinep);
+	    }
 	    errormsg = IObuff;
 	    did_emsg_syntax = TRUE;
 	}
@@ -2441,12 +2475,7 @@ do_one_cmd(
 		&& !IS_USER_CMDIDX(ea.cmdidx))
 	{
 	    /* Command not allowed when editing the command line. */
-#ifdef FEAT_CMDWIN
-	    if (cmdwin_type != 0)
-		errormsg = (char_u *)_(e_cmdwin);
-	    else
-#endif
-		errormsg = (char_u *)_(e_secure);
+	    errormsg = get_text_locked_msg();
 	    goto doend;
 	}
 #ifdef FEAT_AUTOCMD
@@ -2818,6 +2847,7 @@ do_one_cmd(
 	    case CMD_echomsg:
 	    case CMD_echon:
 	    case CMD_execute:
+	    case CMD_filter:
 	    case CMD_help:
 	    case CMD_hide:
 	    case CMD_ijump:
@@ -2989,6 +3019,8 @@ doend:
 	free_string_option(cmdmod.save_ei);
     }
 #endif
+    if (cmdmod.filter_regmatch.regprog != NULL)
+	vim_regfree(cmdmod.filter_regmatch.regprog);
 
     cmdmod = save_cmdmod;
 
@@ -3323,6 +3355,7 @@ static struct cmdmod
     {"botright", 2, FALSE},
     {"browse", 3, FALSE},
     {"confirm", 4, FALSE},
+    {"filter", 4, FALSE},
     {"hide", 3, FALSE},
     {"keepalt", 5, FALSE},
     {"keepjumps", 5, FALSE},
@@ -3833,6 +3866,7 @@ set_one_cmd_context(
 	case CMD_cfdo:
 	case CMD_confirm:
 	case CMD_debug:
+	case CMD_filter:
 	case CMD_folddoclosed:
 	case CMD_folddoopen:
 	case CMD_hide:
@@ -5896,8 +5930,10 @@ uc_list(char_u *name, size_t name_len)
 	    cmd = USER_CMD_GA(gap, i);
 	    a = (long)cmd->uc_argt;
 
-	    /* Skip commands which don't match the requested prefix */
-	    if (STRNCMP(name, cmd->uc_name, name_len) != 0)
+	    /* Skip commands which don't match the requested prefix and
+	     * commands filtered out. */
+	    if (STRNCMP(name, cmd->uc_name, name_len) != 0
+		    || message_filtered(cmd->uc_name))
 		continue;
 
 	    /* Put out the title first time */
@@ -7165,7 +7201,7 @@ ex_quit(exarg_T *eap)
     /* Refuse to quit when locked or when the buffer in the last window is
      * being closed (can only happen in autocommands). */
     if (curbuf_locked() || (wp->w_buffer->b_nwindows == 1
-						  && wp->w_buffer->b_closing))
+						&& wp->w_buffer->b_locked > 0))
 	return;
 #endif
 
@@ -7247,7 +7283,7 @@ ex_quit_all(exarg_T *eap)
     apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
     /* Refuse to quit when locked or when the buffer in the last window is
      * being closed (can only happen in autocommands). */
-    if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
+    if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_locked > 0))
 	return;
 #endif
 
@@ -7575,14 +7611,7 @@ ex_stop(exarg_T *eap)
     /*
      * Disallow suspending for "rvim".
      */
-    if (!check_restricted()
-#ifdef WIN3264
-	/*
-	 * Check if external commands are allowed now.
-	 */
-	&& can_end_termcap_mode(TRUE)
-#endif
-					)
+    if (!check_restricted())
     {
 	if (!eap->forceit)
 	    autowrite_all();
@@ -7629,7 +7658,7 @@ ex_exit(exarg_T *eap)
     apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
     /* Refuse to quit when locked or when the buffer in the last window is
      * being closed (can only happen in autocommands). */
-    if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
+    if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_locked > 0))
 	return;
 #endif
 
@@ -9030,8 +9059,17 @@ do_sleep(long msec)
 		wait_now = due_time;
 	}
 #endif
+#ifdef FEAT_JOB_CHANNEL
+	if (has_any_channel() && wait_now > 100L)
+	    wait_now = 100L;
+#endif
 	ui_delay(wait_now, TRUE);
-	ui_breakcheck();
+#ifdef FEAT_JOB_CHANNEL
+	if (has_any_channel())
+	    ui_breakcheck_force(TRUE);
+	else
+#endif
+	    ui_breakcheck();
 #ifdef MESSAGE_QUEUE
 	/* Process the netbeans and clientserver messages that may have been
 	 * received in the call to ui_breakcheck() when the GUI is in use. This
@@ -9353,6 +9391,7 @@ ex_at(exarg_T *eap)
     int		prev_len = typebuf.tb_len;
 
     curwin->w_cursor.lnum = eap->line2;
+    check_cursor_col();
 
 #ifdef USE_ON_FLY_SCROLL
     dont_scroll = TRUE;		/* disallow scrolling here */

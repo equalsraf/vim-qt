@@ -1,4 +1,4 @@
-/* vim:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -1075,6 +1075,10 @@ ex_diffsplit(exarg_T *eap)
 #ifdef FEAT_GUI
     need_mouse_correct = TRUE;
 #endif
+    /* Need to compute w_fraction when no redraw happened yet. */
+    validate_cursor();
+    set_fraction(curwin);
+
     /* don't use a new tab page, each tab page has its own diffs */
     cmdmod.tab = 0;
 
@@ -1101,6 +1105,9 @@ ex_diffsplit(exarg_T *eap)
 			    curbuf,
 			    curwin->w_cursor.lnum);
 	    }
+	    /* Now that lines are folded scroll to show the cursor at the same
+	     * relative position. */
+	    scroll_to_fraction(curwin, curwin->w_height);
 	}
     }
 }
@@ -1236,10 +1243,14 @@ ex_diffoff(exarg_T *eap)
 							 : wp->w_p_fen_save;
 
 		foldUpdateAll(wp);
-		/* make sure topline is not halfway a fold */
-		changed_window_setting_win(wp);
 #endif
 	    }
+	    /* remove filler lines */
+	    wp->w_topfill = 0;
+
+	    /* make sure topline is not halfway a fold and cursor is
+	     * invalidated */
+	    changed_window_setting_win(wp);
 
 	    /* Note: 'sbo' is not restored, it's a global option. */
 	    diff_buf_adjust(wp);

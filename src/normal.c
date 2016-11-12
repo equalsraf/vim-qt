@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -1609,6 +1609,8 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
 	    oap->start = curwin->w_cursor;
 	}
 
+	/* Just in case lines were deleted that make the position invalid. */
+	check_pos(curwin->w_buffer, &oap->end);
 	oap->line_count = oap->end.lnum - oap->start.lnum + 1;
 
 #ifdef FEAT_VIRTUALEDIT
@@ -4238,6 +4240,52 @@ nv_gd(
 }
 
 /*
+ * Return TRUE if line[offset] is not inside a C-style comment or string, FALSE
+ * otherwise.
+ */
+    static int
+is_ident(char_u *line, int offset)
+{
+    int	i;
+    int	incomment = FALSE;
+    int	instring = 0;
+    int	prev = 0;
+
+    for (i = 0; i < offset && line[i] != NUL; i++)
+    {
+	if (instring != 0)
+	{
+	    if (prev != '\\' && line[i] == instring)
+		instring = 0;
+	}
+	else if ((line[i] == '"' || line[i] == '\'') && !incomment)
+	{
+	    instring = line[i];
+	}
+	else
+	{
+	    if (incomment)
+	    {
+		if (prev == '*' && line[i] == '/')
+		    incomment = FALSE;
+	    }
+	    else if (prev == '/' && line[i] == '*')
+	    {
+		incomment = TRUE;
+	    }
+	    else if (prev == '/' && line[i] == '/')
+	    {
+		return FALSE;
+	    }
+	}
+
+	prev = line[i];
+    }
+
+    return incomment == FALSE && instring == 0;
+}
+
+/*
  * Search for variable declaration of "ptr[len]".
  * When "locally" is TRUE in the current function ("gd"), otherwise in the
  * current file ("gD").
@@ -4262,6 +4310,7 @@ find_decl(
     int		retval = OK;
     int		incll;
     int		searchflags = flags_arg;
+    int		valid;
 
     if ((pat = alloc(len + 7)) == NULL)
 	return FAIL;
@@ -4299,6 +4348,7 @@ find_decl(
     clearpos(&found_pos);
     for (;;)
     {
+	valid = FALSE;
 	t = searchit(curwin, curbuf, &curwin->w_cursor, FORWARD,
 			    pat, 1L, searchflags, RE_LAST, (linenr_T)0, NULL);
 	if (curwin->w_cursor.lnum >= old_pos.lnum)
@@ -4335,9 +4385,20 @@ find_decl(
 	    continue;
 	}
 #endif
-	if (!locally)	/* global search: use first match found */
+	valid = is_ident(ml_get_curline(), curwin->w_cursor.col);
+
+	/* If the current position is not a valid identifier and a previous
+	 * match is present, favor that one instead. */
+	if (!valid && found_pos.lnum != 0)
+	{
+	    curwin->w_cursor = found_pos;
 	    break;
-	if (curwin->w_cursor.lnum >= par_pos.lnum)
+	}
+
+	/* Global search: use first valid match found */
+	if (valid && !locally)
+	    break;
+	if (valid && curwin->w_cursor.lnum >= par_pos.lnum)
 	{
 	    /* If we previously found a valid position, use it. */
 	    if (found_pos.lnum != 0)
@@ -4345,11 +4406,20 @@ find_decl(
 	    break;
 	}
 
-	/* For finding a local variable and the match is before the "{" search
-	 * to find a later match.  For K&R style function declarations this
-	 * skips the function header without types.  Remove SEARCH_START from
-	 * flags to avoid getting stuck at one position. */
-	found_pos = curwin->w_cursor;
+	/* For finding a local variable and the match is before the "{" or
+	 * inside a comment, continue searching.  For K&R style function
+	 * declarations this skips the function header without types. */
+	if (!valid)
+	{
+	    /* Braces needed due to macro expansion of clearpos. */
+	    clearpos(&found_pos);
+	}
+	else
+	{
+	    found_pos = curwin->w_cursor;
+	}
+	/* Remove SEARCH_START from flags to avoid getting stuck at one
+	 * position. */
 	searchflags &= ~SEARCH_START;
     }
 
@@ -6097,8 +6167,7 @@ nv_up(cmdarg_T *cap)
  * cap->arg is TRUE for CR and "+": Move cursor to first non-blank.
  */
     static void
-nv_down(
-    cmdarg_T	*cap)
+nv_down(cmdarg_T *cap)
 {
     if (mod_mask & MOD_MASK_SHIFT)
     {
@@ -6228,6 +6297,7 @@ nv_dollar(cmdarg_T *cap)
 nv_search(cmdarg_T *cap)
 {
     oparg_T	*oap = cap->oap;
+    pos_T	save_cursor = curwin->w_cursor;
 
     if (cap->cmdchar == '?' && cap->oap->op_type == OP_ROT13)
     {
@@ -6238,6 +6308,8 @@ nv_search(cmdarg_T *cap)
 	return;
     }
 
+    /* When using 'incsearch' the cursor may be moved to set a different search
+     * start position. */
     cap->searchbuf = getcmdline(cap->cmdchar, cap->count1, 0);
 
     if (cap->searchbuf == NULL)
@@ -6247,7 +6319,8 @@ nv_search(cmdarg_T *cap)
     }
 
     (void)normal_search(cap, cap->cmdchar, cap->searchbuf,
-						(cap->arg ? 0 : SEARCH_MARK));
+			(cap->arg || !equalpos(save_cursor, curwin->w_cursor))
+							   ? 0 : SEARCH_MARK);
 }
 
 /*

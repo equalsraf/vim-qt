@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -6097,7 +6097,7 @@ cin_isterminated(
  * When a line ends in a comma we continue looking in the next line.
  * "sp" points to a string with the line.  When looking at other lines it must
  * be restored to the line.  When it's NULL fetch lines here.
- * "lnum" is where we start looking.
+ * "first_lnum" is where we start looking.
  * "min_lnum" is the line before which we will not be looking.
  */
     static int
@@ -6108,6 +6108,7 @@ cin_isfuncdecl(
 {
     char_u	*s;
     linenr_T	lnum = first_lnum;
+    linenr_T	save_lnum = curwin->w_cursor.lnum;
     int		retval = FALSE;
     pos_T	*trypos;
     int		just_started = TRUE;
@@ -6117,15 +6118,20 @@ cin_isfuncdecl(
     else
 	s = *sp;
 
+    curwin->w_cursor.lnum = lnum;
     if (find_last_paren(s, '(', ')')
 	&& (trypos = find_match_paren(curbuf->b_ind_maxparen)) != NULL)
     {
 	lnum = trypos->lnum;
 	if (lnum < min_lnum)
+	{
+	    curwin->w_cursor.lnum = save_lnum;
 	    return FALSE;
+	}
 
 	s = ml_get(lnum);
     }
+    curwin->w_cursor.lnum = save_lnum;
 
     /* Ignore line starting with #. */
     if (cin_ispreproc(s))
@@ -6681,7 +6687,7 @@ find_start_brace(void)	    /* XXX */
     static pos_T *
 find_match_paren(int ind_maxparen)	/* XXX */
 {
- return find_match_char('(', ind_maxparen);
+    return find_match_char('(', ind_maxparen);
 }
 
     static pos_T *
@@ -9444,10 +9450,7 @@ prepare_to_exit(void)
 	 * screen (if there are two screens).
 	 */
 	settmode(TMODE_COOK);
-#ifdef WIN3264
-	if (can_end_termcap_mode(FALSE) == TRUE)
-#endif
-	    stoptermcap();
+	stoptermcap();
 	out_flush();
     }
 }
@@ -10514,18 +10517,34 @@ uniquefy_paths(garray_T *gap, char_u *pattern)
 	/* Shorten the filename while maintaining its uniqueness */
 	path_cutoff = get_path_cutoff(path, &path_ga);
 
-	/* we start at the end of the path */
-	pathsep_p = path + len - 1;
+	/* Don't assume all files can be reached without path when search
+	 * pattern starts with star star slash, so only remove path_cutoff
+	 * when possible. */
+	if (pattern[0] == '*' && pattern[1] == '*'
+		&& vim_ispathsep_nocolon(pattern[2])
+		&& path_cutoff != NULL
+		&& vim_regexec(&regmatch, path_cutoff, (colnr_T)0)
+		&& is_unique(path_cutoff, gap, i))
+	{
+	    sort_again = TRUE;
+	    mch_memmove(path, path_cutoff, STRLEN(path_cutoff) + 1);
+	}
+	else
+	{
+	    /* Here all files can be reached without path, so get shortest
+	     * unique path.  We start at the end of the path. */
+	    pathsep_p = path + len - 1;
 
-	while (find_previous_pathsep(path, &pathsep_p))
-	    if (vim_regexec(&regmatch, pathsep_p + 1, (colnr_T)0)
-		    && is_unique(pathsep_p + 1, gap, i)
-		    && path_cutoff != NULL && pathsep_p + 1 >= path_cutoff)
-	    {
-		sort_again = TRUE;
-		mch_memmove(path, pathsep_p + 1, STRLEN(pathsep_p));
-		break;
-	    }
+	    while (find_previous_pathsep(path, &pathsep_p))
+		if (vim_regexec(&regmatch, pathsep_p + 1, (colnr_T)0)
+			&& is_unique(pathsep_p + 1, gap, i)
+			&& path_cutoff != NULL && pathsep_p + 1 >= path_cutoff)
+		{
+		    sort_again = TRUE;
+		    mch_memmove(path, pathsep_p + 1, STRLEN(pathsep_p));
+		    break;
+		}
+	}
 
 	if (mch_isFullName(path))
 	{

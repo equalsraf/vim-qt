@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -210,20 +210,15 @@ Trace(char *pszFormat, ...);
 # define vim_mkdir(x, y) mch_mkdir(x)
 #endif
 
-#ifndef PROTO
-
 /* Enable common dialogs input unicode from IME if possible. */
 #ifdef FEAT_MBYTE
-    /* The variables are defined in os_win32.c. */
-extern LRESULT (WINAPI *pDispatchMessage)(CONST MSG *);
-extern BOOL (WINAPI *pGetMessage)(LPMSG, HWND, UINT, UINT);
-extern BOOL (WINAPI *pIsDialogMessage)(HWND, LPMSG);
-extern BOOL (WINAPI *pPeekMessage)(LPMSG, HWND, UINT, UINT, UINT);
+# define pDispatchMessage DispatchMessageW
+# define pGetMessage GetMessageW
+# define pIsDialogMessage IsDialogMessageW
+# define pPeekMessage PeekMessageW
 #else
 # define pDispatchMessage DispatchMessage
 # define pGetMessage GetMessage
 # define pIsDialogMessage IsDialogMessage
 # define pPeekMessage PeekMessage
 #endif
-
-#endif /* PROTO */

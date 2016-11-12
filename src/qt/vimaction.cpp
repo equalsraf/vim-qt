@@ -3,7 +3,7 @@
 /**
  * :help builtin-tools
  */
-QStringList VimAction::iconNames = QStringList() 
+QStringList VimAction::iconNames = QStringList()
 	<< "document-new"	// 00  New		open new window
 	<< "document-open"	// 01  Open		browse for file to open in current window
 	<< "document-save"	// 02  Save		write buffer to file

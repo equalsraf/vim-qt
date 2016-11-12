@@ -1,4 +1,4 @@
-/* vi:set ts=8 sts=4 sw=4:
+/* vi:set ts=8 sts=4 sw=4 noet:
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *
@@ -1240,14 +1240,13 @@ do_search(
 	{
 	    if (spats[RE_SEARCH].pat == NULL)	    /* no previous pattern */
 	    {
-		pat = spats[RE_SUBST].pat;
-		if (pat == NULL)
+		searchstr = spats[RE_SUBST].pat;
+		if (searchstr == NULL)
 		{
 		    EMSG(_(e_noprevre));
 		    retval = 0;
 		    goto end_do_search;
 		}
-		searchstr = pat;
 	    }
 	    else
 	    {
@@ -3638,6 +3637,7 @@ extend:
 	    ++curwin->w_cursor.col;
 	VIsual = start_pos;
 	VIsual_mode = 'v';
+	redraw_cmdline = TRUE;		/* show mode later */
 	redraw_curbuf_later(INVERTED);	/* update the inversion */
     }
     else
