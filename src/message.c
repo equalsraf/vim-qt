@@ -42,6 +42,9 @@ static int	confirm_msg_used = FALSE;	/* displaying confirm_msg */
 static char_u	*confirm_msg = NULL;		/* ":confirm" message */
 static char_u	*confirm_msg_tail;		/* tail of confirm_msg */
 #endif
+#ifdef FEAT_JOB_CHANNEL
+static int emsg_to_channel_log = FALSE;
+#endif
 
 struct msg_hist
 {
@@ -165,6 +168,14 @@ msg_attr_keep(
 		&& last_msg_hist->msg != NULL
 		&& STRCMP(s, last_msg_hist->msg)))
 	add_msg_hist(s, -1, attr);
+
+#ifdef FEAT_JOB_CHANNEL
+    if (emsg_to_channel_log)
+    {
+	/* Write message in the channel log. */
+	ch_logs(NULL, "ERROR: %s", (char *)s);
+    }
+#endif
 
     /* When displaying keep_msg, don't let msg_start() free it, caller must do
      * that. */
@@ -528,6 +539,31 @@ emsg_not_now(void)
     return FALSE;
 }
 
+#if defined(FEAT_EVAL) || defined(PROTO)
+static garray_T ignore_error_list = GA_EMPTY;
+
+    void
+ignore_error_for_testing(char_u *error)
+{
+    if (ignore_error_list.ga_itemsize == 0)
+	ga_init2(&ignore_error_list, sizeof(char_u *), 1);
+
+    ga_add_string(&ignore_error_list, error);
+}
+
+    static int
+ignore_error(char_u *msg)
+{
+    int i;
+
+    for (i = 0; i < ignore_error_list.ga_len; ++i)
+	if (strstr((char *)msg,
+		  (char *)((char_u **)(ignore_error_list.ga_data))[i]) != NULL)
+	    return TRUE;
+    return FALSE;
+}
+#endif
+
 #if !defined(HAVE_STRERROR) || defined(PROTO)
 /*
  * Replacement for perror() that behaves more or less like emsg() was called.
@@ -556,6 +592,7 @@ emsg(char_u *s)
 {
     int		attr;
     char_u	*p;
+    int		r;
 #ifdef FEAT_EVAL
     int		ignore = FALSE;
     int		severe;
@@ -565,9 +602,14 @@ emsg(char_u *s)
     if (emsg_not_now())
 	return TRUE;
 
+#ifdef FEAT_EVAL
+    /* When testing some errors are turned into a normal message. */
+    if (ignore_error(s))
+	/* don't call msg() if it results in a dialog */
+	return msg_use_printf() ? FALSE : msg(s);
+#endif
+
     called_emsg = TRUE;
-    if (emsg_silent == 0)
-	ex_exitval = 1;
 
     /*
      * If "emsg_severe" is TRUE: When an error exception is to be thrown,
@@ -624,8 +666,13 @@ emsg(char_u *s)
 		}
 		redir_write(s, -1);
 	    }
+#ifdef FEAT_JOB_CHANNEL
+	    ch_logs(NULL, "ERROR: %s", (char *)s);
+#endif
 	    return TRUE;
 	}
+
+	ex_exitval = 1;
 
 	/* Reset msg_silent, an error causes messages to be switched back on. */
 	msg_silent = 0;
@@ -650,6 +697,9 @@ emsg(char_u *s)
 				     * and a redraw is expected because
 				     * msg_scrolled is non-zero */
 
+#ifdef FEAT_JOB_CHANNEL
+    emsg_to_channel_log = TRUE;
+#endif
     /*
      * Display name and line number for the source of the error.
      */
@@ -659,7 +709,12 @@ emsg(char_u *s)
      * Display the error message itself.
      */
     msg_nowait = FALSE;			/* wait for this msg */
-    return msg_attr(s, attr);
+    r = msg_attr(s, attr);
+
+#ifdef FEAT_JOB_CHANNEL
+    emsg_to_channel_log = FALSE;
+#endif
+    return r;
 }
 
 

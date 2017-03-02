@@ -698,6 +698,9 @@ EXTERN char_u	*p_py3dll;	/* 'pythonthreedll' */
 #if defined(DYNAMIC_PYTHON)
 EXTERN char_u	*p_pydll;	/* 'pythondll' */
 #endif
+#if defined(FEAT_PYTHON) || defined(FEAT_PYTHON3)
+EXTERN long	p_pyx;		/* 'pyxversion' */
+#endif
 #ifdef FEAT_RELTIME
 EXTERN long	p_rdt;		/* 'redrawtime' */
 #endif
@@ -1033,6 +1036,7 @@ enum
     , BV_EP
     , BV_ET
     , BV_FENC
+    , BV_FP
 #ifdef FEAT_EVAL
     , BV_BEXPR
     , BV_FEX

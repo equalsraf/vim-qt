@@ -887,7 +887,7 @@ vim_isIDc(int c)
 
 /*
  * return TRUE if 'c' is a keyword character: Letters and characters from
- * 'iskeyword' option for current buffer.
+ * 'iskeyword' option for the current buffer.
  * For multi-byte characters mb_get_class() is used (builtin rules).
  */
     int
@@ -899,16 +899,17 @@ vim_iswordc(int c)
     int
 vim_iswordc_buf(int c, buf_T *buf)
 {
-#ifdef FEAT_MBYTE
     if (c >= 0x100)
     {
+#ifdef FEAT_MBYTE
 	if (enc_dbcs != 0)
 	    return dbcs_class((unsigned)c >> 8, (unsigned)(c & 0xff)) >= 2;
 	if (enc_utf8)
-	    return utf_class(c) >= 2;
-    }
+	    return utf_class_buf(c, buf) >= 2;
 #endif
-    return (c > 0 && c < 0x100 && GET_CHARTAB(buf, c) != 0);
+	return FALSE;
+    }
+    return (c > 0 && GET_CHARTAB(buf, c) != 0);
 }
 
 /*
@@ -917,21 +918,19 @@ vim_iswordc_buf(int c, buf_T *buf)
     int
 vim_iswordp(char_u *p)
 {
-#ifdef FEAT_MBYTE
-    if (has_mbyte && MB_BYTE2LEN(*p) > 1)
-	return mb_get_class(p) >= 2;
-#endif
-    return GET_CHARTAB(curbuf, *p) != 0;
+    return vim_iswordp_buf(p, curbuf);
 }
 
     int
 vim_iswordp_buf(char_u *p, buf_T *buf)
 {
+    int	c = *p;
+
 #ifdef FEAT_MBYTE
-    if (has_mbyte && MB_BYTE2LEN(*p) > 1)
-	return mb_get_class(p) >= 2;
+    if (has_mbyte && MB_BYTE2LEN(c) > 1)
+	c = (*mb_ptr2char)(p);
 #endif
-    return (GET_CHARTAB(buf, *p) != 0);
+    return vim_iswordc_buf(c, buf);
 }
 
 /*
@@ -1296,7 +1295,18 @@ getvcol(
     if (pos->col == MAXCOL)
 	posptr = NULL;  /* continue until the NUL */
     else
+    {
+	/* Special check for an empty line, which can happen on exit, when
+	 * ml_get_buf() always returns an empty string. */
+	if (*ptr == NUL)
+	    pos->col = 0;
 	posptr = ptr + pos->col;
+#ifdef FEAT_MBYTE
+	if (has_mbyte)
+	    /* always start on the first byte */
+	    posptr -= (*mb_head_off)(line, posptr);
+#endif
+    }
 
     /*
      * This function is used very often, do some speed optimizations.
@@ -1901,7 +1911,11 @@ vim_str2nr(
 	    n += 2;	    /* skip over "0b" */
 	while ('0' <= *ptr && *ptr <= '1')
 	{
-	    un = 2 * un + (unsigned long)(*ptr - '0');
+	    /* avoid ubsan error for overflow */
+	    if (un < UVARNUM_MAX / 2)
+		un = 2 * un + (unsigned long)(*ptr - '0');
+	    else
+		un = UVARNUM_MAX;
 	    ++ptr;
 	    if (n++ == maxlen)
 		break;
@@ -1912,7 +1926,11 @@ vim_str2nr(
 	/* octal */
 	while ('0' <= *ptr && *ptr <= '7')
 	{
-	    un = 8 * un + (uvarnumber_T)(*ptr - '0');
+	    /* avoid ubsan error for overflow */
+	    if (un < UVARNUM_MAX / 8)
+		un = 8 * un + (uvarnumber_T)(*ptr - '0');
+	    else
+		un = UVARNUM_MAX;
 	    ++ptr;
 	    if (n++ == maxlen)
 		break;
@@ -1925,7 +1943,11 @@ vim_str2nr(
 	    n += 2;	    /* skip over "0x" */
 	while (vim_isxdigit(*ptr))
 	{
-	    un = 16 * un + (uvarnumber_T)hex2nr(*ptr);
+	    /* avoid ubsan error for overflow */
+	    if (un < UVARNUM_MAX / 16)
+		un = 16 * un + (uvarnumber_T)hex2nr(*ptr);
+	    else
+		un = UVARNUM_MAX;
 	    ++ptr;
 	    if (n++ == maxlen)
 		break;
@@ -1936,7 +1958,11 @@ vim_str2nr(
 	/* decimal */
 	while (VIM_ISDIGIT(*ptr))
 	{
-	    un = 10 * un + (uvarnumber_T)(*ptr - '0');
+	    /* avoid ubsan error for overflow */
+	    if (un < UVARNUM_MAX / 10)
+		un = 10 * un + (uvarnumber_T)(*ptr - '0');
+	    else
+		un = UVARNUM_MAX;
 	    ++ptr;
 	    if (n++ == maxlen)
 		break;
@@ -1950,9 +1976,19 @@ vim_str2nr(
     if (nptr != NULL)
     {
 	if (negative)   /* account for leading '-' for decimal numbers */
-	    *nptr = -(varnumber_T)un;
+	{
+	    /* avoid ubsan error for overflow */
+	    if (un > VARNUM_MAX)
+		*nptr = VARNUM_MIN;
+	    else
+		*nptr = -(varnumber_T)un;
+	}
 	else
+	{
+	    if (un > VARNUM_MAX)
+		un = VARNUM_MAX;
 	    *nptr = (varnumber_T)un;
+	}
     }
     if (unptr != NULL)
 	*unptr = un;

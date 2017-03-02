@@ -210,7 +210,7 @@ filemess(
  * READ_KEEP_UNDO  don't clear undo info or read it from a file
  * READ_FIFO	read from fifo/socket instead of a file
  *
- * return FAIL for failure, OK otherwise
+ * return FAIL for failure, NOTDONE for directory (failure), or OK
  */
     int
 readfile(
@@ -274,9 +274,9 @@ readfile(
     int		msg_save = msg_scroll;
     linenr_T	read_no_eol_lnum = 0;   /* non-zero lnum when last line of
 					 * last read was missing the eol */
-    int		try_mac = (vim_strchr(p_ffs, 'm') != NULL);
-    int		try_dos = (vim_strchr(p_ffs, 'd') != NULL);
-    int		try_unix = (vim_strchr(p_ffs, 'x') != NULL);
+    int		try_mac;
+    int		try_dos;
+    int		try_unix;
     int		file_rewind = FALSE;
 #ifdef FEAT_MBYTE
     int		can_retry;
@@ -450,13 +450,18 @@ readfile(
 # endif
 						)
 	{
+	    int retval = FAIL;
+
 	    if (S_ISDIR(perm))
+	    {
 		filemess(curbuf, fname, (char_u *)_("is a directory"), 0);
+		retval = NOTDONE;
+	    }
 	    else
 		filemess(curbuf, fname, (char_u *)_("is not a file"), 0);
 	    msg_end();
 	    msg_scroll = msg_save;
-	    return FAIL;
+	    return retval;
 	}
 #endif
 #if defined(MSWIN)
@@ -733,6 +738,10 @@ readfile(
     curbuf->b_op_start.lnum = ((from == 0) ? 1 : from);
     curbuf->b_op_start.col = 0;
 
+    try_mac = (vim_strchr(p_ffs, 'm') != NULL);
+    try_dos = (vim_strchr(p_ffs, 'd') != NULL);
+    try_unix = (vim_strchr(p_ffs, 'x') != NULL);
+
 #ifdef FEAT_AUTOCMD
     if (!read_buffer)
     {
@@ -764,6 +773,11 @@ readfile(
 	else
 	    apply_autocmds_exarg(EVENT_FILEREADPRE, sfname, sfname,
 							    FALSE, NULL, eap);
+	/* autocommands may have changed it */
+	try_mac = (vim_strchr(p_ffs, 'm') != NULL);
+	try_dos = (vim_strchr(p_ffs, 'd') != NULL);
+	try_unix = (vim_strchr(p_ffs, 'x') != NULL);
+
 	if (msg_scrolled == n)
 	    msg_scroll = m;
 
@@ -2237,8 +2251,9 @@ rewind_retry:
 			len = (colnr_T)(ptr - line_start + 1);
 			if (fileformat == EOL_DOS)
 			{
-			    if (ptr[-1] == CAR)	/* remove CR */
+			    if (ptr > line_start && ptr[-1] == CAR)
 			    {
+				/* remove CR before NL */
 				ptr[-1] = NUL;
 				--len;
 			    }
@@ -4909,11 +4924,11 @@ restore_backup:
     {
 	unchanged(buf, TRUE);
 #ifdef FEAT_AUTOCMD
-	/* buf->b_changedtick is always incremented in unchanged() but that
+	/* b:changedtick is always incremented in unchanged() but that
 	 * should not trigger a TextChanged event. */
-	if (last_changedtick + 1 == buf->b_changedtick
+	if (last_changedtick + 1 == CHANGEDTICK(buf)
 					       && last_changedtick_buf == buf)
-	    last_changedtick = buf->b_changedtick;
+	    last_changedtick = CHANGEDTICK(buf);
 #endif
 	u_unchanged(buf);
 	u_update_save_nr(buf);
@@ -7137,7 +7152,7 @@ buf_reload(buf_T *buf, int orig_mode)
 #endif
 	    if (readfile(buf->b_ffname, buf->b_fname, (linenr_T)0,
 			(linenr_T)0,
-			(linenr_T)MAXLNUM, &ea, flags) == FAIL)
+			(linenr_T)MAXLNUM, &ea, flags) != OK)
 	    {
 #if defined(FEAT_AUTOCMD) && defined(FEAT_EVAL)
 		if (!aborting())

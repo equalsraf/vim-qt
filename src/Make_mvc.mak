@@ -285,8 +285,10 @@ MSVCRT_VER = ($(MSVCVER) / 10 - 50)
 # Base name of the msvcrXX.dll
 !if $(MSVCRT_VER) <= 60
 MSVCRT_NAME = msvcrt
-!else
+!elseif $(MSVCRT_VER) <= 130
 MSVCRT_NAME = msvcr$(MSVCRT_VER)
+!else
+MSVCRT_NAME = vcruntime$(MSVCRT_VER)
 !endif
 
 !if $(MSVC_MAJOR) == 6
@@ -296,6 +298,9 @@ CPU = ix86
 
 # Flag to turn on Win64 compatibility warnings for VC7.x and VC8.
 WP64CHECK = /Wp64
+
+# Use multiprocess build
+USE_MP = yes
 
 #>>>>> path of the compiler and linker; name of include and lib directories
 # PATH = c:\msvc20\bin;$(PATH)
@@ -472,6 +477,14 @@ NODEFAULTLIB =
 !else
 NODEFAULTLIB = /nodefaultlib
 !endif
+
+# Use multiprocess build on MSVC 10
+!if "$(USE_MP)"=="yes"
+!if $(MSVC_MAJOR) >= 10
+CFLAGS = $(CFLAGS) /MP
+!endif
+!endif
+
 
 !ifdef NODEBUG
 VIM = vim
@@ -1108,9 +1121,6 @@ clean:
 	cd ..
 	cd tee
 	$(MAKE) /NOLOGO -f Make_mvc.mak clean
-	cd ..
-	cd GvimExt
-	$(MAKE) /NOLOGO -f Makefile clean
 	cd ..
 	cd GvimExt
 	$(MAKE) /NOLOGO -f Makefile clean

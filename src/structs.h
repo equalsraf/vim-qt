@@ -1133,25 +1133,43 @@ typedef long_u hash_T;		/* Type for hi_hash */
 #  ifdef PROTO
 typedef long		    varnumber_T;
 typedef unsigned long	    uvarnumber_T;
+#define VARNUM_MIN	    LONG_MIN
+#define VARNUM_MAX	    LONG_MAX
+#define UVARNUM_MAX	    ULONG_MAX
 #  else
 typedef __int64		    varnumber_T;
 typedef unsigned __int64    uvarnumber_T;
+#define VARNUM_MIN	    _I64_MIN
+#define VARNUM_MAX	    _I64_MAX
+#define UVARNUM_MAX	    _UI64_MAX
 #  endif
 # elif defined(HAVE_STDINT_H)
 typedef int64_t		    varnumber_T;
 typedef uint64_t	    uvarnumber_T;
+#define VARNUM_MIN	    INT64_MIN
+#define VARNUM_MAX	    INT64_MAX
+#define UVARNUM_MAX	    UINT64_MAX
 # else
 typedef long		    varnumber_T;
 typedef unsigned long	    uvarnumber_T;
+#define VARNUM_MIN	    LONG_MIN
+#define VARNUM_MAX	    LONG_MAX
+#define UVARNUM_MAX	    ULONG_MAX
 # endif
 #else
 /* Use 32-bit Number. */
 # if VIM_SIZEOF_INT <= 3	/* use long if int is smaller than 32 bits */
 typedef long		    varnumber_T;
 typedef unsigned long	    uvarnumber_T;
+#define VARNUM_MIN	    LONG_MIN
+#define VARNUM_MAX	    LONG_MAX
+#define UVARNUM_MAX	    ULONG_MAX
 # else
 typedef int		    varnumber_T;
 typedef unsigned int	    uvarnumber_T;
+#define VARNUM_MIN	    INT_MIN
+#define VARNUM_MAX	    INT_MAX
+#define UVARNUM_MAX	    UINT_MAX
 # endif
 #endif
 
@@ -1319,6 +1337,7 @@ typedef struct
     int		uf_varargs;	/* variable nr of arguments */
     int		uf_flags;
     int		uf_calls;	/* nr of active calls */
+    int		uf_cleared;	/* func_clear() was already called */
     garray_T	uf_args;	/* arguments */
     garray_T	uf_lines;	/* function lines */
 #ifdef FEAT_PROFILE
@@ -1421,11 +1440,13 @@ struct partial_S
     dict_T	*pt_dict;	/* dict for "self" */
 };
 
+/* Status of a job.  Order matters! */
 typedef enum
 {
     JOB_FAILED,
     JOB_STARTED,
-    JOB_ENDED
+    JOB_ENDED,	    /* detected job done */
+    JOB_FINISHED    /* job done and cleanup done */
 } jobstatus_T;
 
 /*
@@ -1472,6 +1493,7 @@ struct jsonq_S
     typval_T	*jq_value;
     jsonq_T	*jq_next;
     jsonq_T	*jq_prev;
+    int		jq_no_callback; /* TRUE when no callback was found */
 };
 
 struct cbq_S
@@ -1541,9 +1563,11 @@ typedef struct {
     jsonq_T	ch_json_head;	/* header for circular json read queue */
     int		ch_block_id;	/* ID that channel_read_json_block() is
 				   waiting for */
-    /* When ch_waiting is TRUE use ch_deadline to wait for incomplete message
-     * to be complete. */
-    int		ch_waiting;
+    /* When ch_wait_len is non-zero use ch_deadline to wait for incomplete
+     * message to be complete. The value is the length of the incomplete
+     * message when the deadline was set.  If it gets longer (something was
+     * received) the deadline is reset. */
+    size_t	ch_wait_len;
 #ifdef WIN32
     DWORD	ch_deadline;
 #else
@@ -1595,6 +1619,7 @@ struct channel_S {
     partial_T	*ch_partial;
     char_u	*ch_close_cb;	/* call when channel is closed */
     partial_T	*ch_close_partial;
+    int		ch_drop_never;
 
     job_T	*ch_job;	/* Job that uses this channel; this does not
 				 * count as a reference to avoid a circular
@@ -1682,6 +1707,7 @@ typedef struct
     partial_T	*jo_close_partial; /* not referenced! */
     char_u	*jo_exit_cb;	/* not allocated! */
     partial_T	*jo_exit_partial; /* not referenced! */
+    int		jo_drop_never;
     int		jo_waittime;
     int		jo_timeout;
     int		jo_out_timeout;
@@ -1890,7 +1916,10 @@ struct file_buffer
 
     int		b_changed;	/* 'modified': Set to TRUE if something in the
 				   file has been changed and not written out. */
-    int		b_changedtick;	/* incremented for each change, also for undo */
+    dictitem16_T b_ct_di;	/* holds the b:changedtick value in
+				   b_ct_di.di_tv.vval.v_number;
+				   incremented for each change, also for undo */
+#define CHANGEDTICK(buf) ((buf)->b_ct_di.di_tv.vval.v_number)
 
     int		b_saving;	/* Set to TRUE if we are in the middle of
 				   saving the buffer. */
@@ -2092,6 +2121,7 @@ struct file_buffer
     long_u	b_p_inde_flags;	/* flags for 'indentexpr' */
     char_u	*b_p_indk;	/* 'indentkeys' */
 #endif
+    char_u	*b_p_fp;	/* 'formatprg' */
 #if defined(FEAT_EVAL)
     char_u	*b_p_fex;	/* 'formatexpr' */
     long_u	b_p_fex_flags;	/* flags for 'formatexpr' */
@@ -3231,8 +3261,8 @@ typedef struct
 #endif
 
     int		want_full_screen;
-    int		stdout_isatty;		/* is stdout a terminal? */
     int		not_a_term;		/* no warning for missing term? */
+    int		tty_fail;		/* exit if not a tty */
     char_u	*term;			/* specified terminal name */
 #ifdef FEAT_CRYPT
     int		ask_for_key;		/* -x argument */

@@ -50,7 +50,7 @@ enum
     NFA_CONCAT,			    /* concatenate two previous items (postfix
 				     * only) */
     NFA_OR,			    /* \| (postfix only) */
-    NFA_STAR,			    /* greedy * (posfix only) */
+    NFA_STAR,			    /* greedy * (postfix only) */
     NFA_STAR_NONGREEDY,		    /* non-greedy * (postfix only) */
     NFA_QUEST,			    /* greedy \? (postfix only) */
     NFA_QUEST_NONGREEDY,	    /* non-greedy \? (postfix only) */
@@ -1359,7 +1359,7 @@ nfa_regatom(void)
 		    rc_did_emsg = TRUE;
 		    return FAIL;
 		}
-		EMSGN("INTERNAL: Unknown character class char: %ld", c);
+		IEMSGN("INTERNAL: Unknown character class char: %ld", c);
 		return FAIL;
 	    }
 #ifdef FEAT_MBYTE
@@ -2169,7 +2169,7 @@ nfa_regpiece(void)
 	     * maximum is much larger than the minimum and when the maximum is
 	     * large.  Bail out if we can use the other engine. */
 	    if ((nfa_re_flags & RE_AUTO)
-				   && (maxval > minval + 200 || maxval > 500))
+				   && (maxval > 500 || maxval > minval + 200))
 		return FAIL;
 
 	    /* Ignore previous call to nfa_regatom() */
@@ -4925,7 +4925,7 @@ check_char_class(int class, int c)
 
 	default:
 	    /* should not be here :P */
-	    EMSGN(_(e_ill_char_class), class);
+	    IEMSGN(_(e_ill_char_class), class);
 	    return FAIL;
     }
     return FAIL;
@@ -6688,7 +6688,7 @@ nfa_regmatch(
 
 #ifdef DEBUG
 		if (c < 0)
-		    EMSGN("INTERNAL: Negative state char: %ld", c);
+		    IEMSGN("INTERNAL: Negative state char: %ld", c);
 #endif
 		result = (c == curc);
 
@@ -7216,7 +7216,7 @@ nfa_regcomp(char_u *expr, int re_flags)
     {
 	/* TODO: only give this error for debugging? */
 	if (post_ptr >= post_end)
-	    EMSGN("Internal error: estimated max number of states insufficient: %ld", post_end - post_start);
+	    IEMSGN("Internal error: estimated max number of states insufficient: %ld", post_end - post_start);
 	goto fail;	    /* Cascaded (syntax?) error */
     }
 

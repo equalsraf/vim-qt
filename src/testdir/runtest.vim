@@ -88,8 +88,20 @@ endfunc
 
 function RunTheTest(test)
   echo 'Executing ' . a:test
+
+  " Avoid stopping at the "hit enter" prompt
+  set nomore
+
+  " Avoid a three second wait when a message is about to be overwritten by the
+  " mode message.
+  set noshowmode
+
   if exists("*SetUp")
-    call SetUp()
+    try
+      call SetUp()
+    catch
+      call add(v:errors, 'Caught exception in SetUp() before ' . a:test . ': ' . v:exception . ' @ ' . v:throwpoint)
+    endtry
   endif
 
   call add(s:messages, 'Executing ' . a:test)
@@ -104,7 +116,11 @@ function RunTheTest(test)
   endtry
 
   if exists("*TearDown")
-    call TearDown()
+    try
+      call TearDown()
+    catch
+      call add(v:errors, 'Caught exception in TearDown() after ' . a:test . ': ' . v:exception . ' @ ' . v:throwpoint)
+    endtry
   endif
 
   " Close any extra windows and make the current one not modified.
@@ -131,7 +147,7 @@ let s:fail = 0
 let s:errors = []
 let s:messages = []
 let s:skipped = []
-if expand('%') =~ 'test_viml.vim'
+if expand('%') =~ 'test_vimscript.vim'
   " this test has intentional s:errors, don't use try/catch.
   source %
 else
@@ -145,15 +161,17 @@ endif
 
 " Names of flaky tests.
 let s:flaky = [
-      \ 'Test_reltime()',
-      \ 'Test_nb_basic()',
+      \ 'Test_close_and_exit_cb()',
+      \ 'Test_collapse_buffers()',
       \ 'Test_communicate()',
+      \ 'Test_nb_basic()',
+      \ 'Test_oneshot()',
       \ 'Test_pipe_through_sort_all()',
-      \ 'Test_pipe_through_sort_some()'
+      \ 'Test_pipe_through_sort_some()',
+      \ 'Test_reltime()',
       \ ]
 
 " Locate Test_ functions and execute them.
-set nomore
 redir @q
 silent function /^Test_
 redir END
@@ -221,3 +239,5 @@ call append(line('$'), s:messages)
 write
 
 qall!
+
+" vim: shiftwidth=2 sts=2 expandtab

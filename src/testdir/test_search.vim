@@ -279,3 +279,25 @@ func Test_use_sub_pat()
   call X()
   bwipe!
 endfunc
+
+func Test_searchpair()
+  new
+  call setline(1, ['other code here', '', '[', '" cursor here', ']'])
+  4
+  let a=searchpair('\[','',']','bW')
+  call assert_equal(3, a)
+  set nomagic
+  4
+  let a=searchpair('\[','',']','bW')
+  call assert_equal(3, a)
+  set magic
+  q!
+endfunc
+
+func Test_searchc()
+  " These commands used to cause memory overflow in searchc().
+  new
+  norm ixx
+  exe "norm 0t\u93cf"
+  bw!
+endfunc

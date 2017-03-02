@@ -40,7 +40,7 @@
 #  include <dlgs.h>
 #  include <winspool.h>
 #  include <commdlg.h>
-#endif
+# endif
 
 #endif /* PROTO */
 
@@ -201,6 +201,8 @@ int _stricoll(char *a, char *b)
     void
 mch_exit(int r)
 {
+    exiting = TRUE;
+
     display_errors();
 
     ml_close_all(TRUE);		/* remove all memfiles */
@@ -306,10 +308,8 @@ mch_settitle(
  *  2: Just restore icon (which we don't have)
  *  3: Restore title and icon (which we don't have)
  */
-/*ARGSUSED*/
     void
-mch_restore_title(
-    int which)
+mch_restore_title(int which UNUSED)
 {
 #ifndef FEAT_GUI_MSWIN
     SetConsoleTitle(g_szOrigTitle);
@@ -345,13 +345,12 @@ mch_can_restore_icon(void)
  * When 'shellslash' set do it the other way around.
  * Return OK or FAIL.
  */
-/*ARGSUSED*/
     int
 mch_FullName(
     char_u	*fname,
     char_u	*buf,
     int		len,
-    int		force)
+    int		force UNUSED)
 {
     int		nResult = FAIL;
 
@@ -636,9 +635,8 @@ vim_stat(const char *name, stat_T *stp)
 }
 
 #if defined(FEAT_GUI_MSWIN) || defined(PROTO)
-/*ARGSUSED*/
     void
-mch_settmode(int tmode)
+mch_settmode(int tmode UNUSED)
 {
     /* nothing to do */
 }
@@ -817,10 +815,8 @@ mch_char_avail(void)
 /*
  * set screen mode, always fails.
  */
-/*ARGSUSED*/
     int
-mch_screenmode(
-    char_u *arg)
+mch_screenmode(char_u *arg UNUSED)
 {
     EMSG(_(e_screenmode));
     return FAIL;
@@ -996,10 +992,8 @@ mch_libcall(
 /*
  * Debugging helper: expose the MCH_WRITE_DUMP stuff to other modules
  */
-/*ARGSUSED*/
     void
-DumpPutS(
-    const char *psz)
+DumpPutS(const char *psz UNUSED)
 {
 # ifdef MCH_WRITE_DUMP
     if (fdDump)
@@ -1173,9 +1167,12 @@ swap_me(COLORREF colorref)
 # define PDP_RETVAL INT_PTR
 #endif
 
-/*ARGSUSED*/
     static PDP_RETVAL CALLBACK
-PrintDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+PrintDlgProc(
+	HWND hDlg,
+	UINT message,
+	WPARAM wParam UNUSED,
+	LPARAM lParam UNUSED)
 {
 #ifdef FEAT_GETTEXT
     NONCLIENTMETRICS nm;
@@ -1236,9 +1233,8 @@ PrintDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return FALSE;
 }
 
-/*ARGSUSED*/
     static BOOL CALLBACK
-AbortProc(HDC hdcPrn, int iCode)
+AbortProc(HDC hdcPrn UNUSED, int iCode UNUSED)
 {
     MSG msg;
 
@@ -1619,7 +1615,9 @@ mch_print_init(prt_settings_T *psettings, char_u *jobname, int forceit)
 
 	if (psettings->n_uncollated_copies == 0)
 	    psettings->n_uncollated_copies = 1;
-    } else {
+    }
+    else
+    {
 	psettings->n_collated_copies = 1;
 	psettings->n_uncollated_copies = 1;
     }
@@ -1681,9 +1679,8 @@ mch_print_begin(prt_settings_T *psettings)
     return (ret > 0);
 }
 
-/*ARGSUSED*/
     void
-mch_print_end(prt_settings_T *psettings)
+mch_print_end(prt_settings_T *psettings UNUSED)
 {
     EndDoc(prt_dlg.hDC);
     if (!*bUserAbort)
@@ -2762,12 +2759,11 @@ points_to_pixels(char_u *str, char_u **end, int vertical, long_i pprinter_dc)
     return pixels;
 }
 
-/*ARGSUSED*/
     static int CALLBACK
 font_enumproc(
     ENUMLOGFONT	    *elf,
-    NEWTEXTMETRIC   *ntm,
-    int		    type,
+    NEWTEXTMETRIC   *ntm UNUSED,
+    int		    type UNUSED,
     LPARAM	    lparam)
 {
     /* Return value:

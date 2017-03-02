@@ -777,101 +777,7 @@ update_screen(int type)
 #endif
 }
 
-#if defined(FEAT_CONCEAL) || defined(PROTO)
-/*
- * Return TRUE if the cursor line in window "wp" may be concealed, according
- * to the 'concealcursor' option.
- */
-    int
-conceal_cursor_line(win_T *wp)
-{
-    int		c;
-
-    if (*wp->w_p_cocu == NUL)
-	return FALSE;
-    if (get_real_state() & VISUAL)
-	c = 'v';
-    else if (State & INSERT)
-	c = 'i';
-    else if (State & NORMAL)
-	c = 'n';
-    else if (State & CMDLINE)
-	c = 'c';
-    else
-	return FALSE;
-    return vim_strchr(wp->w_p_cocu, c) != NULL;
-}
-
-/*
- * Check if the cursor line needs to be redrawn because of 'concealcursor'.
- */
-    void
-conceal_check_cursur_line(void)
-{
-    if (curwin->w_p_cole > 0 && conceal_cursor_line(curwin))
-    {
-	need_cursor_line_redraw = TRUE;
-	/* Need to recompute cursor column, e.g., when starting Visual mode
-	 * without concealing. */
-	curs_columns(TRUE);
-    }
-}
-
-    void
-update_single_line(win_T *wp, linenr_T lnum)
-{
-    int		row;
-    int		j;
-
-    /* Don't do anything if the screen structures are (not yet) valid. */
-    if (!screen_valid(TRUE))
-	return;
-
-    if (lnum >= wp->w_topline && lnum < wp->w_botline
-				 && foldedCount(wp, lnum, &win_foldinfo) == 0)
-    {
-# ifdef FEAT_GUI
-	/* Remove the cursor before starting to do anything, because scrolling
-	 * may make it difficult to redraw the text under it. */
-	if (gui.in_use)
-	    gui_undraw_cursor();
-# endif
-	row = 0;
-	for (j = 0; j < wp->w_lines_valid; ++j)
-	{
-	    if (lnum == wp->w_lines[j].wl_lnum)
-	    {
-		screen_start();	/* not sure of screen cursor */
-# ifdef FEAT_SEARCH_EXTRA
-		init_search_hl(wp);
-		start_search_hl();
-		prepare_search_hl(wp, lnum);
-# endif
-		win_line(wp, lnum, row, row + wp->w_lines[j].wl_size, FALSE);
-# if defined(FEAT_SEARCH_EXTRA)
-		end_search_hl();
-# endif
-		break;
-	    }
-	    row += wp->w_lines[j].wl_size;
-	}
-# ifdef FEAT_GUI
-	/* Redraw the cursor */
-	if (gui.in_use)
-	{
-	    out_flush();	/* required before updating the cursor */
-	    gui_update_cursor(FALSE, FALSE);
-	}
-# endif
-    }
-    need_cursor_line_redraw = FALSE;
-}
-#endif
-
-#if defined(FEAT_SIGNS) || defined(FEAT_GUI)
-static void update_prepare(void);
-static void update_finish(void);
-
+#if defined(FEAT_SIGNS) || defined(FEAT_GUI) || defined(FEAT_CONCEAL)
 /*
  * Prepare for updating one or more windows.
  * Caller must check for "updating_screen" already set to avoid recursiveness.
@@ -919,6 +825,87 @@ update_finish(void)
 	gui_update_scrollbars(FALSE);
     }
 # endif
+}
+#endif
+
+#if defined(FEAT_CONCEAL) || defined(PROTO)
+/*
+ * Return TRUE if the cursor line in window "wp" may be concealed, according
+ * to the 'concealcursor' option.
+ */
+    int
+conceal_cursor_line(win_T *wp)
+{
+    int		c;
+
+    if (*wp->w_p_cocu == NUL)
+	return FALSE;
+    if (get_real_state() & VISUAL)
+	c = 'v';
+    else if (State & INSERT)
+	c = 'i';
+    else if (State & NORMAL)
+	c = 'n';
+    else if (State & CMDLINE)
+	c = 'c';
+    else
+	return FALSE;
+    return vim_strchr(wp->w_p_cocu, c) != NULL;
+}
+
+/*
+ * Check if the cursor line needs to be redrawn because of 'concealcursor'.
+ */
+    void
+conceal_check_cursur_line(void)
+{
+    if (curwin->w_p_cole > 0 && conceal_cursor_line(curwin))
+    {
+	need_cursor_line_redraw = TRUE;
+	/* Need to recompute cursor column, e.g., when starting Visual mode
+	 * without concealing. */
+	curs_columns(TRUE);
+    }
+}
+
+    void
+update_single_line(win_T *wp, linenr_T lnum)
+{
+    int		row;
+    int		j;
+
+    /* Don't do anything if the screen structures are (not yet) valid. */
+    if (!screen_valid(TRUE) || updating_screen)
+	return;
+
+    if (lnum >= wp->w_topline && lnum < wp->w_botline
+				 && foldedCount(wp, lnum, &win_foldinfo) == 0)
+    {
+	update_prepare();
+
+	row = 0;
+	for (j = 0; j < wp->w_lines_valid; ++j)
+	{
+	    if (lnum == wp->w_lines[j].wl_lnum)
+	    {
+		screen_start();	/* not sure of screen cursor */
+# ifdef FEAT_SEARCH_EXTRA
+		init_search_hl(wp);
+		start_search_hl();
+		prepare_search_hl(wp, lnum);
+# endif
+		win_line(wp, lnum, row, row + wp->w_lines[j].wl_size, FALSE);
+# if defined(FEAT_SEARCH_EXTRA)
+		end_search_hl();
+# endif
+		break;
+	    }
+	    row += wp->w_lines[j].wl_size;
+	}
+
+	update_finish();
+    }
+    need_cursor_line_redraw = FALSE;
 }
 #endif
 
@@ -2916,7 +2903,7 @@ win_line(
     int		endrow,
     int		nochange UNUSED)	/* not updating for changed text */
 {
-    int		col;			/* visual column on screen */
+    int		col = 0;		/* visual column on screen */
     unsigned	off;			/* offset in ScreenLines/ScreenAttrs */
     int		c = 0;			/* init for GCC */
     long	vcol = 0;		/* virtual column (for tabs) */
@@ -3010,7 +2997,8 @@ win_line(
 #endif
     colnr_T	trailcol = MAXCOL;	/* start of trailing spaces */
 #ifdef FEAT_LINEBREAK
-    int		need_showbreak = FALSE;
+    int		need_showbreak = FALSE; /* overlong line, skipping first x
+					   chars */
 #endif
 #if defined(FEAT_SIGNS) || (defined(FEAT_QUICKFIX) && defined(FEAT_WINDOWS)) \
 	|| defined(FEAT_SYN_HL) || defined(FEAT_DIFF)
@@ -3441,7 +3429,14 @@ win_line(
 #else
 	    --ptr;
 #endif
-	    n_skip = v - vcol;
+	    /* If the character fits on the screen, don't need to skip it.
+	     * Except for a TAB. */
+	    if ((
+#ifdef FEAT_MBYTE
+			(*mb_ptr2cells)(ptr) >= c ||
+#endif
+		       *ptr == TAB) && col == 0)
+	       n_skip = v - vcol;
 	}
 
 	/*
@@ -3648,13 +3643,20 @@ win_line(
 		draw_state = WL_FOLD;
 		if (fdc > 0)
 		{
-		    /* Draw the 'foldcolumn'. */
-		    fill_foldcolumn(extra, wp, FALSE, lnum);
-		    n_extra = fdc;
-		    p_extra = extra;
-		    p_extra[n_extra] = NUL;
-		    c_extra = NUL;
-		    char_attr = hl_attr(HLF_FC);
+		    /* Draw the 'foldcolumn'.  Allocate a buffer, "extra" may
+		     * already be in use. */
+		    vim_free(p_extra_free);
+		    p_extra_free = alloc(12 + 1);
+
+		    if (p_extra_free != NULL)
+		    {
+			fill_foldcolumn(p_extra_free, wp, FALSE, lnum);
+			n_extra = fdc;
+			p_extra_free[n_extra] = NUL;
+			p_extra = p_extra_free;
+			c_extra = NUL;
+			char_attr = hl_attr(HLF_FC);
+		    }
 		}
 	    }
 #endif
@@ -3793,13 +3795,15 @@ win_line(
 	    if (draw_state == WL_BRI - 1 && n_extra == 0)
 	    {
 		draw_state = WL_BRI;
-		if (wp->w_p_bri && n_extra == 0 && row != startrow
+		/* if need_showbreak is set, breakindent also applies */
+		if (wp->w_p_bri && n_extra == 0
+					 && (row != startrow || need_showbreak)
 # ifdef FEAT_DIFF
 			&& filler_lines == 0
 # endif
 		   )
 		{
-		    char_attr = 0; /* was: hl_attr(HLF_AT); */
+		    char_attr = 0;
 # ifdef FEAT_DIFF
 		    if (diff_hlf != (hlf_T)0)
 		    {
@@ -4188,6 +4192,10 @@ win_line(
 	}
 	else
 	{
+#ifdef FEAT_LINEBREAK
+	    int c0;
+#endif
+
 	    if (p_extra_free != NULL)
 	    {
 		vim_free(p_extra_free);
@@ -4197,6 +4205,9 @@ win_line(
 	     * Get a character from the line itself.
 	     */
 	    c = *ptr;
+#ifdef FEAT_LINEBREAK
+	    c0 = *ptr;
+#endif
 #ifdef FEAT_MBYTE
 	    if (has_mbyte)
 	    {
@@ -4213,7 +4224,12 @@ win_line(
 			/* Overlong encoded ASCII or ASCII with composing char
 			 * is displayed normally, except a NUL. */
 			if (mb_c < 0x80)
+			{
 			    c = mb_c;
+# ifdef FEAT_LINEBREAK
+			    c0 = mb_c;
+# endif
+			}
 			mb_utf8 = TRUE;
 
 			/* At start of the line we can have a composing char.
@@ -4537,7 +4553,8 @@ win_line(
 		/*
 		 * Found last space before word: check for line break.
 		 */
-		if (wp->w_p_lbr && vim_isbreak(c) && !vim_isbreak(*ptr))
+		if (wp->w_p_lbr && c0 == c
+				      && vim_isbreak(c) && !vim_isbreak(*ptr))
 		{
 # ifdef FEAT_MBYTE
 		    int mb_off = has_mbyte ? (*mb_head_off)(line, ptr - 1) : 0;
@@ -4686,6 +4703,7 @@ win_line(
 			p = alloc((unsigned)(len + 1));
 			vim_memset(p, ' ', len);
 			p[len] = NUL;
+			vim_free(p_extra_free);
 			p_extra_free = p;
 			for (i = 0; i < tab_len; i++)
 			{
@@ -4848,6 +4866,7 @@ win_line(
 			vim_memset(p, ' ', n_extra);
 			STRNCPY(p, p_extra + 1, STRLEN(p_extra) - 1);
 			p[n_extra] = NUL;
+			vim_free(p_extra_free);
 			p_extra_free = p_extra = p;
 		    }
 		    else
@@ -5775,6 +5794,7 @@ win_line(
     }
 #endif
 
+    vim_free(p_extra_free);
     return row;
 }
 
@@ -6726,7 +6746,7 @@ win_redr_status(win_T *wp)
 	if (wp->w_buffer->b_p_ro)
 	{
 	    STRCPY(p + len, _("[RO]"));
-	    len += 4;
+	    len += (int)STRLEN(p + len);
 	}
 
 	this_ru_col = ru_col - (Columns - W_WIDTH(wp));
@@ -10335,6 +10355,8 @@ draw_tabline(void)
 #endif
 					    );
 
+    if (ScreenLines == NULL)
+	return;
     redraw_tabline = FALSE;
 
 #ifdef FEAT_GUI_TABLINE

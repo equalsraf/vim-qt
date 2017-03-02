@@ -558,13 +558,12 @@ gui_mch_set_blinking(long wait, long on, long off)
     blink_offtime = off;
 }
 
-/* ARGSUSED */
     static VOID CALLBACK
 _OnBlinkTimer(
     HWND hwnd,
-    UINT uMsg,
+    UINT uMsg UNUSED,
     UINT idEvent,
-    DWORD dwTime)
+    DWORD dwTime UNUSED)
 {
     MSG msg;
 
@@ -590,7 +589,7 @@ _OnBlinkTimer(
 	gui_update_cursor(TRUE, FALSE);
 	blink_state = BLINK_ON;
 	blink_timer = (UINT) SetTimer(NULL, 0, (UINT)blink_ontime,
-							 (TIMERPROC)_OnBlinkTimer);
+						    (TIMERPROC)_OnBlinkTimer);
     }
 }
 
@@ -644,13 +643,12 @@ gui_mch_start_blink(void)
  * Call-back routines.
  */
 
-/*ARGSUSED*/
     static VOID CALLBACK
 _OnTimer(
     HWND hwnd,
-    UINT uMsg,
+    UINT uMsg UNUSED,
     UINT idEvent,
-    DWORD dwTime)
+    DWORD dwTime UNUSED)
 {
     MSG msg;
 
@@ -667,12 +665,11 @@ _OnTimer(
 	s_wait_timer = 0;
 }
 
-/*ARGSUSED*/
     static void
 _OnDeadChar(
-    HWND hwnd,
-    UINT ch,
-    int cRepeat)
+    HWND hwnd UNUSED,
+    UINT ch UNUSED,
+    int cRepeat UNUSED)
 {
     dead_key = 1;
 }
@@ -752,12 +749,11 @@ char_to_string(int ch, char_u *string, int slen, int had_alt)
 /*
  * Key hit, add it to the input buffer.
  */
-/*ARGSUSED*/
     static void
 _OnChar(
-    HWND hwnd,
+    HWND hwnd UNUSED,
     UINT ch,
-    int cRepeat)
+    int cRepeat UNUSED)
 {
     char_u	string[40];
     int		len = 0;
@@ -777,12 +773,11 @@ _OnChar(
 /*
  * Alt-Key hit, add it to the input buffer.
  */
-/*ARGSUSED*/
     static void
 _OnSysChar(
-    HWND hwnd,
+    HWND hwnd UNUSED,
     UINT cch,
-    int cRepeat)
+    int cRepeat UNUSED)
 {
     char_u	string[40]; /* Enough for multibyte character */
     int		len;
@@ -861,11 +856,10 @@ _OnMouseEvent(
     gui_send_mouse_event(button, x, y, repeated_click, vim_modifiers);
 }
 
-/*ARGSUSED*/
     static void
 _OnMouseButtonDown(
-    HWND hwnd,
-    BOOL fDoubleClick,
+    HWND hwnd UNUSED,
+    BOOL fDoubleClick UNUSED,
     int x,
     int y,
     UINT keyFlags)
@@ -960,10 +954,9 @@ _OnMouseButtonDown(
     }
 }
 
-/*ARGSUSED*/
     static void
 _OnMouseMoveOrRelease(
-    HWND hwnd,
+    HWND hwnd UNUSED,
     int x,
     int y,
     UINT keyFlags)
@@ -1038,13 +1031,12 @@ gui_mswin_find_menu(
     return pMenu;
 }
 
-/*ARGSUSED*/
     static void
 _OnMenu(
-    HWND	hwnd,
+    HWND	hwnd UNUSED,
     int		id,
-    HWND	hwndCtl,
-    UINT	codeNotify)
+    HWND	hwndCtl UNUSED,
+    UINT	codeNotify UNUSED)
 {
     vimmenu_T	*pMenu;
 
@@ -1527,9 +1519,8 @@ gui_mch_get_font(
  * Return the name of font "font" in allocated memory.
  * Don't know how to get the actual name, thus use the provided name.
  */
-/*ARGSUSED*/
     char_u *
-gui_mch_get_fontname(GuiFont font, char_u *name)
+gui_mch_get_fontname(GuiFont font UNUSED, char_u *name)
 {
     if (name == NULL)
 	return NULL;
@@ -2175,13 +2166,12 @@ gui_mch_enable_menu(int flag)
 #endif
 }
 
-/*ARGSUSED*/
     void
 gui_mch_set_menu_pos(
-    int	    x,
-    int	    y,
-    int	    w,
-    int	    h)
+    int	    x UNUSED,
+    int	    y UNUSED,
+    int	    w UNUSED,
+    int	    h UNUSED)
 {
     /* It will be in the right place anyway */
 }
@@ -2297,19 +2287,24 @@ GetTextWidthEnc(HDC hdc, char_u *str, int len)
 # define GetTextWidthEnc(h, s, l) GetTextWidth((h), (s), (l))
 #endif
 
+static void get_work_area(RECT *spi_rect);
+
 /*
  * A quick little routine that will center one window over another, handy for
- * dialog boxes.  Taken from the Win32SDK samples.
+ * dialog boxes.  Taken from the Win32SDK samples and modified for multiple
+ * monitors.
  */
     static BOOL
 CenterWindow(
     HWND hwndChild,
     HWND hwndParent)
 {
-    RECT    rChild, rParent;
-    int     wChild, hChild, wParent, hParent;
-    int     wScreen, hScreen, xNew, yNew;
-    HDC     hdc;
+    HMONITOR	    mon;
+    MONITORINFO	    moninfo;
+    RECT	    rChild, rParent, rScreen;
+    int		    wChild, hChild, wParent, hParent;
+    int		    xNew, yNew;
+    HDC		    hdc;
 
     GetWindowRect(hwndChild, &rChild);
     wChild = rChild.right - rChild.left;
@@ -2317,32 +2312,39 @@ CenterWindow(
 
     /* If Vim is minimized put the window in the middle of the screen. */
     if (hwndParent == NULL || IsMinimized(hwndParent))
-	SystemParametersInfo(SPI_GETWORKAREA, 0, &rParent, 0);
+	get_work_area(&rParent);
     else
 	GetWindowRect(hwndParent, &rParent);
     wParent = rParent.right - rParent.left;
     hParent = rParent.bottom - rParent.top;
 
-    hdc = GetDC(hwndChild);
-    wScreen = GetDeviceCaps (hdc, HORZRES);
-    hScreen = GetDeviceCaps (hdc, VERTRES);
-    ReleaseDC(hwndChild, hdc);
-
-    xNew = rParent.left + ((wParent - wChild) /2);
-    if (xNew < 0)
+    moninfo.cbSize = sizeof(MONITORINFO);
+    mon = MonitorFromWindow(hwndChild, MONITOR_DEFAULTTOPRIMARY);
+    if (mon != NULL && GetMonitorInfo(mon, &moninfo))
     {
-	xNew = 0;
+	rScreen = moninfo.rcWork;
     }
-    else if ((xNew+wChild) > wScreen)
+    else
     {
-	xNew = wScreen - wChild;
+	hdc = GetDC(hwndChild);
+	rScreen.left = 0;
+	rScreen.top = 0;
+	rScreen.right = GetDeviceCaps(hdc, HORZRES);
+	rScreen.bottom = GetDeviceCaps(hdc, VERTRES);
+	ReleaseDC(hwndChild, hdc);
     }
 
-    yNew = rParent.top	+ ((hParent - hChild) /2);
-    if (yNew < 0)
-	yNew = 0;
-    else if ((yNew+hChild) > hScreen)
-	yNew = hScreen - hChild;
+    xNew = rParent.left + ((wParent - wChild) / 2);
+    if (xNew < rScreen.left)
+	xNew = rScreen.left;
+    else if ((xNew + wChild) > rScreen.right)
+	xNew = rScreen.right - wChild;
+
+    yNew = rParent.top + ((hParent - hChild) / 2);
+    if (yNew < rScreen.top)
+	yNew = rScreen.top;
+    else if ((yNew + hChild) > rScreen.bottom)
+	yNew = rScreen.bottom - hChild;
 
     return SetWindowPos(hwndChild, NULL, xNew, yNew, 0, 0,
 						   SWP_NOSIZE | SWP_NOZORDER);
@@ -2805,10 +2807,8 @@ _OnEndSession(void)
  * Get this message when the user clicks on the cross in the top right corner
  * of a Windows95 window.
  */
-/*ARGSUSED*/
     static void
-_OnClose(
-    HWND hwnd)
+_OnClose(HWND hwnd UNUSED)
 {
     gui_shell_closed();
 }
@@ -2817,8 +2817,7 @@ _OnClose(
  * Get a message when the window is being destroyed.
  */
     static void
-_OnDestroy(
-    HWND hwnd)
+_OnDestroy(HWND hwnd)
 {
     if (!destroying)
 	_OnClose(hwnd);
@@ -2871,11 +2870,10 @@ _OnPaint(
     }
 }
 
-/*ARGSUSED*/
     static void
 _OnSize(
     HWND hwnd,
-    UINT state,
+    UINT state UNUSED,
     int cx,
     int cy)
 {
@@ -3112,9 +3110,8 @@ gui_mch_insert_lines(
 }
 
 
-/*ARGSUSED*/
     void
-gui_mch_exit(int rc)
+gui_mch_exit(int rc UNUSED)
 {
 #if defined(FEAT_DIRECTX)
     DWriteContext_Close(s_dwc);
@@ -3273,9 +3270,8 @@ gui_mch_wide_font_changed(void)
  * Initialise vim to use the font with the given name.
  * Return FAIL if the font could not be loaded, OK otherwise.
  */
-/*ARGSUSED*/
     int
-gui_mch_init_font(char_u *font_name, int fontset)
+gui_mch_init_font(char_u *font_name, int fontset UNUSED)
 {
     LOGFONT	lf;
     GuiFont	font = NOFONT;
@@ -3404,11 +3400,10 @@ gui_mch_newfont(void)
 /*
  * Set the window title
  */
-/*ARGSUSED*/
     void
 gui_mch_settitle(
     char_u  *title,
-    char_u  *icon)
+    char_u  *icon UNUSED)
 {
     set_window_title(s_hwnd, (title == NULL ? "VIM" : (char *)title));
 }
@@ -3539,12 +3534,12 @@ gui_mch_browseW(
     filterp = convert_filterW(filter);
 
     vim_memset(&fileStruct, 0, sizeof(OPENFILENAMEW));
-#ifdef OPENFILENAME_SIZE_VERSION_400W
+#  ifdef OPENFILENAME_SIZE_VERSION_400W
     /* be compatible with Windows NT 4.0 */
     fileStruct.lStructSize = OPENFILENAME_SIZE_VERSION_400W;
-#else
+#  else
     fileStruct.lStructSize = sizeof(fileStruct);
-#endif
+#  endif
 
     if (title != NULL)
 	titlep = enc_to_utf16(title, NULL);
@@ -3581,10 +3576,10 @@ gui_mch_browseW(
      * Don't use OFN_OVERWRITEPROMPT, Vim has its own ":confirm" dialog.
      */
     fileStruct.Flags = (OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY);
-#ifdef FEAT_SHORTCUT
+#  ifdef FEAT_SHORTCUT
     if (curbuf->b_p_bin)
 	fileStruct.Flags |= OFN_NODEREFERENCELINKS;
-#endif
+#  endif
     if (saving)
     {
 	if (!GetSaveFileNameW(&fileStruct))
@@ -3760,10 +3755,9 @@ gui_mch_browse(
 }
 #endif /* FEAT_BROWSE */
 
-/*ARGSUSED*/
     static void
 _OnDropFiles(
-    HWND hwnd,
+    HWND hwnd UNUSED,
     HDROP hDrop)
 {
 #ifdef FEAT_WINDOWS
@@ -3821,10 +3815,9 @@ _OnDropFiles(
 #endif
 }
 
-/*ARGSUSED*/
     static int
 _OnScroll(
-    HWND hwnd,
+    HWND hwnd UNUSED,
     HWND hwndCtl,
     UINT code,
     int pos)
@@ -3942,7 +3935,6 @@ _OnScroll(
  * Return pointer to buffer in "tofree".
  * Returns zero when out of memory.
  */
-/*ARGSUSED*/
     int
 get_cmd_args(char *prog, char *cmdline, char ***argvp, char **tofree)
 {
@@ -5559,7 +5551,7 @@ get_work_area(RECT *spi_rect)
     MONITORINFO	    moninfo;
 
     /* work out which monitor the window is on, and get *it's* work area */
-    mon = MonitorFromWindow(s_hwnd, 1 /*MONITOR_DEFAULTTOPRIMARY*/);
+    mon = MonitorFromWindow(s_hwnd, MONITOR_DEFAULTTOPRIMARY);
     if (mon != NULL)
     {
 	moninfo.cbSize = sizeof(MONITORINFO);
@@ -5576,10 +5568,14 @@ get_work_area(RECT *spi_rect)
 /*
  * Set the size of the window to the given width and height in pixels.
  */
-/*ARGSUSED*/
     void
-gui_mch_set_shellsize(int width, int height,
-	int min_width, int min_height, int base_width, int base_height,
+gui_mch_set_shellsize(
+	int width,
+	int height,
+	int min_width UNUSED,
+	int min_height UNUSED,
+	int base_width UNUSED,
+	int base_height UNUSED,
 	int direction)
 {
     RECT	workarea_rect;
@@ -5740,9 +5736,8 @@ gui_mch_set_sp_color(guicolor_T color)
 /*
  * handle WM_IME_NOTIFY message
  */
-/*ARGSUSED*/
     static LRESULT
-_OnImeNotify(HWND hWnd, DWORD dwCommand, DWORD dwData)
+_OnImeNotify(HWND hWnd, DWORD dwCommand, DWORD dwData UNUSED)
 {
     LRESULT lResult = 0;
     HIMC hImc;
@@ -5790,9 +5785,8 @@ _OnImeNotify(HWND hWnd, DWORD dwCommand, DWORD dwData)
     return lResult;
 }
 
-/*ARGSUSED*/
     static LRESULT
-_OnImeComposition(HWND hwnd, WPARAM dbcs, LPARAM param)
+_OnImeComposition(HWND hwnd, WPARAM dbcs UNUSED, LPARAM param)
 {
     char_u	*ret;
     int		len;
@@ -6832,13 +6826,12 @@ gui_mch_menu_grey(
  * pressed, return that button's ID - IDCANCEL (2), which is the button's
  * number.
  */
-/*ARGSUSED*/
     static LRESULT CALLBACK
 dialog_callback(
     HWND hwnd,
     UINT message,
     WPARAM wParam,
-    LPARAM lParam)
+    LPARAM lParam UNUSED)
 {
     if (message == WM_INITDIALOG)
     {
@@ -8524,13 +8517,12 @@ delete_tooltip(BalloonEval *beval)
     PostMessage(beval->balloon, WM_CLOSE, 0, 0);
 }
 
-/*ARGSUSED*/
     static VOID CALLBACK
 BevalTimerProc(
-    HWND    hwnd,
-    UINT    uMsg,
-    UINT_PTR    idEvent,
-    DWORD   dwTime)
+    HWND	hwnd UNUSED,
+    UINT	uMsg UNUSED,
+    UINT_PTR    idEvent UNUSED,
+    DWORD	dwTime)
 {
     POINT	pt;
     RECT	rect;
@@ -8566,16 +8558,14 @@ BevalTimerProc(
     }
 }
 
-/*ARGSUSED*/
     void
-gui_mch_disable_beval_area(BalloonEval *beval)
+gui_mch_disable_beval_area(BalloonEval *beval UNUSED)
 {
     // TRACE0("gui_mch_disable_beval_area {{{");
     KillTimer(s_textArea, BevalTimerId);
     // TRACE0("gui_mch_disable_beval_area }}}");
 }
 
-/*ARGSUSED*/
     void
 gui_mch_enable_beval_area(BalloonEval *beval)
 {
@@ -8607,7 +8597,6 @@ gui_mch_post_balloon(BalloonEval *beval, char_u *mesg)
     // TRACE0("gui_mch_post_balloon }}}");
 }
 
-/*ARGSUSED*/
     BalloonEval *
 gui_mch_create_beval_area(
     void	*target,	/* ignored, always use s_textArea */
@@ -8647,9 +8636,8 @@ gui_mch_create_beval_area(
     return beval;
 }
 
-/*ARGSUSED*/
     static void
-Handle_WM_Notify(HWND hwnd, LPNMHDR pnmh)
+Handle_WM_Notify(HWND hwnd UNUSED, LPNMHDR pnmh)
 {
     if (pnmh->idFrom != ID_BEVAL_TOOLTIP) /* it is not our tooltip */
 	return;

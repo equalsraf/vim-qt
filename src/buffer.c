@@ -113,16 +113,19 @@ read_buffer(
 	 * it can be changed there. */
 	if (!readonlymode && !bufempty())
 	    changed();
-	else if (retval != FAIL)
+	else if (retval == OK)
 	    unchanged(curbuf, FALSE);
 
 #ifdef FEAT_AUTOCMD
+	if (retval == OK)
+	{
 # ifdef FEAT_EVAL
-	apply_autocmds_retval(EVENT_STDINREADPOST, NULL, NULL, FALSE,
+	    apply_autocmds_retval(EVENT_STDINREADPOST, NULL, NULL, FALSE,
 							curbuf, &retval);
 # else
-	apply_autocmds(EVENT_STDINREADPOST, NULL, NULL, FALSE, curbuf);
+	    apply_autocmds(EVENT_STDINREADPOST, NULL, NULL, FALSE, curbuf);
 # endif
+	}
 #endif
     }
     return retval;
@@ -294,7 +297,7 @@ open_buffer(
 #endif
        )
 	changed();
-    else if (retval != FAIL && !read_stdin && !read_fifo)
+    else if (retval == OK && !read_stdin && !read_fifo)
 	unchanged(curbuf, FALSE);
     save_file_ff(curbuf);		/* keep this fileformat */
 
@@ -328,7 +331,7 @@ open_buffer(
 # endif
 #endif
 
-    if (retval != FAIL)
+    if (retval == OK)
     {
 #ifdef FEAT_AUTOCMD
 	/*
@@ -870,6 +873,25 @@ free_buffer(buf_T *buf)
 }
 
 /*
+ * Initializes b:changedtick.
+ */
+    static void
+init_changedtick(buf_T *buf)
+{
+    dictitem_T *di = (dictitem_T *)&buf->b_ct_di;
+
+    di->di_flags = DI_FLAGS_FIX | DI_FLAGS_RO;
+    di->di_tv.v_type = VAR_NUMBER;
+    di->di_tv.v_lock = VAR_FIXED;
+    di->di_tv.vval.v_number = 0;
+
+#ifdef FEAT_EVAL
+    STRCPY(buf->b_ct_di.di_key, "changedtick");
+    (void)dict_add(buf->b_vars, di);
+#endif
+}
+
+/*
  * Free stuff in the buffer for ":bdel" and when wiping out the buffer.
  */
     static void
@@ -886,8 +908,14 @@ free_buffer_stuff(
 #endif
     }
 #ifdef FEAT_EVAL
-    vars_clear(&buf->b_vars->dv_hashtab); /* free all internal variables */
-    hash_init(&buf->b_vars->dv_hashtab);
+    {
+	varnumber_T tick = CHANGEDTICK(buf);
+
+	vars_clear(&buf->b_vars->dv_hashtab); /* free all buffer variables */
+	hash_init(&buf->b_vars->dv_hashtab);
+	init_changedtick(buf);
+	CHANGEDTICK(buf) = tick;
+    }
 #endif
 #ifdef FEAT_USR_CMDS
     uc_clear(&buf->b_ucmds);		/* clear local user commands */
@@ -1976,6 +2004,7 @@ buflist_new(
 	}
 	init_var_dict(buf->b_vars, &buf->b_bufvar, VAR_SCOPE);
 #endif
+	init_changedtick(buf);
     }
 
     if (ffname != NULL)
@@ -2150,6 +2179,7 @@ free_buf_options(
 #if defined(FEAT_CRYPT)
     clear_string_option(&buf->b_p_cm);
 #endif
+    clear_string_option(&buf->b_p_fp);
 #if defined(FEAT_EVAL)
     clear_string_option(&buf->b_p_fex);
 #endif
@@ -4858,8 +4888,8 @@ do_arg_all(
 	    wpnext = wp->w_next;
 	    buf = wp->w_buffer;
 	    if (buf->b_ffname == NULL
-		    || (!keep_tabs && buf->b_nwindows > 1)
-		    || wp->w_width != Columns)
+		    || (!keep_tabs && (buf->b_nwindows > 1
+			    || wp->w_width != Columns)))
 		i = opened_len;
 	    else
 	    {

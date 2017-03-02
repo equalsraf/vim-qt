@@ -1693,11 +1693,9 @@ searchc(cmdarg_T *cap, int t_cmd)
 		    if (p[col] == c && stop)
 			break;
 		}
-		else
-		{
-		    if (vim_memcmp(p + col, lastc_bytes, lastc_bytelen) == 0 && stop)
-			break;
-		}
+		else if (STRNCMP(p + col, lastc_bytes, lastc_bytelen) == 0
+								       && stop)
+		    break;
 		stop = TRUE;
 	    }
 	}
@@ -4240,7 +4238,11 @@ extend:
 	 * line, we get stuck there.  Trap this here. */
 	if (VIsual_mode == 'V' && start_lnum == curwin->w_cursor.lnum)
 	    goto extend;
-	VIsual.lnum = start_lnum;
+	if (VIsual.lnum != start_lnum)
+	{
+	    VIsual.lnum = start_lnum;
+	    VIsual.col = 0;
+	}
 	VIsual_mode = 'V';
 	redraw_curbuf_later(INVERTED);	/* update the inversion */
 	showmode();
@@ -4352,6 +4354,10 @@ current_quote(
     /* Correct cursor when 'selection' is exclusive */
     if (VIsual_active)
     {
+	/* this only works within one line */
+	if (VIsual.lnum != curwin->w_cursor.lnum)
+	    return FALSE;
+
 	vis_bef_curs = lt(VIsual, curwin->w_cursor);
 	if (*p_sel == 'e' && vis_bef_curs)
 	    dec_cursor();

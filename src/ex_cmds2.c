@@ -3509,6 +3509,9 @@ add_pack_plugin(char_u *fname, void *cookie)
     size_t  afterlen = 0;
     char_u  *ffname = fix_fname(fname);
     size_t  fname_len;
+    char_u  *buf = NULL;
+    char_u  *rtp_ffname;
+    int	    match;
 
     if (ffname == NULL)
 	return;
@@ -3533,26 +3536,28 @@ add_pack_plugin(char_u *fname, void *cookie)
 	/* Find "ffname" in "p_rtp", ignoring '/' vs '\' differences. */
 	fname_len = STRLEN(ffname);
 	insp = p_rtp;
-	for (;;)
+	buf = alloc(MAXPATHL);
+	if (buf == NULL)
+	    goto theend;
+	while (*insp != NUL)
 	{
-	    if (vim_fnamencmp(insp, ffname, fname_len) == 0)
+	    copy_option_part(&insp, buf, MAXPATHL, ",");
+	    add_pathsep(buf);
+	    rtp_ffname = fix_fname(buf);
+	    if (rtp_ffname == NULL)
+		goto theend;
+	    match = vim_fnamencmp(rtp_ffname, ffname, fname_len) == 0;
+	    vim_free(rtp_ffname);
+	    if (match)
 		break;
-	    insp = vim_strchr(insp, ',');
-	    if (insp == NULL)
-		break;
-	    ++insp;
 	}
 
-	if (insp == NULL)
+	if (*insp == NUL)
 	    /* not found, append at the end */
 	    insp = p_rtp + STRLEN(p_rtp);
 	else
-	{
 	    /* append after the matching directory. */
-	    insp += STRLEN(ffname);
-	    while (*insp != NUL && *insp != ',')
-		++insp;
-	}
+	    --insp;
 	*p4 = c;
 
 	/* check if rtp/pack/name/start/name/after exists */
@@ -3562,7 +3567,8 @@ add_pack_plugin(char_u *fname, void *cookie)
 
 	oldlen = STRLEN(p_rtp);
 	addlen = STRLEN(ffname) + 1; /* add one for comma */
-	new_rtp = alloc((int)(oldlen + addlen + afterlen + 1)); /* add one for NUL */
+	new_rtp = alloc((int)(oldlen + addlen + afterlen + 1));
+							  /* add one for NUL */
 	if (new_rtp == NULL)
 	    goto theend;
 	keep = (int)(insp - p_rtp);
@@ -3616,6 +3622,7 @@ add_pack_plugin(char_u *fname, void *cookie)
     }
 
 theend:
+    vim_free(buf);
     vim_free(ffname);
 }
 
@@ -3673,6 +3680,194 @@ ex_options(
 {
     cmd_source((char_u *)SYS_OPTWIN_FILE, NULL);
 }
+#endif
+
+#if defined(FEAT_PYTHON3) || defined(FEAT_PYTHON) || defined(PROTO)
+
+# if (defined(FEAT_PYTHON) && defined(FEAT_PYTHON3)) || defined(PROTO)
+/*
+ * Detect Python 3 or 2, and initialize 'pyxversion'.
+ */
+    void
+init_pyxversion(void)
+{
+    if (p_pyx == 0)
+    {
+	if (python3_enabled(FALSE))
+	    p_pyx = 3;
+	else if (python_enabled(FALSE))
+	    p_pyx = 2;
+    }
+}
+# endif
+
+/*
+ * Does a file contain one of the following strings at the beginning of any
+ * line?
+ * "#!(any string)python2"  => returns 2
+ * "#!(any string)python3"  => returns 3
+ * "# requires python 2.x"  => returns 2
+ * "# requires python 3.x"  => returns 3
+ * otherwise return 0.
+ */
+    static int
+requires_py_version(char_u *filename)
+{
+    FILE    *file;
+    int	    requires_py_version = 0;
+    int	    i, lines;
+
+    lines = (int)p_mls;
+    if (lines < 0)
+	lines = 5;
+
+    file = mch_fopen((char *)filename, "r");
+    if (file != NULL)
+    {
+	for (i = 0; i < lines; i++)
+	{
+	    if (vim_fgets(IObuff, IOSIZE, file))
+		break;
+	    if (i == 0 && IObuff[0] == '#' && IObuff[1] == '!')
+	    {
+		/* Check shebang. */
+		if (strstr((char *)IObuff + 2, "python2") != NULL)
+		{
+		    requires_py_version = 2;
+		    break;
+		}
+		if (strstr((char *)IObuff + 2, "python3") != NULL)
+		{
+		    requires_py_version = 3;
+		    break;
+		}
+	    }
+	    IObuff[21] = '\0';
+	    if (STRCMP("# requires python 2.x", IObuff) == 0)
+	    {
+		requires_py_version = 2;
+		break;
+	    }
+	    if (STRCMP("# requires python 3.x", IObuff) == 0)
+	    {
+		requires_py_version = 3;
+		break;
+	    }
+	}
+	fclose(file);
+    }
+    return requires_py_version;
+}
+
+
+/*
+ * Source a python file using the requested python version.
+ */
+    static void
+source_pyx_file(exarg_T *eap, char_u *fname)
+{
+    exarg_T ex;
+    int	    v = requires_py_version(fname);
+
+# if defined(FEAT_PYTHON) && defined(FEAT_PYTHON3)
+    init_pyxversion();
+# endif
+    if (v == 0)
+    {
+# if defined(FEAT_PYTHON) && defined(FEAT_PYTHON3)
+	/* user didn't choose a preference, 'pyx' is used */
+	v = p_pyx;
+# elif defined(FEAT_PYTHON)
+	v = 2;
+# elif defined(FEAT_PYTHON3)
+	v = 3;
+# endif
+    }
+
+    /*
+     * now source, if required python version is not supported show
+     * unobtrusive message.
+     */
+    if (eap == NULL)
+	vim_memset(&ex, 0, sizeof(ex));
+    else
+	ex = *eap;
+    ex.arg = fname;
+    ex.cmd = (char_u *)(v == 2 ? "pyfile" : "pyfile3");
+
+    if (v == 2)
+    {
+# ifdef FEAT_PYTHON
+	ex_pyfile(&ex);
+# else
+	vim_snprintf((char *)IObuff, IOSIZE,
+		_("W20: Required python version 2.x not supported, ignoring file: %s"),
+		fname);
+	MSG(IObuff);
+# endif
+	return;
+    }
+    else
+    {
+# ifdef FEAT_PYTHON3
+	ex_py3file(&ex);
+# else
+	vim_snprintf((char *)IObuff, IOSIZE,
+		_("W21: Required python version 3.x not supported, ignoring file: %s"),
+		fname);
+	MSG(IObuff);
+# endif
+	return;
+    }
+}
+
+/*
+ * ":pyxfile {fname}"
+ */
+    void
+ex_pyxfile(exarg_T *eap)
+{
+    source_pyx_file(eap, eap->arg);
+}
+
+/*
+ * ":pyx"
+ */
+    void
+ex_pyx(exarg_T *eap)
+{
+# if defined(FEAT_PYTHON) && defined(FEAT_PYTHON3)
+    init_pyxversion();
+    if (p_pyx == 2)
+	ex_python(eap);
+    else
+	ex_py3(eap);
+# elif defined(FEAT_PYTHON)
+    ex_python(eap);
+# elif defined(FEAT_PYTHON3)
+    ex_py3(eap);
+# endif
+}
+
+/*
+ * ":pyxdo"
+ */
+    void
+ex_pyxdo(exarg_T *eap)
+{
+# if defined(FEAT_PYTHON) && defined(FEAT_PYTHON3)
+    init_pyxversion();
+    if (p_pyx == 2)
+	ex_pydo(eap);
+    else
+	ex_py3do(eap);
+# elif defined(FEAT_PYTHON)
+    ex_pydo(eap);
+# elif defined(FEAT_PYTHON3)
+    ex_py3do(eap);
+# endif
+}
+
 #endif
 
 /*
@@ -5091,23 +5286,9 @@ ex_language(exarg_T *eap)
 # if defined(FEAT_CMDL_COMPL) || defined(PROTO)
 
 static char_u	**locales = NULL;	/* Array of all available locales */
+
+#  ifndef WIN32
 static int	did_init_locales = FALSE;
-
-static void init_locales(void);
-static char_u **find_locales(void);
-
-/*
- * Lazy initialization of all available locales.
- */
-    static void
-init_locales(void)
-{
-    if (!did_init_locales)
-    {
-	did_init_locales = TRUE;
-	locales = find_locales();
-    }
-}
 
 /* Return an array of strings for all available locales + NULL for the
  * last element.  Return NULL in case of error. */
@@ -5148,6 +5329,22 @@ find_locales(void)
     }
     ((char_u **)locales_ga.ga_data)[locales_ga.ga_len] = NULL;
     return (char_u **)locales_ga.ga_data;
+}
+#  endif
+
+/*
+ * Lazy initialization of all available locales.
+ */
+    static void
+init_locales(void)
+{
+#  ifndef WIN32
+    if (!did_init_locales)
+    {
+	did_init_locales = TRUE;
+	locales = find_locales();
+    }
+#  endif
 }
 
 #  if defined(EXITFREE) || defined(PROTO)

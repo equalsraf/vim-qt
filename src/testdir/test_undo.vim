@@ -176,7 +176,17 @@ func Test_undojoin()
   call assert_equal(['aaaa', 'bbbb', 'cccc'], getline(2, '$'))
   call feedkeys("u", 'xt')
   call assert_equal(['aaaa'], getline(2, '$'))
-  close!
+  bwipe!
+endfunc
+
+func Test_undojoin_redo()
+  new
+  call setline(1, ['first line', 'second line'])
+  call feedkeys("ixx\<Esc>", 'xt')
+  call feedkeys(":undojoin | redo\<CR>", 'xt')
+  call assert_equal('xxfirst line', getline(1))
+  call assert_equal('second line', getline(2))
+  bwipe!
 endfunc
 
 func Test_undo_write()
@@ -234,4 +244,32 @@ func Test_insert_expr()
   call assert_equal(['a', 'b', 'c', '12', 'd'], getline(2, '$'))
 
   close!
+endfunc
+
+func Test_undofile_earlier()
+  " Issue #1254
+  " create undofile with timestamps older than Vim startup time.
+  let t0 = localtime() - 43200
+  call test_settime(t0)
+  new Xfile
+  call feedkeys("ione\<Esc>", 'xt')
+  set ul=100
+  call test_settime(t0 + 1)
+  call feedkeys("otwo\<Esc>", 'xt')
+  set ul=100
+  call test_settime(t0 + 2)
+  call feedkeys("othree\<Esc>", 'xt')
+  set ul=100
+  w
+  wundo Xundofile
+  bwipe!
+  " restore normal timestamps.
+  call test_settime(0)
+  new Xfile
+  rundo Xundofile
+  earlier 1d
+  call assert_equal('', getline(1))
+  bwipe!
+  call delete('Xfile')
+  call delete('Xundofile')
 endfunc

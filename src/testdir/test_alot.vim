@@ -3,11 +3,11 @@
 
 source test_assign.vim
 source test_autocmd.vim
-source test_command_count.vim
+source test_changedtick.vim
 source test_cursor_func.vim
 source test_delete.vim
-source test_execute_func.vim
 source test_ex_undo.vim
+source test_execute_func.vim
 source test_expand.vim
 source test_expr.vim
 source test_expand_dllpath.vim
@@ -16,8 +16,12 @@ source test_file_perm.vim
 source test_fileformat.vim
 source test_filter_cmd.vim
 source test_filter_map.vim
+source test_findfile.vim
+source test_float_func.vim
 source test_fnamemodify.vim
+source test_functions.vim
 source test_glob2regpat.vim
+source test_ga.vim
 source test_goto.vim
 source test_help_tagjump.vim
 source test_join.vim
@@ -30,6 +34,8 @@ source test_mapping.vim
 source test_messages.vim
 source test_partial.vim
 source test_popup.vim
+source test_put.vim
+source test_recover.vim
 source test_reltime.vim
 source test_searchpos.vim
 source test_set.vim

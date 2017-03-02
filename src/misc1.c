@@ -492,7 +492,7 @@ get_breakindent_win(
     static int	    prev_indent = 0;  /* cached indent value */
     static long	    prev_ts     = 0L; /* cached tabstop value */
     static char_u   *prev_line = NULL; /* cached pointer to line */
-    static int	    prev_tick = 0;   /* changedtick of cached value */
+    static varnumber_T prev_tick = 0;   /* changedtick of cached value */
     int		    bri = 0;
     /* window width minus window margin space, i.e. what rests for text */
     const int	    eff_wwidth = W_WIDTH(wp)
@@ -502,11 +502,11 @@ get_breakindent_win(
 
     /* used cached indent, unless pointer or 'tabstop' changed */
     if (prev_line != line || prev_ts != wp->w_buffer->b_p_ts
-				  || prev_tick != wp->w_buffer->b_changedtick)
+				  || prev_tick != CHANGEDTICK(wp->w_buffer))
     {
 	prev_line = line;
 	prev_ts = wp->w_buffer->b_p_ts;
-	prev_tick = wp->w_buffer->b_changedtick;
+	prev_tick = CHANGEDTICK(wp->w_buffer);
 	prev_indent = get_indent_str(line,
 				     (int)wp->w_buffer->b_p_ts, wp->w_p_list);
     }
@@ -2177,16 +2177,19 @@ ins_bytes_len(char_u *p, int len)
     void
 ins_char(int c)
 {
-#if defined(FEAT_MBYTE) || defined(PROTO)
     char_u	buf[MB_MAXBYTES + 1];
-    int		n;
+    int		n = 1;
 
+#ifdef FEAT_MBYTE
     n = (*mb_char2bytes)(c, buf);
 
     /* When "c" is 0x100, 0x200, etc. we don't want to insert a NUL byte.
      * Happens for CTRL-Vu9900. */
     if (buf[0] == 0)
 	buf[0] = '\n';
+#else
+    buf[0] = c;
+#endif
 
     ins_char_bytes(buf, n);
 }
@@ -2195,7 +2198,6 @@ ins_char(int c)
 ins_char_bytes(char_u *buf, int charlen)
 {
     int		c = buf[0];
-#endif
     int		newlen;		/* nr of bytes inserted */
     int		oldlen;		/* nr of bytes deleted (0 when not replacing) */
     char_u	*p;
@@ -2218,11 +2220,7 @@ ins_char_bytes(char_u *buf, int charlen)
 
     /* The lengths default to the values for when not replacing. */
     oldlen = 0;
-#ifdef FEAT_MBYTE
     newlen = charlen;
-#else
-    newlen = 1;
-#endif
 
     if (State & REPLACE_FLAG)
     {
@@ -2770,7 +2768,7 @@ changed(void)
 	}
 	changed_int();
     }
-    ++curbuf->b_changedtick;
+    ++CHANGEDTICK(curbuf);
 }
 
 /*
@@ -3197,7 +3195,7 @@ unchanged(
 	need_maketitle = TRUE;	    /* set window title later */
 #endif
     }
-    ++buf->b_changedtick;
+    ++CHANGEDTICK(buf);
 #ifdef FEAT_NETBEANS_INTG
     netbeans_unmodified(buf);
 #endif
@@ -3266,7 +3264,11 @@ change_warning(
 #endif
 	msg_clr_eos();
 	(void)msg_end();
-	if (msg_silent == 0 && !silent_mode)
+	if (msg_silent == 0 && !silent_mode
+#ifdef FEAT_EVAL
+		&& time_for_testing != 1
+#endif
+		)
 	{
 	    out_flush();
 	    ui_delay(1000L, TRUE); /* give the user time to think about it */
@@ -4026,15 +4028,12 @@ expand_env_esc(
 		 */
 #  if defined(HAVE_GETPWNAM) && defined(HAVE_PWD_H)
 		{
-		    struct passwd *pw;
-
 		    /* Note: memory allocated by getpwnam() is never freed.
 		     * Calling endpwent() apparently doesn't help. */
-		    pw = getpwnam((char *)dst + 1);
-		    if (pw != NULL)
-			var = (char_u *)pw->pw_dir;
-		    else
-			var = NULL;
+		    struct passwd *pw = (*dst == NUL)
+					? NULL : getpwnam((char *)dst + 1);
+
+		    var = (pw == NULL) ? NULL : (char_u *)pw->pw_dir;
 		}
 		if (var == NULL)
 #  endif
@@ -5422,7 +5421,6 @@ static int	skip_label(linenr_T, char_u **pp);
 static int	cin_first_id_amount(void);
 static int	cin_get_equal_amount(linenr_T lnum);
 static int	cin_ispreproc(char_u *);
-static int	cin_ispreproc_cont(char_u **pp, linenr_T *lnump);
 static int	cin_iscomment(char_u *);
 static int	cin_islinecomment(char_u *);
 static int	cin_isterminated(char_u *, int, int);
@@ -5762,6 +5760,7 @@ cin_is_cpp_namespace(char_u *s)
 {
     char_u	*p;
     int		has_name = FALSE;
+    int		has_name_start = FALSE;
 
     s = cin_skipcomment(s);
     if (STRNCMP(s, "namespace", 9) == 0 && (s[9] == NUL || !vim_iswordc(s[9])))
@@ -5780,9 +5779,17 @@ cin_is_cpp_namespace(char_u *s)
 	    }
 	    else if (vim_iswordc(*p))
 	    {
+		has_name_start = TRUE;
 		if (has_name)
 		    return FALSE; /* word character after skipping past name */
 		++p;
+	    }
+	    else if (p[0] == ':' && p[1] == ':' && vim_iswordc(p[2]))
+	    {
+		if (!has_name_start || has_name)
+		    return FALSE;
+		/* C++ 17 nested namespace */
+		p += 3;
 	    }
 	    else
 	    {
@@ -5993,13 +6000,18 @@ cin_ispreproc(char_u *s)
  * Return TRUE if line "*pp" at "*lnump" is a preprocessor statement or a
  * continuation line of a preprocessor statement.  Decrease "*lnump" to the
  * start and return the line in "*pp".
+ * Put the amount of indent in "*amount".
  */
     static int
-cin_ispreproc_cont(char_u **pp, linenr_T *lnump)
+cin_ispreproc_cont(char_u **pp, linenr_T *lnump, int *amount)
 {
     char_u	*line = *pp;
     linenr_T	lnum = *lnump;
     int		retval = FALSE;
+    int		candidate_amount = *amount;
+
+    if (*line != NUL && line[STRLEN(line) - 1] == '\\')
+	candidate_amount = get_indent_lnum(lnum);
 
     for (;;)
     {
@@ -6018,6 +6030,8 @@ cin_ispreproc_cont(char_u **pp, linenr_T *lnump)
 
     if (lnum != *lnump)
 	*pp = ml_get(*lnump);
+    if (retval)
+	*amount = candidate_amount;
     return retval;
 }
 
@@ -7381,7 +7395,7 @@ get_c_indent(void)
 		l = skipwhite(ml_get(lnum));
 		if (cin_nocode(l))		/* skip comment lines */
 		    continue;
-		if (cin_ispreproc_cont(&l, &lnum))
+		if (cin_ispreproc_cont(&l, &lnum, &amount))
 		    continue;			/* ignore #define, #if, etc. */
 		curwin->w_cursor.lnum = lnum;
 
@@ -7794,10 +7808,10 @@ get_c_indent(void)
 		 */
 		if (curwin->w_cursor.lnum <= ourscope)
 		{
-		    /* we reached end of scope:
-		     * if looking for a enum or structure initialization
+		    /* We reached end of scope:
+		     * If looking for a enum or structure initialization
 		     * go further back:
-		     * if it is an initializer (enum xxx or xxx =), then
+		     * If it is an initializer (enum xxx or xxx =), then
 		     * don't add ind_continuation, otherwise it is a variable
 		     * declaration:
 		     * int x,
@@ -7836,7 +7850,8 @@ get_c_indent(void)
 			/*
 			 * Skip preprocessor directives and blank lines.
 			 */
-			if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum))
+			if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum,
+								    &amount))
 			    continue;
 
 			if (cin_nocode(l))
@@ -7953,7 +7968,8 @@ get_c_indent(void)
 			    }
 
 			    /* Skip preprocessor directives and blank lines. */
-			    if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum))
+			    if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum,
+								    &amount))
 				continue;
 
 			    /* Finally the actual check for "namespace". */
@@ -8129,7 +8145,7 @@ get_c_indent(void)
 		 * unlocked it)
 		 */
 		l = ml_get_curline();
-		if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum)
+		if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum, &amount)
 							     || cin_nocode(l))
 		    continue;
 
@@ -8850,7 +8866,7 @@ term_again:
 	/*
 	 * Skip preprocessor directives and blank lines.
 	 */
-	if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum))
+	if (cin_ispreproc_cont(&l, &curwin->w_cursor.lnum, &amount))
 	    continue;
 
 	if (cin_nocode(l))
@@ -8951,7 +8967,7 @@ term_again:
 	    {
 		look = ml_get(--curwin->w_cursor.lnum);
 		if (!(cin_nocode(look) || cin_ispreproc_cont(
-				      &look, &curwin->w_cursor.lnum)))
+				      &look, &curwin->w_cursor.lnum, &amount)))
 		    break;
 	    }
 	    if (curwin->w_cursor.lnum > 0
@@ -9633,7 +9649,7 @@ expand_wildcards(
 # endif
 	    if (match_file_list(p_wig, (*files)[i], ffname))
 	    {
-		/* remove this matching files from the list */
+		/* remove this matching file from the list */
 		vim_free((*files)[i]);
 		for (j = i; j + 1 < *num_files; ++j)
 		    (*files)[j] = (*files)[j + 1];
@@ -10717,14 +10733,15 @@ has_env_var(char_u *p)
 static int has_special_wildchar(char_u *p);
 
 /*
- * Return TRUE if "p" contains a special wildcard character.
- * Allowing for escaping.
+ * Return TRUE if "p" contains a special wildcard character, one that Vim
+ * cannot expand, requires using a shell.
  */
     static int
 has_special_wildchar(char_u *p)
 {
     for ( ; *p; mb_ptr_adv(p))
     {
+	/* Allow for escaping. */
 	if (*p == '\\' && p[1] != NUL)
 	    ++p;
 	else if (vim_strchr((char_u *)SPECIAL_WILDCHAR, *p) != NULL)

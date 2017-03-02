@@ -259,11 +259,6 @@ op_shift(oparg_T *oap, int curs_top, int amount)
     }
 
     changed_lines(oap->start.lnum, 0, oap->end.lnum + 1, 0L);
-#ifdef FEAT_FOLDING
-    /* The cursor line is not in a closed fold */
-    foldOpenCursor();
-#endif
-
     if (oap->block_mode)
     {
 	curwin->w_cursor.lnum = oap->start.lnum;
@@ -276,6 +271,12 @@ op_shift(oparg_T *oap, int curs_top, int amount)
     }
     else
 	--curwin->w_cursor.lnum;	/* put cursor on last line, for ":>" */
+
+#ifdef FEAT_FOLDING
+    /* The cursor line is not in a closed fold */
+    foldOpenCursor();
+#endif
+
 
     if (oap->line_count > p_report)
     {
@@ -1627,6 +1628,22 @@ adjust_clip_reg(int *rp)
 #endif
 
 /*
+ * Shift the delete registers: "9 is cleared, "8 becomes "9, etc.
+ */
+    void
+shift_delete_registers()
+{
+    int		n;
+
+    y_current = &y_regs[9];
+    free_yank_all();			/* free register nine */
+    for (n = 9; n > 1; --n)
+	y_regs[n] = y_regs[n - 1];
+    y_previous = y_current = &y_regs[1];
+    y_regs[1].y_array = NULL;		/* set register one to empty */
+}
+
+/*
  * Handle a delete operation.
  *
  * Return FAIL if undo failed, OK otherwise.
@@ -1738,12 +1755,7 @@ op_delete(oparg_T *oap)
 	if (orig_regname != 0 || oap->motion_type == MLINE
 				   || oap->line_count > 1 || oap->use_reg_one)
 	{
-	    y_current = &y_regs[9];
-	    free_yank_all();			/* free register nine */
-	    for (n = 9; n > 1; --n)
-		y_regs[n] = y_regs[n - 1];
-	    y_previous = y_current = &y_regs[1];
-	    y_regs[1].y_array = NULL;		/* set register one to empty */
+	    shift_delete_registers();
 	    if (op_yank(oap, TRUE, FALSE) == OK)
 		did_yank = TRUE;
 	}
@@ -2570,7 +2582,7 @@ op_insert(oparg_T *oap, long count1)
     }
 
     t1 = oap->start;
-    edit(NUL, FALSE, (linenr_T)count1);
+    (void)edit(NUL, FALSE, (linenr_T)count1);
 
     /* When a tab was inserted, and the characters in front of the tab
      * have been converted to a tab as well, the column of the cursor
@@ -3350,6 +3362,8 @@ do_put(
      */
     if (regname == '.')
     {
+	if (VIsual_active)
+	    stuffcharReadbuff(VIsual_mode);
 	(void)stuff_inserted((dir == FORWARD ? (count == -1 ? 'o' : 'a') :
 				    (count == -1 ? 'O' : 'i')), count, FALSE);
 	/* Putting the text is done later, so can't really move the cursor to
@@ -3547,7 +3561,7 @@ do_put(
      */
     if (y_type == MBLOCK)
     {
-	char	c = gchar_cursor();
+	int	c = gchar_cursor();
 	colnr_T	endcol2 = 0;
 
 	if (dir == FORWARD && c != NUL)
@@ -3771,11 +3785,25 @@ do_put(
 	 */
 	if (y_type == MCHAR && y_size == 1)
 	{
+	    linenr_T end_lnum = 0; /* init for gcc */
+
+	    if (VIsual_active)
+	    {
+		end_lnum = curbuf->b_visual.vi_end.lnum;
+		if (end_lnum < curbuf->b_visual.vi_start.lnum)
+		    end_lnum = curbuf->b_visual.vi_start.lnum;
+	    }
+
 	    do {
 		totlen = count * yanklen;
 		if (totlen > 0)
 		{
 		    oldp = ml_get(lnum);
+		    if (VIsual_active && col > (int)STRLEN(oldp))
+		    {
+			lnum++;
+			continue;
+		    }
 		    newp = alloc_check((unsigned)(STRLEN(oldp) + totlen + 1));
 		    if (newp == NULL)
 			goto end;	/* alloc() gave an error message */
@@ -3798,7 +3826,7 @@ do_put(
 		}
 		if (VIsual_active)
 		    lnum++;
-	    } while (VIsual_active && lnum <= curbuf->b_visual.vi_end.lnum);
+	    } while (VIsual_active && lnum <= end_lnum);
 
 	    if (VIsual_active) /* reset lnum to the last visual line */
 		lnum--;

@@ -403,7 +403,7 @@ incl(pos_T *lp)
     int
 dec_cursor(void)
 {
- return dec(&curwin->w_cursor);
+    return dec(&curwin->w_cursor);
 }
 
     int
@@ -1602,7 +1602,10 @@ strup_save(char_u *orig)
 		{
 		    s = alloc((unsigned)STRLEN(res) + 1 + newl - l);
 		    if (s == NULL)
-			break;
+		    {
+			vim_free(res);
+			return NULL;
+		    }
 		    mch_memmove(s, res, p - res);
 		    STRCPY(s + (p - res) + newl, p + l);
 		    p = s + (p - res);
@@ -1619,6 +1622,69 @@ strup_save(char_u *orig)
 # endif
 	    {
 		*p = TOUPPER_LOC(*p); /* note that toupper() can be a macro */
+		p++;
+	    }
+	}
+
+    return res;
+}
+
+/*
+ * Make string "s" all lower-case and return it in allocated memory.
+ * Handles multi-byte characters as well as possible.
+ * Returns NULL when out of memory.
+ */
+    char_u *
+strlow_save(char_u *orig)
+{
+    char_u	*p;
+    char_u	*res;
+
+    res = p = vim_strsave(orig);
+
+    if (res != NULL)
+	while (*p != NUL)
+	{
+# ifdef FEAT_MBYTE
+	    int		l;
+
+	    if (enc_utf8)
+	    {
+		int	c, lc;
+		int	newl;
+		char_u	*s;
+
+		c = utf_ptr2char(p);
+		lc = utf_tolower(c);
+
+		/* Reallocate string when byte count changes.  This is rare,
+		 * thus it's OK to do another malloc()/free(). */
+		l = utf_ptr2len(p);
+		newl = utf_char2len(lc);
+		if (newl != l)
+		{
+		    s = alloc((unsigned)STRLEN(res) + 1 + newl - l);
+		    if (s == NULL)
+		    {
+			vim_free(res);
+			return NULL;
+		    }
+		    mch_memmove(s, res, p - res);
+		    STRCPY(s + (p - res) + newl, p + l);
+		    p = s + (p - res);
+		    vim_free(res);
+		    res = s;
+		}
+
+		utf_char2bytes(lc, p);
+		p += newl;
+	    }
+	    else if (has_mbyte && (l = (*mb_ptr2len)(p)) > 1)
+		p += l;		/* skip multi-byte character */
+	    else
+# endif
+	    {
+		*p = TOLOWER_LOC(*p); /* note that tolower() can be a macro */
 		p++;
 	    }
 	}
@@ -1653,7 +1719,7 @@ vim_strncpy(char_u *to, char_u *from, size_t len)
 
 /*
  * Like strcat(), but make sure the result fits in "tosize" bytes and is
- * always NUL terminated.
+ * always NUL terminated. "from" and "to" may overlap.
  */
     void
 vim_strcat(char_u *to, char_u *from, size_t tosize)
@@ -1667,7 +1733,7 @@ vim_strcat(char_u *to, char_u *from, size_t tosize)
 	to[tosize - 1] = NUL;
     }
     else
-	STRCPY(to + tolen, from);
+	mch_memmove(to + tolen, from, fromlen + 1);
 }
 
 /*
@@ -1737,55 +1803,6 @@ vim_memset(void *ptr, int c, size_t size)
     while (size-- > 0)
 	*p++ = c;
     return ptr;
-}
-#endif
-
-#ifdef VIM_MEMCMP
-/*
- * Return zero when "b1" and "b2" are the same for "len" bytes.
- * Return non-zero otherwise.
- */
-    int
-vim_memcmp(void *b1, void *b2, size_t len)
-{
-    char_u  *p1 = (char_u *)b1, *p2 = (char_u *)b2;
-
-    for ( ; len > 0; --len)
-    {
-	if (*p1 != *p2)
-	    return 1;
-	++p1;
-	++p2;
-    }
-    return 0;
-}
-#endif
-
-/* skipped when generating prototypes, the prototype is in vim.h */
-#ifdef VIM_MEMMOVE
-/*
- * Version of memmove() that handles overlapping source and destination.
- * For systems that don't have a function that is guaranteed to do that (SYSV).
- */
-    void
-mch_memmove(void *src_arg, void *dst_arg, size_t len)
-{
-    /*
-     * A void doesn't have a size, we use char pointers.
-     */
-    char *dst = dst_arg, *src = src_arg;
-
-					/* overlap, copy backwards */
-    if (dst > src && dst < src + len)
-    {
-	src += len;
-	dst += len;
-	while (len-- > 0)
-	    *--dst = *--src;
-    }
-    else				/* copy forwards */
-	while (len-- > 0)
-	    *dst++ = *src++;
 }
 #endif
 
@@ -2082,7 +2099,7 @@ ga_concat_strings(garray_T *gap, char *sep)
     return s;
 }
 
-#if defined(FEAT_VIMINFO) || defined(PROTO)
+#if defined(FEAT_VIMINFO) || defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Make a copy of string "p" and add it to "gap".
  * When out of memory nothing changes.
@@ -2183,6 +2200,7 @@ static struct modmasktable
     /* 'A' must be the last one */
     {MOD_MASK_ALT,		MOD_MASK_ALT,		(char_u)'A'},
     {0, 0, NUL}
+    /* NOTE: when adding an entry, update MAX_KEY_NAME_LEN! */
 };
 
 /*
@@ -2315,6 +2333,8 @@ static struct key_name_entry
     {K_XDOWN,		(char_u *)"xDown"},
     {K_XLEFT,		(char_u *)"xLeft"},
     {K_XRIGHT,		(char_u *)"xRight"},
+    {K_PS,		(char_u *)"PasteStart"},
+    {K_PE,		(char_u *)"PasteEnd"},
 
     {K_F1,		(char_u *)"F1"},
     {K_F2,		(char_u *)"F2"},
@@ -2450,6 +2470,7 @@ static struct key_name_entry
     {K_PLUG,		(char_u *)"Plug"},
     {K_CURSORHOLD,	(char_u *)"CursorHold"},
     {0,			NULL}
+    /* NOTE: When adding a long name update MAX_KEY_NAME_LEN. */
 };
 
 #define KEY_NAMES_TABLE_LEN (sizeof(key_names_table) / sizeof(struct key_name_entry))
@@ -2678,8 +2699,13 @@ get_special_key_name(int c, int modifiers)
     }
     else		/* use name of special key */
     {
-	STRCPY(string + idx, key_names_table[table_idx].name);
-	idx = (int)STRLEN(string);
+	size_t len = STRLEN(key_names_table[table_idx].name);
+
+	if (len + idx + 2 <= MAX_KEY_NAME_LEN)
+	{
+	    STRCPY(string + idx, key_names_table[table_idx].name);
+	    idx += (int)len;
+	}
     }
     string[idx++] = '>';
     string[idx] = NUL;
@@ -3446,11 +3472,12 @@ parse_shape_opt(int what)
 	while (*modep != NUL)
 	{
 	    colonp = vim_strchr(modep, ':');
-	    if (colonp == NULL)
+	    commap = vim_strchr(modep, ',');
+
+	    if (colonp == NULL || (commap != NULL && commap < colonp))
 		return (char_u *)N_("E545: Missing colon");
 	    if (colonp == modep)
 		return (char_u *)N_("E546: Illegal mode");
-	    commap = vim_strchr(modep, ',');
 
 	    /*
 	     * Repeat for all mode's before the colon.
@@ -6262,4 +6289,34 @@ parse_queued_messages(void)
     job_check_ended();
 # endif
 }
+#endif
+
+#ifndef PROTO  /* proto is defined in vim.h */
+# ifdef ELAPSED_TIMEVAL
+/*
+ * Return time in msec since "start_tv".
+ */
+    long
+elapsed(struct timeval *start_tv)
+{
+    struct timeval  now_tv;
+
+    gettimeofday(&now_tv, NULL);
+    return (now_tv.tv_sec - start_tv->tv_sec) * 1000L
+	 + (now_tv.tv_usec - start_tv->tv_usec) / 1000L;
+}
+# endif
+
+# ifdef ELAPSED_TICKCOUNT
+/*
+ * Return time in msec since "start_tick".
+ */
+    long
+elapsed(DWORD start_tick)
+{
+    DWORD	now = GetTickCount();
+
+    return (long)now - (long)start_tick;
+}
+# endif
 #endif
