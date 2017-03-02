@@ -46,6 +46,8 @@ public:
 	void setSlowStringDrawing(bool slow) {m_slowStringDrawing = slow;}
 
 	void setBlinkTime(const long waittime, const long ontime, const long offtime);
+	int isBlinking(void);
+	int isBlinkOff(void);
 
 	void stopBlinking();
 	void startBlinking();

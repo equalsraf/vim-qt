@@ -49,7 +49,7 @@ private:
 	QVimShell *vimshell;
 	QToolBar *tabtoolbar;
 	TabBar *tabbar;
-	
+
 
 	bool m_keepTabbar;
 };

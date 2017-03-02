@@ -12,7 +12,7 @@ public:
 
 protected:
 	ColorTable();
-	
+
 private:
 	static ColorTable m_instance;
 };

@@ -15,64 +15,64 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pathdef.cmake.in ${CMAKE_CURRENT_BINA
 # Vim executable
 #
 
-set(VIM_SOURCES buffer.c 
-		blowfish.c 
-		charset.c 
-		diff.c 
-		digraph.c 
-		edit.c 
-		eval.c 
-		ex_cmds.c 
-		ex_cmds2.c 
-		ex_docmd.c 
-		ex_eval.c 
-		ex_getln.c 
-		fileio.c 
-		fold.c 
-		getchar.c 
-		hardcopy.c 
-		hashtab.c 
-		if_cscope.c 
-		if_xcmdsrv.c 
-		main.c 
-		mark.c 
-		memfile.c 
-		memline.c 
-		menu.c 
-		message.c 
-		misc1.c 
-		misc2.c 
-		move.c 
-		mbyte.c 
-		normal.c 
-		ops.c 
-		option.c 
-		popupmnu.c 
-		quickfix.c 
-		regexp.c 
-		screen.c 
-		search.c 
-		sha256.c 
-		spell.c 
-		syntax.c 
-		tag.c 
-		term.c 
-		ui.c 
-		undo.c 
-		window.c 
-		gui.c 
-		netbeans.c 
-		version.c 
+set(VIM_SOURCES buffer.c
+		blowfish.c
+		charset.c
+		diff.c
+		digraph.c
+		edit.c
+		eval.c
+		ex_cmds.c
+		ex_cmds2.c
+		ex_docmd.c
+		ex_eval.c
+		ex_getln.c
+		fileio.c
+		fold.c
+		getchar.c
+		hardcopy.c
+		hashtab.c
+		if_cscope.c
+		if_xcmdsrv.c
+		main.c
+		mark.c
+		memfile.c
+		memline.c
+		menu.c
+		message.c
+		misc1.c
+		misc2.c
+		move.c
+		mbyte.c
+		normal.c
+		ops.c
+		option.c
+		popupmnu.c
+		quickfix.c
+		regexp.c
+		screen.c
+		search.c
+		sha256.c
+		spell.c
+		syntax.c
+		tag.c
+		term.c
+		ui.c
+		undo.c
+		window.c
+		gui.c
+		netbeans.c
+		version.c
 		auto/pathdef.c)
 
 set(GUI_SOURCES gui_qt.cpp )
-set(MOC_SOURCES qt/qvimshell.cpp 
-		qt/mainwindow.cpp 
-		qt/vimaction.cpp 
-		qt/tabbar.cpp 
-		qt/vimaction.cpp 
-		qt/vimscrollbar.cpp 
-		qt/vimwrapper.cpp 
+set(MOC_SOURCES qt/qvimshell.cpp
+		qt/mainwindow.cpp
+		qt/vimaction.cpp
+		qt/tabbar.cpp
+		qt/vimaction.cpp
+		qt/vimscrollbar.cpp
+		qt/vimwrapper.cpp
 		qt/fontdialog.cpp
 		qt/colortable.cpp
 		qt/vimevents.cpp
@@ -86,8 +86,8 @@ qt4_automoc(${MOC_SOURCES})
 
 if(MSVC OR MINGW)
 
-	set(VIM_SOURCES ${VIM_SOURCES} 
-			os_win32.c 
+	set(VIM_SOURCES ${VIM_SOURCES}
+			os_win32.c
 			winclip.c
 			os_mswin.c)
 

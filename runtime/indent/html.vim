@@ -2,7 +2,7 @@
 " Header: "{{{
 " Maintainer:	Bram Moolenaar
 " Original Author: Andy Wokula <anwoku@yahoo.de>
-" Last Change:	2015 Sep 25
+" Last Change:	2017 Jan 17
 " Version:	1.0
 " Description:	HTML indent script with cached state for faster indenting on a
 "		range of lines.
@@ -25,27 +25,22 @@
 if exists("b:did_indent") "{{{
   finish
 endif
+
+" Load the Javascript indent script first, it defines GetJavascriptIndent().
+" Undo the rest.
+" Load base python indent.
+if !exists('*GetJavascriptIndent')
+  runtime! indent/javascript.vim
+endif
 let b:did_indent = 1
 
 setlocal indentexpr=HtmlIndent()
 setlocal indentkeys=o,O,<Return>,<>>,{,},!^F
 
-" "j1" is included to make cindent() work better with Javascript.
-setlocal cino=j1
-" "J1" should be included, but it doen't work properly before 7.4.355.
-if has("patch-7.4.355")
-  setlocal cino+=J1
-endif
-" Before patch 7.4.355 indenting after "(function() {" does not work well, add
-" )2 to limit paren search.
-if !has("patch-7.4.355")
-  setlocal cino+=)2
-endif
-
 " Needed for % to work when finding start/end of a tag.
 setlocal matchpairs+=<:>
 
-let b:undo_indent = "setlocal inde< indk< cino<"
+let b:undo_indent = "setlocal inde< indk<"
 
 " b:hi_indent keeps state to speed up indenting consecutive lines.
 let b:hi_indent = {"lnum": -1}
@@ -240,13 +235,13 @@ call s:AddITags(s:indent_tags, [
     \ 'sup', 'table', 'textarea', 'title', 'tt', 'u', 'ul', 'var', 'th', 'td',
     \ 'tr', 'tbody', 'tfoot', 'thead'])
 
-" Tags added 2011 Sep 09 (especially HTML5 tags):
+" New HTML5 elements:
 call s:AddITags(s:indent_tags, [
     \ 'area', 'article', 'aside', 'audio', 'bdi', 'canvas',
-    \ 'command', 'datalist', 'details', 'embed', 'figure', 'footer',
-    \ 'header', 'group', 'keygen', 'mark', 'math', 'meter', 'nav', 'output',
-    \ 'progress', 'ruby', 'section', 'svg', 'texture', 'time', 'video',
-    \ 'wbr', 'text'])
+    \ 'command', 'data', 'datalist', 'details', 'embed', 'figcaption',
+    \ 'figure', 'footer', 'header', 'keygen', 'mark', 'meter', 'nav', 'output',
+    \ 'progress', 'rp', 'rt', 'ruby', 'section', 'source', 'summary', 'svg', 
+    \ 'time', 'track', 'video', 'wbr'])
 
 " Tags added for web components:
 call s:AddITags(s:indent_tags, [
@@ -596,7 +591,7 @@ func! s:Alien3()
     return eval(b:hi_js1indent)
   endif
   if b:hi_indent.scripttype == "javascript"
-    return cindent(v:lnum)
+    return GetJavascriptIndent()
   else
     return -1
   endif
@@ -749,7 +744,7 @@ func! s:CssPrevNonComment(lnum, stopline)
   while 1
     let ccol = match(getline(lnum), '\*/')
     if ccol < 0
-      " No comment end thus its something else.
+      " No comment end thus it's something else.
       return lnum
     endif
     call cursor(lnum, ccol + 1)

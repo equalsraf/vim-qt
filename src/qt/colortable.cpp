@@ -679,7 +679,7 @@ ColorTable::ColorTable()
  * Get a color by name
  *
  * The color name can be any Vim or Qt color including html #colors.
- * Color names are case and space insensitive, i.e. "Dark Blue" 
+ * Color names are case and space insensitive, i.e. "Dark Blue"
  * and "darkblue" are the same color.
  *
  */

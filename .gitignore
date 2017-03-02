@@ -5,8 +5,8 @@ src/xxd/xxd
 src/auto/if_perl.c
 src/auto/gui_gtk_gresources.c
 src/auto/gui_gtk_gresources.h
+src/objects/.dirstamp
 src/tags
-src/qvim
 
 # We do need src/auto/configure.
 src/auto/config.aap
@@ -20,6 +20,8 @@ src/auto/osdef.h
 src/auto/link.log
 src/auto/link.sed
 src/auto/pathdef.c
+src/config.status
+src/autom4te.cache
 
 # Windows
 *.exe
@@ -79,3 +81,6 @@ src/testdir/dostmp/*
 src/testdir/messages
 src/testdir/viminfo
 src/memfile_test
+src/json_test
+src/message_test
+src/kword_test
