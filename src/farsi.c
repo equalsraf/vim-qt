@@ -1695,7 +1695,7 @@ conv_to_pvim(void)
 		ptr[i] = toF_leading(ptr[i]);
 		++i;
 
-		while (canF_Rjoin(ptr[i]) && i < llen)
+		while (i < llen && canF_Rjoin(ptr[i]))
 		{
 		    ptr[i] = toF_Rjoin(ptr[i]);
 		    if (F_isterm(ptr[i]) || !F_isalpha(ptr[i]))
@@ -1719,7 +1719,7 @@ conv_to_pvim(void)
 
     /* Assume the screen has been messed up: clear it and redraw. */
     redraw_later(CLEAR);
-    MSG_ATTR(farsi_text_1, hl_attr(HLF_S));
+    MSG_ATTR(farsi_text_1, HL_ATTR(HLF_S));
 }
 
 /*
@@ -1747,7 +1747,7 @@ conv_to_pstd(void)
 
     /* Assume the screen has been messed up: clear it and redraw. */
     redraw_later(CLEAR);
-    MSG_ATTR(farsi_text_2, hl_attr(HLF_S));
+    MSG_ATTR(farsi_text_2, HL_ATTR(HLF_S));
 }
 
 /*

@@ -196,7 +196,7 @@ coladvance2(
 	    /* Count a tab for what it's worth (if list mode not on) */
 #ifdef FEAT_LINEBREAK
 	    csize = win_lbr_chartabsize(curwin, line, ptr, col, &head);
-	    mb_ptr_adv(ptr);
+	    MB_PTR_ADV(ptr);
 #else
 	    csize = lbr_chartabsize_adv(line, &ptr, col);
 #endif
@@ -970,7 +970,7 @@ lalloc(long_u size, int message)
 	    break;
 	releasing = TRUE;
 
-	clear_sb_text();	      /* free any scrollback text */
+	clear_sb_text(TRUE);	      /* free any scrollback text */
 	try_again = mf_release_all(); /* release as many blocks as possible */
 
 	releasing = FALSE;
@@ -1148,7 +1148,7 @@ free_all_mem(void)
 # ifdef FEAT_DIFF
     diff_clear(curtab);
 # endif
-    clear_sb_text();	      /* free any scrollback text */
+    clear_sb_text(TRUE);	      /* free any scrollback text */
 
     /* Free some global vars. */
     vim_free(username);
@@ -1418,7 +1418,7 @@ vim_strsave_shellescape(char_u *string, int do_special, int do_newline)
 
     /* First count the number of extra bytes required. */
     length = (unsigned)STRLEN(string) + 3;  /* two quotes and a trailing NUL */
-    for (p = string; *p != NUL; mb_ptr_adv(p))
+    for (p = string; *p != NUL; MB_PTR_ADV(p))
     {
 # ifdef WIN32
 	if (!p_ssl)
@@ -1702,7 +1702,7 @@ del_trailing_spaces(char_u *ptr)
     char_u	*q;
 
     q = ptr + STRLEN(ptr);
-    while (--q > ptr && vim_iswhite(q[0]) && q[-1] != '\\' && q[-1] != Ctrl_V)
+    while (--q > ptr && VIM_ISWHITE(q[0]) && q[-1] != '\\' && q[-1] != Ctrl_V)
 	*q = NUL;
 }
 
@@ -1874,7 +1874,7 @@ vim_strchr(char_u *string, int c)
     {
 	while (*p != NUL)
 	{
-	    int l = (*mb_ptr2len)(p);
+	    int l = utfc_ptr2len(p);
 
 	    /* Avoid matching an illegal byte here. */
 	    if (utf_ptr2char(p) == c && l > 1)
@@ -1950,7 +1950,7 @@ vim_strrchr(char_u *string, int c)
     {
 	if (*p == c)
 	    retval = p;
-	mb_ptr_adv(p);
+	MB_PTR_ADV(p);
     }
     return retval;
 }
@@ -1971,7 +1971,7 @@ vim_strpbrk(char_u *s, char_u *charset)
     {
 	if (vim_strchr(charset, *s) != NULL)
 	    return s;
-	mb_ptr_adv(s);
+	MB_PTR_ADV(s);
     }
     return NULL;
 }
@@ -2129,7 +2129,7 @@ ga_concat(garray_T *gap, char_u *s)
 {
     int    len;
 
-    if (s == NULL)
+    if (s == NULL || *s == NUL)
 	return;
     len = (int)STRLEN(s);
     if (ga_grow(gap, len) == OK)
@@ -2438,6 +2438,7 @@ static struct key_name_entry
 #endif
 #ifdef FEAT_MOUSE_SGR
     {K_SGR_MOUSE,	(char_u *)"SgrMouse"},
+    {K_SGR_MOUSERELEASE, (char_u *)"SgrMouseRelelase"},
 #endif
     {K_LEFTMOUSE,	(char_u *)"LeftMouse"},
     {K_LEFTMOUSE_NM,	(char_u *)"LeftMouseNM"},
@@ -3364,8 +3365,8 @@ vim_chdirfile(char_u *fname)
  * Used for systems where stat() ignores a trailing slash on a file name.
  * The Vim code assumes a trailing slash is only ignored for a directory.
  */
-    int
-illegal_slash(char *name)
+    static int
+illegal_slash(const char *name)
 {
     if (name[0] == NUL)
 	return FALSE;	    /* no file name is not illegal */
@@ -3374,6 +3375,17 @@ illegal_slash(char *name)
     if (mch_isdir((char_u *)name))
 	return FALSE;	    /* trailing slash for a directory */
     return TRUE;
+}
+
+/*
+ * Special implementation of mch_stat() for Solaris.
+ */
+    int
+vim_stat(const char *name, stat_T *stp)
+{
+    /* On Solaris stat() accepts "file/" as if it was "file".  Return -1 if
+     * the name ends in "/" and it's not a directory. */
+    return illegal_slash(name) ? -1 : stat(name, stp);
 }
 #endif
 
@@ -4626,13 +4638,23 @@ vim_findfile(void *search_ctx_arg)
 		if (!vim_isAbsName(stackp->ffs_fix_path)
 						&& search_ctx->ffsc_start_dir)
 		{
-		    STRCPY(file_path, search_ctx->ffsc_start_dir);
-		    add_pathsep(file_path);
+		    if (STRLEN(search_ctx->ffsc_start_dir) + 1 < MAXPATHL)
+		    {
+			STRCPY(file_path, search_ctx->ffsc_start_dir);
+			add_pathsep(file_path);
+		    }
+		    else
+			goto fail;
 		}
 
 		/* append the fix part of the search path */
-		STRCAT(file_path, stackp->ffs_fix_path);
-		add_pathsep(file_path);
+		if (STRLEN(file_path) + STRLEN(stackp->ffs_fix_path) + 1 < MAXPATHL)
+		{
+		    STRCAT(file_path, stackp->ffs_fix_path);
+		    add_pathsep(file_path);
+		}
+		else
+		    goto fail;
 
 #ifdef FEAT_PATH_EXTRA
 		rest_of_wildcards = stackp->ffs_wc_path;
@@ -4649,7 +4671,10 @@ vim_findfile(void *search_ctx_arg)
 			if (*p > 0)
 			{
 			    (*p)--;
-			    file_path[len++] = '*';
+			    if (len + 1 < MAXPATHL)
+				file_path[len++] = '*';
+			    else
+				goto fail;
 			}
 
 			if (*p == 0)
@@ -4677,7 +4702,10 @@ vim_findfile(void *search_ctx_arg)
 		     */
 		    while (*rest_of_wildcards
 			    && !vim_ispathsep(*rest_of_wildcards))
-			file_path[len++] = *rest_of_wildcards++;
+			if (len + 1 < MAXPATHL)
+			    file_path[len++] = *rest_of_wildcards++;
+			else
+			    goto fail;
 
 		    file_path[len] = NUL;
 		    if (vim_ispathsep(*rest_of_wildcards))
@@ -4738,9 +4766,15 @@ vim_findfile(void *search_ctx_arg)
 
 			/* prepare the filename to be checked for existence
 			 * below */
-			STRCPY(file_path, stackp->ffs_filearray[i]);
-			add_pathsep(file_path);
-			STRCAT(file_path, search_ctx->ffsc_file_to_search);
+			if (STRLEN(stackp->ffs_filearray[i]) + 1
+				+ STRLEN(search_ctx->ffsc_file_to_search) < MAXPATHL)
+			{
+			    STRCPY(file_path, stackp->ffs_filearray[i]);
+			    add_pathsep(file_path);
+			    STRCAT(file_path, search_ctx->ffsc_file_to_search);
+			}
+			else
+			    goto fail;
 
 			/*
 			 * Try without extra suffix and then with suffixes
@@ -4913,9 +4947,15 @@ vim_findfile(void *search_ctx_arg)
 	    if (*search_ctx->ffsc_start_dir == 0)
 		break;
 
-	    STRCPY(file_path, search_ctx->ffsc_start_dir);
-	    add_pathsep(file_path);
-	    STRCAT(file_path, search_ctx->ffsc_fix_path);
+	    if (STRLEN(search_ctx->ffsc_start_dir) + 1
+		    + STRLEN(search_ctx->ffsc_fix_path) < MAXPATHL)
+	    {
+		STRCPY(file_path, search_ctx->ffsc_start_dir);
+		add_pathsep(file_path);
+		STRCAT(file_path, search_ctx->ffsc_fix_path);
+	    }
+	    else
+		goto fail;
 
 	    /* create a new stack entry */
 	    sptr = ff_create_stack_element(file_path,
@@ -4929,6 +4969,7 @@ vim_findfile(void *search_ctx_arg)
     }
 #endif
 
+fail:
     vim_free(file_path);
     return NULL;
 }

@@ -69,7 +69,7 @@ fixff:
 	-$(VIMPROG) -u dos.vim $(NO_INITS) "+argdo set ff=dos|upd" +q *.in *.ok
 	-$(VIMPROG) -u dos.vim $(NO_INITS) "+argdo set ff=unix|upd" +q \
 		dotest.in test60.ok test_listchars.ok \
-		test_getcwd.ok test_wordcount.ok
+		test_wordcount.ok
 
 clean:
 	-@if exist *.out $(DEL) *.out
@@ -88,6 +88,7 @@ clean:
 	-@if exist viminfo $(DEL) viminfo
 	-@if exist test.log $(DEL) test.log
 	-@if exist messages $(DEL) messages
+	-@if exist opt_test.vim $(DEL) opt_test.vim
 
 .in.out:
 	-@if exist $*.ok $(CP) $*.ok test.ok
@@ -128,6 +129,8 @@ test_gui.res: test_gui.vim
 
 test_gui_init.res: test_gui_init.vim
 	@echo "$(VIMPROG)" > vimcmd
-	$(VIMPROG) -u NONE -U gui_init.vim $(NO_PLUGINS) -S runtest.vim $<
+	$(VIMPROG) -u gui_preinit.vim -U gui_init.vim $(NO_PLUGINS) -S runtest.vim $<
 	@$(DEL) vimcmd
 
+opt_test.vim: ../option.c gen_opt_test.vim
+	$(VIMPROG) -u NONE -S gen_opt_test.vim --noplugin --not-a-term ../option.c

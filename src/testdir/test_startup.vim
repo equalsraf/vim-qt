@@ -23,28 +23,34 @@ func Test_after_comes_later()
 	\ 'set guioptions+=M',
 	\ 'let $HOME = "/does/not/exist"',
 	\ 'set loadplugins',
-	\ 'set rtp=Xhere,Xafter',
+	\ 'set rtp=Xhere,Xafter,Xanother',
 	\ 'set packpath=Xhere,Xafter',
 	\ 'set nomore',
+	\ 'let g:sequence = ""',
 	\ ]
   let after = [
 	\ 'redir! > Xtestout',
 	\ 'scriptnames',
 	\ 'redir END',
+	\ 'redir! > Xsequence',
+	\ 'echo g:sequence',
+	\ 'redir END',
 	\ 'quit',
 	\ ]
   call mkdir('Xhere/plugin', 'p')
-  call writefile(['let done = 1'], 'Xhere/plugin/here.vim')
+  call writefile(['let g:sequence .= "here "'], 'Xhere/plugin/here.vim')
+  call mkdir('Xanother/plugin', 'p')
+  call writefile(['let g:sequence .= "another "'], 'Xanother/plugin/another.vim')
   call mkdir('Xhere/pack/foo/start/foobar/plugin', 'p')
-  call writefile(['let done = 1'], 'Xhere/pack/foo/start/foobar/plugin/foo.vim')
+  call writefile(['let g:sequence .= "pack "'], 'Xhere/pack/foo/start/foobar/plugin/foo.vim')
 
   call mkdir('Xafter/plugin', 'p')
-  call writefile(['let done = 1'], 'Xafter/plugin/later.vim')
+  call writefile(['let g:sequence .= "after "'], 'Xafter/plugin/later.vim')
 
   if RunVim(before, after, '')
 
     let lines = readfile('Xtestout')
-    let expected = ['Xbefore.vim', 'here.vim', 'foo.vim', 'later.vim', 'Xafter.vim']
+    let expected = ['Xbefore.vim', 'here.vim', 'another.vim', 'foo.vim', 'later.vim', 'Xafter.vim']
     let found = []
     for line in lines
       for one in expected
@@ -56,9 +62,45 @@ func Test_after_comes_later()
     call assert_equal(expected, found)
   endif
 
+  call assert_equal('here another pack after', substitute(join(readfile('Xsequence', 1), ''), '\s\+$', '', ''))
+
+  call delete('Xtestout')
+  call delete('Xsequence')
+  call delete('Xhere', 'rf')
+  call delete('Xanother', 'rf')
+  call delete('Xafter', 'rf')
+endfunc
+
+func Test_pack_in_rtp_when_plugins_run()
+  if !has('packages')
+    return
+  endif
+  let before = [
+	\ 'set nocp viminfo+=nviminfo',
+	\ 'set guioptions+=M',
+	\ 'let $HOME = "/does/not/exist"',
+	\ 'set loadplugins',
+	\ 'set rtp=Xhere',
+	\ 'set packpath=Xhere',
+	\ 'set nomore',
+	\ ]
+  let after = [
+	\ 'quit',
+	\ ]
+  call mkdir('Xhere/plugin', 'p')
+  call writefile(['redir! > Xtestout', 'silent set runtimepath?', 'silent! call foo#Trigger()', 'redir END'], 'Xhere/plugin/here.vim')
+  call mkdir('Xhere/pack/foo/start/foobar/autoload', 'p')
+  call writefile(['function! foo#Trigger()', 'echo "autoloaded foo"', 'endfunction'], 'Xhere/pack/foo/start/foobar/autoload/foo.vim')
+
+  if RunVim(before, after, '')
+
+    let lines = filter(readfile('Xtestout'), '!empty(v:val)')
+    call assert_match('Xhere[/\\]pack[/\\]foo[/\\]start[/\\]foobar', get(lines, 0))
+    call assert_match('autoloaded foo', get(lines, 1))
+  endif
+
   call delete('Xtestout')
   call delete('Xhere', 'rf')
-  call delete('Xafter', 'rf')
 endfunc
 
 func Test_help_arg()
@@ -182,4 +224,42 @@ func Test_read_stdin()
     call assert_equal(['something'], split(lines[0]))
   endif
   call delete('Xtestout')
+endfunc
+
+func Test_progpath()
+  " Tests normally run with "./vim" or "../vim", these must have been expanded
+  " to a full path.
+  if has('unix')
+    call assert_equal('/', v:progpath[0])
+  elseif has('win32')
+    call assert_equal(':', v:progpath[1])
+    call assert_match('[/\\]', v:progpath[2])
+  endif
+
+  " Only expect "vim" to appear in v:progname.
+  call assert_match('vim\c', v:progname)
+endfunc
+
+func Test_silent_ex_mode()
+  if !has('unix') || has('gui_running')
+    " can't get output of Vim.
+    return
+  endif
+
+  " This caused an ml_get error.
+  let out = system(GetVimCommand() . '-u NONE -es -c''set verbose=1|h|exe "%norm\<c-y>\<c-d>"'' -c cq')
+  call assert_notmatch('E315:', out)
+endfunc
+
+func Test_default_term()
+  if !has('unix') || has('gui_running')
+    " can't get output of Vim.
+    return
+  endif
+
+  let save_term = $TERM
+  let $TERM = 'unknownxxx'
+  let out = system(GetVimCommand() . ' -c''set term'' -c cq')
+  call assert_match("defaulting to 'ansi'", out)
+  let $TERM = save_term
 endfunc

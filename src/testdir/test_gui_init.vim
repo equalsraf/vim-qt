@@ -15,7 +15,10 @@ func TearDown()
   call GUITearDownCommon()
 endfunc
 
-" Make sure that the tests will be done with the GUI activated.
+" Ignore the "failed to create input context" error.
+call test_ignore_error('E285')
+
+" Start the GUI now, in the foreground.
 gui -f
 
 func Test_set_guiheadroom()
@@ -27,6 +30,28 @@ func Test_set_guiheadroom()
     " The 'expected' value must be consistent with the value specified with
     " gui_init.vim.
     call assert_equal(0, &guiheadroom)
+  endif
+
+  if !empty(skipped)
+    throw skipped
+  endif
+endfunc
+
+func Test_set_guioptions_for_M()
+  sleep 200ms
+  " Check if the 'M' option is included.
+  call assert_match('.*M.*', &guioptions)
+endfunc
+
+func Test_set_guioptions_for_p()
+  let skipped = ''
+
+  if !g:x11_based_gui
+    let skipped = g:not_supported . '''p'' of guioptions'
+  else
+    sleep 200ms
+    " Check if the 'p' option is included.
+    call assert_match('.*p.*', &guioptions)
   endif
 
   if !empty(skipped)

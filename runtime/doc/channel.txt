@@ -1,4 +1,4 @@
-*channel.txt*      For Vim version 8.0.  Last change: 2016 Dec 02
+*channel.txt*      For Vim version 8.0.  Last change: 2017 Jun 11
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -489,6 +489,11 @@ If you want to handle both stderr and stdout with one handler use the
 "callback" option: >
     let job = job_start(command, {"callback": "MyHandler"}) 
 
+Depending on the system, starting a job can put Vim in the background, the
+started job gets the focus.  To avoid that, use the `foreground()` function.
+This might not always work when called early, put in the callback handler or
+use a timer to call it after the job has started.
+
 You can send a message to the command with ch_evalraw().  If the channel is in
 JSON or JS mode you can use ch_evalexpr().
 
@@ -513,7 +518,7 @@ By default this reads the whole buffer.  This can be changed with the "in_top"
 and "in_bot" options.
 
 A special mode is when "in_top" is set to zero and "in_bot" is not set: Every
-time a line is added to the buffer, the last-but-one line will be send to the
+time a line is added to the buffer, the last-but-one line will be sent to the
 job stdin.  This allows for editing the last line and sending it when pressing
 Enter.
 							*channel-close-in*

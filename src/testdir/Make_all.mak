@@ -24,9 +24,6 @@ SCRIPTS_ALL = \
 	test19.out \
 	test20.out \
 	test22.out \
-	test23.out \
-	test24.out \
-	test26.out \
 	test28.out \
 	test29.out \
 	test31.out \
@@ -50,21 +47,16 @@ SCRIPTS_ALL = \
 	test57.out \
 	test60.out \
 	test64.out \
-	test65.out \
 	test66.out \
-	test67.out \
 	test68.out \
 	test69.out \
 	test70.out \
 	test73.out \
-	test75.out \
 	test77.out \
 	test79.out \
 	test80.out \
-	test82.out \
 	test84.out \
 	test88.out \
-	test90.out \
 	test91.out \
 	test94.out \
 	test95.out \
@@ -74,15 +66,12 @@ SCRIPTS_ALL = \
 	test104.out \
 	test107.out \
 	test108.out \
-	test_autocmd_option.out \
 	test_autoformat_join.out \
 	test_changelist.out \
 	test_close_count.out \
-	test_comparators.out \
 	test_erasebackword.out \
 	test_eval.out \
 	test_fixeol.out \
-	test_getcwd.out \
 	test_insertcount.out \
 	test_listchars.out \
 	test_search_mbyte.out \
@@ -102,8 +91,7 @@ SCRIPTS_MORE1 = \
 SCRIPTS_MORE2 = \
 	test12.out \
 	test25.out \
-	test49.out \
-	test97.out
+	test49.out
 
 
 # Tests that run on most systems, but not MingW and Cygwin.
@@ -116,7 +104,6 @@ SCRIPTS_MORE4 = \
 	test17.out \
 	test30.out \
 	test32.out \
-	test58.out \
 	test59.out \
 	test72.out \
 	test78.out \
@@ -137,12 +124,15 @@ NEW_TESTS = test_arabic.res \
 	    test_arglist.res \
 	    test_assert.res \
 	    test_autochdir.res \
+	    test_autocmd.res \
 	    test_backspace_opt.res \
 	    test_breakindent.res \
 	    test_bufwintabinfo.res \
 	    test_cdo.res \
 	    test_channel.res \
 	    test_charsearch.res \
+	    test_cindent.res \
+	    test_clientserver.res \
 	    test_cmdline.res \
 	    test_command_count.res \
 	    test_crypt.res \
@@ -150,6 +140,7 @@ NEW_TESTS = test_arabic.res \
 	    test_diffmode.res \
 	    test_digraph.res \
 	    test_display.res \
+	    test_edit.res \
 	    test_farsi.res \
 	    test_fnameescape.res \
 	    test_fold.res \
@@ -170,6 +161,7 @@ NEW_TESTS = test_arabic.res \
 	    test_listlbr.res \
 	    test_listlbr_utf8.res \
 	    test_lua.res \
+	    test_makeencoding.res \
 	    test_man.res \
 	    test_marks.res \
 	    test_matchadd_conceal.res \
@@ -179,6 +171,7 @@ NEW_TESTS = test_arabic.res \
 	    test_netbeans.res \
 	    test_normal.res \
 	    test_number.res \
+	    test_options.res \
 	    test_packadd.res \
 	    test_paste.res \
 	    test_perl.res \
@@ -188,7 +181,9 @@ NEW_TESTS = test_arabic.res \
 	    test_pyx2.res \
 	    test_pyx3.res \
 	    test_quickfix.res \
+	    test_quotestar.res \
 	    test_retab.res \
+	    test_registers.res \
 	    test_ruby.res \
 	    test_search.res \
 	    test_signs.res \
@@ -219,3 +214,4 @@ test49.out: test49.vim
 
 test60.out: test60.vim
 
+test_options.res test_alot.res: opt_test.vim

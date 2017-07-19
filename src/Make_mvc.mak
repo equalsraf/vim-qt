@@ -1,7 +1,7 @@
 # Makefile for Vim on Win32 (Windows XP/2003/Vista/7/8/10) and Win64,
 # using the Microsoft Visual C++ compilers. Known to work with VC5, VC6 (VS98),
 # VC7.0 (VS2002), VC7.1 (VS2003), VC8 (VS2005), VC9 (VS2008), VC10 (VS2010),
-# VC11 (VS2012), VC12 (VS2013) and VC14 (VS2015)
+# VC11 (VS2012), VC12 (VS2013), VC14 (VS2015) and VC15 (VS2017)
 #
 # To build using other Windows compilers, see INSTALLpc.txt
 #
@@ -108,10 +108,15 @@
 #
 #	Optimization: OPTIMIZE=[SPACE, SPEED, MAXSPEED] (default is MAXSPEED)
 #
-#	Processor Version: CPUNR=[i386, i486, i586, i686, pentium4] (default is
-#	i386)
+#	Processor Version: CPUNR=[any, i586, i686, sse, sse2, avx, avx2] (default is
+#	any)
+#	  avx is available on Visual C++ 2010 and after.
+#	  avx2 is available on Visual C++ 2013 Update 2 and after.
 #
-#	Version Support: WINVER=[0x0501, 0x0600] (default is 0x0501)
+#	Version Support: WINVER=[0x0501, 0x0502, 0x0600, 0x0601, 0x0602,
+#	0x0603, 0x0A00] (default is 0x0501)
+#	Supported versions depends on your target SDK, check SDKDDKVer.h
+#	See https://docs.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt
 #
 #	Debug version: DEBUG=yes
 #	Mapfile: MAP=[no, yes or lines] (default is yes)
@@ -270,10 +275,30 @@ MAKEFLAGS_GVIMEXT = DEBUG=yes
 !if $(MSVCVER) < 1900
 MSVC_MAJOR = ($(MSVCVER) / 100 - 6)
 MSVCRT_VER = ($(MSVCVER) / 10 - 60)
+# Visual C++ 2017 needs special handling
+# it has an _MSC_VER of 1910->14.1, but is actually v15 with runtime v140
+!elseif $(MSVCVER) == 1910
+MSVC_MAJOR = 15
+MSVCRT_VER = 140
 !else
 MSVC_MAJOR = ($(MSVCVER) / 100 - 5)
 MSVCRT_VER = ($(MSVCVER) / 10 - 50)
 !endif
+
+# Calculate MSVC_FULL for Visual C++ 8 and up.
+!if $(MSVC_MAJOR) >= 8
+! if [echo MSVC_FULL=_MSC_FULL_VER> msvcfullver.c && $(CC) /EP msvcfullver.c > msvcfullver.~ 2> nul]
+!  message *** ERROR
+!  message Cannot run Visual C to determine its version. Make sure cl.exe is in your PATH.
+!  message This can usually be done by running "vcvarsall.bat", located in the bin directory where Visual Studio was installed.
+!  error Make aborted.
+! else
+!  include msvcfullver.~
+!  if [del msvcfullver.c msvcfullver.~]
+!  endif
+! endif
+!endif
+
 
 # Calculate MSVCRT_VER
 !if [(set /a MSVCRT_VER="$(MSVCRT_VER)" > nul) && set MSVCRT_VER > msvcrtver.~] == 0
@@ -324,6 +349,12 @@ CSCOPE = yes
 CSCOPE_INCL  = if_cscope.h
 CSCOPE_OBJ   = $(OBJDIR)/if_cscope.obj
 CSCOPE_DEFS  = -DFEAT_CSCOPE
+!endif
+
+!if "$(TERMINAL)" == "yes"
+TERMINAL_OBJ   = $(OBJDIR)/terminal.obj
+TERMINAL_DEFS  = -DFEAT_TERMINAL
+TERMINAL_SRC	= terminal.c
 !endif
 
 !ifndef NETBEANS
@@ -433,7 +464,7 @@ WINVER = 0x0501
 #VIMRUNTIMEDIR = somewhere
 
 CFLAGS = -c /W3 /nologo $(CVARS) -I. -Iproto -DHAVE_PATHDEF -DWIN32 \
-		$(CSCOPE_DEFS) $(NETBEANS_DEFS) $(CHANNEL_DEFS) \
+		$(CSCOPE_DEFS) $(TERMINAL_DEFS) $(NETBEANS_DEFS) $(CHANNEL_DEFS) \
 		$(NBDEBUG_DEFS) $(XPM_DEFS) \
 		$(DEFINES) -DWINVER=$(WINVER) -D_WIN32_WINNT=$(WINVER) \
 		/Fo$(OUTDIR)/ 
@@ -446,27 +477,95 @@ DEL_TREE = rmdir /s /q
 INTDIR=$(OBJDIR)
 OUTDIR=$(OBJDIR)
 
+### Validate CPUNR
+!ifndef CPUNR
+# default to untargeted code
+CPUNR = any
+!elseif "$(CPUNR)" == "i386" || "$(CPUNR)" == "i486"
+# alias i386 and i486 to i586
+! message *** WARNING CPUNR=$(CPUNR) is not a valid target architecture.
+! message Windows XP is the minimum target OS, with a minimum target
+! message architecture of i586.
+! message Retargeting to i586
+CPUNR = i586
+!elseif "$(CPUNR)" == "pentium4"
+# alias pentium4 to sse2
+! message *** WARNING CPUNR=pentium4 is deprecated in favour of sse2.
+! message Retargeting to sse2.
+CPUNR = sse2
+!elseif "$(CPUNR)" != "any" && "$(CPUNR)" != "i586" && "$(CPUNR)" != "i686" && "$(CPUNR)" != "sse" && "$(CPUNR)" != "sse2" && "$(CPUNR)" != "avx" && "$(CPUNR)" != "avx2"
+! error *** ERROR Unknown target architecture "$(CPUNR)". Make aborted.
+!endif
+
 # Convert processor ID to MVC-compatible number
 !if $(MSVC_MAJOR) < 8
-!if "$(CPUNR)" == "i386"
-CPUARG = /G3
-!elseif "$(CPUNR)" == "i486"
-CPUARG = /G4
-!elseif "$(CPUNR)" == "i586"
+! if "$(CPUNR)" == "i586"
 CPUARG = /G5
-!elseif "$(CPUNR)" == "i686"
+! elseif "$(CPUNR)" == "i686"
 CPUARG = /G6
-!elseif "$(CPUNR)" == "pentium4"
+! elseif "$(CPUNR)" == "sse"
+CPUARG = /G6 /arch:SSE
+! elseif "$(CPUNR)" == "sse2"
 CPUARG = /G7 /arch:SSE2
-!else
+! elseif "$(CPUNR)" == "avx" || "$(CPUNR)" == "avx2"
+!  message AVX/AVX2 Instruction Sets are not supported by Visual C++ v$(MSVC_MAJOR)
+!  message Falling back to SSE2
+CPUARG = /G7 /arch:SSE2
+! elseif "$(CPUNR)" == "any"
 CPUARG =
-!endif
+! endif
 !else
-# VC8/9/10 only allows specifying SSE architecture but only for 32bit
-!if "$(ASSEMBLY_ARCHITECTURE)" == "i386" && "$(CPUNR)" == "pentium4"
+# IA32/SSE/SSE2 are only supported on x86
+! if "$(ASSEMBLY_ARCHITECTURE)" == "i386" && ("$(CPUNR)" == "i586" || "$(CPUNR)" == "i686" || "$(CPUNR)" == "any")
+# VC<11 generates fp87 code by default
+!  if $(MSVC_MAJOR) < 11
+CPUARG =
+# VC>=11 needs explicit insturctions to generate fp87 code
+!  else
+CPUARG = /arch:IA32
+!  endif
+! elseif "$(ASSEMBLY_ARCHITECTURE)" == "i386" && "$(CPUNR)" == "sse"
+CPUARG = /arch:SSE
+! elseif "$(ASSEMBLY_ARCHITECTURE)" == "i386" && "$(CPUNR)" == "sse2"
 CPUARG = /arch:SSE2
+! elseif "$(CPUNR)" == "avx"
+# AVX is only supported by VC 10 and up
+!  if $(MSVC_MAJOR) < 10
+!   message AVX Instruction Set is not supported by Visual C++ v$(MSVC_MAJOR)
+!   if "$(ASSEMBLY_ARCHITECTURE)" == "i386"
+!    message Falling back to SSE2
+CPUARG = /arch:SSE2
+!   else
+CPUARG =
+!   endif
+!  else
+CPUARG = /arch:AVX
+!  endif
+! elseif "$(CPUNR)" == "avx2"
+# AVX is only supported by VC 10 and up
+!  if $(MSVC_MAJOR) < 10
+!   message AVX2 Instruction Set is not supported by Visual C++ v$(MSVC_MAJOR)
+!   if "$(ASSEMBLY_ARCHITECTURE)" == "i386"
+!    message Falling back to SSE2
+CPUARG = /arch:SSE2
+!   else
+CPUARG =
+!   endif
+# AVX2 is only supported by VC 12U2 and up
+# 180030501 is the full version number for Visual Studio 2013/VC 12 Update 2
+!  elseif $(MSVC_FULL) < 180030501
+!   message AVX2 Instruction Set is not supported by Visual C++ v$(MSVC_MAJOR)-$(MSVC_FULL)
+!   message Falling back to AVX
+CPUARG = /arch:AVX
+!  else
+CPUARG = /arch:AVX2
+!  endif
+! endif
 !endif
-!endif
+
+# Pass CPUARG to GVimExt, to avoid using version-dependent defaults
+MAKEFLAGS_GVIMEXT = $(MAKEFLAGS_GVIMEXT) CPUARG="$(CPUARG)"
+
 
 LIBC =
 DEBUGINFO = /Zi
@@ -1052,12 +1151,12 @@ all:	$(VIM).exe \
 
 $(VIM).exe: $(OUTDIR) $(OBJ) $(GUI_OBJ) $(CUI_OBJ) $(OLE_OBJ) $(OLE_IDL) $(MZSCHEME_OBJ) \
 		$(LUA_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) $(TCL_OBJ) \
-		$(CSCOPE_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) $(XPM_OBJ) \
+		$(CSCOPE_OBJ) $(TERMINAL_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) $(XPM_OBJ) \
 		version.c version.h
 	$(CC) $(CFLAGS) version.c
 	$(link) $(LINKARGS1) -out:$(VIM).exe $(OBJ) $(GUI_OBJ) $(CUI_OBJ) $(OLE_OBJ) \
 		$(LUA_OBJ) $(MZSCHEME_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) \
-		$(TCL_OBJ) $(CSCOPE_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) \
+		$(TCL_OBJ) $(CSCOPE_OBJ) $(TERMINAL_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) \
 		$(XPM_OBJ) $(OUTDIR)\version.obj $(LINKARGS2)
 	if exist $(VIM).exe.manifest mt.exe -nologo -manifest $(VIM).exe.manifest -updateresource:$(VIM).exe;1
 
@@ -1290,6 +1389,8 @@ $(OUTDIR)/option.obj:	$(OUTDIR) option.c  $(INCL)
 $(OUTDIR)/ops.obj:	$(OUTDIR) ops.c  $(INCL)
 
 $(OUTDIR)/os_mswin.obj:	$(OUTDIR) os_mswin.c  $(INCL)
+
+$(OUTDIR)/terminal.obj:	$(OUTDIR) terminal.c  $(INCL)
 
 $(OUTDIR)/winclip.obj:	$(OUTDIR) winclip.c  $(INCL)
 

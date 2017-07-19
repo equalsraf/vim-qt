@@ -1,5 +1,5 @@
 /* quickfix.c */
-int qf_init(win_T *wp, char_u *efile, char_u *errorformat, int newlist, char_u *qf_title);
+int qf_init(win_T *wp, char_u *efile, char_u *errorformat, int newlist, char_u *qf_title, char_u *enc);
 void qf_free_all(win_T *wp);
 void copy_loclist(win_T *from, win_T *to);
 void qf_jump(qf_info_T *qi, int dir, int errornr, int forceit);
@@ -29,6 +29,7 @@ void ex_vimgrep(exarg_T *eap);
 int get_errorlist(win_T *wp, int qf_idx, list_T *list);
 int get_errorlist_properties(win_T *wp, dict_T *what, dict_T *retdict);
 int set_errorlist(win_T *wp, list_T *list, int action, char_u *title, dict_T *what);
+int set_ref_in_quickfix(int copyID);
 void ex_cbuffer(exarg_T *eap);
 void ex_cexpr(exarg_T *eap);
 void ex_helpgrep(exarg_T *eap);

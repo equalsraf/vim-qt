@@ -127,7 +127,8 @@ _RTLENTRYF
 #  endif
 vim_snprintf(char *, size_t, char *, ...);
 
-int vim_vsnprintf(char *str, size_t str_m, char *fmt, va_list ap, typval_T *tvs);
+int vim_vsnprintf(char *str, size_t str_m, char *fmt, va_list ap);
+int vim_vsnprintf_typval(char *str, size_t str_m, char *fmt, va_list ap, typval_T *tvs);
 
 # include "message.pro"
 # include "misc1.pro"
@@ -162,6 +163,9 @@ void qsort(void *base, size_t elm_count, size_t elm_size, int (*cmp)(const void 
 # include "syntax.pro"
 # include "tag.pro"
 # include "term.pro"
+# ifdef FEAT_TERMINAL
+#  include "terminal.pro"
+# endif
 # if defined(HAVE_TGETENT) && (defined(AMIGA) || defined(VMS))
 #  include "termlib.pro"
 # endif

@@ -593,7 +593,8 @@ searchit(
     int		options,
     int		pat_use,	/* which pattern to use when "pat" is empty */
     linenr_T	stop_lnum,	/* stop after this line number when != 0 */
-    proftime_T	*tm UNUSED)	/* timeout limit or NULL */
+    proftime_T	*tm UNUSED,	/* timeout limit or NULL */
+    int		*timed_out UNUSED)  /* set when timed out or NULL */
 {
     int		found;
     linenr_T	lnum;		/* no init to shut up Apollo cc */
@@ -715,13 +716,17 @@ searchit(
 		nmatched = vim_regexec_multi(&regmatch, win, buf,
 					     lnum, col,
 #ifdef FEAT_RELTIME
-					     tm
+					     tm, timed_out
 #else
-					     NULL
+					     NULL, NULL
 #endif
 						      );
 		/* Abort searching on an error (e.g., out of stack). */
-		if (called_emsg)
+		if (called_emsg
+#ifdef FEAT_RELTIME
+			|| (timed_out != NULL && *timed_out)
+#endif
+			)
 		    break;
 		if (nmatched > 0)
 		{
@@ -810,9 +815,9 @@ searchit(
 					      win, buf, lnum + matchpos.lnum,
 					      matchcol,
 #ifdef FEAT_RELTIME
-					      tm
+					      tm, timed_out
 #else
-					      NULL
+					      NULL, NULL
 #endif
 					      )) == 0)
 			    {
@@ -922,9 +927,9 @@ searchit(
 					      win, buf, lnum + matchpos.lnum,
 					      matchcol,
 #ifdef FEAT_RELTIME
-					      tm
+					      tm, timed_out
 #else
-					      NULL
+					      NULL, NULL
 #endif
 					    )) == 0)
 				break;
@@ -1019,10 +1024,13 @@ searchit(
 	     * twice.
 	     */
 	    if (!p_ws || stop_lnum != 0 || got_int || called_emsg
-#ifdef FEAT_SEARCH_EXTRA
-					       || break_loop
+#ifdef FEAT_RELTIME
+				|| (timed_out != NULL && *timed_out)
 #endif
-					       || found || loop)
+#ifdef FEAT_SEARCH_EXTRA
+				|| break_loop
+#endif
+				|| found || loop)
 		break;
 
 	    /*
@@ -1041,6 +1049,9 @@ searchit(
 					  ? top_bot_msg : bot_top_msg), TRUE);
 	}
 	if (got_int || called_emsg
+#ifdef FEAT_RELTIME
+		|| (timed_out != NULL && *timed_out)
+#endif
 #ifdef FEAT_SEARCH_EXTRA
 		|| break_loop
 #endif
@@ -1147,7 +1158,8 @@ do_search(
     char_u	    *pat,
     long	    count,
     int		    options,
-    proftime_T	    *tm)	/* timeout limit or NULL */
+    proftime_T	    *tm,	/* timeout limit or NULL */
+    int		    *timed_out) /* flag set on timeout or NULL */
 {
     pos_T	    pos;	/* position of the last match */
     char_u	    *searchstr;
@@ -1433,7 +1445,7 @@ do_search(
 		       (SEARCH_KEEP + SEARCH_PEEK + SEARCH_HIS
 			+ SEARCH_MSG + SEARCH_START
 			+ ((pat != NULL && *pat == ';') ? 0 : SEARCH_NOOF))),
-		RE_LAST, (linenr_T)0, tm);
+		RE_LAST, (linenr_T)0, tm, timed_out);
 
 	if (dircp != NULL)
 	    *dircp = dirc;	/* restore second '/' or '?' for normal_cmd() */
@@ -1524,9 +1536,9 @@ end_do_search:
  * search_for_exact_line(buf, pos, dir, pat)
  *
  * Search for a line starting with the given pattern (ignoring leading
- * white-space), starting from pos and going in direction dir.	pos will
+ * white-space), starting from pos and going in direction "dir". "pos" will
  * contain the position of the match found.    Blank lines match only if
- * ADDING is set.  if p_ic is set then the pattern must be in lowercase.
+ * ADDING is set.  If p_ic is set then the pattern must be in lowercase.
  * Return OK for success, or FAIL if no line found.
  */
     int
@@ -1643,7 +1655,11 @@ searchc(cmdarg_T *cap, int t_cmd)
     }
     else		/* repeat previous search */
     {
-	if (*lastc == NUL)
+	if (*lastc == NUL
+#ifdef FEAT_MBYTE
+		&& lastc_bytelen == 1
+#endif
+		)
 	    return FAIL;
 	if (dir)	/* repeat in opposite direction */
 	    dir = -lastcdir;
@@ -2096,7 +2112,7 @@ findmatchlimit(
 
     do_quotes = -1;
     start_in_quotes = MAYBE;
-    clearpos(&match_pos);
+    CLEAR_POS(&match_pos);
 
     /* backward search: Check if this line contains a single-line comment */
     if ((backwards && comment_dir)
@@ -2716,7 +2732,7 @@ findsent(int dir, long count)
 	    if (decl(&pos) == -1)
 		break;
 	    /* when going forward: Stop in front of empty line */
-	    if (lineempty(pos.lnum) && dir == FORWARD)
+	    if (LINEEMPTY(pos.lnum) && dir == FORWARD)
 	    {
 		incl(&pos);
 		goto found;
@@ -2847,9 +2863,17 @@ findpar(
     curwin->w_cursor.lnum = curr;
     if (curr == curbuf->b_ml.ml_line_count && what != '}')
     {
-	if ((curwin->w_cursor.col = (colnr_T)STRLEN(ml_get(curr))) != 0)
+	char_u *line = ml_get(curr);
+
+	/* Put the cursor on the last character in the last line and make the
+	 * motion inclusive. */
+	if ((curwin->w_cursor.col = (colnr_T)STRLEN(line)) != 0)
 	{
 	    --curwin->w_cursor.col;
+#ifdef FEAT_MBYTE
+	    curwin->w_cursor.col -=
+			     (*mb_head_off)(line, line + curwin->w_cursor.col);
+#endif
 	    *pincl = TRUE;
 	}
     }
@@ -3078,7 +3102,7 @@ bck_word(long count, int bigword, int stop)
 	    while (cls() == 0)
 	    {
 		if (curwin->w_cursor.col == 0
-				      && lineempty(curwin->w_cursor.lnum))
+				      && LINEEMPTY(curwin->w_cursor.lnum))
 		    goto finished;
 		if (dec_cursor() == -1) /* hit start of file, stop here */
 		    return OK;
@@ -3159,7 +3183,7 @@ end_word(
 	    while (cls() == 0)
 	    {
 		if (empty && curwin->w_cursor.col == 0
-					  && lineempty(curwin->w_cursor.lnum))
+					  && LINEEMPTY(curwin->w_cursor.lnum))
 		    goto finished;
 		if (inc_cursor() == -1)	    /* hit end of file, stop here */
 		    return FAIL;
@@ -3219,7 +3243,7 @@ bckend_word(
 	 */
 	while (cls() == 0)
 	{
-	    if (curwin->w_cursor.col == 0 && lineempty(curwin->w_cursor.lnum))
+	    if (curwin->w_cursor.col == 0 && LINEEMPTY(curwin->w_cursor.lnum))
 		break;
 	    if ((i = dec_cursor()) == -1 || (eol && i == 1))
 		return OK;
@@ -3272,7 +3296,7 @@ find_first_blank(pos_T *posp)
     while (decl(posp) != -1)
     {
 	c = gchar_pos(posp);
-	if (!vim_iswhite(c))
+	if (!VIM_ISWHITE(c))
 	{
 	    incl(posp);
 	    break;
@@ -3316,17 +3340,17 @@ current_word(
     int		include_white = FALSE;
 
     cls_bigword = bigword;
-    clearpos(&start_pos);
+    CLEAR_POS(&start_pos);
 
     /* Correct cursor when 'selection' is exclusive */
-    if (VIsual_active && *p_sel == 'e' && lt(VIsual, curwin->w_cursor))
+    if (VIsual_active && *p_sel == 'e' && LT_POS(VIsual, curwin->w_cursor))
 	dec_cursor();
 
     /*
      * When Visual mode is not active, or when the VIsual area is only one
      * character, select the word and/or white space under the cursor.
      */
-    if (!VIsual_active || equalpos(curwin->w_cursor, VIsual))
+    if (!VIsual_active || EQUAL_POS(curwin->w_cursor, VIsual))
     {
 	/*
 	 * Go to start of current word or white space.
@@ -3383,7 +3407,7 @@ current_word(
     while (count > 0)
     {
 	inclusive = TRUE;
-	if (VIsual_active && lt(curwin->w_cursor, VIsual))
+	if (VIsual_active && LT_POS(curwin->w_cursor, VIsual))
 	{
 	    /*
 	     * In Visual mode, with cursor at start: move cursor back.
@@ -3459,7 +3483,7 @@ current_word(
 
     if (VIsual_active)
     {
-	if (*p_sel == 'e' && inclusive && ltoreq(VIsual, curwin->w_cursor))
+	if (*p_sel == 'e' && inclusive && LTOREQ_POS(VIsual, curwin->w_cursor))
 	    inc_cursor();
 	if (VIsual_mode == 'V')
 	{
@@ -3494,10 +3518,10 @@ current_sent(oparg_T *oap, long count, int include)
     /*
      * When the Visual area is bigger than one character: Extend it.
      */
-    if (VIsual_active && !equalpos(start_pos, VIsual))
+    if (VIsual_active && !EQUAL_POS(start_pos, VIsual))
     {
 extend:
-	if (lt(start_pos, VIsual))
+	if (LT_POS(start_pos, VIsual))
 	{
 	    /*
 	     * Cursor at start of Visual area.
@@ -3508,10 +3532,10 @@ extend:
 	     */
 	    at_start_sent = TRUE;
 	    decl(&pos);
-	    while (lt(pos, curwin->w_cursor))
+	    while (LT_POS(pos, curwin->w_cursor))
 	    {
 		c = gchar_pos(&pos);
-		if (!vim_iswhite(c))
+		if (!VIM_ISWHITE(c))
 		{
 		    at_start_sent = FALSE;
 		    break;
@@ -3521,7 +3545,7 @@ extend:
 	    if (!at_start_sent)
 	    {
 		findsent(BACKWARD, 1L);
-		if (equalpos(curwin->w_cursor, start_pos))
+		if (EQUAL_POS(curwin->w_cursor, start_pos))
 		    at_start_sent = TRUE;  /* exactly at start of sentence */
 		else
 		    /* inside a sentence, go to its end (start of next) */
@@ -3534,7 +3558,7 @@ extend:
 		if (at_start_sent)
 		    find_first_blank(&curwin->w_cursor);
 		c = gchar_cursor();
-		if (!at_start_sent || (!include && !vim_iswhite(c)))
+		if (!at_start_sent || (!include && !VIM_ISWHITE(c)))
 		    findsent(BACKWARD, 1L);
 		at_start_sent = !at_start_sent;
 	    }
@@ -3550,13 +3574,14 @@ extend:
 	     */
 	    incl(&pos);
 	    at_start_sent = TRUE;
-	    if (!equalpos(pos, curwin->w_cursor)) /* not just before a sentence */
+	    /* not just before a sentence */
+	    if (!EQUAL_POS(pos, curwin->w_cursor))
 	    {
 		at_start_sent = FALSE;
-		while (lt(pos, curwin->w_cursor))
+		while (LT_POS(pos, curwin->w_cursor))
 		{
 		    c = gchar_pos(&pos);
-		    if (!vim_iswhite(c))
+		    if (!VIM_ISWHITE(c))
 		    {
 			at_start_sent = TRUE;
 			break;
@@ -3582,9 +3607,9 @@ extend:
      * If the cursor started on a blank, check if it is just before the start
      * of the next sentence.
      */
-    while (c = gchar_pos(&pos), vim_iswhite(c))	/* vim_iswhite() is a macro */
+    while (c = gchar_pos(&pos), VIM_ISWHITE(c))	/* VIM_ISWHITE() is a macro */
 	incl(&pos);
-    if (equalpos(pos, curwin->w_cursor))
+    if (EQUAL_POS(pos, curwin->w_cursor))
     {
 	start_blank = TRUE;
 	find_first_blank(&start_pos);	/* go back to first blank */
@@ -3618,18 +3643,18 @@ extend:
 	if (start_blank)
 	{
 	    find_first_blank(&curwin->w_cursor);
-	    c = gchar_pos(&curwin->w_cursor);	/* vim_iswhite() is a macro */
-	    if (vim_iswhite(c))
+	    c = gchar_pos(&curwin->w_cursor);	/* VIM_ISWHITE() is a macro */
+	    if (VIM_ISWHITE(c))
 		decl(&curwin->w_cursor);
 	}
-	else if (c = gchar_cursor(), !vim_iswhite(c))
+	else if (c = gchar_cursor(), !VIM_ISWHITE(c))
 	    find_first_blank(&start_pos);
     }
 
     if (VIsual_active)
     {
 	/* Avoid getting stuck with "is" on a single space before a sentence. */
-	if (equalpos(start_pos, curwin->w_cursor))
+	if (EQUAL_POS(start_pos, curwin->w_cursor))
 	    goto extend;
 	if (*p_sel == 'e')
 	    ++curwin->w_cursor.col;
@@ -3678,7 +3703,7 @@ current_block(
     /*
      * If we start on '(', '{', ')', '}', etc., use the whole block inclusive.
      */
-    if (!VIsual_active || equalpos(VIsual, curwin->w_cursor))
+    if (!VIsual_active || EQUAL_POS(VIsual, curwin->w_cursor))
     {
 	setpcmark();
 	if (what == '{')		/* ignore indent */
@@ -3689,7 +3714,7 @@ current_block(
 	    /* cursor on '(' or '{', move cursor just after it */
 	    ++curwin->w_cursor.col;
     }
-    else if (lt(VIsual, curwin->w_cursor))
+    else if (LT_POS(VIsual, curwin->w_cursor))
     {
 	old_start = VIsual;
 	curwin->w_cursor = VIsual;	    /* cursor at low end of Visual */
@@ -3747,7 +3772,7 @@ current_block(
 	 * In Visual mode, when the resulting area is not bigger than what we
 	 * started with, extend it to the next block, and then exclude again.
 	 */
-	if (!lt(start_pos, old_start) && !lt(old_end, curwin->w_cursor)
+	if (!LT_POS(start_pos, old_start) && !LT_POS(old_end, curwin->w_cursor)
 		&& VIsual_active)
 	{
 	    curwin->w_cursor = old_start;
@@ -3788,7 +3813,7 @@ current_block(
 	oap->inclusive = FALSE;
 	if (sol)
 	    incl(&curwin->w_cursor);
-	else if (ltoreq(start_pos, curwin->w_cursor))
+	else if (LTOREQ_POS(start_pos, curwin->w_cursor))
 	    /* Include the character under the cursor. */
 	    oap->inclusive = TRUE;
 	else
@@ -3823,7 +3848,7 @@ in_html_tag(
 
 	/* We search forward until the cursor, because searching backwards is
 	 * very slow for DBCS encodings. */
-	for (p = line; p < line + curwin->w_cursor.col; mb_ptr_adv(p))
+	for (p = line; p < line + curwin->w_cursor.col; MB_PTR_ADV(p))
 	    if (*p == '>' || *p == '<')
 	    {
 		lc = *p;
@@ -3843,7 +3868,7 @@ in_html_tag(
 	{
 	    if (*p == '<')	/* find '<' under/before cursor */
 		break;
-	    mb_ptr_back(line, p);
+	    MB_PTR_BACK(line, p);
 	    if (*p == '>')	/* find '>' before cursor */
 		break;
 	}
@@ -3854,7 +3879,7 @@ in_html_tag(
     pos.lnum = curwin->w_cursor.lnum;
     pos.col = (colnr_T)(p - line);
 
-    mb_ptr_adv(p);
+    MB_PTR_ADV(p);
     if (end_tag)
 	/* check that there is a '/' after the '<' */
 	return *p == '/';
@@ -3912,7 +3937,7 @@ current_tagblock(
     /*
      * If we start on "<aaa>" select that block.
      */
-    if (!VIsual_active || equalpos(VIsual, curwin->w_cursor))
+    if (!VIsual_active || EQUAL_POS(VIsual, curwin->w_cursor))
     {
 	setpcmark();
 
@@ -3938,7 +3963,7 @@ current_tagblock(
 	    old_end = curwin->w_cursor;
 	}
     }
-    else if (lt(VIsual, curwin->w_cursor))
+    else if (LT_POS(VIsual, curwin->w_cursor))
     {
 	old_start = VIsual;
 	curwin->w_cursor = VIsual;	    /* cursor at low end of Visual */
@@ -3969,7 +3994,7 @@ again:
      */
     inc_cursor();
     p = ml_get_cursor();
-    for (cp = p; *cp != NUL && *cp != '>' && !vim_iswhite(*cp); mb_ptr_adv(cp))
+    for (cp = p; *cp != NUL && *cp != '>' && !VIM_ISWHITE(*cp); MB_PTR_ADV(cp))
 	;
     len = (int)(cp - p);
     if (len == 0)
@@ -3995,7 +4020,7 @@ again:
     vim_free(spat);
     vim_free(epat);
 
-    if (r < 1 || lt(curwin->w_cursor, old_end))
+    if (r < 1 || LT_POS(curwin->w_cursor, old_end))
     {
 	/* Can't find other end or it's before the previous end.  Could be a
 	 * HTML tag that doesn't have a matching end.  Search backwards for
@@ -4042,7 +4067,7 @@ again:
 
 	/* If we now have the same text as before reset "do_include" and try
 	 * again. */
-	if (equalpos(start_pos, old_start) && equalpos(end_pos, old_end))
+	if (EQUAL_POS(start_pos, old_start) && EQUAL_POS(end_pos, old_end))
 	{
 	    do_include = TRUE;
 	    curwin->w_cursor = old_start;
@@ -4055,7 +4080,7 @@ again:
     {
 	/* If the end is before the start there is no text between tags, select
 	 * the char under the cursor. */
-	if (lt(end_pos, start_pos))
+	if (LT_POS(end_pos, start_pos))
 	    curwin->w_cursor = start_pos;
 	else if (*p_sel == 'e')
 	    inc_cursor();
@@ -4068,7 +4093,7 @@ again:
     {
 	oap->start = start_pos;
 	oap->motion_type = MCHAR;
-	if (lt(end_pos, start_pos))
+	if (LT_POS(end_pos, start_pos))
 	{
 	    /* End is before the start: there is no text between tags; operate
 	     * on an empty area. */
@@ -4351,17 +4376,28 @@ current_quote(
     int		selected_quote = FALSE;	/* Has quote inside selection */
     int		i;
 
-    /* Correct cursor when 'selection' is exclusive */
+    /* Correct cursor when 'selection' is "exclusive". */
     if (VIsual_active)
     {
 	/* this only works within one line */
 	if (VIsual.lnum != curwin->w_cursor.lnum)
 	    return FALSE;
 
-	vis_bef_curs = lt(VIsual, curwin->w_cursor);
-	if (*p_sel == 'e' && vis_bef_curs)
+	vis_bef_curs = LT_POS(VIsual, curwin->w_cursor);
+	if (*p_sel == 'e')
+	{
+	    if (!vis_bef_curs)
+	    {
+		/* VIsual needs to be start of Visual selection. */
+		pos_T t = curwin->w_cursor;
+
+		curwin->w_cursor = VIsual;
+		VIsual = t;
+		vis_bef_curs = TRUE;
+	    }
 	    dec_cursor();
-	vis_empty = equalpos(VIsual, curwin->w_cursor);
+	}
+	vis_empty = EQUAL_POS(VIsual, curwin->w_cursor);
     }
 
     if (!vis_empty)
@@ -4491,11 +4527,11 @@ current_quote(
      * the starting quote. */
     if (include)
     {
-	if (vim_iswhite(line[col_end + 1]))
-	    while (vim_iswhite(line[col_end + 1]))
+	if (VIM_ISWHITE(line[col_end + 1]))
+	    while (VIM_ISWHITE(line[col_end + 1]))
 		++col_end;
 	else
-	    while (col_start > 0 && vim_iswhite(line[col_start - 1]))
+	    while (col_start > 0 && VIM_ISWHITE(line[col_start - 1]))
 		--col_start;
     }
 
@@ -4575,7 +4611,7 @@ current_quote(
 
 #endif /* FEAT_TEXTOBJ */
 
-static int is_one_char(char_u *pattern, int move);
+static int is_one_char(char_u *pattern, int move, pos_T *cur);
 
 /*
  * Find next search match under cursor, cursor at end.
@@ -4601,7 +4637,7 @@ current_search(
     p_ws = FALSE;
 
     /* Correct cursor when 'selection' is exclusive */
-    if (VIsual_active && *p_sel == 'e' && lt(VIsual, curwin->w_cursor))
+    if (VIsual_active && *p_sel == 'e' && LT_POS(VIsual, curwin->w_cursor))
 	dec_cursor();
 
     if (VIsual_active)
@@ -4623,7 +4659,7 @@ current_search(
 	orig_pos = pos = curwin->w_cursor;
 
     /* Is the pattern is zero-width? */
-    one_char = is_one_char(spats[last_idx].pat, TRUE);
+    one_char = is_one_char(spats[last_idx].pat, TRUE, &curwin->w_cursor);
     if (one_char == -1)
     {
 	p_ws = old_p_ws;
@@ -4648,7 +4684,7 @@ current_search(
 
 	result = searchit(curwin, curbuf, &pos, (dir ? FORWARD : BACKWARD),
 		spats[last_idx].pat, (long) (i ? count : 1),
-		SEARCH_KEEP | flags, RE_SEARCH, 0, NULL);
+		SEARCH_KEEP | flags, RE_SEARCH, 0, NULL, NULL);
 
 	/* First search may fail, but then start searching from the
 	 * beginning of the file (cursor might be on the search match)
@@ -4664,12 +4700,14 @@ current_search(
 	}
 	else if (!i && !result)
 	{
-	    if (forward) /* try again from start of buffer */
+	    if (forward)
 	    {
-		clearpos(&pos);
+		/* try again from start of buffer */
+		CLEAR_POS(&pos);
 	    }
-	    else /* try again from end of buffer */
+	    else
 	    {
+		/* try again from end of buffer */
 		/* searching backwards, so set pos to last line and col */
 		pos.lnum = curwin->w_buffer->b_ml.ml_line_count;
 		pos.col  = (colnr_T)STRLEN(
@@ -4684,13 +4722,17 @@ current_search(
 
     /* Check again from the current cursor position,
      * since the next match might actually by only one char wide */
-    one_char = is_one_char(spats[last_idx].pat, FALSE);
+    one_char = is_one_char(spats[last_idx].pat, FALSE, &pos);
+    if (one_char < 0)
+	/* search failed, abort */
+	return FAIL;
 
     /* move to match, except for zero-width matches, in which case, we are
      * already on the next match */
     if (!one_char)
 	result = searchit(curwin, curbuf, &pos, (forward ? FORWARD : BACKWARD),
-	    spats[last_idx].pat, 0L, flags | SEARCH_KEEP, RE_SEARCH, 0, NULL);
+		    spats[last_idx].pat, 0L, flags | SEARCH_KEEP, RE_SEARCH, 0,
+								   NULL, NULL);
 
     if (!VIsual_active)
 	VIsual = start_pos;
@@ -4705,9 +4747,9 @@ current_search(
 	if (*p_sel == 'e')
 	{
 	    /* Correction for exclusive selection depends on the direction. */
-	    if (forward && ltoreq(VIsual, curwin->w_cursor))
+	    if (forward && LTOREQ_POS(VIsual, curwin->w_cursor))
 		inc_cursor();
-	    else if (!forward && ltoreq(curwin->w_cursor, VIsual))
+	    else if (!forward && LTOREQ_POS(curwin->w_cursor, VIsual))
 		inc(&VIsual);
 	}
 
@@ -4735,12 +4777,12 @@ current_search(
 
 /*
  * Check if the pattern is one character long or zero-width.
- * If move is TRUE, check from the beginning of the buffer, else from the
- * current cursor position.
+ * If move is TRUE, check from the beginning of the buffer, else from position
+ * "cur".
  * Returns TRUE, FALSE or -1 for failure.
  */
     static int
-is_one_char(char_u *pattern, int move)
+is_one_char(char_u *pattern, int move, pos_T *cur)
 {
     regmmatch_T	regmatch;
     int		nmatched = 0;
@@ -4760,16 +4802,18 @@ is_one_char(char_u *pattern, int move)
     regmatch.startpos[0].col = -1;
     /* move to match */
     if (move)
-	clearpos(&pos)
+    {
+	CLEAR_POS(&pos);
+    }
     else
     {
-	pos = curwin->w_cursor;
+	pos = *cur;
 	/* accept a match at the cursor position */
 	flag = SEARCH_START;
     }
 
     if (searchit(curwin, curbuf, &pos, FORWARD, pattern, 1,
-			      SEARCH_KEEP + flag, RE_SEARCH, 0, NULL) != FAIL)
+			 SEARCH_KEEP + flag, RE_SEARCH, 0, NULL, NULL) != FAIL)
     {
 	/* Zero-width pattern should match somewhere, then we can check if
 	 * start and end are in the same position. */
@@ -4778,7 +4822,7 @@ is_one_char(char_u *pattern, int move)
 	{
 	    regmatch.startpos[0].col++;
 	    nmatched = vim_regexec_multi(&regmatch, curwin, curbuf,
-					    pos.lnum, regmatch.startpos[0].col, NULL);
+			       pos.lnum, regmatch.startpos[0].col, NULL, NULL);
 	    if (!nmatched)
 		break;
 	} while (regmatch.startpos[0].col < pos.col);
@@ -5004,7 +5048,7 @@ find_pattern_in_path(
 		    {
 			/* using "new_fname" is more reliable, e.g., when
 			 * 'includeexpr' is set. */
-			msg_outtrans_attr(new_fname, hl_attr(HLF_D));
+			msg_outtrans_attr(new_fname, HL_ATTR(HLF_D));
 		    }
 		    else
 		    {
@@ -5050,7 +5094,7 @@ find_pattern_in_path(
 			}
 			save_char = p[i];
 			p[i] = NUL;
-			msg_outtrans_attr(p, hl_attr(HLF_D));
+			msg_outtrans_attr(p, HL_ATTR(HLF_D));
 			p[i] = save_char;
 		    }
 
@@ -5115,7 +5159,7 @@ find_pattern_in_path(
 			vim_snprintf((char*)IObuff, IOSIZE,
 				_("Scanning included file: %s"),
 				(char *)new_fname);
-			msg_trunc_attr(IObuff, TRUE, hl_attr(HLF_R));
+			msg_trunc_attr(IObuff, TRUE, HL_ATTR(HLF_R));
 		    }
 		    else
 #endif
@@ -5380,8 +5424,9 @@ search_line:
 #if defined(FEAT_WINDOWS) && defined(FEAT_QUICKFIX)
 			if (g_do_tagpreview != 0)
 			{
-			    if (getfile(0, curwin_save->w_buffer->b_fname,
-						 NULL, TRUE, lnum, FALSE) > 0)
+			    if (!GETFILE_SUCCESS(getfile(
+					    0, curwin_save->w_buffer->b_fname,
+						     NULL, TRUE, lnum, FALSE)))
 				break;	/* failed to jump to file */
 			}
 			else
@@ -5391,8 +5436,9 @@ search_line:
 		    }
 		    else
 		    {
-			if (getfile(0, files[depth].name, NULL, TRUE,
-						files[depth].lnum, FALSE) > 0)
+			if (!GETFILE_SUCCESS(getfile(
+					0, files[depth].name, NULL, TRUE,
+						    files[depth].lnum, FALSE)))
 			    break;	/* failed to jump to file */
 			/* autocommands may have changed the lnum, we don't
 			 * want that here */
@@ -5563,7 +5609,7 @@ show_pat_in_path(
 	    msg_puts(IObuff);
 	    sprintf((char *)IObuff, "%4ld", *lnum);	/* show line nr */
 						/* Highlight line numbers */
-	    msg_puts_attr(IObuff, hl_attr(HLF_N));
+	    msg_puts_attr(IObuff, HL_ATTR(HLF_N));
 	    MSG_PUTS(" ");
 	}
 	msg_prt_line(line, FALSE);
