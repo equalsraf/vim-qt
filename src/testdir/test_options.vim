@@ -280,10 +280,22 @@ func Test_set_ttytype()
     set ttytype=xterm
     call assert_equal('xterm', &ttytype)
     call assert_equal(&ttytype, &term)
-    " FIXME: "set ttytype=" gives E522 instead of E529
-    " in travis on some builds. Why? Commented out this test for now.
-    " call assert_fails('set ttytype=', 'E529:')
-    call assert_fails('set ttytype=xxx', 'E522:')
+    " "set ttytype=" gives E522 instead of E529
+    " in travis on some builds. Why?  Catch both for now
+    try
+      set ttytype=
+      call assert_report('set ttype= did not fail')
+    catch /E529\|E522/
+    endtry
+
+    " Some systems accept any terminal name and return dumb settings,
+    " check for failure of finding the entry and for missing 'cm' entry.
+    try
+      set ttytype=xxx
+      call assert_report('set ttype=xxx did not fail')
+    catch /E522\|E437/
+    endtry
+
     set ttytype&
     call assert_equal(&ttytype, &term)
   endif
@@ -301,8 +313,22 @@ func Test_set_all()
 endfunc
 
 func Test_set_values()
-  " The file is only generated when running "make test" in the src directory.
   if filereadable('opt_test.vim')
     source opt_test.vim
+  else
+    throw 'Skipped: opt_test.vim does not exist'
   endif
+endfunc
+
+func ResetIndentexpr()
+  set indentexpr=
+endfunc
+
+func Test_set_indentexpr()
+  " this was causing usage of freed memory
+  set indentexpr=ResetIndentexpr()
+  new
+  call feedkeys("i\<c-f>", 'x')
+  call assert_equal('', &indentexpr)
+  bwipe!
 endfunc

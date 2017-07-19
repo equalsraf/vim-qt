@@ -11,12 +11,12 @@ AC_DEFINE(UNIX)
 AC_PROG_MAKE_SET
 
 dnl Checks for programs.
-AC_PROG_CC	dnl required by almost everything
-AC_PROG_CPP	dnl required by header file checks
-AC_PROGRAM_EGREP dnl required by AC_EGREP_CPP
-AC_PROG_FGREP	dnl finds working grep -F
-AC_ISC_POSIX	dnl required by AC_C_CROSS
-AC_PROG_AWK	dnl required for "make html" in ../doc
+AC_PROG_CC		dnl required by almost everything
+AC_PROG_CPP		dnl required by header file checks
+AC_PROGRAM_EGREP	dnl required by AC_EGREP_CPP
+AC_PROG_FGREP		dnl finds working grep -F
+AC_ISC_POSIX		dnl required by AC_C_CROSS
+AC_PROG_AWK		dnl required for "make html" in ../doc
 
 dnl Don't strip if we don't have it
 AC_CHECK_PROG(STRIP, strip, strip, :)
@@ -34,7 +34,7 @@ dnl Check for the flag that fails if stuff are missing.
 AC_MSG_CHECKING(--enable-fail-if-missing argument)
 AC_ARG_ENABLE(fail_if_missing,
 	[  --enable-fail-if-missing    Fail if dependencies on additional features
-     specified on the command line are missing.], 
+     specified on the command line are missing.],
 	[fail_if_missing="yes"],
 	[fail_if_missing="no"])
 AC_MSG_RESULT($fail_if_missing)
@@ -67,8 +67,8 @@ dnl clang-500.2.75 or around has abandoned -f[no-]strength-reduce and issues a
 dnl warning when that flag is passed to.  Accordingly, adjust CFLAGS based on
 dnl the version number of the clang in use.
 dnl Note that this does not work to get the version of clang 3.1 or 3.2.
-AC_MSG_CHECKING(for recent clang version)
-CLANG_VERSION_STRING=`$CC --version 2>/dev/null | sed  -n -e 's/^.*clang.*\([[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\).*$/\1/p'`
+AC_MSG_CHECKING(for clang version)
+CLANG_VERSION_STRING=`$CC --version 2>/dev/null | sed  -n -e 's/^.*clang[[^0-9]]*\([[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\).*$/\1/p'`
 if test x"$CLANG_VERSION_STRING" != x"" ; then
   CLANG_MAJOR=`echo "$CLANG_VERSION_STRING" | sed -n -e 's/\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*/\1/p'`
   CLANG_MINOR=`echo "$CLANG_VERSION_STRING" | sed -n -e 's/[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*/\1/p'`
@@ -79,11 +79,15 @@ if test x"$CLANG_VERSION_STRING" != x"" ; then
   dnl change the constant 500002075 below appropriately.  To get the
   dnl integer corresponding to a version number, refer to the
   dnl definition of CLANG_VERSION above.
+  AC_MSG_CHECKING(if clang supports -fno-strength-reduce)
   if test "$CLANG_VERSION" -ge 500002075 ; then
-    CFLAGS=`echo "$CFLAGS" | sed -n -e 's/-fno-strength-reduce/ /p'`
+    AC_MSG_RESULT(no)
+    CFLAGS=`echo "$CFLAGS" | sed -e 's/-fno-strength-reduce/ /'`
+  else
+    AC_MSG_RESULT(yes)
   fi
 else
-  AC_MSG_RESULT(no)
+  AC_MSG_RESULT(N/A)
 fi
 
 dnl If configure thinks we are cross compiling, there might be something
@@ -157,7 +161,7 @@ if test "`(uname) 2>/dev/null`" = Darwin; then
   AC_ARG_WITH(developer-dir, [  --with-developer-dir=PATH    use PATH as location for Xcode developer tools],
 	DEVELOPER_DIR="$withval"; AC_MSG_RESULT($DEVELOPER_DIR),
         AC_MSG_RESULT(not present))
-  
+
   if test "x$DEVELOPER_DIR" = "x"; then
     AC_PATH_PROG(XCODE_SELECT, xcode-select)
     if test "x$XCODE_SELECT" != "x"; then
@@ -488,7 +492,7 @@ fi
 dnl Check for Lua feature.
 AC_MSG_CHECKING(--enable-luainterp argument)
 AC_ARG_ENABLE(luainterp,
-	[  --enable-luainterp[=OPTS]     Include Lua interpreter.  [default=no] [OPTS=no/yes/dynamic]], ,
+	[  --enable-luainterp[=OPTS]      Include Lua interpreter.  [default=no] [OPTS=no/yes/dynamic]], ,
 	[enable_luainterp="no"])
 AC_MSG_RESULT($enable_luainterp)
 
@@ -686,7 +690,7 @@ fi
 dnl Check for MzScheme feature.
 AC_MSG_CHECKING(--enable-mzschemeinterp argument)
 AC_ARG_ENABLE(mzschemeinterp,
-	[  --enable-mzschemeinterp   Include MzScheme interpreter.], ,
+	[  --enable-mzschemeinterp      Include MzScheme interpreter.], ,
 	[enable_mzschemeinterp="no"])
 AC_MSG_RESULT($enable_mzschemeinterp)
 
@@ -1328,7 +1332,7 @@ AC_SUBST(PYTHON_OBJ)
 
 AC_MSG_CHECKING(--enable-python3interp argument)
 AC_ARG_ENABLE(python3interp,
-	[  --enable-python3interp[=OPTS]   Include Python3 interpreter. [default=no] [OPTS=no/yes/dynamic]], ,
+	[  --enable-python3interp[=OPTS]  Include Python3 interpreter. [default=no] [OPTS=no/yes/dynamic]], ,
 	[enable_python3interp="no"])
 AC_MSG_RESULT($enable_python3interp)
 if test "$enable_python3interp" = "yes" -o "$enable_python3interp" = "dynamic"; then
@@ -1360,36 +1364,36 @@ if test "$enable_python3interp" = "yes" -o "$enable_python3interp" = "dynamic"; 
        if ${vi_cv_path_python3} -c \
            "import sys; sys.exit(${vi_cv_var_python3_version} < 3.2)"
        then
-         vi_cv_var_python3_abiflags=`${vi_cv_path_python3} -c \    
+         vi_cv_var_python3_abiflags=`${vi_cv_path_python3} -c \
            "import sys; print(sys.abiflags)"`
        fi ])
-  
+
       dnl -- find where python3 thinks it was installed
       AC_CACHE_CHECK(Python's install prefix,vi_cv_path_python3_pfx,
       [ vi_cv_path_python3_pfx=`
        ${vi_cv_path_python3} -c \
        "import sys; print(sys.prefix)"` ])
-  
+
       dnl -- and where it thinks it runs
       AC_CACHE_CHECK(Python's execution prefix,vi_cv_path_python3_epfx,
       [ vi_cv_path_python3_epfx=`
        ${vi_cv_path_python3} -c \
        "import sys; print(sys.exec_prefix)"` ])
-  
+
       dnl -- python3's internal library path
-  
+
       AC_CACHE_VAL(vi_cv_path_python3path,
       [ vi_cv_path_python3path=`
        unset PYTHONPATH;
        ${vi_cv_path_python3} -c \
        "import sys, string; print(':'.join(sys.path))"` ])
-  
+
       dnl -- where the Python implementation library archives are
-  
+
       AC_ARG_WITH(python3-config-dir,
        [  --with-python3-config-dir=PATH  Python's config directory],
        [ vi_cv_path_python3_conf="${withval}" ] )
-  
+
       AC_CACHE_CHECK(Python's configuration directory,vi_cv_path_python3_conf,
       [
        vi_cv_path_python3_conf=
@@ -1408,13 +1412,13 @@ if test "$enable_python3interp" = "yes" -o "$enable_python3interp" = "dynamic"; 
          done
        fi
       ])
-  
+
       PYTHON3_CONFDIR="${vi_cv_path_python3_conf}"
-  
+
       if test "X$PYTHON3_CONFDIR" = "X"; then
         AC_MSG_RESULT([can't find it!])
       else
-  
+
         dnl -- we need to examine Python's config/Makefile too
         dnl    see what the interpreter is built from
         AC_CACHE_VAL(vi_cv_path_python3_plibs,
@@ -1455,7 +1459,7 @@ eof
         fi
         PYTHON3_SRC="if_python3.c"
         PYTHON3_OBJ="objects/if_python3.o"
-  
+
         dnl On FreeBSD linking with "-pthread" is required to use threads.
         dnl _THREAD_SAFE must be used for compiling then.
         dnl The "-pthread" is added to $LIBS, so that the following check for
@@ -1490,7 +1494,7 @@ eof
         else
           AC_MSG_RESULT(no)
         fi
-  
+
         dnl check that compiling a simple program still works with the flags
         dnl added for Python.
         AC_MSG_CHECKING([if compile and link flags for Python 3 are sane])
@@ -1529,7 +1533,7 @@ AC_SUBST(PYTHON3_SRC)
 AC_SUBST(PYTHON3_OBJ)
 
 dnl if python2.x and python3.x are enabled one can only link in code
-dnl with dlopen(), dlsym(), dlclose() 
+dnl with dlopen(), dlsym(), dlclose()
 if test "$python_ok" = yes && test "$python3_ok" = yes; then
   AC_DEFINE(DYNAMIC_PYTHON)
   AC_DEFINE(DYNAMIC_PYTHON3)
@@ -1959,7 +1963,7 @@ fi
 
 AC_MSG_CHECKING(--disable-channel argument)
 AC_ARG_ENABLE(channel,
-	[  --disable-channel      Disable process communication support.],
+	[  --disable-channel       Disable process communication support.],
 	, [enable_channel="yes"])
 if test "$enable_channel" = "yes"; then
   if test "x$features" = "xtiny" -o "x$features" = "xsmall"; then
@@ -2022,6 +2026,28 @@ if test "$enable_channel" = "yes"; then
   AC_SUBST(CHANNEL_SRC)
   CHANNEL_OBJ="objects/channel.o"
   AC_SUBST(CHANNEL_OBJ)
+fi
+
+AC_MSG_CHECKING(--enable-terminal argument)
+AC_ARG_ENABLE(terminal,
+	[  --enable-terminal       Enable terminal emulation support.],
+	[enable_terminal="yes"], )
+if test "$enable_terminal" = "yes"; then
+  if test "x$features" = "xtiny" -o "x$features" = "xsmall"; then
+    AC_MSG_RESULT([cannot use terminal emulator with tiny or small features])
+    enable_terminal="no"
+  else
+    AC_MSG_RESULT(yes)
+  fi
+else
+  AC_MSG_RESULT(no)
+fi
+if test "$enable_terminal" = "yes"; then
+  AC_DEFINE(FEAT_TERMINAL)
+  TERM_SRC="libvterm/src/encoding.c libvterm/src/keyboard.c libvterm/src/mouse.c libvterm/src/parser.c libvterm/src/pen.c libvterm/src/screen.c libvterm/src/state.c libvterm/src/unicode.c libvterm/src/vterm.c"
+  AC_SUBST(TERM_SRC)
+  TERM_OBJ="objects/term_encoding.o objects/term_keyboard.o objects/term_mouse.o objects/term_parser.o objects/term_pen.o objects/term_screen.o objects/term_state.o objects/term_unicode.o objects/term_vterm.o"
+  AC_SUBST(TERM_OBJ)
 fi
 
 AC_MSG_CHECKING(--enable-multibyte argument)
@@ -2188,7 +2214,7 @@ test "x$with_x" = xno -a "x$MACOSX" != "xyes" -a "x$QNX" != "xyes" -a "x$enable_
 
 AC_MSG_CHECKING(--enable-gui argument)
 AC_ARG_ENABLE(gui,
- [  --enable-gui[=OPTS]     X11 GUI [default=auto] [OPTS=auto/no/gtk2/gnome2/gtk3/motif/athena/neXtaw/photon/carbon/qt]], , enable_gui="auto")
+ [  --enable-gui[=OPTS]       X11 GUI. [default=auto] [OPTS=auto/no/gtk2/gnome2/gtk3/motif/athena/neXtaw/photon/carbon/qt]], , enable_gui="auto")
 
 dnl Canonicalize the --enable-gui= argument so that it can be easily compared.
 dnl Do not use character classes for portability with old tools.
@@ -2607,10 +2633,6 @@ if test -z "$SKIP_GTK2"; then
     fi
   fi
   if test "x$GUITYPE" = "xGTK"; then
-    if test "$gtk_minor_version" = 1 -a "0$gtk_micro_version" -ge 1 \
-	|| test "0$gtk_minor_version" -ge 2; then
-      AC_DEFINE(HAVE_GTK_MULTIHEAD)
-    fi
     dnl
     dnl if GTK exists, then check for GNOME.
     dnl
@@ -2659,7 +2681,6 @@ if test -z "$SKIP_GTK3"; then
       SKIP_MOTIF=YES
       GUITYPE=GTK
       AC_SUBST(GTK_LIBNAME)
-      AC_DEFINE(HAVE_GTK_MULTIHEAD)
       AC_DEFINE(USE_GTK3)
     fi
   fi
@@ -2766,7 +2787,7 @@ dnl files, to avoid a mixup if several versions are present
 if test -z "$SKIP_MOTIF"; then
   AC_MSG_CHECKING(--with-motif-lib argument)
   AC_ARG_WITH(motif-lib,
-  [  --with-motif-lib=STRING   Library for Motif ],
+  [  --with-motif-lib=STRING Library for Motif ],
   [ MOTIF_LIBNAME="${withval}" ] )
 
   if test -n "$MOTIF_LIBNAME"; then
@@ -3159,8 +3180,8 @@ if test -z "$SKIP_MOTIF"; then
 	xmheader="Xm/Xm.h"
   else
 	xmheader="Xm/Xm.h Xm/XpmP.h Xm/JoinSideT.h Xm/TraitP.h Xm/Manager.h
-	   Xm/UnhighlightT.h Xm/Notebook.h"  
-  fi    
+	   Xm/UnhighlightT.h Xm/Notebook.h"
+  fi
   AC_CHECK_HEADERS($xmheader)
 
   if test "x$ac_cv_header_Xm_XpmP_h" = "xyes"; then
@@ -3214,6 +3235,23 @@ fi
 dnl ---------------------------------------------------------------------------
 dnl end of GUI-checking
 dnl ---------------------------------------------------------------------------
+
+AC_MSG_CHECKING([for /proc link to executable])
+if test -L "/proc/self/exe"; then
+  dnl Linux
+  AC_MSG_RESULT([/proc/self/exe])
+  AC_DEFINE(PROC_EXE_LINK, "/proc/self/exe")
+elif test -L "/proc/self/path/a.out"; then
+  dnl Solaris
+  AC_MSG_RESULT([/proc/self/path/a.out])
+  AC_DEFINE(PROC_EXE_LINK, "/proc/self/path/a.out")
+elif test -L "/proc/curproc/file"; then
+  dnl FreeBSD
+  AC_MSG_RESULT([/proc/curproc/file])
+  AC_DEFINE(PROC_EXE_LINK, "/proc/curproc/file")
+else
+  AC_MSG_RESULT(no)
+fi
 
 dnl Check for Cygwin, which needs an extra source file if not using X11
 AC_MSG_CHECKING(for CYGWIN or MSYS environment)
@@ -3533,10 +3571,9 @@ if test "x$vim_cv_terminfo" = "xyes" ; then
   AC_DEFINE(TERMINFO)
 fi
 
-if test "x$olibs" != "x$LIBS"; then
-  AC_CACHE_CHECK([what tgetent() returns for an unknown terminal], [vim_cv_tgent],
-    [
-      AC_RUN_IFELSE([AC_LANG_SOURCE([[
+AC_CACHE_CHECK([what tgetent() returns for an unknown terminal], [vim_cv_tgent],
+  [
+    AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include "confdefs.h"
 #ifdef HAVE_TERMCAP_H
 # include <termcap.h>
@@ -3547,18 +3584,17 @@ if test "x$olibs" != "x$LIBS"; then
 #endif
 main()
 {char s[10000]; int res = tgetent(s, "thisterminaldoesnotexist"); exit(res != 0); }
-      ]])],[
-	vim_cv_tgent=zero
-      ],[
-	vim_cv_tgent=non-zero
-      ],[
-	AC_MSG_ERROR(failed to compile test program.)
-      ])
+    ]])],[
+      vim_cv_tgent=zero
+    ],[
+      vim_cv_tgent=non-zero
+    ],[
+      AC_MSG_ERROR(failed to compile test program.)
     ])
-  
-  if test "x$vim_cv_tgent" = "xzero" ; then
-    AC_DEFINE(TGETENT_ZERO_ERR, 0)
-  fi
+  ])
+
+if test "x$vim_cv_tgent" = "xzero" ; then
+  AC_DEFINE(TGETENT_ZERO_ERR, 0)
 fi
 
 AC_MSG_CHECKING(whether termcap.h contains ospeed)
@@ -3796,7 +3832,7 @@ dnl Can only be used for functions that do not require any include.
 AC_CHECK_FUNCS(fchdir fchown fsync getcwd getpseudotty \
 	getpwent getpwnam getpwuid getrlimit gettimeofday getwd lstat \
 	memset mkdtemp nanosleep opendir putenv qsort readlink select setenv \
-	setpgid setsid sigaltstack sigstack sigset sigsetjmp sigaction \
+	getpgid setpgid setsid sigaltstack sigstack sigset sigsetjmp sigaction \
 	sigprocmask sigvec strcasecmp strerror strftime stricmp strncasecmp \
 	strnicmp strpbrk strtol tgetent towlower towupper iswupper \
 	usleep utime utimes)
@@ -3842,7 +3878,7 @@ main() {struct stat st;  exit(stat("configure/", &st) != 0); }
 if test "x$vim_cv_stat_ignores_slash" = "xyes" ; then
   AC_DEFINE(STAT_IGNORES_SLASH)
 fi
-  
+
 dnl Link with iconv for charset translation, if not found without library.
 dnl check for iconv() requires including iconv.h
 dnl Add "-liconv" when possible; Solaris has iconv but use GNU iconv when it
@@ -4037,7 +4073,7 @@ fi
 
 AC_MSG_CHECKING(--disable-sysmouse argument)
 AC_ARG_ENABLE(sysmouse,
-	[  --disable-sysmouse    Don't use sysmouse (mouse in *BSD console).], ,
+	[  --disable-sysmouse      Don't use sysmouse (mouse in *BSD console).], ,
 	[enable_sysmouse="yes"])
 
 if test "$enable_sysmouse" = "yes"; then
@@ -4444,7 +4480,7 @@ if test "x$MACOSX" = "xyes"; then
   else
     AC_MSG_RESULT(no)
   fi
-  dnl As mentioned above, tiny build implies os_macosx.m isn't needed.  
+  dnl As mentioned above, tiny build implies os_macosx.m isn't needed.
   dnl Exclude it from OS_EXTRA_SRC so that linker won't complain about
   dnl missing Objective-C symbols.
   if test "x$features" = "xtiny"; then

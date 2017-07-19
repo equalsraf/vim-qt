@@ -593,7 +593,7 @@ extern int (*dyn_libintl_putenv)(const char *envstring);
 #ifdef FEAT_GETTEXT
 # ifdef DYNAMIC_GETTEXT
 #  define _(x) (*dyn_libintl_gettext)((char *)(x))
-#  define ngettext(x, xs, n) (*dyn_libintl_ngettext)((char *)(x), (char *)(xs), (n))
+#  define NGETTEXT(x, xs, n) (*dyn_libintl_ngettext)((char *)(x), (char *)(xs), (n))
 #  define N_(x) x
 #  define bindtextdomain(domain, dir) (*dyn_libintl_bindtextdomain)((domain), (dir))
 #  define bind_textdomain_codeset(domain, codeset) (*dyn_libintl_bind_textdomain_codeset)((domain), (codeset))
@@ -606,6 +606,7 @@ extern int (*dyn_libintl_putenv)(const char *envstring);
 # else
 #  include <libintl.h>
 #  define _(x) gettext((char *)(x))
+#  define NGETTEXT(x, xs, n) ngettext((x), (xs), (n))
 #  ifdef gettext_noop
 #   define N_(x) gettext_noop(x)
 #  else
@@ -614,7 +615,7 @@ extern int (*dyn_libintl_putenv)(const char *envstring);
 # endif
 #else
 # define _(x) ((char *)(x))
-# define ngettext(x, xs, n) (((n) == 1) ? (char *)(x) : (char *)(xs))
+# define NGETTEXT(x, xs, n) (((n) == 1) ? (char *)(x) : (char *)(xs))
 # define N_(x) x
 # ifdef bindtextdomain
 #  undef bindtextdomain
@@ -634,6 +635,8 @@ extern int (*dyn_libintl_putenv)(const char *envstring);
  * flags for update_screen()
  * The higher the value, the higher the priority
  */
+#define VALID_NO_UPDATE		 5  /* no new changes, keep the command line if
+				       possible */
 #define VALID			10  /* buffer not changed, or changes marked
 				       with b_mod_* */
 #define INVERTED		20  /* redisplay inverted part that changed */
@@ -959,6 +962,14 @@ extern int (*dyn_libintl_putenv)(const char *envstring);
 #define GETF_SETMARK	0x01	/* set pcmark before jumping */
 #define GETF_ALT	0x02	/* jumping to alternate file (not buf num) */
 #define GETF_SWITCH	0x04	/* respect 'switchbuf' settings when jumping */
+
+/* Return values of getfile() */
+#define GETFILE_ERROR	    1	/* normal error */
+#define GETFILE_NOT_WRITTEN 2	/* "not written" error */
+#define GETFILE_SAME_FILE   0	/* success, same file */
+#define GETFILE_OPEN_OTHER -1	/* success, opened another file */
+#define GETFILE_UNUSED	    8
+#define GETFILE_SUCCESS(x)  ((x) <= 0)
 
 /* Values for buflist_new() flags */
 #define BLN_CURBUF	1	/* may re-use curbuf for new buffer */
@@ -1427,6 +1438,7 @@ typedef enum
     , HLF_CUC	    /* 'cursurcolumn' */
     , HLF_CUL	    /* 'cursurline' */
     , HLF_MC	    /* 'colorcolumn' */
+    , HLF_QFL	    /* quickfix window line currently selected */
     , HLF_COUNT	    /* MUST be the last one */
 } hlf_T;
 
@@ -1436,7 +1448,7 @@ typedef enum
 		  'n', 'N', 'r', 's', 'S', 'c', 't', 'v', 'V', 'w', 'W', \
 		  'f', 'F', 'A', 'C', 'D', 'T', '-', '>', \
 		  'B', 'P', 'R', 'L', \
-		  '+', '=', 'x', 'X', '*', '#', '_', '!', '.', 'o'}
+		  '+', '=', 'x', 'X', '*', '#', '_', '!', '.', 'o', 'q'}
 
 /*
  * Boolean constants
@@ -1765,14 +1777,8 @@ void *vim_memset(void *, int, size_t);
 /*
  * Enums need a typecast to be used as array index (for Ultrix).
  */
-#define hl_attr(n)	highlight_attr[(int)(n)]
-#define term_str(n)	term_strings[(int)(n)]
-
-/*
- * vim_iswhite() is used for "^" and the like. It differs from isspace()
- * because it doesn't include <CR> and <LF> and the like.
- */
-#define vim_iswhite(x)	((x) == ' ' || (x) == '\t')
+#define HL_ATTR(n)	highlight_attr[(int)(n)]
+#define TERM_STR(n)	term_strings[(int)(n)]
 
 /*
  * EXTERN is only defined in main.c.  That's where global variables are
@@ -2090,13 +2096,6 @@ typedef struct VimClipboard
 typedef int VimClipboard;	/* This is required for the prototypes. */
 #endif
 
-#ifdef __BORLANDC__
-/* work around a bug in the Borland 'stat' function: */
-# include <io.h>	    /* for access() */
-
-# define stat(a,b) (access(a,0) ? -1 : stat(a,b))
-#endif
-
 /* Use 64-bit stat structure if available. */
 #if (defined(_MSC_VER) && (_MSC_VER >= 1300)) || defined(__MINGW32__)
 # define HAVE_STAT64
@@ -2155,7 +2154,7 @@ typedef enum {
 #include "globals.h"	    /* global variables and messages */
 
 #ifndef FEAT_VIRTUALEDIT
-# define getvvcol(w, p, s, c, e) getvcol(w, p, s, c, e)
+# define getvvcol(w, p, s, c, e) getvcol((w), (p), (s), (c), (e))
 # define virtual_active() FALSE
 # define virtual_op FALSE
 #endif
@@ -2528,7 +2527,9 @@ typedef enum {
 #  define ELAPSED_INIT(v) v = GetTickCount()
 #  define ELAPSED_FUNC(v) elapsed(v)
 #  define ELAPSED_TYPE DWORD
-    long elapsed(DWORD start_tick);
+#   ifndef PROTO
+     long elapsed(DWORD start_tick);
+#   endif
 # endif
 #endif
 

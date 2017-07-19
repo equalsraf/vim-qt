@@ -37,6 +37,8 @@ static void cleanup_jumplist(void);
 #ifdef FEAT_VIMINFO
 static void write_one_filemark(FILE *fp, xfmark_T *fm, int c1, int c2);
 #endif
+static void mark_adjust_internal(linenr_T line1, linenr_T line2, long amount,
+    long amount_after, int adjust_folds);
 
 /*
  * Set named mark "c" at current cursor position.
@@ -206,7 +208,7 @@ setpcmark(void)
 checkpcmark(void)
 {
     if (curwin->w_prev_pcmark.lnum != 0
-	    && (equalpos(curwin->w_pcmark, curwin->w_cursor)
+	    && (EQUAL_POS(curwin->w_pcmark, curwin->w_cursor)
 		|| curwin->w_pcmark.lnum == 0))
     {
 	curwin->w_pcmark = curwin->w_prev_pcmark;
@@ -401,7 +403,7 @@ getmark_buf_fnum(
     {
 	startp = &buf->b_visual.vi_start;
 	endp = &buf->b_visual.vi_end;
-	if (((c == '<') == lt(*startp, *endp) || endp->lnum == 0)
+	if (((c == '<') == LT_POS(*startp, *endp) || endp->lnum == 0)
 							  && startp->lnum != 0)
 	    posp = startp;
 	else
@@ -497,14 +499,14 @@ getnextmark(
 	{
 	    if (dir == FORWARD)
 	    {
-		if ((result == NULL || lt(curbuf->b_namedm[i], *result))
-			&& lt(pos, curbuf->b_namedm[i]))
+		if ((result == NULL || LT_POS(curbuf->b_namedm[i], *result))
+			&& LT_POS(pos, curbuf->b_namedm[i]))
 		    result = &curbuf->b_namedm[i];
 	    }
 	    else
 	    {
-		if ((result == NULL || lt(*result, curbuf->b_namedm[i]))
-			&& lt(curbuf->b_namedm[i], pos))
+		if ((result == NULL || LT_POS(*result, curbuf->b_namedm[i]))
+			&& LT_POS(curbuf->b_namedm[i], pos))
 		    result = &curbuf->b_namedm[i];
 	    }
 	}
@@ -695,7 +697,7 @@ mark_line(pos_T *mp, int lead_len)
 	return NULL;
     /* Truncate the line to fit it in the window */
     len = 0;
-    for (p = s; *p != NUL; mb_ptr_adv(p))
+    for (p = s; *p != NUL; MB_PTR_ADV(p))
     {
 	len += ptr2cells(p);
 	if (len >= Columns - lead_len)
@@ -792,7 +794,7 @@ show_one_mark(
 	    }
 	    if (name != NULL)
 	    {
-		msg_outtrans_attr(name, current ? hl_attr(HLF_D) : 0);
+		msg_outtrans_attr(name, current ? HL_ATTR(HLF_D) : 0);
 		if (mustfree)
 		    vim_free(name);
 	    }
@@ -924,7 +926,7 @@ ex_jumps(exarg_T *eap UNUSED)
 	    msg_outtrans(IObuff);
 	    msg_outtrans_attr(name,
 			    curwin->w_jumplist[i].fmark.fnum == curbuf->b_fnum
-							? hl_attr(HLF_D) : 0);
+							? HL_ATTR(HLF_D) : 0);
 	    vim_free(name);
 	    ui_breakcheck();
 	}
@@ -971,7 +973,7 @@ ex_changes(exarg_T *eap UNUSED)
 	    name = mark_line(&curbuf->b_changelist[i], 17);
 	    if (name == NULL)
 		break;
-	    msg_outtrans_attr(name, hl_attr(HLF_D));
+	    msg_outtrans_attr(name, HL_ATTR(HLF_D));
 	    vim_free(name);
 	    ui_breakcheck();
 	}
@@ -1029,6 +1031,27 @@ mark_adjust(
     long	amount,
     long	amount_after)
 {
+    mark_adjust_internal(line1, line2, amount, amount_after, TRUE);
+}
+
+    void
+mark_adjust_nofold(
+    linenr_T line1,
+    linenr_T line2,
+    long amount,
+    long amount_after)
+{
+    mark_adjust_internal(line1, line2, amount, amount_after, FALSE);
+}
+
+    static void
+mark_adjust_internal(
+    linenr_T line1,
+    linenr_T line2,
+    long amount,
+    long amount_after,
+    int adjust_folds UNUSED)
+{
     int		i;
     int		fnum = curbuf->b_fnum;
     linenr_T	*lp;
@@ -1063,7 +1086,7 @@ mark_adjust(
 	one_adjust(&(curbuf->b_last_change.lnum));
 
 	/* last cursor position, if it was set */
-	if (!equalpos(curbuf->b_last_cursor, initpos))
+	if (!EQUAL_POS(curbuf->b_last_cursor, initpos))
 	    one_adjust(&(curbuf->b_last_cursor.lnum));
 
 
@@ -1174,7 +1197,8 @@ mark_adjust(
 
 #ifdef FEAT_FOLDING
 	    /* adjust folds */
-	    foldMarkAdjust(win, line1, line2, amount, amount_after);
+	    if (adjust_folds)
+		foldMarkAdjust(win, line1, line2, amount, amount_after);
 #endif
 	}
     }
@@ -1838,7 +1862,8 @@ write_buffer_marks(buf_T *buf, FILE *fp_out)
     for (i = 0; i < buf->b_changelistlen; ++i)
     {
 	/* skip duplicates */
-	if (i == 0 || !equalpos(buf->b_changelist[i - 1], buf->b_changelist[i]))
+	if (i == 0 || !EQUAL_POS(buf->b_changelist[i - 1],
+							 buf->b_changelist[i]))
 	    write_one_mark(fp_out, '+', &buf->b_changelist[i]);
     }
 #endif

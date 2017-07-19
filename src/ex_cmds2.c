@@ -1183,6 +1183,7 @@ timer_callback(timer_T *timer)
 /*
  * Call timers that are due.
  * Return the time in msec until the next timer is due.
+ * Returns -1 if there are no pending timers.
  */
     long
 check_due_timer(void)
@@ -1196,7 +1197,13 @@ check_due_timer(void)
     long	current_id = last_timer_id;
 # ifdef WIN3264
     LARGE_INTEGER   fr;
+# endif
 
+    /* Don't run any timers while exiting or dealing with an error. */
+    if (exiting || aborting())
+	return next_due;
+
+# ifdef WIN3264
     QueryPerformanceFrequency(&fr);
 # endif
     profile_start(&now);
@@ -1209,15 +1216,35 @@ check_due_timer(void)
 	this_due = GET_TIMEDIFF(timer, now);
 	if (this_due <= 1)
 	{
+	    int save_timer_busy = timer_busy;
+	    int save_vgetc_busy = vgetc_busy;
+	    int did_emsg_save = did_emsg;
+	    int called_emsg_save = called_emsg;
+	    int did_throw_save = did_throw;
+
+	    timer_busy = timer_busy > 0 || vgetc_busy > 0;
+	    vgetc_busy = 0;
+	    called_emsg = FALSE;
 	    timer->tr_firing = TRUE;
 	    timer_callback(timer);
 	    timer->tr_firing = FALSE;
 	    timer_next = timer->tr_next;
 	    did_one = TRUE;
+	    timer_busy = save_timer_busy;
+	    vgetc_busy = save_vgetc_busy;
+	    if (called_emsg)
+	    {
+		++timer->tr_emsg_count;
+		if (!did_throw_save && did_throw && current_exception != NULL)
+		    discard_current_exception();
+	    }
+	    did_emsg = did_emsg_save;
+	    called_emsg = called_emsg_save;
 
 	    /* Only fire the timer again if it repeats and stop_timer() wasn't
 	     * called while inside the callback (tr_id == -1). */
-	    if (timer->tr_repeat != 0 && timer->tr_id != -1)
+	    if (timer->tr_repeat != 0 && timer->tr_id != -1
+		    && timer->tr_emsg_count < 3)
 	    {
 		profile_setlimit(timer->tr_interval, &timer->tr_due);
 		this_due = GET_TIMEDIFF(timer, now);
@@ -2230,7 +2257,7 @@ buf_write_all(buf_T *buf, int forceit)
 #ifdef FEAT_AUTOCMD
     if (curbuf != old_curbuf)
     {
-	msg_source(hl_attr(HLF_W));
+	msg_source(HL_ATTR(HLF_W));
 	MSG(_("Warning: Entered other buffer unexpectedly (check autocommands)"));
     }
 #endif
@@ -2774,34 +2801,20 @@ ex_next(exarg_T *eap)
     void
 ex_argedit(exarg_T *eap)
 {
-    int		fnum;
-    int		i;
-    char_u	*s;
+    int i = eap->addr_count ? (int)eap->line2 : curwin->w_arg_idx + 1;
 
-    /* Add the argument to the buffer list and get the buffer number. */
-    fnum = buflist_add(eap->arg, BLN_LISTED);
+    if (do_arglist(eap->arg, AL_ADD, i) == FAIL)
+	return;
+#ifdef FEAT_TITLE
+    maketitle();
+#endif
 
-    /* Check if this argument is already in the argument list. */
-    for (i = 0; i < ARGCOUNT; ++i)
-	if (ARGLIST[i].ae_fnum == fnum)
-	    break;
-    if (i == ARGCOUNT)
-    {
-	/* Can't find it, add it to the argument list. */
-	s = vim_strsave(eap->arg);
-	if (s == NULL)
-	    return;
-	i = alist_add_list(1, &s,
-	       eap->addr_count > 0 ? (int)eap->line2 : curwin->w_arg_idx + 1);
-	if (i < 0)
-	    return;
-	curwin->w_arg_idx = i;
-    }
-
-    alist_check_arg_idx();
-
+    if (curwin->w_arg_idx == 0 && (curbuf->b_ml.ml_flags & ML_EMPTY)
+	    && curbuf->b_ffname == NULL)
+	i = 0;
     /* Edit the argument. */
-    do_argfile(eap, i);
+    if (i < ARGCOUNT)
+	do_argfile(eap, i);
 }
 
 /*
@@ -2832,8 +2845,15 @@ ex_argdelete(exarg_T *eap)
 	if (eap->line2 > ARGCOUNT)
 	    eap->line2 = ARGCOUNT;
 	n = eap->line2 - eap->line1 + 1;
-	if (*eap->arg != NUL || n <= 0)
+	if (*eap->arg != NUL)
+	    /* Can't have both a range and an argument. */
 	    EMSG(_(e_invarg));
+	else if (n <= 0)
+	{
+	    /* Don't give an error for ":%argdel" if the list is empty. */
+	    if (eap->line1 != 1 || eap->line2 != 0)
+		EMSG(_(e_invrange));
+	}
 	else
 	{
 	    for (i = eap->line1; i <= eap->line2; ++i)
@@ -3272,19 +3292,6 @@ source_callback(char_u *fname, void *cookie UNUSED)
 }
 
 /*
- * Source the file "name" from all directories in 'runtimepath'.
- * "name" can contain wildcards.
- * When "flags" has DIP_ALL: source all files, otherwise only the first one.
- *
- * return FAIL when no file could be sourced, OK otherwise.
- */
-    int
-source_runtime(char_u *name, int flags)
-{
-    return do_in_runtimepath(name, flags, source_callback, NULL);
-}
-
-/*
  * Find the file "name" in all directories in "path" and invoke
  * "callback(fname, cookie)".
  * "name" can contain wildcards.
@@ -3421,18 +3428,19 @@ do_in_path(
 }
 
 /*
- * Find "name" in 'runtimepath'.  When found, invoke the callback function for
+ * Find "name" in "path".  When found, invoke the callback function for
  * it: callback(fname, "cookie")
  * When "flags" has DIP_ALL repeat for all matches, otherwise only the first
  * one is used.
  * Returns OK when at least one match found, FAIL otherwise.
  *
- * If "name" is NULL calls callback for each entry in runtimepath. Cookie is
+ * If "name" is NULL calls callback for each entry in "path". Cookie is
  * passed by reference in this case, setting it to NULL indicates that callback
  * has done its job.
  */
-    int
-do_in_runtimepath(
+    static int
+do_in_path_and_pp(
+    char_u	*path,
     char_u	*name,
     int		flags,
     void	(*callback)(char_u *fname, void *ck),
@@ -3445,7 +3453,7 @@ do_in_runtimepath(
     char	*opt_dir = "pack/*/opt/*/%s";
 
     if ((flags & DIP_NORTP) == 0)
-	done = do_in_path(p_rtp, name, flags, callback, cookie);
+	done = do_in_path(path, name, flags, callback, cookie);
 
     if ((done == FAIL || (flags & DIP_ALL)) && (flags & DIP_START))
     {
@@ -3471,6 +3479,42 @@ do_in_runtimepath(
 
     return done;
 }
+
+/*
+ * Just like do_in_path_and_pp(), using 'runtimepath' for "path".
+ */
+    int
+do_in_runtimepath(
+    char_u	*name,
+    int		flags,
+    void	(*callback)(char_u *fname, void *ck),
+    void	*cookie)
+{
+    return do_in_path_and_pp(p_rtp, name, flags, callback, cookie);
+}
+
+/*
+ * Source the file "name" from all directories in 'runtimepath'.
+ * "name" can contain wildcards.
+ * When "flags" has DIP_ALL: source all files, otherwise only the first one.
+ *
+ * return FAIL when no file could be sourced, OK otherwise.
+ */
+    int
+source_runtime(char_u *name, int flags)
+{
+    return source_in_path(p_rtp, name, flags);
+}
+
+/*
+ * Just like source_runtime(), but use "path" instead of 'runtimepath'.
+ */
+    int
+source_in_path(char_u *path, char_u *name, int flags)
+{
+    return do_in_path_and_pp(path, name, flags, source_callback, NULL);
+}
+
 
 /*
  * Expand wildcards in "pat" and invoke do_source() for each match.
@@ -3519,7 +3563,7 @@ add_pack_plugin(char_u *fname, void *cookie)
     {
 	/* directory is not yet in 'runtimepath', add it */
 	p4 = p3 = p2 = p1 = get_past_head(ffname);
-	for (p = p1; *p; mb_ptr_adv(p))
+	for (p = p1; *p; MB_PTR_ADV(p))
 	    if (vim_ispathsep_nocolon(*p))
 	    {
 		p4 = p3; p3 = p2; p2 = p1; p1 = p;
@@ -3626,27 +3670,41 @@ theend:
     vim_free(ffname);
 }
 
-static int did_source_packages = FALSE;
+/*
+ * Add all packages in the "start" directory to 'runtimepath'.
+ */
+    void
+add_pack_start_dirs(void)
+{
+    do_in_path(p_pp, (char_u *)"pack/*/start/*", DIP_ALL + DIP_DIR,
+					       add_pack_plugin, &APP_ADD_DIR);
+}
+
+/*
+ * Load plugins from all packages in the "start" directory.
+ */
+    void
+load_start_packages(void)
+{
+    did_source_packages = TRUE;
+    do_in_path(p_pp, (char_u *)"pack/*/start/*", DIP_ALL + DIP_DIR,
+						  add_pack_plugin, &APP_LOAD);
+}
 
 /*
  * ":packloadall"
  * Find plugins in the package directories and source them.
- * "eap" is NULL when invoked during startup.
  */
     void
 ex_packloadall(exarg_T *eap)
 {
-    if (!did_source_packages || (eap != NULL && eap->forceit))
+    if (!did_source_packages || eap->forceit)
     {
-	did_source_packages = TRUE;
-
 	/* First do a round to add all directories to 'runtimepath', then load
 	 * the plugins. This allows for plugins to use an autoload directory
 	 * of another plugin. */
-	do_in_path(p_pp, (char_u *)"pack/*/start/*", DIP_ALL + DIP_DIR,
-					       add_pack_plugin, &APP_ADD_DIR);
-	do_in_path(p_pp, (char_u *)"pack/*/start/*", DIP_ALL + DIP_DIR,
-						  add_pack_plugin, &APP_LOAD);
+	add_pack_start_dirs();
+	load_start_packages();
     }
 }
 
@@ -4726,7 +4784,7 @@ get_one_sourceline(struct source_cookie *sp)
 		{
 		    if (!sp->error)
 		    {
-			msg_source(hl_attr(HLF_W));
+			msg_source(HL_ATTR(HLF_W));
 			EMSG(_("W15: Warning: Wrong line separator, ^M may be missing"));
 		    }
 		    sp->error = TRUE;
@@ -5176,7 +5234,7 @@ ex_language(exarg_T *eap)
      * Allow abbreviation, but require at least 3 characters to avoid
      * confusion with a two letter language name "me" or "ct". */
     p = skiptowhite(eap->arg);
-    if ((*p == NUL || vim_iswhite(*p)) && p - eap->arg >= 3)
+    if ((*p == NUL || VIM_ISWHITE(*p)) && p - eap->arg >= 3)
     {
 	if (STRNICMP(eap->arg, "messages", p - eap->arg) == 0)
 	{

@@ -36,6 +36,12 @@ func Test_assert_notequal()
   call remove(v:errors, 0)
 endfunc
 
+func Test_assert_report()
+  call assert_report('something is wrong')
+  call assert_match('something is wrong', v:errors[0])
+  call remove(v:errors, 0)
+endfunc
+
 func Test_assert_exception()
   try
     nocommand
@@ -125,6 +131,14 @@ func Test_assert_with_msg()
   call assert_equal('foo', 'bar', 'testing')
   call assert_match("testing: Expected 'foo' but got 'bar'", v:errors[0])
   call remove(v:errors, 0)
+endfunc
+
+func Test_override()
+  call test_override('char_avail', 1)
+  call test_override('redraw', 1)
+  call test_override('ALL', 0)
+  call assert_fails("call test_override('xxx', 1)", 'E475')
+  call assert_fails("call test_override('redraw', 'yes')", 'E474')
 endfunc
 
 func Test_user_is_happy()

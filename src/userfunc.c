@@ -41,7 +41,7 @@ static garray_T funcargs = GA_EMPTY;
 /* pointer to funccal for currently active function */
 funccall_T *current_funccal = NULL;
 
-/* pointer to list of previously used funccal, still around because some
+/* Pointer to list of previously used funccal, still around because some
  * item in it is still being used. */
 funccall_T *previous_funccal = NULL;
 
@@ -628,6 +628,55 @@ free_funccal(
 }
 
 /*
+ * Handle the last part of returning from a function: free the local hashtable.
+ * Unless it is still in use by a closure.
+ */
+    static void
+cleanup_function_call(funccall_T *fc)
+{
+    current_funccal = fc->caller;
+
+    /* If the a:000 list and the l: and a: dicts are not referenced and there
+     * is no closure using it, we can free the funccall_T and what's in it. */
+    if (fc->l_varlist.lv_refcount == DO_NOT_FREE_CNT
+	    && fc->l_vars.dv_refcount == DO_NOT_FREE_CNT
+	    && fc->l_avars.dv_refcount == DO_NOT_FREE_CNT
+	    && fc->fc_refcount <= 0)
+    {
+	free_funccal(fc, FALSE);
+    }
+    else
+    {
+	hashitem_T	*hi;
+	listitem_T	*li;
+	int		todo;
+	dictitem_T	*v;
+
+	/* "fc" is still in use.  This can happen when returning "a:000",
+	 * assigning "l:" to a global variable or defining a closure.
+	 * Link "fc" in the list for garbage collection later. */
+	fc->caller = previous_funccal;
+	previous_funccal = fc;
+
+	/* Make a copy of the a: variables, since we didn't do that above. */
+	todo = (int)fc->l_avars.dv_hashtab.ht_used;
+	for (hi = fc->l_avars.dv_hashtab.ht_array; todo > 0; ++hi)
+	{
+	    if (!HASHITEM_EMPTY(hi))
+	    {
+		--todo;
+		v = HI2DI(hi);
+		copy_tv(&v->di_tv, &v->di_tv);
+	    }
+	}
+
+	/* Make a copy of the a:000 items, since we didn't do that above. */
+	for (li = fc->l_varlist.lv_first; li != NULL; li = li->li_next)
+	    copy_tv(&li->li_tv, &li->li_tv);
+    }
+}
+
+/*
  * Call a user function.
  */
     static void
@@ -982,46 +1031,9 @@ call_user_func(
     }
 
     did_emsg |= save_did_emsg;
-    current_funccal = fc->caller;
     --depth;
 
-    /* If the a:000 list and the l: and a: dicts are not referenced and there
-     * is no closure using it, we can free the funccall_T and what's in it. */
-    if (fc->l_varlist.lv_refcount == DO_NOT_FREE_CNT
-	    && fc->l_vars.dv_refcount == DO_NOT_FREE_CNT
-	    && fc->l_avars.dv_refcount == DO_NOT_FREE_CNT
-	    && fc->fc_refcount <= 0)
-    {
-	free_funccal(fc, FALSE);
-    }
-    else
-    {
-	hashitem_T	*hi;
-	listitem_T	*li;
-	int		todo;
-
-	/* "fc" is still in use.  This can happen when returning "a:000",
-	 * assigning "l:" to a global variable or defining a closure.
-	 * Link "fc" in the list for garbage collection later. */
-	fc->caller = previous_funccal;
-	previous_funccal = fc;
-
-	/* Make a copy of the a: variables, since we didn't do that above. */
-	todo = (int)fc->l_avars.dv_hashtab.ht_used;
-	for (hi = fc->l_avars.dv_hashtab.ht_array; todo > 0; ++hi)
-	{
-	    if (!HASHITEM_EMPTY(hi))
-	    {
-		--todo;
-		v = HI2DI(hi);
-		copy_tv(&v->di_tv, &v->di_tv);
-	    }
-	}
-
-	/* Make a copy of the a:000 items, since we didn't do that above. */
-	for (li = fc->l_varlist.lv_first; li != NULL; li = li->li_next)
-	    copy_tv(&li->li_tv, &li->li_tv);
-    }
+    cleanup_function_call(fc);
 }
 
 /*
@@ -1146,6 +1158,13 @@ free_all_functions(void)
     long_u	skipped = 0;
     long_u	todo = 1;
     long_u	used;
+
+    /* Clean up the call stack. */
+    while (current_funccal != NULL)
+    {
+	clear_tv(current_funccal->rettv);
+	cleanup_function_call(current_funccal);
+    }
 
     /* First clear what the functions contain.  Since this may lower the
      * reference count of a function, it may also free a function and change
@@ -1389,6 +1408,7 @@ call_func(
 		else
 		{
 		    int did_save_redo = FALSE;
+		    save_redo_T	save_redo;
 
 		    /*
 		     * Call the user function.
@@ -1400,7 +1420,7 @@ call_func(
 		    if (!ins_compl_active())
 #endif
 		    {
-			saveRedobuff();
+			saveRedobuff(&save_redo);
 			did_save_redo = TRUE;
 		    }
 		    ++fp->uf_calls;
@@ -1412,7 +1432,7 @@ call_func(
 			 * now. */
 			func_clear_free(fp, FALSE);
 		    if (did_save_redo)
-			restoreRedobuff();
+			restoreRedobuff(&save_redo);
 		    restore_search_patterns();
 		    error = ERROR_NONE;
 		}
@@ -1494,7 +1514,7 @@ list_func_head(ufunc_T *fp, int indent)
     MSG_PUTS("function ");
     if (fp->uf_name[0] == K_SPECIAL)
     {
-	MSG_PUTS_ATTR("<SNR>", hl_attr(HLF_8));
+	MSG_PUTS_ATTR("<SNR>", HL_ATTR(HLF_8));
 	msg_puts(fp->uf_name + 3);
     }
     else
@@ -1760,6 +1780,7 @@ theend:
 ex_function(exarg_T *eap)
 {
     char_u	*theline;
+    char_u	*line_to_free = NULL;
     int		j;
     int		c;
     int		saved_did_emsg;
@@ -2073,10 +2094,15 @@ ex_function(exarg_T *eap)
 		line_arg = p + 1;
 	    }
 	}
-	else if (eap->getline == NULL)
-	    theline = getcmdline(':', 0L, indent);
 	else
-	    theline = eap->getline(':', eap->cookie, indent);
+	{
+	    vim_free(line_to_free);
+	    if (eap->getline == NULL)
+		theline = getcmdline(':', 0L, indent);
+	    else
+		theline = eap->getline(':', eap->cookie, indent);
+	    line_to_free = theline;
+	}
 	if (KeyTyped)
 	    lines_left = Rows - 1;
 	if (theline == NULL)
@@ -2104,14 +2130,35 @@ ex_function(exarg_T *eap)
 	else
 	{
 	    /* skip ':' and blanks*/
-	    for (p = theline; vim_iswhite(*p) || *p == ':'; ++p)
+	    for (p = theline; VIM_ISWHITE(*p) || *p == ':'; ++p)
 		;
 
 	    /* Check for "endfunction". */
 	    if (checkforcmd(&p, "endfunction", 4) && nesting-- == 0)
 	    {
-		if (line_arg == NULL)
-		    vim_free(theline);
+		char_u *nextcmd = NULL;
+
+		if (*p == '|')
+		    nextcmd = p + 1;
+		else if (line_arg != NULL && *skipwhite(line_arg) != NUL)
+		    nextcmd = line_arg;
+		else if (*p != NUL && *p != '"' && p_verbose > 0)
+		    give_warning2(
+			 (char_u *)_("W22: Text found after :endfunction: %s"),
+			 p, TRUE);
+		if (nextcmd != NULL)
+		{
+		    /* Another command follows. If the line came from "eap" we
+		     * can simply point into it, otherwise we need to change
+		     * "eap->cmdlinep". */
+		    eap->nextcmd = nextcmd;
+		    if (line_to_free != NULL)
+		    {
+			vim_free(*eap->cmdlinep);
+			*eap->cmdlinep = line_to_free;
+			line_to_free = NULL;
+		    }
+		}
 		break;
 	    }
 
@@ -2182,24 +2229,15 @@ ex_function(exarg_T *eap)
 
 	/* Add the line to the function. */
 	if (ga_grow(&newlines, 1 + sourcing_lnum_off) == FAIL)
-	{
-	    if (line_arg == NULL)
-		vim_free(theline);
 	    goto erret;
-	}
 
 	/* Copy the line to newly allocated memory.  get_one_sourceline()
 	 * allocates 250 bytes per line, this saves 80% on average.  The cost
 	 * is an extra alloc/free. */
 	p = vim_strsave(theline);
-	if (p != NULL)
-	{
-	    if (line_arg == NULL)
-		vim_free(theline);
-	    theline = p;
-	}
-
-	((char_u **)(newlines.ga_data))[newlines.ga_len++] = theline;
+	if (p == NULL)
+	    goto erret;
+	((char_u **)(newlines.ga_data))[newlines.ga_len++] = p;
 
 	/* Add NULL lines for continuation lines, so that the line count is
 	 * equal to the index in the growarray.   */
@@ -2398,6 +2436,7 @@ errret_2:
     ga_clear_strings(&newlines);
 ret_free:
     vim_free(skip_until);
+    vim_free(line_to_free);
     vim_free(fudi.fd_newkey);
     vim_free(name);
     did_emsg |= saved_did_emsg;
@@ -2779,7 +2818,8 @@ ex_delfunction(exarg_T *eap)
     {
 	if (fp == NULL)
 	{
-	    EMSG2(_(e_nofunc), eap->arg);
+	    if (!eap->forceit)
+		EMSG2(_(e_nofunc), eap->arg);
 	    return;
 	}
 	if (fp->uf_calls > 0)

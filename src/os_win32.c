@@ -1902,16 +1902,35 @@ theend:
 #endif
 
 /*
- * Return TRUE if "name" is in $PATH.
+ * If "use_path" is TRUE: Return TRUE if "name" is in $PATH.
+ * If "use_path" is FALSE: Return TRUE if "name" exists.
+ * When returning TRUE and "path" is not NULL save the path and set "*path" to
+ * the allocated memory.
  * TODO: Should somehow check if it's really executable.
  */
     static int
-executable_exists(char *name, char_u **path)
+executable_exists(char *name, char_u **path, int use_path)
 {
     char	*dum;
     char	fname[_MAX_PATH];
     char	*curpath, *newpath;
     long	n;
+
+    if (!use_path)
+    {
+	if (mch_getperm((char_u *)name) != -1 && !mch_isdir((char_u *)name))
+	{
+	    if (path != NULL)
+	    {
+		if (mch_isFullName((char_u *)name))
+		    *path = vim_strsave((char_u *)name);
+		else
+		    *path = FullName_save((char_u *)name, FALSE);
+	    }
+	    return TRUE;
+	}
+	return FALSE;
+    }
 
 #ifdef FEAT_MBYTE
     if (enc_codepage >= 0 && (int)GetACP() != enc_codepage)
@@ -2038,7 +2057,7 @@ mch_init(void)
 	    vimrun_path = (char *)vim_strsave(vimrun_location);
 	    s_dont_use_vimrun = FALSE;
 	}
-	else if (executable_exists("vimrun.exe", NULL))
+	else if (executable_exists("vimrun.exe", NULL, TRUE))
 	    s_dont_use_vimrun = FALSE;
 
 	/* Don't give the warning for a missing vimrun.exe right now, but only
@@ -2052,7 +2071,7 @@ mch_init(void)
      * If "finstr.exe" doesn't exist, use "grep -n" for 'grepprg'.
      * Otherwise the default "findstr /n" is used.
      */
-    if (!executable_exists("findstr.exe", NULL))
+    if (!executable_exists("findstr.exe", NULL, TRUE))
 	set_option_value((char_u *)"grepprg", 0, (char_u *)"grep -n", 0);
 
 #if defined(FEAT_CLIPBOARD) && !defined(FEAT_GUI_QT)
@@ -3358,9 +3377,10 @@ mch_writable(char_u *name)
 }
 
 /*
- * Return 1 if "name" can be executed, 0 if not.
+ * Return TRUE if "name" can be executed, FALSE if not.
  * If "use_path" is FALSE only check if "name" is executable.
- * Return -1 if unknown.
+ * When returning TRUE and "path" is not NULL save the path and set "*path" to
+ * the allocated memory.
  */
     int
 mch_can_exe(char_u *name, char_u **path, int use_path)
@@ -3371,17 +3391,12 @@ mch_can_exe(char_u *name, char_u **path, int use_path)
 
     if (len >= _MAX_PATH)	/* safety check */
 	return FALSE;
-    if (!use_path)
-    {
-	/* TODO: check if file is really executable. */
-	return mch_getperm(name) != -1 && !mch_isdir(name);
-    }
 
     /* If there already is an extension try using the name directly.  Also do
      * this with a Unix-shell like 'shell'. */
     if (vim_strchr(gettail(name), '.') != NULL
 			       || strstr((char *)gettail(p_sh), "sh") != NULL)
-	if (executable_exists((char *)name, path))
+	if (executable_exists((char *)name, path, use_path))
 	    return TRUE;
 
     /*
@@ -3403,7 +3418,7 @@ mch_can_exe(char_u *name, char_u **path, int use_path)
 	}
 	else
 	    copy_option_part(&p, buf + len, _MAX_PATH - len, ";");
-	if (executable_exists((char *)buf, path))
+	if (executable_exists((char *)buf, path, use_path))
 	    return TRUE;
     }
     return FALSE;
@@ -3990,6 +4005,28 @@ vim_create_process(
 	NULL,			/* Current directory */
 	si,			/* Startup information */
 	pi);			/* Process information */
+}
+
+
+    static HINSTANCE
+vim_shell_execute(
+    char *cmd,
+    INT	 n_show_cmd)
+{
+#ifdef FEAT_MBYTE
+    if (enc_codepage >= 0 && (int)GetACP() != enc_codepage)
+    {
+	WCHAR *wcmd = enc_to_utf16((char_u *)cmd, NULL);
+	if (wcmd != NULL)
+	{
+	    HINSTANCE ret;
+	    ret = ShellExecuteW(NULL, NULL, wcmd, NULL, NULL, n_show_cmd);
+	    vim_free(wcmd);
+	    return ret;
+	}
+    }
+#endif
+    return ShellExecute(NULL, NULL, cmd, NULL, NULL, n_show_cmd);
 }
 
 
@@ -4691,11 +4728,12 @@ mch_call_shell(
 	if (*cmdbase == '(')
 	    ++cmdbase;
 
-	if ((STRNICMP(cmdbase, "start", 5) == 0) && vim_iswhite(cmdbase[5]))
+	if ((STRNICMP(cmdbase, "start", 5) == 0) && VIM_ISWHITE(cmdbase[5]))
 	{
 	    STARTUPINFO		si;
 	    PROCESS_INFORMATION	pi;
 	    DWORD		flags = CREATE_NEW_CONSOLE;
+	    INT			n_show_cmd = SW_SHOWNORMAL;
 	    char_u		*p;
 
 	    ZeroMemory(&si, sizeof(si));
@@ -4709,14 +4747,15 @@ mch_call_shell(
 
 	    cmdbase = skipwhite(cmdbase + 5);
 	    if ((STRNICMP(cmdbase, "/min", 4) == 0)
-		    && vim_iswhite(cmdbase[4]))
+		    && VIM_ISWHITE(cmdbase[4]))
 	    {
 		cmdbase = skipwhite(cmdbase + 4);
 		si.dwFlags = STARTF_USESHOWWINDOW;
 		si.wShowWindow = SW_SHOWMINNOACTIVE;
+		n_show_cmd = SW_SHOWMINNOACTIVE;
 	    }
 	    else if ((STRNICMP(cmdbase, "/b", 2) == 0)
-		    && vim_iswhite(cmdbase[2]))
+		    && VIM_ISWHITE(cmdbase[2]))
 	    {
 		cmdbase = skipwhite(cmdbase + 2);
 		flags = CREATE_NO_WINDOW;
@@ -4784,6 +4823,9 @@ mch_call_shell(
 	     * files if we exit before the spawned process
 	     */
 	    if (vim_create_process((char *)newcmd, FALSE, flags, &si, &pi))
+		x = 0;
+	    else if (vim_shell_execute((char *)newcmd, n_show_cmd)
+							       > (HINSTANCE)32)
 		x = 0;
 	    else
 	    {
@@ -5726,7 +5768,7 @@ write_chars(
 	{
 	    char_u *p = pchBuf;
 	    for (n = 0; n < cchwritten; n++)
-		mb_cptr_adv(p);
+		MB_CPTR_ADV(p);
 	    written = p - pchBuf;
 	    g_coord.X += (SHORT)mb_string2cells(pchBuf, written);
 	}

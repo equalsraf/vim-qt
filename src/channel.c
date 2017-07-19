@@ -171,7 +171,7 @@ ch_log(channel_T *ch, char *msg)
     }
 }
 
-    static void
+    void
 ch_logn(channel_T *ch, char *msg, int nr)
 {
     if (log_fd != NULL)
@@ -1438,6 +1438,7 @@ channel_write_in(channel_T *channel)
     if (!bufref_valid(&in_part->ch_bufref) || buf->b_ml.ml_mfp == NULL)
     {
 	/* buffer was wiped out or unloaded */
+	ch_log(channel, "input buffer has been wiped out");
 	in_part->ch_bufref.br_buf = NULL;
 	return;
     }
@@ -2338,7 +2339,7 @@ append_to_buffer(buf_T *buffer, char_u *msg, channel_T *channel, ch_part_T part)
     int		save_write_to = buffer->b_write_to_channel;
     chanpart_T  *ch_part = &channel->ch_part[part];
     int		save_p_ma = buffer->b_p_ma;
-    int		empty = (buffer->b_ml.ml_flags & ML_EMPTY);
+    int		empty = (buffer->b_ml.ml_flags & ML_EMPTY) ? 1 : 0;
 
     if (!buffer->b_p_ma && !ch_part->ch_nomodifiable)
     {
@@ -2359,13 +2360,14 @@ append_to_buffer(buf_T *buffer, char_u *msg, channel_T *channel, ch_part_T part)
     }
 
     /* Append to the buffer */
-    ch_logn(channel, "appending line %d to buffer", (int)lnum + 1);
+    ch_logn(channel, "appending line %d to buffer", (int)lnum + 1 - empty);
 
     buffer->b_p_ma = TRUE;
     curbuf = buffer;
+    curwin->w_buffer = curbuf;
     u_sync(TRUE);
     /* ignore undo failure, undo is not very useful here */
-    ignored = u_save(lnum, lnum + 1 + (empty ? 1 : 0));
+    ignored = u_save(lnum - empty, lnum + 1);
 
     if (empty)
     {
@@ -2377,6 +2379,7 @@ append_to_buffer(buf_T *buffer, char_u *msg, channel_T *channel, ch_part_T part)
 	ml_append(lnum, msg, 0, FALSE);
     appended_lines_mark(lnum, 1L);
     curbuf = save_curbuf;
+    curwin->w_buffer = curbuf;
     if (ch_part->ch_nomodifiable)
 	buffer->b_p_ma = FALSE;
     else
@@ -2404,7 +2407,7 @@ append_to_buffer(buf_T *buffer, char_u *msg, channel_T *channel, ch_part_T part)
 		curbuf = curwin->w_buffer;
 	    }
 	}
-	redraw_buf_later(buffer, VALID);
+	redraw_buf_and_status_later(buffer, VALID);
 	channel_need_redraw = TRUE;
     }
 
@@ -2483,9 +2486,11 @@ may_invoke_callback(channel_T *channel, ch_part_T part)
     }
 
     buffer = ch_part->ch_bufref.br_buf;
-    if (buffer != NULL && !bufref_valid(&ch_part->ch_bufref))
+    if (buffer != NULL && (!bufref_valid(&ch_part->ch_bufref)
+					       || buffer->b_ml.ml_mfp == NULL))
     {
-	/* buffer was wiped out */
+	/* buffer was wiped out or unloaded */
+	ch_logs(channel, "%s buffer has been wiped out", part_names[part]);
 	ch_part->ch_bufref.br_buf = NULL;
 	buffer = NULL;
     }
@@ -2571,9 +2576,14 @@ may_invoke_callback(channel_T *channel, ch_part_T part)
 	    if (nl == NULL)
 	    {
 		/* Flush remaining message that is missing a NL. */
-		buf = vim_realloc(buf, node->rq_buflen + 1);
-		if (buf == NULL)
+		char_u	*new_buf;
+
+		new_buf = vim_realloc(buf, node->rq_buflen + 1);
+		if (new_buf == NULL)
+		    /* This might fail over and over again, should the message
+		     * be dropped? */
 		    return FALSE;
+		buf = new_buf;
 		node->rq_buffer = buf;
 		nl = buf + node->rq_buflen++;
 		*nl = NUL;
@@ -2646,7 +2656,14 @@ may_invoke_callback(channel_T *channel, ch_part_T part)
 		/* JSON or JS mode: re-encode the message. */
 		msg = json_encode(listtv, ch_mode);
 	    if (msg != NULL)
-		append_to_buffer(buffer, msg, channel, part);
+	    {
+#ifdef FEAT_TERMINAL
+		if (buffer->b_term != NULL)
+		    write_to_term(buffer, msg, channel);
+		else
+#endif
+		    append_to_buffer(buffer, msg, channel, part);
+	    }
 	}
 
 	if (callback != NULL)
@@ -4876,10 +4893,12 @@ job_check_ended(void)
 }
 
 /*
- * "job_start()" function
+ * Create a job and return it.  Implements job_start().
+ * The returned job has a refcount of one.
+ * Returns NULL when out of memory.
  */
     job_T *
-job_start(typval_T *argvars)
+job_start(typval_T *argvars, jobopt_T *opt_arg)
 {
     job_T	*job;
     char_u	*cmd = NULL;
@@ -4902,13 +4921,18 @@ job_start(typval_T *argvars)
     ga_init2(&ga, (int)sizeof(char*), 20);
 #endif
 
-    /* Default mode is NL. */
-    clear_job_options(&opt);
-    opt.jo_mode = MODE_NL;
-    if (get_job_options(&argvars[1], &opt,
+    if (opt_arg != NULL)
+	opt = *opt_arg;
+    else
+    {
+	/* Default mode is NL. */
+	clear_job_options(&opt);
+	opt.jo_mode = MODE_NL;
+	if (get_job_options(&argvars[1], &opt,
 	    JO_MODE_ALL + JO_CB_ALL + JO_TIMEOUT_ALL + JO_STOPONEXIT
 			   + JO_EXIT_CB + JO_OUT_IO + JO_BLOCK_WRITE) == FAIL)
 	goto theend;
+    }
 
     /* Check that when io is "file" that there is a file name. */
     for (part = PART_OUT; part < PART_COUNT; ++part)
@@ -5127,12 +5151,19 @@ job_info(job_T *job, dict_T *dict)
     dict_add_nr_str(dict, "stoponexit", 0L, job->jv_stoponexit);
 }
 
+/*
+ * Send a signal to "job".  Implements job_stop().
+ * When "type" is not NULL use this for the type.
+ * Otherwise use argvars[1] for the type.
+ */
     int
-job_stop(job_T *job, typval_T *argvars)
+job_stop(job_T *job, typval_T *argvars, char *type)
 {
     char_u *arg;
 
-    if (argvars[1].v_type == VAR_UNKNOWN)
+    if (type != NULL)
+	arg = (char_u *)type;
+    else if (argvars[1].v_type == VAR_UNKNOWN)
 	arg = (char_u *)"";
     else
     {
@@ -5143,12 +5174,17 @@ job_stop(job_T *job, typval_T *argvars)
 	    return 0;
 	}
     }
+    if (job->jv_status == JOB_ENDED)
+    {
+	ch_log(job->jv_channel, "Job has already ended, job_stop() skipped");
+	return 0;
+    }
     ch_logs(job->jv_channel, "Stopping job with '%s'", (char *)arg);
     if (mch_stop_job(job, arg) == FAIL)
 	return 0;
 
-    /* Assume that "hup" does not kill the job. */
-    if (job->jv_channel != NULL && STRCMP(arg, "hup") != 0)
+    /* Assume that only "kill" will kill the job. */
+    if (job->jv_channel != NULL && STRCMP(arg, "kill") == 0)
 	job->jv_channel->ch_job_killed = TRUE;
 
     /* We don't try freeing the job, obviously the caller still has a

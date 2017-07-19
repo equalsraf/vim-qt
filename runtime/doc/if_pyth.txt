@@ -1,4 +1,4 @@
-*if_pyth.txt*   For Vim version 8.0.  Last change: 2017 Feb 17
+*if_pyth.txt*   For Vim version 8.0.  Last change: 2017 Mar 09
 
 
 		  VIM REFERENCE MANUAL    by Paul Moore
@@ -17,6 +17,7 @@ The Python Interface to Vim				*python* *Python*
 9. Dynamic loading				|python-dynamic|
 10. Python 3					|python3|
 11. Python X					|python_x|
+12. Building with Python support		|python-building|
 
 {Vi does not have any of these commands}
 
@@ -174,8 +175,8 @@ vim.eval(str)						*python-eval*
 
 	    :py tagList = vim.eval('taglist("eval_expr")')
 <	The latter will return a python list of python dicts, for instance:
-	[{'cmd': '/^eval_expr(arg, nextcmd)$/', 'static': 0, 'name':
-	'eval_expr', 'kind': 'f', 'filename': './src/eval.c'}]
+	[{'cmd': '/^eval_expr(arg, nextcmd)$/', 'static': 0, 'name': ~
+	'eval_expr', 'kind': 'f', 'filename': './src/eval.c'}] ~
 
 vim.bindeval(str)					*python-bindeval*
 	Like |python-eval|, but returns special objects described in 
@@ -819,7 +820,7 @@ the other one from being available.
 11. Python X						*python_x* *pythonx*
 
 Because most python code can be written so that it works with python 2.6+ and
-python 3 the pyx* functions and commands have been writen.  They work exactly
+python 3 the pyx* functions and commands have been written.  They work exactly
 the same as the Python 2 and 3 variants, but select the Python version using
 the 'pyxversion' setting.
 
@@ -867,7 +868,7 @@ When compiled with both |+python| and |+python3|, the test depends on the
 it is not available then Python 2.  If 'pyxversion' is 2 or 3, it tests only
 Python 2 or 3 respectively.
 
-Note that for has('pythonx') to work it may try to dynamically load Python 3
+Note that for `has('pythonx')` to work it may try to dynamically load Python 3
 or 2.  This may have side effects, especially when Vim can only load one of
 the two.
 
@@ -878,6 +879,28 @@ If a user prefers Python 2 and want to fallback to Python 3, he needs to set
 	elseif has('python3')
 	  set pyx=3
 	endif
+
+==============================================================================
+12. Building with Python support			*python-building*
+
+A few hints for building with Python 2 or 3 support.
+
+UNIX
+
+See src/Makefile for how to enable including the Python interface.
+
+On Ubuntu you will want to install these packages for Python 2:
+	python
+	python-dev
+For Python 3:
+	python3
+	pytyon3-dev
+For Python 3.6:
+	python3.6
+	pytyon3.6-dev
+
+If you have more than one version of Python 3, you need to link python3 to the
+one you prefer, before running configure.
 
 ==============================================================================
  vim:tw=78:ts=8:ft=help:norl:

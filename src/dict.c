@@ -59,11 +59,21 @@ rettv_dict_alloc(typval_T *rettv)
     if (d == NULL)
 	return FAIL;
 
-    rettv->vval.v_dict = d;
-    rettv->v_type = VAR_DICT;
+    rettv_dict_set(rettv, d);
     rettv->v_lock = 0;
-    ++d->dv_refcount;
     return OK;
+}
+
+/*
+ * Set a dictionary as the return value
+ */
+    void
+rettv_dict_set(typval_T *rettv, dict_T *d)
+{
+    rettv->v_type = VAR_DICT;
+    rettv->vval.v_dict = d;
+    if (d != NULL)
+	++d->dv_refcount;
 }
 
 /*
@@ -356,12 +366,12 @@ dict_add_list(dict_T *d, char *key, list_T *list)
     item->di_tv.v_lock = 0;
     item->di_tv.v_type = VAR_LIST;
     item->di_tv.vval.v_list = list;
+    ++list->lv_refcount;
     if (dict_add(d, item) == FAIL)
     {
 	dictitem_free(item);
 	return FAIL;
     }
-    ++list->lv_refcount;
     return OK;
 }
 
@@ -380,12 +390,12 @@ dict_add_dict(dict_T *d, char *key, dict_T *dict)
     item->di_tv.v_lock = 0;
     item->di_tv.v_type = VAR_DICT;
     item->di_tv.vval.v_dict = dict;
+    ++dict->dv_refcount;
     if (dict_add(d, item) == FAIL)
     {
 	dictitem_free(item);
 	return FAIL;
     }
-    ++dict->dv_refcount;
     return OK;
 }
 
@@ -646,11 +656,7 @@ failret:
 
     *arg = skipwhite(*arg + 1);
     if (evaluate)
-    {
-	rettv->v_type = VAR_DICT;
-	rettv->vval.v_dict = d;
-	++d->dv_refcount;
-    }
+	rettv_dict_set(rettv, d);
 
     return OK;
 }
