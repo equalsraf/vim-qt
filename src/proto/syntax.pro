@@ -1,5 +1,5 @@
 /* syntax.c */
-void syntax_start(win_T *wp, linenr_T lnum);
+void syntax_start(win_T *wp, linenr_T lnum, proftime_T *syntax_tm);
 void syn_stack_free_all(synblock_T *block);
 void syn_stack_apply_changes(buf_T *buf);
 void syntax_end_parsing(linenr_T lnum);
@@ -52,5 +52,6 @@ void highlight_gui_started(void);
 int highlight_changed(void);
 void set_context_in_highlight_cmd(expand_T *xp, char_u *arg);
 char_u *get_highlight_name(expand_T *xp, int idx);
+char_u *get_highlight_name_ext(expand_T *xp, int idx, int skip_cleared);
 void free_highlight_fonts(void);
 /* vim: set ft=c : */

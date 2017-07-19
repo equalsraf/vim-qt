@@ -562,11 +562,68 @@ func Test_completion_comment_formatting()
   %d
   try
     call feedkeys("o/*\<cr>\<cr>\<c-x>\<c-u>/\<esc>", 'tx')
-    call assert_false(1, 'completefunc not set, should have failed')
+    call assert_report('completefunc not set, should have failed')
   catch
     call assert_exception('E764:')
   endtry
   call assert_equal(['', '/*', ' *', ' */'], getline(1,4))
+  bwipe!
+endfunc
+
+fun MessCompleteMonths()
+  for m in split("Jan Feb Mar Apr May Jun Jul Aug Sep")
+    call complete_add(m)
+    if complete_check()
+      break
+    endif
+  endfor
+  return []
+endfun
+
+fun MessCompleteMore()
+  call complete(1, split("Oct Nov Dec"))
+  return []
+endfun
+
+fun MessComplete(findstart, base)
+  if a:findstart
+    let line = getline('.')
+    let start = col('.') - 1
+    while start > 0 && line[start - 1] =~ '\a'
+      let start -= 1
+    endwhile
+    return start
+  else
+    call MessCompleteMonths()
+    call MessCompleteMore()
+    return []
+  endif
+endf
+
+func Test_complete_func_mess()
+  " Calling complete() after complete_add() in 'completefunc' is wrong, but it
+  " should not crash.
+  set completefunc=MessComplete
+  new
+  call setline(1, 'Ju')
+  call feedkeys("A\<c-x>\<c-u>/\<esc>", 'tx')
+  call assert_equal('Oct/Oct', getline(1))
+  bwipe!
+  set completefunc=
+endfunc
+
+func Test_complete_CTRLN_startofbuffer()
+  new
+  call setline(1, [ 'organize(cupboard, 3, 2);',
+        \ 'prioritize(bureau, 8, 7);',
+        \ 'realize(bannister, 4, 4);',
+        \ 'moralize(railing, 3,9);'])
+  let expected=['cupboard.organize(3, 2);',
+        \ 'bureau.prioritize(8, 7);',
+        \ 'bannister.realize(4, 4);',
+        \ 'railing.moralize(3,9);']
+  call feedkeys("qai\<c-n>\<c-n>.\<esc>3wdW\<cr>q3@a", 'tx')
+  call assert_equal(expected, getline(1,'$'))
   bwipe!
 endfunc
 

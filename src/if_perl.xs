@@ -633,6 +633,30 @@ S_SvREFCNT_dec(pTHX_ SV *sv)
 }
 # endif
 
+/* perl-5.26 also needs S_TOPMARK and S_POPMARK. */
+# if (PERL_REVISION == 5) && (PERL_VERSION >= 26)
+PERL_STATIC_INLINE I32
+S_TOPMARK(pTHX)
+{
+    DEBUG_s(DEBUG_v(PerlIO_printf(Perl_debug_log,
+				 "MARK top  %p %" IVdf "\n",
+				  PL_markstack_ptr,
+				  (IV)*PL_markstack_ptr)));
+    return *PL_markstack_ptr;
+}
+
+PERL_STATIC_INLINE I32
+S_POPMARK(pTHX)
+{
+    DEBUG_s(DEBUG_v(PerlIO_printf(Perl_debug_log,
+				 "MARK pop  %p %" IVdf "\n",
+				  (PL_markstack_ptr-1),
+				  (IV)*(PL_markstack_ptr-1))));
+    assert((PL_markstack_ptr > PL_markstack) || !"MARK underflow");
+    return *PL_markstack_ptr--;
+}
+# endif
+
 /*
  * Make all runtime-links of perl.
  *
@@ -1136,9 +1160,7 @@ perl_to_vim(SV *sv, typval_T *rettv)
 		}
 	    }
 
-	    list->lv_refcount++;
-	    rettv->v_type	= VAR_LIST;
-	    rettv->vval.v_list	= list;
+	    rettv_list_set(rettv, list);
 	    break;
 	}
 	case SVt_PVHV:	/* dictionary */
@@ -1192,9 +1214,7 @@ perl_to_vim(SV *sv, typval_T *rettv)
 		}
 	    }
 
-	    dict->dv_refcount++;
-	    rettv->v_type	= VAR_DICT;
-	    rettv->vval.v_dict	= dict;
+	    rettv_dict_set(rettv, dict);
 	    break;
 	}
 	default:	/* not convertible */
@@ -1288,7 +1308,7 @@ ex_perldo(exarg_T *eap)
     linenr_T	i;
     buf_T	*was_curbuf = curbuf;
 
-    if (bufempty())
+    if (BUFEMPTY())
 	return;
 
     if (perl_interp == NULL)

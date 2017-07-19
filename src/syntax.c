@@ -367,6 +367,9 @@ static reg_extmatch_T *next_match_extmatch = NULL;
 static win_T	*syn_win;		/* current window for highlighting */
 static buf_T	*syn_buf;		/* current buffer for highlighting */
 static synblock_T *syn_block;		/* current buffer for highlighting */
+#ifdef FEAT_RELTIME
+static proftime_T *syn_tm;
+#endif
 static linenr_T current_lnum = 0;	/* lnum of current state */
 static colnr_T	current_col = 0;	/* column of current state */
 static int	current_state_stored = 0; /* TRUE if stored current state
@@ -494,7 +497,7 @@ static void syn_incl_toplevel(int id, int *flagsp);
  * window.
  */
     void
-syntax_start(win_T *wp, linenr_T lnum)
+syntax_start(win_T *wp, linenr_T lnum, proftime_T *syntax_tm UNUSED)
 {
     synstate_T	*p;
     synstate_T	*last_valid = NULL;
@@ -524,6 +527,9 @@ syntax_start(win_T *wp, linenr_T lnum)
     }
     changedtick = CHANGEDTICK(syn_buf);
     syn_win = wp;
+#ifdef FEAT_RELTIME
+    syn_tm = syntax_tm;
+#endif
 
     /*
      * Allocate syntax stack when needed.
@@ -1055,6 +1061,9 @@ syn_start_line(void)
 
     next_match_idx = -1;
     ++current_line_id;
+#ifdef FEAT_CONCEAL
+    next_seqnr = 1;
+#endif
 }
 
 /*
@@ -1183,10 +1192,11 @@ syn_stack_free_block(synblock_T *block)
     void
 syn_stack_free_all(synblock_T *block)
 {
+#ifdef FEAT_FOLDING
     win_T	*wp;
+#endif
 
     syn_stack_free_block(block);
-
 
 #ifdef FEAT_FOLDING
     /* When using "syntax" fold method, must update all folds. */
@@ -1781,36 +1791,33 @@ syn_finish_line(
     stateitem_T	*cur_si;
     colnr_T	prev_current_col;
 
-    if (!current_finished)
+    while (!current_finished)
     {
-	while (!current_finished)
+	(void)syn_current_attr(syncing, FALSE, NULL, FALSE);
+	/*
+	 * When syncing, and found some item, need to check the item.
+	 */
+	if (syncing && current_state.ga_len)
 	{
-	    (void)syn_current_attr(syncing, FALSE, NULL, FALSE);
 	    /*
-	     * When syncing, and found some item, need to check the item.
+	     * Check for match with sync item.
 	     */
-	    if (syncing && current_state.ga_len)
-	    {
-		/*
-		 * Check for match with sync item.
-		 */
-		cur_si = &CUR_STATE(current_state.ga_len - 1);
-		if (cur_si->si_idx >= 0
-			&& (SYN_ITEMS(syn_block)[cur_si->si_idx].sp_flags
-					      & (HL_SYNC_HERE|HL_SYNC_THERE)))
-		    return TRUE;
+	    cur_si = &CUR_STATE(current_state.ga_len - 1);
+	    if (cur_si->si_idx >= 0
+		    && (SYN_ITEMS(syn_block)[cur_si->si_idx].sp_flags
+					  & (HL_SYNC_HERE|HL_SYNC_THERE)))
+		return TRUE;
 
-		/* syn_current_attr() will have skipped the check for an item
-		 * that ends here, need to do that now.  Be careful not to go
-		 * past the NUL. */
-		prev_current_col = current_col;
-		if (syn_getcurline()[current_col] != NUL)
-		    ++current_col;
-		check_state_ends();
-		current_col = prev_current_col;
-	    }
-	    ++current_col;
+	    /* syn_current_attr() will have skipped the check for an item
+	     * that ends here, need to do that now.  Be careful not to go
+	     * past the NUL. */
+	    prev_current_col = current_col;
+	    if (syn_getcurline()[current_col] != NUL)
+		++current_col;
+	    check_state_ends();
+	    current_col = prev_current_col;
 	}
+	++current_col;
     }
     return FALSE;
 }
@@ -1853,6 +1860,7 @@ get_syntax_attr(
 #endif
 #ifdef FEAT_CONCEAL
 	current_flags = 0;
+	current_seqnr = 0;
 #endif
 	return 0;
     }
@@ -2307,7 +2315,7 @@ syn_current_attr(
 	    {
 		line = syn_getcurline();
 		if (((current_next_flags & HL_SKIPWHITE)
-			    && vim_iswhite(line[current_col]))
+			    && VIM_ISWHITE(line[current_col]))
 			|| ((current_next_flags & HL_SKIPEMPTY)
 			    && *line == NUL))
 		    break;
@@ -2342,6 +2350,7 @@ syn_current_attr(
 #endif
 #ifdef FEAT_CONCEAL
     current_flags = 0;
+    current_seqnr = 0;
 #endif
     if (cur_si != NULL)
     {
@@ -3210,12 +3219,12 @@ syn_add_end_off(
 	if (off > 0)
 	{
 	    while (off-- > 0 && *p != NUL)
-		mb_ptr_adv(p);
+		MB_PTR_ADV(p);
 	}
 	else if (off < 0)
 	{
 	    while (off++ < 0 && base < p)
-		mb_ptr_back(base, p);
+		MB_PTR_BACK(base, p);
 	}
 	col = (int)(p - base);
     }
@@ -3264,12 +3273,12 @@ syn_add_start_off(
 	if (off > 0)
 	{
 	    while (off-- && *p != NUL)
-		mb_ptr_adv(p);
+		MB_PTR_ADV(p);
 	}
 	else if (off < 0)
 	{
 	    while (off++ && base < p)
-		mb_ptr_back(base, p);
+		MB_PTR_BACK(base, p);
 	}
 	col = (int)(p - base);
     }
@@ -3297,6 +3306,9 @@ syn_regexec(
     syn_time_T  *st UNUSED)
 {
     int r;
+#ifdef FEAT_RELTIME
+    int timed_out = FALSE;
+#endif
 #ifdef FEAT_PROFILE
     proftime_T	pt;
 
@@ -3305,7 +3317,13 @@ syn_regexec(
 #endif
 
     rmp->rmm_maxcol = syn_buf->b_p_smc;
-    r = vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col, NULL);
+    r = vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col,
+#ifdef FEAT_RELTIME
+	    syn_tm, &timed_out
+#else
+	    NULL, NULL
+#endif
+	    );
 
 #ifdef FEAT_PROFILE
     if (syn_time_on)
@@ -3318,6 +3336,10 @@ syn_regexec(
 	if (r > 0)
 	    ++st->match;
     }
+#endif
+#ifdef FEAT_RELTIME
+    if (timed_out)
+	syn_win->w_s->b_syn_slow = TRUE;
 #endif
 
     if (r > 0)
@@ -3332,7 +3354,7 @@ syn_regexec(
 /*
  * Check one position in a line for a matching keyword.
  * The caller must check if a keyword can start at startcol.
- * Return it's ID if found, 0 otherwise.
+ * Return its ID if found, 0 otherwise.
  */
     static int
 check_keyword_id(
@@ -3438,9 +3460,9 @@ syn_cmd_conceal(exarg_T *eap UNUSED, int syncing UNUSED)
     if (*arg == NUL)
     {
 	if (curwin->w_s->b_syn_conceal)
-	    MSG(_("syn conceal on"));
+	    MSG(_("syntax conceal on"));
 	else
-	    MSG(_("syn conceal off"));
+	    MSG(_("syntax conceal off"));
     }
     else if (STRNICMP(arg, "on", 2) == 0 && next - arg == 2)
 	curwin->w_s->b_syn_conceal = TRUE;
@@ -3577,6 +3599,9 @@ syntax_clear(synblock_T *block)
     int i;
 
     block->b_syn_error = FALSE;	    /* clear previous error */
+#ifdef FEAT_RELTIME
+    block->b_syn_slow = FALSE;	    /* clear previous timeout */
+#endif
     block->b_syn_ic = FALSE;	    /* Use case, by default */
     block->b_syn_spell = SYNSPL_DEFAULT; /* default spell checking */
     block->b_syn_containedin = FALSE;
@@ -4069,7 +4094,7 @@ syn_list_one(
 		    {0, NULL}
 		};
 
-    attr = hl_attr(HLF_D);		/* highlight like directories */
+    attr = HL_ATTR(HLF_D);		/* highlight like directories */
 
     /* list the keywords for "id" */
     if (!syncing)
@@ -4180,11 +4205,11 @@ syn_list_cluster(int id)
     if (SYN_CLSTR(curwin->w_s)[id].scl_list != NULL)
     {
 	put_id_list((char_u *)"cluster", SYN_CLSTR(curwin->w_s)[id].scl_list,
-		    hl_attr(HLF_D));
+		    HL_ATTR(HLF_D));
     }
     else
     {
-	msg_puts_attr((char_u *)"cluster", hl_attr(HLF_D));
+	msg_puts_attr((char_u *)"cluster", HL_ATTR(HLF_D));
 	msg_puts((char_u *)"=NONE");
     }
 }
@@ -4630,7 +4655,7 @@ get_syn_options(
 	    for (i = 0, len = 0; p[i] != NUL; i += 2, ++len)
 		if (arg[len] != p[i] && arg[len] != p[i + 1])
 		    break;
-	    if (p[i] == NUL && (vim_iswhite(arg[len])
+	    if (p[i] == NUL && (VIM_ISWHITE(arg[len])
 				    || (flagtab[fidx].argtype > 0
 					 ? arg[len] == '='
 					 : ends_excmd(arg[len]))))
@@ -4904,7 +4929,7 @@ syn_cmd_keyword(exarg_T *eap, int syncing UNUSED)
 		if (rest == NULL || ends_excmd(*rest))
 		    break;
 		/* Copy the keyword, removing backslashes, and add a NUL. */
-		while (*rest != NUL && !vim_iswhite(*rest))
+		while (*rest != NUL && !VIM_ISWHITE(*rest))
 		{
 		    if (*rest == '\\' && rest[1] != NUL)
 			++rest;
@@ -5155,7 +5180,7 @@ syn_cmd_region(
 
 	/* must be a pattern or matchgroup then */
 	key_end = rest;
-	while (*key_end && !vim_iswhite(*key_end) && *key_end != '=')
+	while (*key_end && !VIM_ISWHITE(*key_end) && *key_end != '=')
 	    ++key_end;
 	vim_free(key);
 	key = vim_strnsave_up(rest, (int)(key_end - rest));
@@ -5494,7 +5519,7 @@ syn_combine_list(short **clstr1, short **clstr2, int list_op)
 }
 
 /*
- * Lookup a syntax cluster name and return it's ID.
+ * Lookup a syntax cluster name and return its ID.
  * If it is not found, 0 is returned.
  */
     static int
@@ -5534,7 +5559,7 @@ syn_scl_namen2id(char_u *linep, int len)
 }
 
 /*
- * Find syntax cluster name in the table and return it's ID.
+ * Find syntax cluster name in the table and return its ID.
  * The argument is a pointer to the name and the length of the name.
  * If it doesn't exist yet, a new entry is created.
  * Return 0 for failure.
@@ -5558,7 +5583,7 @@ syn_check_cluster(char_u *pp, int len)
 }
 
 /*
- * Add new syntax cluster and return it's ID.
+ * Add new syntax cluster and return its ID.
  * "name" must be an allocated string, it will be consumed.
  * Return 0 for failure.
  */
@@ -5639,19 +5664,19 @@ syn_cmd_cluster(exarg_T *eap, int syncing UNUSED)
 	for (;;)
 	{
 	    if (STRNICMP(rest, "add", 3) == 0
-		    && (vim_iswhite(rest[3]) || rest[3] == '='))
+		    && (VIM_ISWHITE(rest[3]) || rest[3] == '='))
 	    {
 		opt_len = 3;
 		list_op = CLUSTER_ADD;
 	    }
 	    else if (STRNICMP(rest, "remove", 6) == 0
-		    && (vim_iswhite(rest[6]) || rest[6] == '='))
+		    && (VIM_ISWHITE(rest[6]) || rest[6] == '='))
 	    {
 		opt_len = 6;
 		list_op = CLUSTER_SUBTRACT;
 	    }
 	    else if (STRNICMP(rest, "contains", 8) == 0
-			&& (vim_iswhite(rest[8]) || rest[8] == '='))
+			&& (VIM_ISWHITE(rest[8]) || rest[8] == '='))
 	    {
 		opt_len = 8;
 		list_op = CLUSTER_REPLACE;
@@ -5792,7 +5817,7 @@ get_syn_pattern(char_u *arg, synpat_T *ci)
 	}
     } while (idx >= 0);
 
-    if (!ends_excmd(*end) && !vim_iswhite(*end))
+    if (!ends_excmd(*end) && !VIM_ISWHITE(*end))
     {
 	EMSG2(_("E402: Garbage after pattern: %s"), arg);
 	return NULL;
@@ -6013,7 +6038,7 @@ get_id_list(
 	count = 0;
 	while (!ends_excmd(*p))
 	{
-	    for (end = p; *end && !vim_iswhite(*end) && *end != ','; ++end)
+	    for (end = p; *end && !VIM_ISWHITE(*end) && *end != ','; ++end)
 		;
 	    name = alloc((int)(end - p + 3));	    /* leave room for "^$" */
 	    if (name == NULL)
@@ -6544,7 +6569,7 @@ syn_get_id(
     if (wp->w_buffer != syn_buf
 	    || lnum != current_lnum
 	    || col < current_col)
-	syntax_start(wp, lnum);
+	syntax_start(wp, lnum, NULL);
     else if (wp->w_buffer == syn_buf
 	    && lnum == current_lnum
 	    && col > current_col)
@@ -6613,9 +6638,14 @@ syn_get_foldlevel(win_T *wp, long lnum)
     int		i;
 
     /* Return quickly when there are no fold items at all. */
-    if (wp->w_s->b_syn_folditems != 0)
+    if (wp->w_s->b_syn_folditems != 0
+	    && !wp->w_s->b_syn_error
+# ifdef SYN_TIME_LIMIT
+	    && !wp->w_s->b_syn_slow
+# endif
+	    )
     {
-	syntax_start(wp, lnum);
+	syntax_start(wp, lnum, NULL);
 
 	for (i = 0; i < current_state.ga_len; ++i)
 	    if (CUR_STATE(i).si_flags & HL_FOLD)
@@ -6884,6 +6914,7 @@ static char *(highlight_init_both[]) =
 	"Cursor guibg=fg guifg=bg",
 	"lCursor guibg=fg guifg=bg", /* should be different, but what? */
 #endif
+	"default link QuickFixLine Search",
 	NULL
     };
 
@@ -7465,7 +7496,7 @@ do_highlight(
 	 * Isolate the key ("term", "ctermfg", "ctermbg", "font", "guifg" or
 	 * "guibg").
 	 */
-	while (*linep && !vim_iswhite(*linep) && *linep != '=')
+	while (*linep && !VIM_ISWHITE(*linep) && *linep != '=')
 	    ++linep;
 	vim_free(key);
 	key = vim_strnsave_up(key_start, (int)(linep - key_start));
@@ -7751,7 +7782,7 @@ do_highlight(
 		    break;
 		}
 
-		/* Use the _16 table to check if its a valid color name. */
+		/* Use the _16 table to check if it's a valid color name. */
 		color = color_numbers_16[i];
 		if (color >= 0)
 		{
@@ -7836,18 +7867,25 @@ do_highlight(
 			must_redraw = CLEAR;
 			if (color >= 0)
 			{
+			    int dark = -1;
+
 			    if (termcap_active)
 				term_bg_color(color);
 			    if (t_colors < 16)
-				i = (color == 0 || color == 4);
-			    else
-				i = (color < 7 || color == 8);
+				dark = (color == 0 || color == 4);
+			    /* Limit the heuristic to the standard 16 colors */
+			    else if (color < 16)
+				dark = (color < 7 || color == 8);
 			    /* Set the 'background' option if the value is
 			     * wrong. */
-			    if (i != (*p_bg == 'd'))
+			    if (dark != -1
+				    && dark != (*p_bg == 'd')
+				    && !option_was_set((char_u *)"bg"))
+			    {
 				set_option_value((char_u *)"bg", 0L,
-					i ?  (char_u *)"dark"
-					  : (char_u *)"light", 0);
+				       (char_u *)(dark ? "dark" : "light"), 0);
+				reset_option_was_set((char_u *)"bg");
+			    }
 			}
 		    }
 		}
@@ -8168,7 +8206,7 @@ hl_has_settings(int idx, int check_link)
 	    || HL_TABLE()[idx].sg_gui_fg_name != NULL
 	    || HL_TABLE()[idx].sg_gui_bg_name != NULL
 	    || HL_TABLE()[idx].sg_gui_sp_name != NULL
-	    || HL_TABLE()[idx].sg_font_name != NUL
+	    || HL_TABLE()[idx].sg_font_name != NULL
 #endif
 	    || (check_link && (HL_TABLE()[idx].sg_set & SG_LINK)));
 }
@@ -8998,7 +9036,7 @@ highlight_list_one(int id)
     {
 	(void)syn_list_header(didh, 9999, id);
 	didh = TRUE;
-	msg_puts_attr((char_u *)"links to", hl_attr(HLF_D));
+	msg_puts_attr((char_u *)"links to", HL_ATTR(HLF_D));
 	msg_putchar(' ');
 	msg_outtrans(HL_TABLE()[HL_TABLE()[id - 1].sg_link - 1].sg_name);
     }
@@ -9055,8 +9093,8 @@ highlight_list_arg(
 	{
 	    if (*name != NUL)
 	    {
-		MSG_PUTS_ATTR(name, hl_attr(HLF_D));
-		MSG_PUTS_ATTR("=", hl_attr(HLF_D));
+		MSG_PUTS_ATTR(name, HL_ATTR(HLF_D));
+		MSG_PUTS_ATTR("=", HL_ATTR(HLF_D));
 	    }
 	    msg_outtrans(ts);
 	}
@@ -9345,7 +9383,7 @@ set_hl_attr(
 }
 
 /*
- * Lookup a highlight group name and return it's ID.
+ * Lookup a highlight group name and return its ID.
  * If it is not found, 0 is returned.
  */
     int
@@ -9410,7 +9448,7 @@ syn_namen2id(char_u *linep, int len)
 }
 
 /*
- * Find highlight group name in the table and return it's ID.
+ * Find highlight group name in the table and return its ID.
  * The argument is a pointer to the name and the length of the name.
  * If it doesn't exist yet, a new entry is created.
  * Return 0 for failure.
@@ -9434,7 +9472,7 @@ syn_check_group(char_u *pp, int len)
 }
 
 /*
- * Add new highlight group and return it's ID.
+ * Add new highlight group and return its ID.
  * "name" must be an allocated string, it will be consumed.
  * Return 0 for failure.
  */
@@ -9456,7 +9494,7 @@ syn_add_group(char_u *name)
 	{
 	    /* This is an error, but since there previously was no check only
 	     * give a warning. */
-	    msg_source(hl_attr(HLF_W));
+	    msg_source(HL_ATTR(HLF_W));
 	    MSG(_("W18: Invalid character in group name"));
 	    break;
 	}
@@ -9720,7 +9758,7 @@ highlight_changed(void)
 	    attr = 0;
 	    for ( ; *p && *p != ','; ++p)	    /* parse upto comma */
 	    {
-		if (vim_iswhite(*p))		    /* ignore white space */
+		if (VIM_ISWHITE(*p))		    /* ignore white space */
 		    continue;
 
 		if (attr > HL_ALL)  /* Combination with ':' is not allowed. */
@@ -9931,7 +9969,7 @@ highlight_list(void)
     int		i;
 
     for (i = 10; --i >= 0; )
-	highlight_list_two(i, hl_attr(HLF_D));
+	highlight_list_two(i, HL_ATTR(HLF_D));
     for (i = 40; --i >= 0; )
 	highlight_list_two(99, 0);
 }
@@ -9951,17 +9989,27 @@ highlight_list_two(int cnt, int attr)
     || defined(FEAT_SIGNS) || defined(PROTO)
 /*
  * Function given to ExpandGeneric() to obtain the list of group names.
- * Also used for synIDattr() function.
  */
     char_u *
 get_highlight_name(expand_T *xp UNUSED, int idx)
 {
+    return get_highlight_name_ext(xp, idx, TRUE);
+}
+
+/*
+ * Obtain a highlight group name.
+ * When "skip_cleared" is TRUE don't return a cleared entry.
+ */
+    char_u *
+get_highlight_name_ext(expand_T *xp UNUSED, int idx, int skip_cleared)
+{
     if (idx < 0)
 	return NULL;
-    /* Items are never removed from the table, skip the ones that were cleared.
-     */
-    while (idx < highlight_ga.ga_len && HL_TABLE()[idx].sg_cleared)
-	++idx;
+
+    /* Items are never removed from the table, skip the ones that were
+     * cleared. */
+    if (skip_cleared && idx < highlight_ga.ga_len && HL_TABLE()[idx].sg_cleared)
+	return (char_u *)"";
 
 #ifdef FEAT_CMDL_COMPL
     if (idx == highlight_ga.ga_len && include_none != 0)

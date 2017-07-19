@@ -178,7 +178,7 @@ do_tag(
     free_string_option(nofile_fname);
     nofile_fname = NULL;
 
-    clearpos(&saved_fmark.mark);	/* shutup gcc 4.0 */
+    CLEAR_POS(&saved_fmark.mark);	/* shutup gcc 4.0 */
     saved_fmark.fnum = 0;
 
     /*
@@ -605,10 +605,10 @@ do_tag(
 		if (msg_col == 0)
 		    msg_didout = FALSE;	/* overwrite previous message */
 		msg_start();
-		MSG_PUTS_ATTR(_("  # pri kind tag"), hl_attr(HLF_T));
+		MSG_PUTS_ATTR(_("  # pri kind tag"), HL_ATTR(HLF_T));
 		msg_clr_eos();
 		taglen_advance(taglen);
-		MSG_PUTS_ATTR(_("file\n"), hl_attr(HLF_T));
+		MSG_PUTS_ATTR(_("file\n"), HL_ATTR(HLF_T));
 
 		for (i = 0; i < num_matches && !got_int; ++i)
 		{
@@ -633,7 +633,7 @@ do_tag(
 		    msg_advance(13);
 		    msg_outtrans_len_attr(tagp.tagname,
 				       (int)(tagp.tagname_end - tagp.tagname),
-							      hl_attr(HLF_T));
+							      HL_ATTR(HLF_T));
 		    msg_putchar(' ');
 		    taglen_advance(taglen);
 
@@ -642,7 +642,7 @@ do_tag(
 		    p = tag_full_fname(&tagp);
 		    if (p != NULL)
 		    {
-			msg_puts_long_attr(p, hl_attr(HLF_D));
+			msg_puts_long_attr(p, HL_ATTR(HLF_D));
 			vim_free(p);
 		    }
 		    if (msg_col > 0)
@@ -677,7 +677,7 @@ do_tag(
 				continue;
 			    }
 			    /* print all other extra fields */
-			    attr = hl_attr(HLF_CM);
+			    attr = HL_ATTR(HLF_CM);
 			    while (*p && *p != '\r' && *p != '\n')
 			    {
 				if (msg_col + ptr2cells(p) >= Columns)
@@ -1003,7 +1003,7 @@ do_tag(
 							   && num_matches > 1)
 		{
 		    if (ic)
-			msg_attr(IObuff, hl_attr(HLF_W));
+			msg_attr(IObuff, HL_ATTR(HLF_W));
 		    else
 			msg(IObuff);
 		    msg_scroll = TRUE;	/* don't overwrite this message */
@@ -1140,7 +1140,7 @@ do_tags(exarg_T *eap UNUSED)
 		tagstack[i].fmark.mark.lnum);
 	    msg_outtrans(IObuff);
 	    msg_outtrans_attr(name, tagstack[i].fmark.fnum == curbuf->b_fnum
-							? hl_attr(HLF_D) : 0);
+							? HL_ATTR(HLF_D) : 0);
 	    vim_free(name);
 	}
 	out_flush();		    /* show one line at a time */
@@ -2005,7 +2005,7 @@ parse_line:
 #endif
 			if (	   fnamencmp(lbuf, tagp.fname, p - lbuf) == 0
 #ifdef FEAT_TAG_ANYWHITE
-				&& vim_iswhite(tagp.fname[p - lbuf])
+				&& VIM_ISWHITE(tagp.fname[p - lbuf])
 #else
 				&& tagp.fname[p - lbuf] == TAB
 #endif
@@ -2355,18 +2355,19 @@ parse_line:
 		}
 		else
 		{
-#define TAG_SEP 0x01
+#define TAG_SEP 0x02
 		    size_t tag_fname_len = STRLEN(tag_fname);
 #ifdef FEAT_EMACS_TAGS
 		    size_t ebuf_len = 0;
 #endif
 
 		    /* Save the tag in a buffer.
-		     * Use 0x01 to separate fields (Can't use NUL, because the
-		     * hash key is terminated by NUL).
-		     * Emacs tag: <mtt><tag_fname><0x01><ebuf><0x01><lbuf><NUL>
-		     * other tag: <mtt><tag_fname><0x01><0x01><lbuf><NUL>
-		     * without Emacs tags: <mtt><tag_fname><0x01><lbuf><NUL>
+		     * Use 0x02 to separate fields (Can't use NUL because the
+		     * hash key is terminated by NUL, or Ctrl_A because that is
+		     * part of some Emacs tag files -- see parse_tag_line).
+		     * Emacs tag: <mtt><tag_fname><0x02><ebuf><0x02><lbuf><NUL>
+		     * other tag: <mtt><tag_fname><0x02><0x02><lbuf><NUL>
+		     * without Emacs tags: <mtt><tag_fname><0x02><lbuf><NUL>
 		     * Here <mtt> is the "mtt" value plus 1 to avoid NUL.
 		     */
 		    len = (int)tag_fname_len + (int)STRLEN(lbuf) + 3;
@@ -3087,7 +3088,7 @@ jumpto_tag(
     char_u	*fname;
     tagptrs_T	tagp;
     int		retval = FAIL;
-    int		getfile_result;
+    int		getfile_result = GETFILE_UNUSED;
     int		search_options;
 #ifdef FEAT_SEARCH_EXTRA
     int		save_no_hlsearch;
@@ -3201,10 +3202,36 @@ jumpto_tag(
 
     /* If it was a CTRL-W CTRL-] command split window now.  For ":tab tag"
      * open a new tab page. */
-    if (postponed_split || cmdmod.tab != 0)
+    if (postponed_split && (swb_flags & (SWB_USEOPEN | SWB_USETAB)))
     {
-	win_split(postponed_split > 0 ? postponed_split : 0,
-						       postponed_split_flags);
+	buf_T *existing_buf = buflist_findname_exp(fname);
+
+	if (existing_buf != NULL)
+	{
+	    win_T *wp = NULL;
+
+	    if (swb_flags & SWB_USEOPEN)
+		wp = buf_jump_open_win(existing_buf);
+
+	    /* If 'switchbuf' contains "usetab": jump to first window in any tab
+	     * page containing "existing_buf" if one exists */
+	    if (wp == NULL && (swb_flags & SWB_USETAB))
+		wp = buf_jump_open_tab(existing_buf);
+	    /* We've switched to the buffer, the usual loading of the file must
+	     * be skipped. */
+	    if (wp != NULL)
+		getfile_result = GETFILE_SAME_FILE;
+	}
+    }
+    if (getfile_result == GETFILE_UNUSED
+				       && (postponed_split || cmdmod.tab != 0))
+    {
+	if (win_split(postponed_split > 0 ? postponed_split : 0,
+						postponed_split_flags) == FAIL)
+	{
+	    --RedrawingDisabled;
+	    goto erret;
+	}
 	RESET_BINDING(curwin);
     }
 #endif
@@ -3220,10 +3247,11 @@ jumpto_tag(
 #endif
 	    keep_help_flag = curbuf->b_help;
     }
-    getfile_result = getfile(0, fname, NULL, TRUE, (linenr_T)0, forceit);
+    if (getfile_result == GETFILE_UNUSED)
+	getfile_result = getfile(0, fname, NULL, TRUE, (linenr_T)0, forceit);
     keep_help_flag = FALSE;
 
-    if (getfile_result <= 0)		/* got to the right file */
+    if (GETFILE_SUCCESS(getfile_result))	/* got to the right file */
     {
 	curwin->w_set_curswant = TRUE;
 #ifdef FEAT_WINDOWS
@@ -3280,7 +3308,7 @@ jumpto_tag(
 	    save_lnum = curwin->w_cursor.lnum;
 	    curwin->w_cursor.lnum = 0;	/* start search before first line */
 	    if (do_search(NULL, pbuf[0], pbuf + 1, (long)1,
-							search_options, NULL))
+						   search_options, NULL, NULL))
 		retval = OK;
 	    else
 	    {
@@ -3292,7 +3320,7 @@ jumpto_tag(
 		 */
 		p_ic = TRUE;
 		if (!do_search(NULL, pbuf[0], pbuf + 1, (long)1,
-							search_options, NULL))
+						   search_options, NULL, NULL))
 		{
 		    /*
 		     * Failed to find pattern, take a guess: "^func  ("
@@ -3303,13 +3331,13 @@ jumpto_tag(
 		    *tagp.tagname_end = NUL;
 		    sprintf((char *)pbuf, "^%s\\s\\*(", tagp.tagname);
 		    if (!do_search(NULL, '/', pbuf, (long)1,
-							search_options, NULL))
+						   search_options, NULL, NULL))
 		    {
 			/* Guess again: "^char * \<func  (" */
 			sprintf((char *)pbuf, "^\\[#a-zA-Z_]\\.\\*\\<%s\\s\\*(",
 								tagp.tagname);
 			if (!do_search(NULL, '/', pbuf, (long)1,
-							search_options, NULL))
+						   search_options, NULL, NULL))
 			    found = 0;
 		    }
 		    *tagp.tagname_end = cc;
@@ -3372,7 +3400,7 @@ jumpto_tag(
 #endif
 
 	/* Return OK if jumped to another file (at least we found the file!). */
-	if (getfile_result == -1)
+	if (getfile_result == GETFILE_OPEN_OTHER)
 	    retval = OK;
 
 	if (retval == OK)
@@ -3544,7 +3572,7 @@ simplify_filename(char_u *filename)
 		tail = p + 1;
 		if (p[1] != NUL)
 		    while (vim_ispathsep(*tail))
-			mb_ptr_adv(tail);
+			MB_PTR_ADV(tail);
 		else if (p > start)
 		    --p;		/* strip preceding path separator */
 		STRMOVE(p, tail);
@@ -3556,7 +3584,7 @@ simplify_filename(char_u *filename)
 	    /* Skip to after ".." or "../" or "..///". */
 	    tail = p + 2;
 	    while (vim_ispathsep(*tail))
-		mb_ptr_adv(tail);
+		MB_PTR_ADV(tail);
 
 	    if (components > 0)		/* strip one preceding component */
 	    {
@@ -3583,7 +3611,7 @@ simplify_filename(char_u *filename)
 		    --p;
 		    /* Skip back to after previous '/'. */
 		    while (p > start && !after_pathsep(start, p))
-			mb_ptr_back(start, p);
+			MB_PTR_BACK(start, p);
 
 		    if (!do_strip)
 		    {
@@ -3876,11 +3904,11 @@ add_tag_field(
 }
 
 /*
- * Add the tags matching the specified pattern to the list "list"
- * as a dictionary
+ * Add the tags matching the specified pattern "pat" to the list "list"
+ * as a dictionary. Use "buf_fname" for priority, unless NULL.
  */
     int
-get_tags(list_T *list, char_u *pat)
+get_tags(list_T *list, char_u *pat, char_u *buf_fname)
 {
     int		num_matches, i, ret;
     char_u	**matches, *p;
@@ -3890,7 +3918,7 @@ get_tags(list_T *list, char_u *pat)
     long	is_static;
 
     ret = find_tags(pat, &num_matches, &matches,
-				    TAG_REGEXP | TAG_NOIC, (int)MAXCOL, NULL);
+				TAG_REGEXP | TAG_NOIC, (int)MAXCOL, buf_fname);
     if (ret == OK && num_matches > 0)
     {
 	for (i = 0; i < num_matches; ++i)
@@ -3932,7 +3960,7 @@ get_tags(list_T *list, char_u *pat)
 		    else if (STRNCMP(p, "file:", 5) == 0)
 			/* skip "file:" (static tag) */
 			p += 4;
-		    else if (!vim_iswhite(*p))
+		    else if (!VIM_ISWHITE(*p))
 		    {
 			char_u	*s, *n;
 			int	len;

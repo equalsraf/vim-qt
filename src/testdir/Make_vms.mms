@@ -80,19 +80,18 @@ SCRIPT = test1.out  test3.out  test4.out  test5.out  \
        test7.out  test8.out  test9.out  \
        test14.out test15.out \
        test19.out test20.out test22.out \
-       test23.out test24.out test26.out \
        test28.out test29.out test30.out test31.out test32.out \
        test33.out test34.out test36.out test37.out \
        test38.out test39.out test40.out test41.out test42.out \
        test43.out test44.out test45.out \
        test48.out test49.out test51.out test53.out test54.out \
        test55.out test56.out test57.out test60.out \
-       test64.out test65.out \
-       test66.out test67.out test68.out test69.out \
-       test72.out test75.out \
+       test64.out \
+       test66.out test68.out test69.out \
+       test72.out \
        test77a.out test78.out test79.out test80.out \
-       test82.out test84.out test88.out \
-       test90.out test91.out test94.out \
+       test84.out test88.out \
+       test91.out test94.out \
        test95.out test98.out test99.out \
        test103.out test104.out \
        test107.out test108.out\
@@ -101,11 +100,9 @@ SCRIPT = test1.out  test3.out  test4.out  test5.out  \
        test_breakindent.out \
        test_changelist.out \
        test_close_count.out \
-       test_comparators.out \
        test_erasebackword.out \
        test_eval.out \
        test_fixeol.out \
-       test_getcwd.out \
        test_insertcount.out \
        test_listchars.out \
        test_listlbr.out \
@@ -123,7 +120,7 @@ SCRIPT = test1.out  test3.out  test4.out  test5.out  \
 # (this should be changed in order to preserve the original filename) - should
 # be fixed. VMS allows just one dot in the filename
 #
-# test58, test59: Failed/Hangs - VMS does not support spell files (file names
+# test59: Failed/Hangs - VMS does not support spell files (file names
 # with too many dots).
 #
 # test72: bug - Vim hangs at :rename (while rename works well otherwise)
@@ -131,7 +128,7 @@ SCRIPT = test1.out  test3.out  test4.out  test5.out  \
 # test83: ?
 # test85: no Lua interface
 # test89: bug - findfile() does not work on VMS (just in the current directory) 
-# test97, test102: Just ODS-5 supports space and special chars in the filename.
+# test102: Just ODS-5 supports space and special chars in the filename.
 # On ODS-2 tests fail. 
 
 .IFDEF WANT_GUI
@@ -148,7 +145,7 @@ SCRIPT_WIN = test50.out test52.out
 .ENDIF
 
 .IFDEF WANT_SPELL
-SCRIPT_SPELL = test58.out test59.out 
+SCRIPT_SPELL = test59.out 
 .ENDIF
 
 .IFDEF WANT_MZSCH
@@ -156,7 +153,7 @@ SCRIPT_MZSCH = test70.out
 .ENDIF
 
 .IFDEF HAVE_ODS5                                                                                                                                   
-SCRIPT_ODS5 = test97.out test102.out                                                                                                   
+SCRIPT_ODS5 = test102.out                                                                                                   
 .ENDIF  
 
 .IFDEF HAVE_GZIP

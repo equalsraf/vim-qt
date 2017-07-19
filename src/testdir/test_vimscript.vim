@@ -1256,14 +1256,14 @@ func Test_script_lines()
                     \ '.',
                     \ ])
     catch
-        call assert_false(1, "Can't define function")
+        call assert_report("Can't define function")
     endtry
     try
         call DefineFunction('T_Append', [
                     \ 'append',
                     \ 'abc',
                     \ ])
-        call assert_false(1, "Shouldn't be able to define function")
+        call assert_report("Shouldn't be able to define function")
     catch
         call assert_exception('Vim(function):E126: Missing :endfunction')
     endtry
@@ -1276,14 +1276,14 @@ func Test_script_lines()
                     \ '.',
                     \ ])
     catch
-        call assert_false(1, "Can't define function")
+        call assert_report("Can't define function")
     endtry
     try
         call DefineFunction('T_Change', [
                     \ 'change',
                     \ 'abc',
                     \ ])
-        call assert_false(1, "Shouldn't be able to define function")
+        call assert_report("Shouldn't be able to define function")
     catch
         call assert_exception('Vim(function):E126: Missing :endfunction')
     endtry
@@ -1296,17 +1296,129 @@ func Test_script_lines()
                     \ '.',
                     \ ])
     catch
-        call assert_false(1, "Can't define function")
+        call assert_report("Can't define function")
     endtry
     try
         call DefineFunction('T_Insert', [
                     \ 'insert',
                     \ 'abc',
                     \ ])
-        call assert_false(1, "Shouldn't be able to define function")
+        call assert_report("Shouldn't be able to define function")
     catch
         call assert_exception('Vim(function):E126: Missing :endfunction')
     endtry
+endfunc
+
+"-------------------------------------------------------------------------------
+" Test 96:  line continuation						    {{{1
+"
+"           Undefined behavior was detected by ubsan with line continuation
+"           after an empty line.
+"-------------------------------------------------------------------------------
+func Test_script_emty_line_continuation()
+
+    \
+endfunc
+
+"-------------------------------------------------------------------------------
+" Test 97:  bitwise functions						    {{{1
+"-------------------------------------------------------------------------------
+func Test_bitwise_functions()
+    " and
+    call assert_equal(127, and(127, 127))
+    call assert_equal(16, and(127, 16))
+    call assert_equal(0, and(127, 128))
+    call assert_fails("call and(1.0, 1)", 'E805:')
+    call assert_fails("call and([], 1)", 'E745:')
+    call assert_fails("call and({}, 1)", 'E728:')
+    call assert_fails("call and(1, 1.0)", 'E805:')
+    call assert_fails("call and(1, [])", 'E745:')
+    call assert_fails("call and(1, {})", 'E728:')
+    " or
+    call assert_equal(23, or(16, 7))
+    call assert_equal(15, or(8, 7))
+    call assert_equal(123, or(0, 123))
+    call assert_fails("call or(1.0, 1)", 'E805:')
+    call assert_fails("call or([], 1)", 'E745:')
+    call assert_fails("call or({}, 1)", 'E728:')
+    call assert_fails("call or(1, 1.0)", 'E805:')
+    call assert_fails("call or(1, [])", 'E745:')
+    call assert_fails("call or(1, {})", 'E728:')
+    " xor
+    call assert_equal(0, xor(127, 127))
+    call assert_equal(111, xor(127, 16))
+    call assert_equal(255, xor(127, 128))
+    call assert_fails("call xor(1.0, 1)", 'E805:')
+    call assert_fails("call xor([], 1)", 'E745:')
+    call assert_fails("call xor({}, 1)", 'E728:')
+    call assert_fails("call xor(1, 1.0)", 'E805:')
+    call assert_fails("call xor(1, [])", 'E745:')
+    call assert_fails("call xor(1, {})", 'E728:')
+    " invert
+    call assert_equal(65408, and(invert(127), 65535))
+    call assert_equal(65519, and(invert(16), 65535))
+    call assert_equal(65407, and(invert(128), 65535))
+    call assert_fails("call invert(1.0)", 'E805:')
+    call assert_fails("call invert([])", 'E745:')
+    call assert_fails("call invert({})", 'E728:')
+endfunc
+
+" Test trailing text after :endfunction				    {{{1
+func Test_endfunction_trailing()
+    call assert_false(exists('*Xtest'))
+
+    exe "func Xtest()\necho 'hello'\nendfunc\nlet done = 'yes'"
+    call assert_true(exists('*Xtest'))
+    call assert_equal('yes', done)
+    delfunc Xtest
+    unlet done
+
+    exe "func Xtest()\necho 'hello'\nendfunc|let done = 'yes'"
+    call assert_true(exists('*Xtest'))
+    call assert_equal('yes', done)
+    delfunc Xtest
+    unlet done
+
+    " trailing line break
+    exe "func Xtest()\necho 'hello'\nendfunc\n"
+    call assert_true(exists('*Xtest'))
+    delfunc Xtest
+
+    set verbose=1
+    exe "func Xtest()\necho 'hello'\nendfunc \" garbage"
+    call assert_notmatch('W22:', split(execute('1messages'), "\n")[0])
+    call assert_true(exists('*Xtest'))
+    delfunc Xtest
+
+    exe "func Xtest()\necho 'hello'\nendfunc garbage"
+    call assert_match('W22:', split(execute('1messages'), "\n")[0])
+    call assert_true(exists('*Xtest'))
+    delfunc Xtest
+    set verbose=0
+
+    function Foo()
+	echo 'hello'
+    endfunction | echo 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    delfunc Foo
+endfunc
+
+func Test_delfunction_force()
+    delfunc! Xtest
+    delfunc! Xtest
+    func Xtest()
+	echo 'nothing'
+    endfunc
+    delfunc! Xtest
+    delfunc! Xtest
+endfunc
+
+" Test using bang after user command				    {{{1
+func Test_user_command_with_bang()
+    command -bang Nieuw let nieuw = 1
+    Ni!
+    call assert_equal(1, nieuw)
+    unlet nieuw
+    delcommand Nieuw
 endfunc
 
 "-------------------------------------------------------------------------------

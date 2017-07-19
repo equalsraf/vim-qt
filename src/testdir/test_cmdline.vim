@@ -1,5 +1,7 @@
 " Tests for editing the command line.
 
+set belloff=all
+
 func Test_complete_tab()
   call writefile(['testfile'], 'Xtestfile')
   call feedkeys(":e Xtest\t\r", "tx")
@@ -63,12 +65,24 @@ func Test_highlight_completion()
   hi Aardig ctermfg=green
   call feedkeys(":hi \<Tab>\<Home>\"\<CR>", 'xt')
   call assert_equal('"hi Aardig', getreg(':'))
+  call feedkeys(":hi default \<Tab>\<Home>\"\<CR>", 'xt')
+  call assert_equal('"hi default Aardig', getreg(':'))
+  call feedkeys(":hi clear Aa\<Tab>\<Home>\"\<CR>", 'xt')
+  call assert_equal('"hi clear Aardig', getreg(':'))
   call feedkeys(":hi li\<S-Tab>\<Home>\"\<CR>", 'xt')
   call assert_equal('"hi link', getreg(':'))
   call feedkeys(":hi d\<S-Tab>\<Home>\"\<CR>", 'xt')
   call assert_equal('"hi default', getreg(':'))
   call feedkeys(":hi c\<S-Tab>\<Home>\"\<CR>", 'xt')
   call assert_equal('"hi clear', getreg(':'))
+
+  " A cleared group does not show up in completions.
+  hi Anders ctermfg=green
+  call assert_equal(['Aardig', 'Anders'], getcompletion('A', 'highlight'))
+  hi clear Aardig
+  call assert_equal(['Anders'], getcompletion('A', 'highlight'))
+  hi clear Anders
+  call assert_equal([], getcompletion('A', 'highlight'))
 endfunc
 
 func Test_expr_completion()
@@ -338,6 +352,15 @@ func Test_cmdline_complete_wildoptions()
   bw!
 endfunc
 
+func Test_cmdline_complete_user_cmd()
+  command! -complete=color -nargs=1 Foo :
+  call feedkeys(":Foo \<Tab>\<Home>\"\<cr>", 'tx')
+  call assert_equal('"Foo blue', @:)
+  call feedkeys(":Foo b\<Tab>\<Home>\"\<cr>", 'tx')
+  call assert_equal('"Foo blue', @:)
+  delcommand Foo
+endfunc
+
 " using a leading backslash here
 set cpo+=C
 
@@ -391,6 +414,16 @@ func Test_getcmdtype()
   cnoremap <expr> <F6> Check_cmdline('=')
   call feedkeys("a\<C-R>=MyCmd a\<F6>\<Esc>\<Esc>", "xt")
   cunmap <F6>
+endfunc
+
+func Test_verbosefile()
+  set verbosefile=Xlog
+  echomsg 'foo'
+  echomsg 'bar'
+  set verbosefile=
+  let log = readfile('Xlog')
+  call assert_match("foo\nbar", join(log, "\n"))
+  call delete('Xlog')
 endfunc
 
 set cpo&
