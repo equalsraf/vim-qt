@@ -1337,14 +1337,14 @@ NEXTAW_BUNDLE	=
 # - QT_INCPATH
 MOC		= $(QT_MOC)
 QT_LIBS1	= $(QT_LIBS)
-QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
+QT_SRC	= gui.c gui_qt.cpp gui_beval.c \
 			qt/qvimshell.cpp qt/mainwindow.cpp qt/vimaction.cpp qt/scrollarea.cpp \
 			qt/fontdialog.cpp \
 			qt/colortable.cpp \
 			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp \
 			qt/vimevents.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
-			objects/pty.o objects/gui_beval.o \
+			objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
 			objects/colortable.o \
 			objects/scrollarea.o objects/fontdialog.o objects/vimwrapper.o \
