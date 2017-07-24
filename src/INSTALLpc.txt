@@ -29,10 +29,11 @@ Contents:
 10. Building with Perl support
 11. Building with Ruby support
 12. Building with Tcl support
-13. Windows 3.1
-14. MS-DOS
+13. Building with Terminal support
+14. Windows 3.1
+15. MS-DOS
 
-15. Installing after building from sources
+16. Installing after building from sources
 
 
 The currently preferred method is using the free Visual C++ Toolkit 2008
@@ -702,19 +703,38 @@ Or when using MinGW (as one line):
         TCL=C:\Tcl86 DYNAMIC_TCL=yes TCL_VER=86 TCL_VER_LONG=8.6
 
 
-13. Windows 3.1x
+13. Building with Terminal support
+==================================
+
+Vim with Terminal support can be built with either MSVC, or MinGW or Cygwin.
+This uses the included libvterm and winpty.  No extra header files or
+libraries are needed for building.
+
+Running Vim with terminal support requires the following two winpty files:
+
+    winpty.dll
+    winpty-agent.dll
+
+You can download them from the following page:
+
+    https://github.com/rprichard/winpty
+
+Just put the DLL files somewhere in your PATH.
+
+
+14. Windows 3.1x
 ================
 
 The Windows 3.1x support was removed in patch 7.4.1364.
 
 
-14. MS-DOS
+15. MS-DOS
 ==========
 
 The MS-DOS support was removed in patch 7.4.1399.
 
 
-15. Installing after building from sources
+16. Installing after building from sources
 ==========================================
 
 [provided by Michael Soyka]
