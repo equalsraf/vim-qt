@@ -1705,6 +1705,7 @@ typedef struct
     char_u	jo_io_name_buf[4][NUMBUFLEN];
     char_u	*jo_io_name[4];	/* not allocated! */
     int		jo_io_buf[4];
+    int		jo_pty;
     int		jo_modifiable[4];
     int		jo_message[4];
     channel_T	*jo_channel;
@@ -1732,6 +1733,12 @@ typedef struct
     int		jo_id;
     char_u	jo_soe_buf[NUMBUFLEN];
     char_u	*jo_stoponexit;
+
+#ifdef FEAT_TERMINAL
+    /* when non-zero run the job in a terminal window of this size */
+    int		jo_term_rows;
+    int		jo_term_cols;
+#endif
 } jobopt_T;
 
 
@@ -2081,9 +2088,9 @@ struct file_buffer
 #ifdef FEAT_MBYTE
     int		b_p_bomb;	/* 'bomb' */
 #endif
-#ifdef FEAT_QUICKFIX
     char_u	*b_p_bh;	/* 'bufhidden' */
     char_u	*b_p_bt;	/* 'buftype' */
+#ifdef FEAT_QUICKFIX
 #define BUF_HAS_QF_ENTRY 1
 #define BUF_HAS_LL_ENTRY 2
     int		b_has_qf_entry;
