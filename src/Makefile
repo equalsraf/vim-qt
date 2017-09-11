@@ -1344,7 +1344,7 @@ QT_SRC	= gui.c gui_qt.cpp pty.c gui_beval.c \
 			qt/vimwrapper.cpp qt/tabbar.cpp qt/vimscrollbar.cpp \
 			qt/vimevents.cpp
 QT_OBJ	= objects/gui.o objects/gui_qt.o \
-			objects/pty.o objects/gui_beval.o \
+			objects/gui_beval.o \
 			objects/mainwindow.o objects/qvimshell.o objects/vimaction.o objects/qtresources.o \
 			objects/colortable.o \
 			objects/scrollarea.o objects/fontdialog.o objects/vimwrapper.o \
