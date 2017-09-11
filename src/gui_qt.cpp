@@ -1077,6 +1077,17 @@ gui_mch_get_color(char_u *reqname)
 	return INVALCOLOR;
 }
 
+/*
+ * Return the Pixel value (color) for the given RGB values.
+ * Return INVALCOLOR for error.
+ */
+guicolor_T
+gui_mch_get_rgb_color(int r, int g, int b)
+{
+    QColor c = QColor(r, g, b);
+    return VimWrapper::toColor(c);
+}
+
 /**
  * Get the position of the top left corner of the window.
  */

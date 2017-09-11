@@ -43,6 +43,7 @@ void gui_mch_set_scrollbar_pos (scrollbar_T *sb, int x, int y, int w, int h);
 void gui_mch_create_scrollbar (scrollbar_T *sb, int orient);
 void gui_mch_destroy_scrollbar (scrollbar_T *sb);
 guicolor_T gui_mch_get_color (char_u *name);
+guicolor_T gui_mch_get_rgb_color(int r, int g, int b);
 void gui_mch_mousehide (int hide);
 void gui_mch_flush (void);
 int gui_mch_haskey (char_u *name);
