@@ -1308,6 +1308,12 @@ normal_end:
     }
 #endif
 
+#ifdef FEAT_TERMINAL
+    /* don't go to Insert mode from Terminal-Job mode */
+    if (term_use_loop())
+	restart_edit = 0;
+#endif
+
     /*
      * May restart edit(), if we got here with CTRL-O in Insert mode (but not
      * if still inside a mapping that started in Visual mode).
@@ -1565,7 +1571,12 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
 
 	    oap->start = VIsual;
 	    if (VIsual_mode == 'V')
+	    {
 		oap->start.col = 0;
+# ifdef FEAT_VIRTUALEDIT
+		oap->start.coladd = 0;
+# endif
+	    }
 	}
 
 	/*
@@ -3342,9 +3353,6 @@ reset_VIsual(void)
     }
 }
 
-#if defined(FEAT_BEVAL)
-static int find_is_eval_item(char_u *ptr, int *colp, int *nbp, int dir);
-
 /*
  * Check for a balloon-eval special item to include when searching for an
  * identifier.  When "dir" is BACKWARD "ptr[-1]" must be valid!
@@ -3383,7 +3391,6 @@ find_is_eval_item(
     }
     return FALSE;
 }
-#endif
 
 /*
  * Find the identifier under or to the right of the cursor.
@@ -3433,9 +3440,7 @@ find_ident_at_pos(
     int		prev_class;
     int		prevcol;
 #endif
-#if defined(FEAT_BEVAL)
     int		bn = 0;	    /* bracket nesting */
-#endif
 
     /*
      * if i == 0: try to find an identifier
@@ -3453,11 +3458,9 @@ find_ident_at_pos(
 	{
 	    while (ptr[col] != NUL)
 	    {
-# if defined(FEAT_BEVAL)
 		/* Stop at a ']' to evaluate "a[x]". */
 		if ((find_type & FIND_EVAL) && ptr[col] == ']')
 		    break;
-# endif
 		this_class = mb_get_class(ptr + col);
 		if (this_class != 0 && (i == 1 || this_class != 1))
 		    break;
@@ -3468,16 +3471,12 @@ find_ident_at_pos(
 #endif
 	    while (ptr[col] != NUL
 		    && (i == 0 ? !vim_iswordc(ptr[col]) : VIM_ISWHITE(ptr[col]))
-# if defined(FEAT_BEVAL)
 		    && (!(find_type & FIND_EVAL) || ptr[col] != ']')
-# endif
 		    )
 		++col;
 
-#if defined(FEAT_BEVAL)
 	/* When starting on a ']' count it, so that we include the '['. */
 	bn = ptr[col] == ']';
-#endif
 
 	/*
 	 * 2. Back up to start of identifier/string.
@@ -3486,11 +3485,9 @@ find_ident_at_pos(
 	if (has_mbyte)
 	{
 	    /* Remember class of character under cursor. */
-# if defined(FEAT_BEVAL)
 	    if ((find_type & FIND_EVAL) && ptr[col] == ']')
 		this_class = mb_get_class((char_u *)"a");
 	    else
-# endif
 		this_class = mb_get_class(ptr + col);
 	    while (col > 0 && this_class != 0)
 	    {
@@ -3500,12 +3497,10 @@ find_ident_at_pos(
 			&& (i == 0
 			    || prev_class == 0
 			    || (find_type & FIND_IDENT))
-# if defined(FEAT_BEVAL)
 			&& (!(find_type & FIND_EVAL)
 			    || prevcol == 0
 			    || !find_is_eval_item(ptr + prevcol, &prevcol,
 							       &bn, BACKWARD))
-# endif
 			)
 		    break;
 		col = prevcol;
@@ -3527,12 +3522,10 @@ find_ident_at_pos(
 			    : (!VIM_ISWHITE(ptr[col - 1])
 				&& (!(find_type & FIND_IDENT)
 				    || !vim_iswordc(ptr[col - 1]))))
-#if defined(FEAT_BEVAL)
 			|| ((find_type & FIND_EVAL)
 			    && col > 1
 			    && find_is_eval_item(ptr + col - 1, &col,
 							       &bn, BACKWARD))
-#endif
 			))
 		--col;
 
@@ -3564,10 +3557,8 @@ find_ident_at_pos(
     /*
      * 3. Find the end if the identifier/string.
      */
-#if defined(FEAT_BEVAL)
     bn = 0;
     startcol -= col;
-#endif
     col = 0;
 #ifdef FEAT_MBYTE
     if (has_mbyte)
@@ -3577,11 +3568,9 @@ find_ident_at_pos(
 	while (ptr[col] != NUL
 		&& ((i == 0 ? mb_get_class(ptr + col) == this_class
 			    : mb_get_class(ptr + col) != 0)
-# if defined(FEAT_BEVAL)
 		    || ((find_type & FIND_EVAL)
 			&& col <= (int)startcol
 			&& find_is_eval_item(ptr + col, &col, &bn, FORWARD))
-# endif
 		))
 	    col += (*mb_ptr2len)(ptr + col);
     }
@@ -3589,11 +3578,9 @@ find_ident_at_pos(
 #endif
 	while ((i == 0 ? vim_iswordc(ptr[col])
 		       : (ptr[col] != NUL && !VIM_ISWHITE(ptr[col])))
-# if defined(FEAT_BEVAL)
 		    || ((find_type & FIND_EVAL)
 			&& col <= (int)startcol
 			&& find_is_eval_item(ptr + col, &col, &bn, FORWARD))
-# endif
 		)
 	{
 	    ++col;
@@ -4621,7 +4608,7 @@ nv_screengo(oparg_T *oap, int dir, long dist)
 nv_mousescroll(cmdarg_T *cap)
 {
 # ifdef FEAT_WINDOWS
-    win_T *old_curwin = curwin;
+    win_T *old_curwin = curwin, *wp;
 
     if (mouse_row >= 0 && mouse_col >= 0)
     {
@@ -4631,13 +4618,21 @@ nv_mousescroll(cmdarg_T *cap)
 	col = mouse_col;
 
 	/* find the window at the pointer coordinates */
-	curwin = mouse_find_win(&row, &col);
+	wp = mouse_find_win(&row, &col);
+	if (wp == NULL)
+	    return;
+	curwin = wp;
 	curbuf = curwin->w_buffer;
     }
 # endif
 
     if (cap->arg == MSCR_UP || cap->arg == MSCR_DOWN)
     {
+# ifdef FEAT_TERMINAL
+	if (term_use_loop())
+	    send_keys_to_term(curbuf->b_term, cap->cmdchar, TRUE);
+	else
+# endif
 	if (mod_mask & (MOD_MASK_SHIFT | MOD_MASK_CTRL))
 	{
 	    (void)onepage(cap->arg ? FORWARD : BACKWARD, 1L);
@@ -5629,6 +5624,11 @@ nv_ident(cmdarg_T *cap)
     kp = (*curbuf->b_p_kp == NUL ? p_kp : curbuf->b_p_kp);
     kp_help = (*kp == NUL || STRCMP(kp, ":he") == 0
 						 || STRCMP(kp, ":help") == 0);
+    if (kp_help && *skipwhite(ptr) == NUL)
+    {
+	EMSG(_(e_noident));	 /* found white space only */
+	return;
+    }
     kp_ex = (*kp == ':');
     buflen = (unsigned)(n * 2 + 30 + STRLEN(kp));
     buf = alloc(buflen);
@@ -6255,11 +6255,11 @@ nv_gotofile(cmdarg_T *cap)
     if (ptr != NULL)
     {
 	/* do autowrite if necessary */
-	if (curbufIsChanged() && curbuf->b_nwindows <= 1 && !P_HID(curbuf))
+	if (curbufIsChanged() && curbuf->b_nwindows <= 1 && !buf_hide(curbuf))
 	    (void)autowrite(curbuf, FALSE);
 	setpcmark();
 	if (do_ecmd(0, ptr, NULL, NULL, ECMD_LAST,
-				   P_HID(curbuf) ? ECMD_HIDE : 0, curwin) == OK
+				buf_hide(curbuf) ? ECMD_HIDE : 0, curwin) == OK
 		&& cap->nchar == 'F' && lnum >= 0)
 	{
 	    curwin->w_cursor.lnum = lnum;
@@ -7566,6 +7566,7 @@ nv_gomark(cmdarg_T *cap)
     if (!virtual_active())
 	curwin->w_cursor.coladd = 0;
 #endif
+    check_cursor_col();
 #ifdef FEAT_FOLDING
     if (cap->oap->op_type == OP_NOP
 	    && pos != NULL
@@ -9055,6 +9056,14 @@ nv_edit(cmdarg_T *cap)
 	clearopbeep(cap->oap);
 #endif
     }
+#ifdef FEAT_TERMINAL
+    else if (term_in_normal_mode())
+    {
+	clearop(cap->oap);
+	term_enter_job_mode();
+	return;
+    }
+#endif
     else if (!curbuf->b_p_ma && !p_im)
     {
 	/* Only give this error when 'insertmode' is off. */

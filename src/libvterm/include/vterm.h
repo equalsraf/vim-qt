@@ -8,11 +8,16 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 #include "vterm_keycodes.h"
+
+#define TRUE 1
+#define FALSE 0
+
+/* from stdint.h */
+typedef unsigned char		uint8_t;
+typedef unsigned int		uint32_t;
 
 typedef struct VTerm VTerm;
 typedef struct VTermState VTermState;
@@ -115,7 +120,8 @@ typedef enum {
   VTERM_PROP_ICONNAME,          /* string */
   VTERM_PROP_REVERSE,           /* bool */
   VTERM_PROP_CURSORSHAPE,       /* number */
-  VTERM_PROP_MOUSE              /* number */
+  VTERM_PROP_MOUSE,             /* number */
+  VTERM_PROP_CURSORCOLOR        /* string */
 } VTermProp;
 
 enum {
@@ -183,7 +189,9 @@ void vterm_keyboard_start_paste(VTerm *vt);
 void vterm_keyboard_end_paste(VTerm *vt);
 
 void vterm_mouse_move(VTerm *vt, int row, int col, VTermModifier mod);
-void vterm_mouse_button(VTerm *vt, int button, bool pressed, VTermModifier mod);
+/* "button" is 1 for left, 2 for middle, 3 for right.
+ * Button 4 is scroll wheel down, button 5 is scroll wheel up. */
+void vterm_mouse_button(VTerm *vt, int button, int pressed, VTermModifier mod);
 
 /* ------------
  * Parser layer
@@ -235,6 +243,8 @@ typedef struct {
   int (*erase)(VTermRect rect, int selective, void *user);
   int (*initpen)(void *user);
   int (*setpenattr)(VTermAttr attr, VTermValue *val, void *user);
+  /* Callback for setting various properties.  Must return 1 if the property
+   * was accepted, 0 otherwise. */
   int (*settermprop)(VTermProp prop, VTermValue *val, void *user);
   int (*bell)(void *user);
   int (*resize)(int rows, int cols, VTermPos *delta, void *user);
@@ -295,6 +305,9 @@ typedef struct {
   int (*settermprop)(VTermProp prop, VTermValue *val, void *user);
   int (*bell)(void *user);
   int (*resize)(int rows, int cols, void *user);
+  /* A line was pushed off the top of the window.
+   * "cells[cols]" contains the cells of that line.
+   * Return value is unused. */
   int (*sb_pushline)(int cols, const VTermScreenCell *cells, void *user);
   int (*sb_popline)(int cols, VTermScreenCell *cells, void *user);
 } VTermScreenCallbacks;
@@ -313,6 +326,9 @@ void *vterm_screen_get_cbdata(VTermScreen *screen);
 void  vterm_screen_set_unrecognised_fallbacks(VTermScreen *screen, const VTermParserCallbacks *fallbacks, void *user);
 void *vterm_screen_get_unrecognised_fbdata(VTermScreen *screen);
 
+/* Enable support for using the alternate screen if "altscreen" is non-zero.
+ * Before that switching to the alternate screen won't work.
+ * Calling with "altscreen" zero has no effect. */
 void vterm_screen_enable_altscreen(VTermScreen *screen, int altscreen);
 
 typedef enum {

@@ -105,6 +105,7 @@ SRC_ALL =	\
 		src/testdir/Make_all.mak \
 		src/testdir/*.in \
 		src/testdir/*.py \
+		src/testdir/lsan-suppress.txt \
 		src/testdir/sautest/autoload/*.vim \
 		src/testdir/runtest.vim \
 		src/testdir/shared.vim \
@@ -134,6 +135,7 @@ SRC_ALL =	\
 		src/testdir/bench*.in \
 		src/testdir/bench*.vim \
 		src/testdir/samples/*.txt \
+		src/testdir/if_ver*.vim \
 		src/proto.h \
 		src/proto/arabic.pro \
 		src/proto/blowfish.pro \
@@ -200,7 +202,6 @@ SRC_ALL =	\
 		src/libvterm/.gitignore \
 		src/libvterm/LICENSE \
 		src/libvterm/Makefile \
-		src/libvterm/Makefile.msc \
 		src/libvterm/README \
 		src/libvterm/tbl2inc_c.pl \
 		src/libvterm/vterm.pc.in \
@@ -637,6 +638,7 @@ RT_ALL =	\
 		runtime/pack/dist/opt/matchit/doc/tags \
 		runtime/pack/dist/opt/shellmenu/plugin/shellmenu.vim \
 		runtime/pack/dist/opt/swapmouse/plugin/swapmouse.vim \
+		runtime/pack/dist/opt/termdebug/plugin/termdebug.vim \
 
 # runtime files for all distributions without CR-NL translation
 RT_ALL_BIN =	\
