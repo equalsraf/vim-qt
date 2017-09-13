@@ -13,6 +13,7 @@
 #include <QPushButton>
 #include <QMimeData>
 #include <QSocketNotifier>
+#include <QTimer>
 
 #include "qvimshell.h"
 #include "mainwindow.h"
@@ -202,6 +203,21 @@ gui_mch_wait_for_chars(long wtime)
 	if (!vim_is_input_buf_empty()) {
 		return OK;
 	}
+
+#ifdef FEAT_JOB_CHANNEL
+	QTimer channel_poll_timer;
+	channel_poll_timer.setInterval(20);
+	QObject::connect(&channel_poll_timer, &QTimer::timeout, []() {
+			channel_handle_events(TRUE);
+			parse_queued_messages();
+		});
+
+    /* If there is a channel with the keep_open flag we need to poll for input
+     * on them. */
+    if (channel_any_keep_open()) {
+		channel_poll_timer.start();
+	}
+#endif
 
 	return vimshell->processEvents(wtime, true);
 }
