@@ -270,6 +270,9 @@ add_channel(void)
 #ifdef FEAT_GUI_GTK
 	channel->ch_part[part].ch_inputHandler = 0;
 #endif
+#ifdef FEAT_GUI_QT
+	channel->ch_part[part].ch_inputHandler = NULL;
+#endif
 	channel->ch_part[part].ch_timeout = 2000;
     }
 
@@ -447,7 +450,7 @@ free_unused_channels(int copyID, int mask)
 
 #if defined(FEAT_GUI) || defined(PROTO)
 
-#if defined(FEAT_GUI_X11) || defined(FEAT_GUI_GTK)
+#if defined(FEAT_GUI_X11) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT)
     static void
 channel_read_fd(int fd)
 {
@@ -543,6 +546,15 @@ channel_gui_register_one(channel_T *channel, ch_part_T part)
 		messageFromServer,
 		(gpointer)(long)channel->ch_part[part].ch_fd);
 #   endif
+#  else
+#   ifdef FEAT_GUI_QT
+	channel->ch_part[part].ch_inputHandler = qt_socket_notifier_read(
+		channel->ch_part[part].ch_fd,
+		channel_read_fd);
+	channel->ch_part[part].ch_errHandler = qt_socket_notifier_ex(
+		channel->ch_part[part].ch_fd,
+		channel_read_fd);
+#   endif
 #  endif
 # endif
 }
@@ -594,6 +606,15 @@ channel_gui_unregister_one(channel_T *channel, ch_part_T part)
 #   endif
 	channel->ch_part[part].ch_inputHandler = 0;
     }
+#  else
+#   ifdef FEAT_GUI_QT
+    if (channel->ch_part[part].ch_inputHandler != NULL)
+    {
+	qt_remove_socket_notifier(channel->ch_part[part].ch_inputHandler);
+	qt_remove_socket_notifier(channel->ch_part[part].ch_errHandler);
+	channel->ch_part[part].ch_inputHandler = NULL;
+    }
+#   endif
 #  endif
 # endif
 }
@@ -3537,7 +3558,7 @@ theend:
     free_job_options(&opt);
 }
 
-# if defined(WIN32) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_GTK) \
+# if defined(WIN32) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_GTK) || defined(FEAT_GUI_QT) \
 	|| defined(PROTO)
 /*
  * Lookup the channel from the socket.  Set "partp" to the fd index.

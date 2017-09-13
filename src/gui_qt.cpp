@@ -12,6 +12,7 @@
 #include <QFileDialog>
 #include <QPushButton>
 #include <QMimeData>
+#include <QSocketNotifier>
 
 #include "qvimshell.h"
 #include "mainwindow.h"
@@ -1783,5 +1784,34 @@ gui_mch_register_sign(char_u *signfile)
 
 	return new QIcon(icon);
 }
+
+void * qt_socket_notifier_read(int fd, void (fptr)(int))
+{
+	auto in = new QSocketNotifier(fd, QSocketNotifier::Read);
+	QObject::connect(in, &QSocketNotifier::activated, [fd, fptr]() {
+			fptr(fd);
+		});
+	return in;
+}
+
+void * qt_socket_notifier_ex(int fd, void (fptr)(int))
+{
+	auto err = new QSocketNotifier(fd, QSocketNotifier::Exception);
+	QObject::connect(err, &QSocketNotifier::activated, [fd, fptr]() {
+			fptr(fd);
+		});
+	return err;
+}
+
+void qt_remove_socket_notifier(void *inp)
+{
+	if (inp == NULL) {
+		return;
+	}
+	auto n = (QSocketNotifier *) inp;
+	n->setEnabled(false);
+	n->deleteLater();
+}
+
 
 } // extern "C"

@@ -1589,6 +1589,10 @@ typedef struct {
 #ifdef FEAT_GUI_GTK
     gint	ch_inputHandler; /* Cookie for input */
 #endif
+#ifdef FEAT_GUI_QT
+    void*	ch_inputHandler; /* Cookie for input */
+    void*	ch_errHandler; /* Cookie for input */
+#endif
 
     ch_mode_T	ch_mode;
     job_io_T	ch_io;
