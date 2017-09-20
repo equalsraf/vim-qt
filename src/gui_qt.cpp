@@ -12,6 +12,8 @@
 #include <QFileDialog>
 #include <QPushButton>
 #include <QMimeData>
+#include <QSocketNotifier>
+#include <QTimer>
 
 #include "qvimshell.h"
 #include "mainwindow.h"
@@ -201,6 +203,21 @@ gui_mch_wait_for_chars(long wtime)
 	if (!vim_is_input_buf_empty()) {
 		return OK;
 	}
+
+#ifdef FEAT_JOB_CHANNEL
+	QTimer channel_poll_timer;
+	channel_poll_timer.setInterval(20);
+	QObject::connect(&channel_poll_timer, &QTimer::timeout, []() {
+			channel_handle_events(TRUE);
+			parse_queued_messages();
+		});
+
+    /* If there is a channel with the keep_open flag we need to poll for input
+     * on them. */
+    if (channel_any_keep_open()) {
+		channel_poll_timer.start();
+	}
+#endif
 
 	return vimshell->processEvents(wtime, true);
 }
@@ -1077,6 +1094,17 @@ gui_mch_get_color(char_u *reqname)
 	return INVALCOLOR;
 }
 
+/*
+ * Return the Pixel value (color) for the given RGB values.
+ * Return INVALCOLOR for error.
+ */
+guicolor_T
+gui_mch_get_rgb_color(int r, int g, int b)
+{
+    QColor c = QColor(r, g, b);
+    return VimWrapper::toColor(c);
+}
+
 /**
  * Get the position of the top left corner of the window.
  */
@@ -1772,5 +1800,34 @@ gui_mch_register_sign(char_u *signfile)
 
 	return new QIcon(icon);
 }
+
+void * qt_socket_notifier_read(int fd, void (fptr)(int))
+{
+	auto in = new QSocketNotifier(fd, QSocketNotifier::Read);
+	QObject::connect(in, &QSocketNotifier::activated, [fd, fptr]() {
+			fptr(fd);
+		});
+	return in;
+}
+
+void * qt_socket_notifier_ex(int fd, void (fptr)(int))
+{
+	auto err = new QSocketNotifier(fd, QSocketNotifier::Exception);
+	QObject::connect(err, &QSocketNotifier::activated, [fd, fptr]() {
+			fptr(fd);
+		});
+	return err;
+}
+
+void qt_remove_socket_notifier(void *inp)
+{
+	if (inp == NULL) {
+		return;
+	}
+	auto n = (QSocketNotifier *) inp;
+	n->setEnabled(false);
+	n->deleteLater();
+}
+
 
 } // extern "C"

@@ -605,7 +605,21 @@ check_cursor_col_win(win_T *win)
     else if (ve_flags == VE_ALL)
     {
 	if (oldcoladd > win->w_cursor.col)
+	{
 	    win->w_cursor.coladd = oldcoladd - win->w_cursor.col;
+
+	    /* Make sure that coladd is not more than the char width.
+	     * Not for the last character, coladd is then used when the cursor
+	     * is actually after the last character. */
+	    if (win->w_cursor.col + 1 < len && win->w_cursor.coladd > 0)
+	    {
+		int cs, ce;
+
+		getvcol(win, &win->w_cursor, &cs, NULL, &ce);
+		if (win->w_cursor.coladd > ce - cs)
+		    win->w_cursor.coladd = ce - cs;
+	    }
+	}
 	else
 	    /* avoid weird number when there is a miscalculation or overflow */
 	    win->w_cursor.coladd = 0;
@@ -6310,7 +6324,7 @@ parse_queued_messages(void)
 {
     /* For Win32 mch_breakcheck() does not check for input, do it here. */
 # if defined(WIN32) && defined(FEAT_JOB_CHANNEL)
-    channel_handle_events();
+    channel_handle_events(FALSE);
 # endif
 
 # ifdef FEAT_NETBEANS_INTG

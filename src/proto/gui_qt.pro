@@ -43,6 +43,7 @@ void gui_mch_set_scrollbar_pos (scrollbar_T *sb, int x, int y, int w, int h);
 void gui_mch_create_scrollbar (scrollbar_T *sb, int orient);
 void gui_mch_destroy_scrollbar (scrollbar_T *sb);
 guicolor_T gui_mch_get_color (char_u *name);
+guicolor_T gui_mch_get_rgb_color(int r, int g, int b);
 void gui_mch_mousehide (int hide);
 void gui_mch_flush (void);
 int gui_mch_haskey (char_u *name);
@@ -82,4 +83,6 @@ void* gui_mch_register_sign (char_u *signfile);
 void gui_mch_destroy_sign (void *sign);
 void gui_mch_drawsign (int row, int col, int typenr);
 void gui_mch_update_fuoptions (char_u *optstr);
-
+void * qt_socket_notifier_read(int fd, void (fptr)(int));
+void * qt_socket_notifier_ex(int fd, void (fptr)(int));
+void qt_remove_socket_notifier(void *inp);
