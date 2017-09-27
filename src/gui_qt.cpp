@@ -1803,7 +1803,7 @@ gui_mch_register_sign(char_u *signfile)
 
 void * qt_socket_notifier_read(int fd, void (fptr)(int))
 {
-	auto in = new QSocketNotifier(fd, QSocketNotifier::Read);
+	QSocketNotifier *in = new QSocketNotifier(fd, QSocketNotifier::Read);
 	QObject::connect(in, &QSocketNotifier::activated, [fd, fptr]() {
 			fptr(fd);
 		});
@@ -1812,7 +1812,7 @@ void * qt_socket_notifier_read(int fd, void (fptr)(int))
 
 void * qt_socket_notifier_ex(int fd, void (fptr)(int))
 {
-	auto err = new QSocketNotifier(fd, QSocketNotifier::Exception);
+	QSocketNotifier *err = new QSocketNotifier(fd, QSocketNotifier::Exception);
 	QObject::connect(err, &QSocketNotifier::activated, [fd, fptr]() {
 			fptr(fd);
 		});
@@ -1824,7 +1824,7 @@ void qt_remove_socket_notifier(void *inp)
 	if (inp == NULL) {
 		return;
 	}
-	auto n = (QSocketNotifier *) inp;
+	QSocketNotifier *n = (QSocketNotifier *) inp;
 	n->setEnabled(false);
 	n->deleteLater();
 }
