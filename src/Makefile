@@ -3109,7 +3109,7 @@ objects/gui_athena.o: gui_athena.c
 
 ## Qt objects
 objects/gui_qt.o: gui_qt.cpp
-	$(CXX) $(ALL_CFLAGS) -o $@ -c gui_qt.cpp
+	$(CXX) $(ALL_CFLAGS) -std=c++11 -o $@ -c gui_qt.cpp
 
 objects/mainwindow.o: qt/mainwindow.cpp
 	$(MOC) qt/mainwindow.h > mainwindow.moc
